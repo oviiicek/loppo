@@ -175,7 +175,7 @@ export function sfx(name: string) {
 // ---------------------------------------------------------------------------
 // Settings shared with the UI (persisted)
 // ---------------------------------------------------------------------------
-export const settings = { music: true, vibrate: true };
+export const settings = { music: true, vibrate: true, uiScale: 1, autoSalvage: 0 };
 try {
   const raw = localStorage.getItem('loppo-settings');
   if (raw) Object.assign(settings, JSON.parse(raw));

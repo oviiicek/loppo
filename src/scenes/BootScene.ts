@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { buildAllTextures } from '../gfx/textures';
 import { UI } from '../ui/ui';
+import { createAllAnims } from '../gfx/anims';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -8,6 +9,7 @@ export class BootScene extends Phaser.Scene {
   }
   create() {
     buildAllTextures(this);
+    createAllAnims(this);
     if (location.search.includes('gallery')) {
       this.scene.start('Gallery');
       return;

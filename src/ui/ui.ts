@@ -7,7 +7,7 @@ import { Item } from '../data/types';
 import { itemIcon } from '../data/items';
 import { xpForLevel, game as G, saveGame } from '../systems/state';
 import { bus } from '../systems/events';
-import { sfx, unlockAudio, startMusic } from '../systems/audio';
+import { sfx, unlockAudio, startMusic, settings } from '../systems/audio';
 import { Panels } from './panels';
 import { Menus } from './menus';
 import { TS } from '../game/map';
@@ -75,6 +75,18 @@ class UIManager {
       }
     });
     window.addEventListener('pagehide', persist);
+    // while a panel is open the game scene (and its keyboard input) is paused
+    document.addEventListener('keydown', (e) => {
+      if (!this.panel || !this.scene) return;
+      const k = e.key.toLowerCase();
+      if (k === 'escape' || k === 'i' || k === 'c' || k === 'k' || k === 'm') {
+        if (this.panel.querySelector('.lockbar')) return;
+        // keep the key away from Phaser (listens on window) so it does not re-open a menu
+        e.stopPropagation();
+        e.preventDefault();
+        this.closeOverlay();
+      }
+    });
     window.addEventListener('resize', () => this.layout());
     // prevent context menu / double-tap zoom
     document.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -84,15 +96,19 @@ class UIManager {
   // ---------------------------------------------------------------- flow
   showMainMenu() {
     this.clearAll();
-    if (this.game.scene.isActive('Game')) this.game.scene.stop('Game');
+    const sm = this.game.scene;
+    if (sm.isActive('Game') || sm.isPaused('Game')) sm.stop('Game');
+    if (!sm.isActive('Menu')) sm.start('Menu');
     this.menus.main();
   }
 
   startGame() {
     this.clearAll();
     const save = G.save!;
-    if (this.game.scene.isActive('Game') || this.game.scene.isPaused('Game')) this.game.scene.stop('Game');
-    this.game.scene.start('Game', { save });
+    const sm = this.game.scene;
+    if (sm.isActive('Menu')) sm.stop('Menu');
+    if (sm.isActive('Game') || sm.isPaused('Game')) sm.stop('Game');
+    sm.start('Game', { save });
     try {
       if (!document.fullscreenElement && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)) {
         document.documentElement.requestFullscreen?.().then(() => (screen.orientation as any)?.lock?.('landscape').catch(() => {})).catch(() => {});
@@ -255,7 +271,7 @@ class UIManager {
     const R = 50;
     const home = () => {
       const h = window.innerHeight;
-      const sc = Math.max(0.7, Math.min(1, h / 520));
+      const sc = Math.max(0.7, Math.min(1, h / 520)) * (settings.uiScale || 1);
       cx = 30 + 68 * sc + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-l')) || 0);
       cy = zone.clientHeight - 30 - 68 * sc;
       joy.style.left = cx + 'px';
@@ -307,7 +323,7 @@ class UIManager {
     if (!this.hud) return;
     const h = window.innerHeight,
       w = window.innerWidth;
-    const sc = Math.max(0.6, Math.min(1, Math.min(h / 560, w / 1000)));
+    const sc = Math.max(0.6, Math.min(1, Math.min(h / 560, w / 1000))) * (settings.uiScale || 1);
     const sk = $('.skills', this.hud);
     sk.style.transform = `scale(${sc})`;
     sk.style.transformOrigin = 'bottom right';

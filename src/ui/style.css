@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --bg: #0b0a10;
   --panel: #16131d;
   --panel2: #1e1a27;
@@ -1120,7 +1121,7 @@ img.px {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at 50% 40%, #2a1e14 0%, #0b0a10 70%);
+  background: radial-gradient(ellipse at 50% 42%, rgba(30, 20, 12, 0.35) 0%, rgba(8, 7, 12, 0.72) 62%, rgba(8, 7, 12, 0.92) 100%);
   overflow: hidden;
 }
 .menu h1 {

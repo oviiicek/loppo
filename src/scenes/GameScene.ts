@@ -15,6 +15,7 @@ import { generateItem } from '../data/items';
 import { Item } from '../data/types';
 import { Element } from '../data/types';
 import { UI } from '../ui/ui';
+import { createAllAnims } from '../gfx/anims';
 import { bus } from '../systems/events';
 import { sfx } from '../systems/audio';
 
@@ -153,7 +154,7 @@ export class GameScene extends Phaser.Scene {
 
     // input
     const kb = this.input.keyboard!;
-    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,ONE,TWO,THREE,FOUR,Q,E,H,J,I,C,K,ESC,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,ONE,TWO,THREE,FOUR,Q,E,H,J,I,C,K,M,ESC,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
     kb.on('keydown-ONE', () => this.castSlot(0));
     kb.on('keydown-TWO', () => this.castSlot(1));
     kb.on('keydown-THREE', () => this.castSlot(2));
@@ -167,6 +168,7 @@ export class GameScene extends Phaser.Scene {
     kb.on('keydown-C', () => UI.openPanel('character'));
     kb.on('keydown-K', () => UI.openPanel('spells'));
     kb.on('keydown-ESC', () => UI.togglePause());
+    kb.on('keydown-M', () => UI.bigMap());
 
     this.map.revealAround(this.player.x, this.player.y, 8);
     this.updateGlowVisibility();
@@ -213,18 +215,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   createAnims() {
-    const a = this.anims;
-    for (const key of this.textures.getTextureKeys()) {
-      const tex = this.textures.get(key);
-      const n = tex.frameTotal - 1;
-      if (n < 2) continue;
-      if (n >= 6) {
-        if (!a.exists(key + '_idle')) a.create({ key: key + '_idle', frames: a.generateFrameNumbers(key, { frames: [0, 1] }), frameRate: 2.5, repeat: -1 });
-        if (!a.exists(key + '_walk')) a.create({ key: key + '_walk', frames: a.generateFrameNumbers(key, { frames: [2, 3, 4, 5] }), frameRate: 9, repeat: -1 });
-      } else if (!a.exists(key + '_loop')) {
-        a.create({ key: key + '_loop', frames: a.generateFrameNumbers(key, { start: 0, end: n - 1 }), frameRate: key === 'torch' ? 9 : key === 'coin' ? 10 : 6, repeat: -1 });
-      }
-    }
+    createAllAnims(this);
   }
 
   // ---------------------------------------------------------------- world objects
@@ -969,6 +960,7 @@ export class GameScene extends Phaser.Scene {
       if (e.dead || e.boss) continue;
       if (e.hp >= e.maxHp && !e.elite) continue;
       if (e.x < v.x - 20 || e.x > v.right + 20 || e.y < v.y - 20 || e.y > v.bottom + 20) continue;
+      if (!this.map.explored[this.map.idx(Math.floor(e.x / TS), Math.floor(e.y / TS))]) continue;
       const w = e.elite ? 18 : 12;
       const x = Math.round(e.x - w / 2),
         y = Math.round(e.y - 20 * e.baseScale - 2);

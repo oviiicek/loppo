@@ -5,6 +5,7 @@ import './ui/style.css';
 import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 import { GalleryScene } from './scenes/GalleryScene';
+import { MenuScene } from './scenes/MenuScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
@@ -22,7 +23,7 @@ const config: Phaser.Types.Core.GameConfig = {
     arcade: { debug: false },
   },
   input: { activePointers: 4 },
-  scene: [BootScene, GameScene, GalleryScene],
+  scene: [BootScene, MenuScene, GameScene, GalleryScene],
 };
 
 const game = new Phaser.Game(config);

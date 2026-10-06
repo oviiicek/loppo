@@ -3,9 +3,9 @@ import type { GameScene } from '../scenes/GameScene';
 import { Enemy } from './entities';
 import { D } from './fx';
 import { Item } from '../data/types';
-import { generateItem, RARITIES, itemIcon, BASE_BY_ID, BaseType } from '../data/items';
+import { generateItem, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult } from '../data/items';
 import { addToInventory, Materials } from '../systems/state';
-import { sfx } from '../systems/audio';
+import { sfx, settings } from '../systems/audio';
 import { bus } from '../systems/events';
 
 export type MatKey = keyof Materials;
@@ -246,6 +246,14 @@ export class Loot {
       p.save.mats[g.mat!] += g.amount;
       sfx('pickup');
       sc.ui.toast(`+${g.amount} ${MAT_INFO[g.mat!].name}`, MAT_INFO[g.mat!].color);
+    } else if (g.item && g.item.rarity < settings.autoSalvage) {
+      // auto-salvage weak items straight into materials
+      const r = salvageResult(g.item);
+      p.save.gold += r.gold;
+      p.save.mats.dust += r.dust;
+      p.save.mats.stone += r.stones;
+      sfx('coin');
+      sc.fx.number(p.x, p.y - 20, '+' + r.gold, '#ffd23a');
     } else if (g.item) {
       if (!addToInventory(p.save, g.item)) {
         if (!g.warned) {
