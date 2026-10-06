@@ -79,7 +79,7 @@ export class Spells {
 
   // -------------------------------------------------------------- casting
   manaCost(sp: SpellDef) {
-    return Math.round(sp.mana * (1 + 0.025 * this.p.save.level));
+    return Math.round(sp.mana * (1 + 0.012 * this.p.save.level));
   }
 
   cooldown(sp: SpellDef) {

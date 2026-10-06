@@ -608,7 +608,7 @@ class UIManager {
 
   confirm(title: string, text: string, yes: () => void, yesLabel = 'Ano', noLabel = 'Ne') {
     const p = el(`<div class="panel small"><div class="head"><h2>${esc(title)}</h2></div>
-      <div style="padding:14px"><p class="hint" style="font-size:15px;margin:0 0 14px">${esc(text)}</p>
+      <div style="padding:14px"><p class="hint" style="font-size:19px;margin:0 0 14px">${esc(text)}</p>
       <div class="row" style="justify-content:flex-end"><button class="btn red" data-a="no">${esc(noLabel)}</button><button class="btn green" data-a="yes">${esc(yesLabel)}</button></div></div></div>`);
     const wasOpen = !!this.panel;
     const prev = this.panel;

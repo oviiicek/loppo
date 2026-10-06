@@ -238,7 +238,7 @@ export function derive(s: SaveData, buffs: BuffMods[] = []): Derived {
   armor *= 1 + b('armorPct') / 100 + (s.cls === 'warrior' ? 0.15 : 0);
 
   const maxHp = Math.round((80 + attrs.vit * 12 + attrs.str * 2 + s.level * 6 + g('hp')) * (1 + g('hpPct') / 100));
-  const maxMp = Math.round(40 + attrs.ene * 8 + s.level * 2 + g('mp'));
+  const maxMp = Math.round(40 + attrs.ene * 8 + s.level * 3 + g('mp'));
 
   return {
     maxHp,

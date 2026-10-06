@@ -147,7 +147,7 @@ export class Panels {
         <div class="box equip">
           <div class="side">${EQUIP_LEFT.map((sl) => this.slotHtml(s.equip[sl], `eq" data-slot="${sl}`, SLOT_NAMES[sl])).join('')}</div>
           <div class="doll"><img src="${iconURL('pl_' + s.cls, 120)}">
-            <div style="font-size:12px;text-align:center;line-height:1.35">
+            <div style="font-size:15px;text-align:center;line-height:1.35">
               <div>Poškození <b>${d.dmgMin}–${d.dmgMax}</b></div>
               <div>Brnění <b>${d.armor}</b></div>
               <div>HP <b>${d.maxHp}</b> • Mana <b>${d.maxMp}</b></div>
@@ -325,8 +325,8 @@ export class Panels {
     const fmt = (v: number, dec = 1) => (Number.isInteger(v) ? String(v) : v.toFixed(dec).replace('.', ','));
     const dps = ((d.dmgMin + d.dmgMax) / 2) * d.aps * (1 + (d.crit / 100) * (d.critDmg / 100 - 1));
     const attrRows = ATTR_KEYS.map(
-      (k) => `<div class="statline" style="align-items:center"><span><b style="color:#ffd76a">${ATTR_NAMES[k]}</b><br><span class="hint" style="font-size:11px">${ATTR_DESC[k]}</span></span>
-      <span class="row" style="flex-wrap:nowrap"><b style="font-size:16px">${d.attrs[k]}</b>${d.attrs[k] !== s.attrs[k] ? `<span class="hint">(${s.attrs[k]}+${d.attrs[k] - s.attrs[k]})</span>` : ''}
+      (k) => `<div class="statline" style="align-items:center"><span><b style="color:#ffd76a">${ATTR_NAMES[k]}</b><br><span class="hint" style="font-size:14px">${ATTR_DESC[k]}</span></span>
+      <span class="row" style="flex-wrap:nowrap"><b style="font-size:20px">${d.attrs[k]}</b>${d.attrs[k] !== s.attrs[k] ? `<span class="hint">(${s.attrs[k]}+${d.attrs[k] - s.attrs[k]})</span>` : ''}
       <button class="btn small green" data-attr="${k}" ${s.attrPoints <= 0 ? 'disabled' : ''}>+1</button><button class="btn small green" data-attr5="${k}" ${s.attrPoints < 5 ? 'disabled' : ''}>+5</button></span></div>`,
     ).join('');
     const kind = d.attack === 'melee' ? 'Na blízko' : d.attack === 'ranged' ? 'Na dálku' : 'Magický';
@@ -358,13 +358,13 @@ export class Panels {
     if (d.elem.ice) st.push(['Mrazivé poškození', '+' + fmt(d.elem.ice)]);
     if (d.elem.lightning) st.push(['Bleskové poškození', '+' + fmt(d.elem.lightning)]);
     if (d.elem.poison) st.push(['Jedové poškození', '+' + fmt(d.elem.poison)]);
-    const specials = [...d.specials].map((x) => `<div class="spec" style="color:#ffb347;font-size:13px">★ ${esc(SPECIAL_BY_ID[x]?.desc ?? x)}</div>`).join('');
+    const specials = [...d.specials].map((x) => `<div class="spec" style="color:#ffb347;font-size:17px">★ ${esc(SPECIAL_BY_ID[x]?.desc ?? x)}</div>`).join('');
     body.innerHTML = `
       <div class="col" style="width:min(240px,28%)">
         <div class="box" style="text-align:center"><img class="px" style="height:96px;image-rendering:pixelated" src="${iconURL('pl_' + s.cls, 96)}">
-          <div style="font-size:20px;color:#ffd76a">${cls.name}</div><div class="hint">Úroveň ${s.level} • Patro ${s.floor} (max ${s.maxFloor})</div>
+          <div style="font-size:26px;color:#ffd76a">${cls.name}</div><div class="hint">Úroveň ${s.level} • Patro ${s.floor} (max ${s.maxFloor})</div>
           <div class="hint" style="margin-top:6px">${esc(cls.desc)}</div>
-          <div style="margin-top:6px;font-size:13px;color:#9dff9d">Pasivní: ${esc(cls.passive)}</div>
+          <div style="margin-top:6px;font-size:17px;color:#9dff9d">Pasivní: ${esc(cls.passive)}</div>
           <div class="hint" style="margin-top:6px">Zabito nepřátel: ${s.kills.toLocaleString('cs-CZ')}</div>
         </div>
       </div>
@@ -517,7 +517,7 @@ export class Panels {
       else btns += [0, 1, 2].map((i) => `<button class="btn small blue" data-a="slot${i}">Slot ${i + 1}</button>`).join('');
     }
     return `<div style="display:flex;gap:8px;align-items:center"><img style="width:56px;height:56px;border-radius:8px" src="${spellIcon(sp.icon, sp.color, 112)}"><div><h3 style="color:${sp.color}">${esc(sp.name)}</h3><div class="sub">${type}</div></div></div>
-      <p style="margin:6px 0;font-size:14px">${esc(sp.desc)}</p>
+      <p style="margin:6px 0;font-size:18px">${esc(sp.desc)}</p>
       ${dmgTxt}
       <div class="statline"><span>Mana</span><b style="color:#7fb2ff">${sc.spells.manaCost(sp)}</b></div>
       <div class="statline"><span>Přebíjení</span><b>${sc.spells.cooldown(sp).toFixed(1).replace('.', ',')} s</b></div>
@@ -729,8 +729,8 @@ export class Panels {
         const def = CLASS_BY_ID[id];
         body.querySelectorAll('.ccard').forEach((x) => x.classList.toggle('sel', x === c));
         const sp = spellsForClass(id).slice(0, 6);
-        detail.innerHTML = `<h3 style="color:#ffd76a">${def.name}</h3><div class="sub">${def.style}</div><p style="font-size:14px">${esc(def.desc)}</p><div style="color:#9dff9d;font-size:13px">Pasivní: ${esc(def.passive)}</div>
-          <div class="hint" style="margin-top:6px">První kouzla:</div>${sp.map((x) => `<div class="row" style="font-size:13px"><img style="width:22px;height:22px" src="${spellIcon(x.icon, x.color, 44)}">${esc(x.name)} <span class="hint">(úr. ${x.lvl})</span></div>`).join('')}
+        detail.innerHTML = `<h3 style="color:#ffd76a">${def.name}</h3><div class="sub">${def.style}</div><p style="font-size:18px">${esc(def.desc)}</p><div style="color:#9dff9d;font-size:17px">Pasivní: ${esc(def.passive)}</div>
+          <div class="hint" style="margin-top:6px">První kouzla:</div>${sp.map((x) => `<div class="row" style="font-size:17px"><img style="width:22px;height:22px" src="${spellIcon(x.icon, x.color, 44)}">${esc(x.name)} <span class="hint">(úr. ${x.lvl})</span></div>`).join('')}
           ${id === s.cls ? '<p class="hint">Tuto classu už máš.</p>' : `<button class="btn green" style="margin-top:8px" data-a="change" ${s.gold < cost ? 'disabled' : ''}>Změnit za ${cost} zl.</button>`}`;
         detail.querySelector('[data-a=change]')?.addEventListener('click', () => {
           if (s.gold < cost) return;
@@ -756,7 +756,7 @@ export class Panels {
       <div style="padding:14px">
         <div class="hint">Klepni na „Páčit“, když je jehla v zelené zóně. Při chybě se paklíč může zlomit.</div>
         <div class="lockbar"><div class="lockzone"></div><div class="lockneedle"></div></div>
-        <div class="row" style="justify-content:space-between"><span>Paklíče: <b class="lp">${s.mats.lockpick}</b></span><button class="btn green" data-a="pick" style="font-size:20px;padding:12px 28px">Páčit</button></div>
+        <div class="row" style="justify-content:space-between"><span>Paklíče: <b class="lp">${s.mats.lockpick}</b></span><button class="btn green" data-a="pick" style="font-size:26px;padding:12px 28px">Páčit</button></div>
         <div class="msg hint" style="margin-top:6px;min-height:18px"></div>
       </div></div>`);
     const zone = $('.lockzone', p),

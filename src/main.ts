@@ -1,8 +1,6 @@
 import Phaser from 'phaser';
-import '@fontsource/pixelify-sans/latin-ext-400.css';
-import '@fontsource/pixelify-sans/latin-ext-700.css';
-import '@fontsource/pixelify-sans/latin-400.css';
-import '@fontsource/pixelify-sans/latin-700.css';
+import '@fontsource/jersey-10/latin-ext-400.css';
+import '@fontsource/jersey-10/latin-400.css';
 import './ui/style.css';
 import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
@@ -29,3 +27,5 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 (window as any).__game = game;
+
+if (import.meta.env.DEV) import('./dev');

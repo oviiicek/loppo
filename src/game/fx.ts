@@ -56,10 +56,10 @@ export class FX {
   number(x: number, y: number, text: string, color: string, big = false) {
     let t = this.textPool.pop();
     if (!t) {
-      t = this.scene.add.text(0, 0, '', { fontFamily: 'Pixelify Sans, monospace', fontSize: '8px', color: '#fff', stroke: '#000', strokeThickness: 2 });
+      t = this.scene.add.text(0, 0, '', { fontFamily: '"Jersey 10", monospace', fontSize: '10px', color: '#fff', stroke: '#000', strokeThickness: 2 });
       t.setResolution(this.res).setOrigin(0.5).setDepth(D.ui);
     }
-    t.setText(text).setColor(color).setFontSize(big ? 11 : 8).setPosition(x + (Math.random() - 0.5) * 8, y).setAlpha(1).setScale(big ? 1.2 : 1).setVisible(true).setActive(true);
+    t.setText(text).setColor(color).setFontSize(big ? 14 : 10).setPosition(x + (Math.random() - 0.5) * 8, y).setAlpha(1).setScale(big ? 1.2 : 1).setVisible(true).setActive(true);
     this.scene.tweens.add({
       targets: t,
       y: y - 18 - (big ? 6 : 0),
@@ -81,7 +81,7 @@ export class FX {
   }
 
   label(x: number, y: number, text: string, color: string, size = 7) {
-    const t = this.scene.add.text(x, y, text, { fontFamily: 'Pixelify Sans, monospace', fontSize: size + 'px', color, stroke: '#000', strokeThickness: 2 });
+    const t = this.scene.add.text(x, y, text, { fontFamily: '"Jersey 10", monospace', fontSize: Math.round(size * 1.3) + 'px', color, stroke: '#000', strokeThickness: 2 });
     t.setResolution(this.res).setOrigin(0.5, 1).setDepth(D.ui - 1);
     return t;
   }

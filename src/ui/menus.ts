@@ -25,7 +25,7 @@ export class Menus {
       ${save ? `<button class="btn green" data-a="continue">Pokračovat</button><div class="saveinfo">${esc(CLASS_BY_ID[save.cls].name)} • úroveň ${save.level} • patro ${save.floor}</div>` : ''}
       <button class="btn" data-a="new">Nová hra</button>
       <button class="btn blue" data-a="help">Jak hrát</button>
-      <button class="btn small" data-a="sound" style="min-width:0;font-size:14px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>
+      <button class="btn small" data-a="sound" style="min-width:0;font-size:18px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>
       <div class="sprites">${CLASSES.map((c, i) => `<img src="${iconURL('pl_' + c.id, 64)}" style="animation-delay:${i * 0.15}s">`).join('')}</div>
     </div>`);
     this.ui.root.appendChild(m);
@@ -55,7 +55,7 @@ export class Menus {
 
   confirmNew(menu: HTMLElement) {
     const p = el(`<div class="overlay" style="z-index:80"><div class="panel small"><div class="head"><h2>Nová hra?</h2></div>
-      <div style="padding:14px"><p class="hint" style="font-size:15px">Současná postava bude smazána. Opravdu chceš začít znovu?</p>
+      <div style="padding:14px"><p class="hint" style="font-size:19px">Současná postava bude smazána. Opravdu chceš začít znovu?</p>
       <div class="row" style="justify-content:flex-end"><button class="btn red" data-a="no">Ne</button><button class="btn green" data-a="yes">Ano, nová hra</button></div></div></div></div>`);
     this.ui.root.appendChild(p);
     $('[data-a=no]', p).addEventListener('click', () => p.remove());
@@ -69,7 +69,7 @@ export class Menus {
 
   help(menu: HTMLElement) {
     const p = el(`<div class="overlay" style="z-index:80"><div class="panel" style="height:auto;max-height:92vh"><div class="head"><h2>Jak hrát</h2><button class="close">✕</button></div>
-      <div class="body scroll" style="display:block;font-size:14px;line-height:1.45">
+      <div class="body scroll" style="display:block;font-size:18px;line-height:1.45">
         <p><b style="color:#ffd76a">Pohyb:</b> virtuální joystick vlevo dole (na PC klávesy WASD / šipky).</p>
         <p><b style="color:#ffd76a">Útok:</b> automatický. Když se přiblížíš k nepříteli na dosah své zbraně, postava sama útočí. Meč musí přijít blízko, luk a hůl střílí z dálky.</p>
         <p><b style="color:#ffd76a">Kouzla:</b> 3 běžná kouzla, 1 ultimátní (velké tlačítko) a 1 univerzální (zelené). Na PC klávesy 1–4 a Q. Kouzla se odemykají s úrovní a zesiluješ je body kouzel.</p>
@@ -108,14 +108,14 @@ export class Menus {
       const attrs = Object.entries(c.attrs)
         .map(([k, v]) => `${({ str: 'Síla', dex: 'Obratnost', vit: 'Zdraví', ene: 'Mana', int: 'Magická síla', spd: 'Rychlost útoku' } as any)[k]} +${v}`)
         .join(', ');
-      detail.innerHTML = `<div class="row" style="flex-wrap:nowrap"><img style="height:84px;image-rendering:pixelated" src="${iconURL('pl_' + sel, 96)}"><div><h3 style="color:#ffd76a;font-size:24px;margin:0">${c.name}</h3><div class="sub">${c.style}</div></div></div>
-        <p style="font-size:14px;margin:6px 0">${esc(c.desc)}</p>
-        <div style="color:#9dff9d;font-size:13px">Pasivní: ${esc(c.passive)}</div>
+      detail.innerHTML = `<div class="row" style="flex-wrap:nowrap"><img style="height:84px;image-rendering:pixelated" src="${iconURL('pl_' + sel, 96)}"><div><h3 style="color:#ffd76a;font-size:31px;margin:0">${c.name}</h3><div class="sub">${c.style}</div></div></div>
+        <p style="font-size:18px;margin:6px 0">${esc(c.desc)}</p>
+        <div style="color:#9dff9d;font-size:17px">Pasivní: ${esc(c.passive)}</div>
         <div class="hint" style="margin-top:4px">Výchozí zbraň: ${esc(weapon.noun)}${off ? ' + ' + esc(off.noun) : ''}</div>
         <div class="hint">Bonus atributů: ${attrs}</div>
         <div class="hint" style="margin-top:6px">Kouzla classy (${sp.length}, odemykají se s úrovní):</div>
         <div style="display:flex;flex-wrap:wrap;gap:3px;margin:4px 0">${sp.map((x) => `<img title="${esc(x.name)} (úr. ${x.lvl})" style="width:30px;height:30px;border-radius:5px;${x.ult ? 'outline:2px solid #ffb347' : ''}" src="${spellIcon(x.icon, x.color, 60)}">`).join('')}</div>
-        <button class="btn green" data-a="start" style="font-size:20px;margin-top:8px;width:100%">Začít dobrodružství</button>`;
+        <button class="btn green" data-a="start" style="font-size:26px;margin-top:8px;width:100%">Začít dobrodružství</button>`;
       $('[data-a=start]', detail).addEventListener('click', () => {
         sfx('levelup');
         const save = newCharacter(sel);
@@ -178,7 +178,7 @@ export class Menus {
     const sc = this.ui.scene!;
     const p = el(`<div class="panel small" style="border-color:#8a2a2a"><div class="head" style="background:linear-gradient(#3a1414,#1a0a0a)"><h2 style="color:#ff6b6b">Padl jsi</h2></div>
       <div style="padding:16px;text-align:center">
-        <p style="font-size:16px">Tvoje cesta skončila v patře ${floor}.</p>
+        <p style="font-size:20px">Tvoje cesta skončila v patře ${floor}.</p>
         <p class="hint">Přijdeš o ${lostGold} zlata a část zkušeností do další úrovně. Předměty i úroveň ti zůstanou.</p>
         <div class="row" style="justify-content:center;margin-top:10px"><button class="btn green" data-a="retry">Zkusit patro znovu</button><button class="btn" data-a="menu">Hlavní menu</button></div>
       </div></div>`);

@@ -13,6 +13,9 @@ export class BootScene extends Phaser.Scene {
       return;
     }
     UI.init(this.game);
-    UI.showMainMenu();
+    // make sure the pixel font is ready before any text is drawn
+    const go = () => UI.showMainMenu();
+    if (document.fonts?.load) document.fonts.load('16px "Jersey 10"').then(go, go);
+    else go();
   }
 }
