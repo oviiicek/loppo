@@ -1,0 +1,9 @@
+{
+  "name": "Loppo – Nekonečný dungeon",
+  "short_name": "Loppo",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b0a10",
+  "theme_color": "#0b0a10",
+  "start_url": "./"
+}
