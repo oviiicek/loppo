@@ -170,7 +170,7 @@ img.px {
   font-size: 13px;
   font-weight: 700;
   color: #fff;
-  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  text-shadow: 1px 1px 0 #000, 0 0 3px rgba(0, 0, 0, 0.9);
 }
 .bar.mp {
   width: 86%;
@@ -432,7 +432,7 @@ img.px {
   font-weight: 700;
   font-size: 16px;
   color: #fff;
-  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+  text-shadow: 1px 1px 0 #000, 0 0 3px rgba(0, 0, 0, 0.9);
   pointer-events: none;
 }
 .skill.nomana img {
@@ -492,7 +492,7 @@ img.px {
   bottom: -2px;
   font-size: 16px;
   font-weight: 700;
-  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  text-shadow: 1px 1px 0 #000, 0 0 3px rgba(0, 0, 0, 0.9);
 }
 
 .action {

@@ -11,7 +11,8 @@ import { BossAI } from '../game/boss';
 import { ENEMY_BY_ID, bossForFloor, isBossFloor } from '../data/enemies';
 import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout } from '../systems/state';
 import { spellsForClass, BuffMods } from '../data/spells';
-import { generateItem, Item } from '../data/items';
+import { generateItem } from '../data/items';
+import { Item } from '../data/types';
 import { Element } from '../data/types';
 import { UI } from '../ui/ui';
 import { bus } from '../systems/events';
@@ -67,7 +68,7 @@ export class GameScene extends Phaser.Scene {
   allies: Ally[] = [];
   projectiles: Projectile[] = [];
   interactables: Interactable[] = [];
-  lights: { x: number; y: number; r: number; flicker: number; glow?: Phaser.GameObjects.Image }[] = [];
+  lamps: { x: number; y: number; r: number; flicker: number; glow?: Phaser.GameObjects.Image }[] = [];
   shrineBuffs: ShrineBuff[] = [];
   moveVec: [number, number] = [0, 0];
   godMode = false;
@@ -84,6 +85,7 @@ export class GameScene extends Phaser.Scene {
   stairsObj: Interactable | null = null;
   paused = false;
   zoom = 3;
+  darkness = 0.8;
   merchantStocks = new Map<Interactable, MerchantStock>();
   currentAction: Interactable | null = null;
   playTimeT = 0;
@@ -100,7 +102,7 @@ export class GameScene extends Phaser.Scene {
     this.allies = [];
     this.projectiles = [];
     this.interactables = [];
-    this.lights = [];
+    this.lamps = [];
     this.shrineBuffs = [];
     this.boss = null;
     this.bossDefeated = false;
@@ -181,7 +183,7 @@ export class GameScene extends Phaser.Scene {
   computeZoom() {
     const h = this.scale.height,
       w = this.scale.width;
-    this.zoom = Math.max(2, Math.min(Math.floor(h / 165), Math.floor(w / 300)));
+    this.zoom = Math.max(2, Math.min(Math.floor(h / 215), Math.floor(w / 380)));
   }
 
   onResize() {
@@ -230,7 +232,7 @@ export class GameScene extends Phaser.Scene {
         const s = this.add.sprite(px, o.y * TS + 9, 'torch').play('torch_loop').setDepth(D.wallDeco);
         s.anims.setProgress(Math.random());
         const glow = this.add.image(px, o.y * TS + 6, 'glow').setTint(0xff9a3a).setAlpha(0.22).setScale(1.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
-        this.lights.push({ x: px, y: o.y * TS + 10, r: 105, flicker: Math.random() * 10, glow });
+        this.lamps.push({ x: px, y: o.y * TS + 12, r: 74, flicker: Math.random() * 10, glow });
         break;
       }
       case 'banner':
@@ -248,7 +250,7 @@ export class GameScene extends Phaser.Scene {
       case 'table':
       case 'skull':
         add(o.kind);
-        if (o.kind === 'table') this.lights.push({ x: px, y: py, r: 50, flicker: Math.random() * 10 });
+        if (o.kind === 'table') this.lamps.push({ x: px, y: py, r: 50, flicker: Math.random() * 10 });
         break;
       case 'chair':
         add('chair').setFlipX(!!o.data?.flip);
@@ -282,7 +284,7 @@ export class GameScene extends Phaser.Scene {
         const it: Interactable = { kind: 'stairs', x: px, y: py, tx: o.x, ty: o.y, sprite: s, data: {} };
         this.interactables.push(it);
         this.stairsObj = it;
-        this.lights.push({ x: px, y: py, r: 60, flicker: 0 });
+        this.lamps.push({ x: px, y: py, r: 60, flicker: 0 });
         break;
       }
       case 'door': {
@@ -309,7 +311,7 @@ export class GameScene extends Phaser.Scene {
         const it: Interactable = { kind: 'merchant', x: px, y: py + 6, tx: o.x, ty: o.y, sprite: s, data: {} };
         this.interactables.push(it);
         this.merchantStocks.set(it, this.makeStock());
-        this.lights.push({ x: px, y: py, r: 80, flicker: 0 });
+        this.lamps.push({ x: px, y: py, r: 80, flicker: 0 });
         const t = this.fx.label(px, py - 16, 'Obchodník', '#ffd23a', 6);
         t.setDepth(D.ui - 2);
         break;
@@ -317,7 +319,7 @@ export class GameScene extends Phaser.Scene {
       case 'anvil': {
         const s = add('anvil');
         this.interactables.push({ kind: 'anvil', x: px, y: py + 4, tx: o.x, ty: o.y, sprite: s, data: {} });
-        this.lights.push({ x: px, y: py, r: 60, flicker: 3 });
+        this.lamps.push({ x: px, y: py, r: 60, flicker: 3 });
         const glow = this.add.image(px - 6, py - 2, 'glow').setTint(0xff7a1a).setAlpha(0.25).setScale(0.6).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
         void glow;
         break;
@@ -330,13 +332,13 @@ export class GameScene extends Phaser.Scene {
         const glow = this.add.image(px, py - 6, 'glow').setTint(col).setAlpha(0.3).setScale(0.8).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
         this.tweens.add({ targets: glow, alpha: 0.12, yoyo: true, repeat: -1, duration: 900 });
         this.interactables[this.interactables.length - 1].data.glow = glow;
-        this.lights.push({ x: px, y: py, r: 55, flicker: 0 });
+        this.lamps.push({ x: px, y: py, r: 55, flicker: 0 });
         break;
       }
       case 'fountain': {
         const s = this.add.sprite(px, py + 8, 'fountain').setOrigin(0.5, 1).play('fountain_loop').setDepth(D.entityBase + py + 8);
         this.interactables.push({ kind: 'fountain', x: px, y: py + 6, tx: o.x, ty: o.y, sprite: s, data: {} });
-        this.lights.push({ x: px, y: py, r: 60, flicker: 0 });
+        this.lamps.push({ x: px, y: py, r: 60, flicker: 0 });
         break;
       }
     }
@@ -589,11 +591,7 @@ export class GameScene extends Phaser.Scene {
           UI.toast('Potřebuješ paklíč!', '#ff8080');
           return;
         }
-        UI.lockpick(this.floor, (ok, broke) => {
-          if (broke) {
-            this.save.mats.lockpick--;
-            UI.toast('Paklíč se zlomil!', '#ff8080');
-          }
+        UI.lockpick(this.floor, (ok) => {
           if (ok) {
             if (it.kind === 'door') this.openDoor(it);
             else this.openChest(it);
@@ -634,6 +632,17 @@ export class GameScene extends Phaser.Scene {
         this.revealSecret(it);
         break;
     }
+  }
+
+  refreshPlayerClass() {
+    const p = this.player;
+    const key = 'pl_' + this.save.cls;
+    p.spriteKey = key;
+    p.sprite.setTexture(key, 0);
+    p.sprite.play(key + '_idle');
+    p.recalc();
+    this.fx.ring(p.x, p.y - 6, 30, 0xffd23a, 500);
+    this.fx.burst(p.x, p.y - 6, 0xffd23a, 30);
   }
 
   revealSecret(it: Interactable) {
@@ -732,7 +741,7 @@ export class GameScene extends Phaser.Scene {
     const it: Interactable = { kind: 'stairs', x: ex.x * TS + 8, y: ex.y * TS + 8, tx: ex.x, ty: ex.y, sprite: st, data: {} };
     this.interactables.push(it);
     this.stairsObj = it;
-    this.lights.push({ x: it.x, y: it.y, r: 70, flicker: 0 });
+    this.lamps.push({ x: it.x, y: it.y, r: 70, flicker: 0 });
     // clear minions
     for (const e of this.enemies) if (!e.dead && e.isMinion) this.combat.killEnemy(e);
   }
@@ -906,45 +915,60 @@ export class GameScene extends Phaser.Scene {
   updateLighting(dt: number) {
     const cam = this.cameras.main;
     const v = cam.worldView;
-    const w = Math.ceil(v.width) + 4,
+    // DynamicTexture sizes are forced even – compare against even sizes or it resizes every frame
+    let w = Math.ceil(v.width) + 4,
       h = Math.ceil(v.height) + 4;
+    w += w % 2;
+    h += h % 2;
     const rt = this.dark;
     if (rt.width !== w || rt.height !== h) rt.resize(w, h);
     const ox = Math.floor(v.x) - 2,
       oy = Math.floor(v.y) - 2;
     rt.setPosition(ox, oy);
     rt.clear();
-    rt.fill(0x05040a, 0.86);
+    rt.fill(0x05040a, this.darkness);
     const L = this.lightImg;
     const t = this.time.now / 1000;
     const p = this.player;
-    // player light
-    const pr = 150;
-    L.setScale((pr * 2) / 128);
-    rt.erase(L, p.x - ox, p.y - 6 - oy);
-    rt.erase(L, p.x - ox, p.y - 6 - oy);
-    for (const l of this.lights) {
-      if (l.x < v.x - l.r || l.x > v.right + l.r || l.y < v.y - l.r || l.y > v.bottom + l.r) continue;
+    const inView = (x: number, y: number, r: number) => x > -r && y > -r && x < w + r && y < h + r;
+    // all lights are drawn into one capture which is then erased from the darkness in a single pass
+    rt.beginDraw();
+    L.setAlpha(0.6);
+    L.setScale((165 * 2) / 128);
+    rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
+    L.setAlpha(1);
+    L.setScale((100 * 2) / 128);
+    rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
+    for (const l of this.lamps) {
+      const x = l.x - ox,
+        y = l.y - oy;
+      if (!inView(x, y, l.r)) continue;
       const fl = l.flicker ? 1 + Math.sin(t * 9 + l.flicker) * 0.04 + Math.sin(t * 23 + l.flicker * 3) * 0.03 : 1;
       L.setScale((l.r * 2 * fl) / 128);
-      rt.erase(L, l.x - ox, l.y - oy);
+      rt.batchDraw(L, x, y);
       if (l.glow) l.glow.setAlpha(0.18 + (fl - 1) * 1.5);
     }
     // glowing projectiles add light
     let n = 0;
     for (const pj of this.projectiles) {
-      if (n > 12) break;
-      if (pj.sprite.blendMode === Phaser.BlendModes.ADD) {
-        L.setScale(50 / 128);
-        rt.erase(L, pj.x - ox, pj.y - oy);
+      if (n > 14) break;
+      if (pj.sprite.blendMode === Phaser.BlendModes.ADD && inView(pj.x - ox, pj.y - oy, 30)) {
+        L.setScale(60 / 128);
+        rt.batchDraw(L, pj.x - ox, pj.y - oy);
         n++;
       }
     }
-    // fields light up area
+    // spell fields light up their area
     for (const f of this.spells.fields) {
-      L.setScale((f.r * 2) / 128);
-      rt.erase(L, f.x - ox, f.y - oy);
+      L.setScale((f.r * 2.2) / 128);
+      rt.batchDraw(L, f.x - ox, f.y - oy);
     }
+    // bosses glow a bit so they are always visible
+    if (this.boss && !this.boss.dead && this.boss.aggro) {
+      L.setScale(120 / 128);
+      rt.batchDraw(L, this.boss.x - ox, this.boss.y - 10 - oy);
+    }
+    rt.endDraw(true);
     void dt;
   }
 }
