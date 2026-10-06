@@ -952,7 +952,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     if (rm.type === 'den') count = Math.round(count * 2 + 3);
     if (rm.type === 'secret' || rm.type === 'vault') count = r.chance(0.5) ? 1 : 0;
     if (rm.type === 'treasure') count = Math.round(count * 0.7);
-    count = Math.min(count, 14);
+    count = Math.min(count, 10);
     // groups: often similar enemies together
     const main = pickEnemy();
     for (let k = 0; k < count; k++) {
@@ -969,6 +969,12 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
       if (Math.hypot(x - start.x, y - start.y) < 10) continue;
       spawns.push({ id: r.chance(0.5) ? 'bat' : pickEnemy().id, x, y, elite: false, room: -1 });
     }
+  }
+  // keep the total manageable (performance on phones and pacing)
+  const maxEnemies = Math.min(110, 34 + floor * 2);
+  if (spawns.length > maxEnemies) {
+    r.shuffle(spawns);
+    spawns.length = maxEnemies;
   }
   // mimics are objects: handled by the scene
 

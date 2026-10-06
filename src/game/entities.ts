@@ -196,7 +196,7 @@ export class Enemy extends Actor {
     this.boss = boss;
     this.bossTier = tier;
     const tierMult = Math.pow(2.2, tier);
-    this.maxHp = Math.round(boss.hp * 0.75 * enemyHpScale(floor) * tierMult);
+    this.maxHp = Math.round(boss.hp * 0.5 * enemyHpScale(floor) * tierMult);
     this.hp = this.maxHp;
     this.dmg = boss.dmg * enemyDmgScale(floor) * Math.pow(1.6, tier);
     this.speed = boss.speed;
