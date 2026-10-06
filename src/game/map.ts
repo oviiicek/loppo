@@ -139,6 +139,13 @@ export class WorldMap {
     return false;
   }
 
+  // Robust visibility between two entities: adjacent ones always see each other and the
+  // ray is tried both from the feet and from slightly above (so wall-hugging monsters count).
+  canSee(x0: number, y0: number, x1: number, y1: number) {
+    if (Math.abs(x1 - x0) + Math.abs(y1 - y0) < 22) return true;
+    return this.los(x0, y0, x1, y1) || this.los(x0, y0 - 4, x1, y1 - 4);
+  }
+
   // Bresenham-ish line of sight in pixels
   los(x0: number, y0: number, x1: number, y1: number) {
     const dist = Math.hypot(x1 - x0, y1 - y0);

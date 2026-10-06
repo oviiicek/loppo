@@ -364,14 +364,18 @@ export class Enemy extends Actor {
 
   stepToward(nx: number, ny: number, spd: number, dt: number) {
     if (this.flying) {
-      const tx = this.x + nx * spd * dt,
-        ty = this.y + ny * spd * dt;
-      // flying creatures still don't leave the map
-      if (!this.scene.map.isSolidPx(tx, ty) || this.def.behavior === 'ghost') {
-        this.x = tx;
-        this.y = ty;
+      if (this.def.behavior === 'ghost') {
+        // ghosts drift through walls
+        this.x += nx * spd * dt;
+        this.y += ny * spd * dt;
+        return true;
       }
-      return true;
+      // bats fly over traps but keep clear of walls like everything else
+      const [x2, y2] = this.scene.map.move(this.x, this.y, nx * spd * dt, ny * spd * dt, this.r);
+      const moved = Math.abs(x2 - this.x) + Math.abs(y2 - this.y) > 0.01;
+      this.x = x2;
+      this.y = y2;
+      return moved;
     }
     const [x2, y2] = this.scene.map.move(this.x, this.y, nx * spd * dt, ny * spd * dt, this.r);
     const moved = Math.abs(x2 - this.x) + Math.abs(y2 - this.y) > 0.01;

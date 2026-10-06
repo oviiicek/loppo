@@ -279,7 +279,7 @@ export class Player extends Actor {
     this.atkT -= dt;
     const range = this.d.range;
     // find target (keep current if still valid)
-    if (!this.target || this.target.dead || Math.hypot(this.target.x - this.x, this.target.y - this.y) > range + this.target.r * this.target.baseScale + 6 || !sc.map.los(this.x, this.y - 4, this.target.x, this.target.y - 4)) {
+    if (!this.target || this.target.dead || Math.hypot(this.target.x - this.x, this.target.y - this.y) > range + this.target.r * this.target.baseScale + 6 || !sc.map.canSee(this.x, this.y, this.target.x, this.target.y)) {
       this.target = sc.nearestEnemy(this.x, this.y, range + 6, true);
     }
     const t = this.target;

@@ -475,7 +475,7 @@ export class GameScene extends Phaser.Scene {
       if (e.def.behavior === 'mimic' && !e.aggro) continue;
       const d = Math.hypot(e.x - x, e.y - y) - e.r * e.baseScale;
       if (d >= bd) continue;
-      if (needLos && !this.map.los(x, y - 4, e.x, e.y - 4)) continue;
+      if (needLos && !this.map.canSee(x, y, e.x, e.y)) continue;
       bd = d;
       best = e;
     }
