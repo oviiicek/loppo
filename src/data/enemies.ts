@@ -88,12 +88,12 @@ export function bossForFloor(floor: number): { def: BossDef; tier: number } {
 // Scaling curves
 export function enemyHpScale(floor: number) {
   const f = floor - 1;
-  return 1 + 0.3 * f + 0.012 * f * f;
+  return 1.1 * (1 + 0.32 * f + 0.014 * f * f);
 }
 export function enemyDmgScale(floor: number) {
   const f = floor - 1;
-  return 1 + 0.22 * f + 0.008 * f * f;
+  return 1.35 * (1 + 0.24 * f + 0.009 * f * f);
 }
 export function enemyXpScale(floor: number) {
-  return 1 + 0.2 * (floor - 1);
+  return 1 + 0.25 * (floor - 1) + 0.004 * (floor - 1) * (floor - 1);
 }

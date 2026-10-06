@@ -39,7 +39,7 @@ export interface SaveData {
 }
 
 export function xpForLevel(level: number) {
-  return Math.round(30 * Math.pow(level, 1.8) + 50);
+  return Math.round(25 * Math.pow(level, 1.75) + 35);
 }
 
 export function newCharacter(cls: ClassId): SaveData {

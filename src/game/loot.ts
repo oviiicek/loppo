@@ -159,8 +159,19 @@ export class Loot {
     sc.time.delayedCall(400, () => {
       if (g.dead) return;
       g.label = sc.fx.label(tx, ty - 7, it.name, col, 6);
+      this.unclutter(g.label);
     });
     this.ground.push(g);
+  }
+
+  // move a new label up until it does not overlap other item labels
+  unclutter(t: Phaser.GameObjects.Text) {
+    const others = this.ground.filter((o) => o.label && o.label !== t && !o.dead).map((o) => o.label!);
+    for (let i = 0; i < 8; i++) {
+      const hit = others.some((o) => Math.abs(o.x - t.x) < (o.displayWidth + t.displayWidth) / 2 + 2 && Math.abs(o.y - t.y) < t.displayHeight);
+      if (!hit) break;
+      t.y -= t.displayHeight;
+    }
   }
 
   dropGold(amount: number, x: number, y: number) {

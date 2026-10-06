@@ -88,20 +88,20 @@ export class FX {
 
   ring(x: number, y: number, radius: number, color: number, dur = 350, alpha = 0.9) {
     const r = this.scene.add.image(x, y, 'ring').setDepth(D.bright).setTint(color).setAlpha(alpha).setBlendMode(Phaser.BlendModes.ADD);
-    r.setScale(0.1);
-    this.scene.tweens.add({ targets: r, scale: (radius * 2) / 64, alpha: 0, duration: dur, ease: 'Cubic.easeOut', onComplete: () => r.destroy() });
+    r.setScale(0.02);
+    this.scene.tweens.add({ targets: r, scale: (radius * 2) / 256, alpha: 0, duration: dur, ease: 'Cubic.easeOut', onComplete: () => r.destroy() });
   }
 
   disc(x: number, y: number, radius: number, color: number, dur = 400) {
     const r = this.scene.add.image(x, y, 'disc').setDepth(D.bright).setTint(color).setAlpha(0.8).setBlendMode(Phaser.BlendModes.ADD);
-    r.setScale((radius * 2) / 64 * 0.3);
-    this.scene.tweens.add({ targets: r, scale: (radius * 2) / 64, alpha: 0, duration: dur, ease: 'Cubic.easeOut', onComplete: () => r.destroy() });
+    r.setScale((radius * 2) / 256 * 0.3);
+    this.scene.tweens.add({ targets: r, scale: (radius * 2) / 256, alpha: 0, duration: dur, ease: 'Cubic.easeOut', onComplete: () => r.destroy() });
   }
 
   telegraph(x: number, y: number, radius: number, dur: number, color = 0xff3030) {
-    const r = this.scene.add.image(x, y, 'disc').setDepth(D.floorDeco + 1).setTint(color).setAlpha(0.15).setScale((radius * 2) / 64);
+    const r = this.scene.add.image(x, y, 'disc').setDepth(D.floorDeco + 1).setTint(color).setAlpha(0.15).setScale((radius * 2) / 256);
     const inner = this.scene.add.image(x, y, 'disc').setDepth(D.floorDeco + 1).setTint(color).setAlpha(0.35).setScale(0.01);
-    this.scene.tweens.add({ targets: inner, scale: (radius * 2) / 64, duration: dur, ease: 'Linear' });
+    this.scene.tweens.add({ targets: inner, scale: (radius * 2) / 256, duration: dur, ease: 'Linear' });
     this.scene.time.delayedCall(dur, () => {
       r.destroy();
       inner.destroy();

@@ -1667,22 +1667,29 @@ function buildProjectiles() {
   }
   // ring & circle
   {
-    const [c, ctx] = canvas(64, 64);
+    // high resolution so large novas stay smooth (scale = diameter / 256)
+    const [c, ctx] = canvas(256, 256);
+    ctx.imageSmoothingEnabled = true;
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 9;
     ctx.beginPath();
-    ctx.arc(32, 32, 29, 0, Math.PI * 2);
+    ctx.arc(128, 128, 120, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 18;
+    ctx.beginPath();
+    ctx.arc(128, 128, 112, 0, Math.PI * 2);
     ctx.stroke();
     addCanvas('ring', c);
-    const [c2, ctx2] = canvas(64, 64);
-    const g = ctx2.createRadialGradient(32, 32, 0, 32, 32, 32);
+    const [c2, ctx2] = canvas(256, 256);
+    const g = ctx2.createRadialGradient(128, 128, 0, 128, 128, 128);
     g.addColorStop(0, 'rgba(255,255,255,0.15)');
     g.addColorStop(0.85, 'rgba(255,255,255,0.45)');
     g.addColorStop(0.95, 'rgba(255,255,255,0.9)');
     g.addColorStop(1, 'rgba(255,255,255,0)');
     ctx2.fillStyle = g;
     ctx2.beginPath();
-    ctx2.arc(32, 32, 32, 0, Math.PI * 2);
+    ctx2.arc(128, 128, 128, 0, Math.PI * 2);
     ctx2.fill();
     addCanvas('disc', c2);
   }

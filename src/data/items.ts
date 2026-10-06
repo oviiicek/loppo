@@ -253,10 +253,14 @@ export function newUid() {
   return Date.now().toString(36) + '-' + (uidCounter++).toString(36) + '-' + Math.floor(Math.random() * 1e6).toString(36);
 }
 
-export function affixValue(def: { base: number; perLevel: number; cap?: number }, ilvl: number, mult: number, r: RNG) {
+// keys that keep one decimal place; everything else is rounded to whole numbers
+const DECIMAL_KEYS = new Set<StatKey>(['hpRegen', 'mpRegen', 'lifesteal', 'manaOnHit']);
+
+export function affixValue(def: { key?: StatKey; base: number; perLevel: number; cap?: number }, ilvl: number, mult: number, r: RNG) {
   let v = (def.base + def.perLevel * ilvl) * mult * r.float(0.75, 1.15);
   if (def.cap) v = Math.min(def.cap, v);
-  return v < 10 ? Math.round(v * 10) / 10 : Math.round(v);
+  if (def.key && DECIMAL_KEYS.has(def.key)) return Math.max(0.1, Math.round(v * 10) / 10);
+  return Math.max(1, Math.round(v));
 }
 
 export function rollRarity(r: RNG, magicFind = 0, bonus = 0): number {
@@ -363,8 +367,8 @@ export function itemStats(it: Item): Stats {
   if (it.armor) add('armor', Math.round(it.armor * upgradeMult(it)));
   if (it.block) add('block', it.block);
   const am = upgradeAffixMult(it);
-  for (const a of it.affixes) add(a.key, round1(a.value * am));
-  if (it.enchant) add(it.enchant.key, round1(it.enchant.value * am));
+  for (const a of it.affixes) add(a.key, scaledAffix(a.key, a.value, am));
+  if (it.enchant) add(it.enchant.key, scaledAffix(it.enchant.key, it.enchant.value, am));
   return s;
 }
 
@@ -373,8 +377,9 @@ export function weaponDamage(it: Item): [number, number] {
   return [Math.round((it.dmgMin ?? 0) * m), Math.round((it.dmgMax ?? 0) * m)];
 }
 
-function round1(v: number) {
-  return v < 10 ? Math.round(v * 10) / 10 : Math.round(v);
+export function scaledAffix(key: StatKey, value: number, mult: number) {
+  const v = value * mult;
+  return DECIMAL_KEYS.has(key) ? Math.round(v * 10) / 10 : Math.round(v);
 }
 
 export function itemValue(it: Item): number {

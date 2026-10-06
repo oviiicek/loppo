@@ -57,6 +57,17 @@ class UIManager {
     bus.on('buffs', () => this.renderBuffs());
     bus.on('equip', () => this.refreshSkills());
     document.addEventListener('pointerdown', () => unlockAudio(), { once: true });
+    // save when the app goes to background (mobile)
+    const persist = () => {
+      if (this.scene) saveGame(this.scene.save);
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        persist();
+        if (this.scene && !this.panel && !this.scene.player.dead) this.menus.pause();
+      }
+    });
+    window.addEventListener('pagehide', persist);
     window.addEventListener('resize', () => this.layout());
     // prevent context menu / double-tap zoom
     document.addEventListener('contextmenu', (e) => e.preventDefault());

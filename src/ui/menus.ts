@@ -95,7 +95,7 @@ export class Menus {
           <div class="col scroll" style="flex:1.4;min-width:0"><div class="classgrid">${CLASSES.map(
             (c) => `<div class="ccard ${c.id === sel ? 'sel' : ''}" data-cls="${c.id}"><img src="${iconURL('pl_' + c.id, 64)}"><div class="nm">${c.name}</div><div class="st">${c.style}</div></div>`,
           ).join('')}</div></div>
-          <div class="col detail box scroll" style="flex:1"></div>
+          <div class="col detail box" style="flex:1;min-width:0"></div>
         </div>
       </div></div>`);
     this.ui.root.appendChild(m);
@@ -108,14 +108,14 @@ export class Menus {
       const attrs = Object.entries(c.attrs)
         .map(([k, v]) => `${({ str: 'Síla', dex: 'Obratnost', vit: 'Zdraví', ene: 'Mana', int: 'Magická síla', spd: 'Rychlost útoku' } as any)[k]} +${v}`)
         .join(', ');
-      detail.innerHTML = `<div class="row" style="flex-wrap:nowrap"><img style="height:84px;image-rendering:pixelated" src="${iconURL('pl_' + sel, 96)}"><div><h3 style="color:#ffd76a;font-size:31px;margin:0">${c.name}</h3><div class="sub">${c.style}</div></div></div>
+      detail.innerHTML = `<div class="scroll" style="flex:1;min-height:0"><div class="row" style="flex-wrap:nowrap"><img style="height:84px;image-rendering:pixelated" src="${iconURL('pl_' + sel, 96)}"><div><h3 style="color:#ffd76a;font-size:31px;margin:0">${c.name}</h3><div class="sub">${c.style}</div></div></div>
         <p style="font-size:18px;margin:6px 0">${esc(c.desc)}</p>
         <div style="color:#9dff9d;font-size:17px">Pasivní: ${esc(c.passive)}</div>
         <div class="hint" style="margin-top:4px">Výchozí zbraň: ${esc(weapon.noun)}${off ? ' + ' + esc(off.noun) : ''}</div>
         <div class="hint">Bonus atributů: ${attrs}</div>
         <div class="hint" style="margin-top:6px">Kouzla classy (${sp.length}, odemykají se s úrovní):</div>
-        <div style="display:flex;flex-wrap:wrap;gap:3px;margin:4px 0">${sp.map((x) => `<img title="${esc(x.name)} (úr. ${x.lvl})" style="width:30px;height:30px;border-radius:5px;${x.ult ? 'outline:2px solid #ffb347' : ''}" src="${spellIcon(x.icon, x.color, 60)}">`).join('')}</div>
-        <button class="btn green" data-a="start" style="font-size:26px;margin-top:8px;width:100%">Začít dobrodružství</button>`;
+        <div style="display:flex;flex-wrap:wrap;gap:3px;margin:4px 0">${sp.map((x) => `<img title="${esc(x.name)} (úr. ${x.lvl})" style="width:30px;height:30px;border-radius:5px;${x.ult ? 'outline:2px solid #ffb347' : ''}" src="${spellIcon(x.icon, x.color, 60)}">`).join('')}</div></div>
+        <button class="btn green" data-a="start" style="font-size:24px;width:100%;flex-shrink:0">Začít dobrodružství</button>`;
       $('[data-a=start]', detail).addEventListener('click', () => {
         sfx('levelup');
         const save = newCharacter(sel);

@@ -19,6 +19,7 @@ import {
   MAX_UPGRADE,
   isTwoHanded,
   itemIcon,
+  scaledAffix,
 } from '../data/items';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
@@ -96,8 +97,8 @@ export class Panels {
     if (st.block) h += `<div class="main">Šance na blok: ${st.block} %</div>`;
     if (base.implicit) for (const [k, v] of Object.entries(base.implicit)) h += `<div class="aff" style="color:#c9c9c9">${formatStat(k as any, v as number)}</div>`;
     const am = 1 + 0.04 * it.upgrade;
-    for (const a of it.affixes) h += `<div class="aff">${formatStat(a.key, Math.round(a.value * am * 10) / 10)}</div>`;
-    if (it.enchant) h += `<div class="ench">✧ Očarování: ${formatStat(it.enchant.key, Math.round(it.enchant.value * am * 10) / 10)}</div>`;
+    for (const a of it.affixes) h += `<div class="aff">${formatStat(a.key, scaledAffix(a.key, a.value, am))}</div>`;
+    if (it.enchant) h += `<div class="ench">✧ Očarování: ${formatStat(it.enchant.key, scaledAffix(it.enchant.key, it.enchant.value, am))}</div>`;
     for (const s of it.specials) h += `<div class="spec">★ ${esc(SPECIAL_BY_ID[s]?.desc ?? s)}</div>`;
     if (base.cat === 'weapon2h') h += `<div class="hint">Obouruční – zabírá obě ruce</div>`;
     if (base.cat === 'weapon1h') h += `<div class="hint">Jednoruční – lze nosit se štítem nebo dvě zbraně</div>`;

@@ -364,7 +364,7 @@ export class Spells {
           const a = (i / n) * Math.PI * 2;
           const x = p.x + (n > 1 ? Math.cos(a) * 18 : 0),
             y = p.y + (n > 1 ? Math.sin(a) * 18 : 0);
-          const s = sc.add.image(x, y, 'disc').setTint(EL_COLOR[el] ?? 0xcccccc).setScale(0.22).setAlpha(0.7).setDepth(D.floorDeco + 1);
+          const s = sc.add.image(x, y, 'disc').setTint(EL_COLOR[el] ?? 0xcccccc).setScale(0.06).setAlpha(0.7).setDepth(D.floorDeco + 1);
           this.traps.push({ x, y, r: f.r ?? 36, dmg, el, freeze: f.freeze, armT: 0.4, life: 25, sprite: s });
         }
         break;
@@ -565,9 +565,9 @@ export class Spells {
   addField(x: number, y: number, r: number, dps: number, el: Element, dur: number, follow: boolean, f: Fx) {
     const sc = this.scene;
     const c = EL_COLOR[el] ?? 0xffffff;
-    const gfx = sc.add.image(x, y, 'disc').setTint(c).setAlpha(0.35).setScale((r * 2) / 64).setDepth(D.floorDeco + 1).setBlendMode(Phaser.BlendModes.ADD);
+    const gfx = sc.add.image(x, y, 'disc').setTint(c).setAlpha(0.35).setScale((r * 2) / 256).setDepth(D.floorDeco + 1).setBlendMode(Phaser.BlendModes.ADD);
     let spin: Phaser.GameObjects.Image | undefined;
-    if (f.pull || follow) spin = sc.add.image(x, y, 'ring').setTint(c).setAlpha(0.5).setScale((r * 2) / 64).setDepth(D.floorDeco + 1).setBlendMode(Phaser.BlendModes.ADD);
+    if (f.pull || follow) spin = sc.add.image(x, y, 'ring').setTint(c).setAlpha(0.5).setScale((r * 2) / 256).setDepth(D.floorDeco + 1).setBlendMode(Phaser.BlendModes.ADD);
     this.fields.push({ x, y, r, dps, el, t: dur, follow, slow: f.slow, pull: f.pull, vuln: f.vuln, lifesteal: f.lifesteal, tick: 0, gfx, spin });
   }
 

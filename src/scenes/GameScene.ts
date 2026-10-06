@@ -232,7 +232,7 @@ export class GameScene extends Phaser.Scene {
         const s = this.add.sprite(px, o.y * TS + 9, 'torch').play('torch_loop').setDepth(D.wallDeco);
         s.anims.setProgress(Math.random());
         const glow = this.add.image(px, o.y * TS + 6, 'glow').setTint(0xff9a3a).setAlpha(0.22).setScale(1.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
-        this.lamps.push({ x: px, y: o.y * TS + 12, r: 74, flicker: Math.random() * 10, glow });
+        this.lamps.push({ x: px, y: o.y * TS + 12, r: 66, flicker: Math.random() * 10, glow });
         break;
       }
       case 'banner':
@@ -934,10 +934,10 @@ export class GameScene extends Phaser.Scene {
     // all lights are drawn into one capture which is then erased from the darkness in a single pass
     rt.beginDraw();
     L.setAlpha(0.6);
-    L.setScale((165 * 2) / 128);
+    L.setScale((145 * 2) / 128);
     rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
     L.setAlpha(1);
-    L.setScale((100 * 2) / 128);
+    L.setScale((92 * 2) / 128);
     rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
     for (const l of this.lamps) {
       const x = l.x - ox,

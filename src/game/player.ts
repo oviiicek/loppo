@@ -56,7 +56,7 @@ export class Player extends Actor {
     this.hp = this.d.maxHp;
     this.mp = this.d.maxMp;
     this.buildWeaponSprites();
-    this.shieldFx = scene.add.image(x, y, 'disc').setTint(0x7fb2ff).setAlpha(0).setScale(0.45).setDepth(D.bright).setBlendMode(Phaser.BlendModes.ADD);
+    this.shieldFx = scene.add.image(x, y, 'disc').setTint(0x7fb2ff).setAlpha(0).setScale(0.115).setDepth(D.bright).setBlendMode(Phaser.BlendModes.ADD);
   }
 
   get stealthed() {
@@ -210,6 +210,7 @@ export class Player extends Actor {
       this.knockY *= 0.8;
     }
 
+    if (sc.map.collides(this.x, this.y, this.r)) this.unstick();
     this.autoAttack(dt);
     this.specialsTick(dt);
     this.syncSprite(this.moving);
@@ -418,6 +419,21 @@ export class Player extends Actor {
     }
     this.weapon?.setAlpha(this.sprite.alpha);
     this.offhand?.setAlpha(this.sprite.alpha);
+  }
+
+  // safety: if something pushed the player into a wall, move to the nearest free spot
+  unstick() {
+    const m = this.scene.map;
+    for (let r = 2; r < 64; r += 2)
+      for (let a = 0; a < 16; a++) {
+        const x = this.x + Math.cos((a / 16) * Math.PI * 2) * r,
+          y = this.y + Math.sin((a / 16) * Math.PI * 2) * r;
+        if (!m.collides(x, y, this.r)) {
+          this.x = x;
+          this.y = y;
+          return;
+        }
+      }
   }
 
   hurtFlash() {
