@@ -792,6 +792,7 @@ export class GameScene extends Phaser.Scene {
   onBossAggro(b: Enemy) {
     sfx('boss');
     UI.showBoss(b);
+    UI.banner(b.name, b.bossTier > 0 ? 'Prastarý strážce hlubin' : 'Strážce patra');
     this.fx.shake(0.006, 300);
   }
 

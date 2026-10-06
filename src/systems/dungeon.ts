@@ -356,8 +356,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   for (const [a, b] of edges) {
     const A = rooms[a],
       B = rooms[b];
-    const path = astar(A, B);
-    if (!path) continue;
+    const path = astar(A, B) ?? lPath(A.cx, A.cy, B.cx, B.cy);
     const wide = r.chance(0.2) && !protectedRooms.has(a) && !protectedRooms.has(b);
     for (const i of path) {
       if (grid[i] === T_VOID || roomId[i] < 0) {
@@ -390,6 +389,34 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     }
   }
 
+  // simple L-shaped path used when A* gives up
+  function lPath(x0: number, y0: number, x1: number, y1: number): number[] {
+    const out: number[] = [];
+    let x = x0,
+      y = y0;
+    const horizFirst = r.chance(0.5);
+    const stepX = () => {
+      while (x !== x1) {
+        x += Math.sign(x1 - x);
+        out.push(idx(x, y));
+      }
+    };
+    const stepY = () => {
+      while (y !== y1) {
+        y += Math.sign(y1 - y);
+        out.push(idx(x, y));
+      }
+    };
+    if (horizFirst) {
+      stepX();
+      stepY();
+    } else {
+      stepY();
+      stepX();
+    }
+    return out;
+  }
+
   function astar(A: Room, B: Room): number[] | null {
     // direction-aware A* (state = cell*4+dir) for straight-ish corridors
     const start = idx(A.cx, A.cy),
@@ -406,7 +433,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
       gy = B.cy;
     let found = -1;
     let iter = 0;
-    while (open.size && iter++ < 200000) {
+    while (open.size && iter++ < 600000) {
       const s = open.pop();
       const cell = s >> 2,
         dir = s & 3;
@@ -527,6 +554,53 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     return touches <= 2;
   }
 
+  // ------------------------------------------------------------ connectivity repair
+  // Every room must be reachable from the start (the vault door counts as passable).
+  {
+    const reach = () => {
+      const seen = new Uint8Array(W * H);
+      const st = [idx(startRoom.cx, startRoom.cy)];
+      seen[st[0]] = 1;
+      while (st.length) {
+        const c = st.pop()!;
+        const x = c % W,
+          y = Math.floor(c / W);
+        for (const [dx, dy] of DIRS) {
+          const n = idx(x + dx, y + dy);
+          if (seen[n] || grid[n] !== T_FLOOR) continue;
+          seen[n] = 1;
+          st.push(n);
+        }
+      }
+      return seen;
+    };
+    for (let pass = 0; pass < 6; pass++) {
+      const seen = reach();
+      const cut = rooms.filter((rm) => !seen[idx(rm.cx, rm.cy)]);
+      if (!cut.length) break;
+      for (const rm of cut) {
+        // nearest reachable floor cell
+        let best = -1,
+          bd = 1e9;
+        for (let i = 0; i < W * H; i++) {
+          if (!seen[i]) continue;
+          const d = Math.abs((i % W) - rm.cx) + Math.abs(Math.floor(i / W) - rm.cy);
+          if (d < bd) {
+            bd = d;
+            best = i;
+          }
+        }
+        if (best < 0) continue;
+        for (const i of lPath(rm.cx, rm.cy, best % W, Math.floor(best / W))) {
+          if (grid[i] === T_VOID) {
+            grid[i] = T_FLOOR;
+            corridor[i] = 1;
+          }
+        }
+      }
+    }
+  }
+
   // ------------------------------------------------------------ secret rooms
   const secretWalls: { x: number; y: number }[] = [];
   const nSecret = r.chance(0.55 + Math.min(0.3, floor * 0.01)) ? (r.chance(0.25) ? 2 : 1) : 0;
@@ -581,6 +655,29 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
         if (Math.abs(x - rm.cx) + Math.abs(y - rm.cy) < 2) continue;
         grid[idx(x, y)] = T_WALL;
       }
+  }
+
+  // ------------------------------------------------------------ door sanity
+  // A locked vault door must never cut off anything but the vault itself.
+  for (let k = lockedDoors.length - 1; k >= 0; k--) {
+    const door = lockedDoors[k];
+    const seen = new Uint8Array(W * H);
+    const st = [idx(startRoom.cx, startRoom.cy)];
+    seen[st[0]] = 1;
+    const doorI = idx(door.x, door.y);
+    while (st.length) {
+      const c = st.pop()!;
+      const x = c % W,
+        y = Math.floor(c / W);
+      for (const [dx, dy] of DIRS) {
+        const n = idx(x + dx, y + dy);
+        if (seen[n] || n === doorI || grid[n] !== T_FLOOR) continue;
+        seen[n] = 1;
+        st.push(n);
+      }
+    }
+    const cutOff = rooms.some((rm) => rm.type !== 'vault' && rm.type !== 'secret' && !seen[idx(rm.cx, rm.cy)]);
+    if (cutOff) lockedDoors.splice(k, 1);
   }
 
   // ------------------------------------------------------------ assign room roles
