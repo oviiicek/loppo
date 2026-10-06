@@ -350,7 +350,7 @@ class UIManager {
     $('.lv', hud).textContent = `LV ${s.level}`;
     ($('.bar.xp .fill', hud) as HTMLElement).style.transform = `scaleX(${Math.min(1, s.xp / xpForLevel(s.level))})`;
     $('.gold', hud).textContent = s.gold.toLocaleString('cs-CZ');
-    $('.floorlbl', hud).textContent = `Patro ${sc.floor}`;
+    $('.floorlbl', hud).textContent = `Patro ${sc.floor} · ${sc.theme.name}`;
     // low hp vignette
     const vig = $('.vignette', hud);
     vig.classList.toggle('low', hpF < 0.3 && !p.dead);

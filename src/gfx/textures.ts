@@ -76,9 +76,84 @@ export const TILE = {
   count: 25,
 };
 
-function drawFloor(ctx: CanvasRenderingContext2D, ox: number, v: number) {
-  const base = ['#6e5038', '#6a4c35', '#735439', '#684a33'];
-  const mortar = '#3a291d';
+// Dungeon themes (biomes) – they change every 10 floors and end with a boss floor.
+export interface Theme {
+  name: string;
+  floor: string[];
+  mortar: string;
+  moss: string[];
+  stone: { top: string; topHi: string; topLo: string; line: string; edge: string };
+  brick: string[];
+  brickMortar: string;
+  torch: number;
+  dark: number;
+}
+
+export const THEMES: Theme[] = [
+  {
+    name: 'Kobky',
+    floor: ['#6e5038', '#6a4c35', '#735439', '#684a33'],
+    mortar: '#3a291d',
+    moss: ['#3f5a24', '#4d6b2b', '#5d7f33'],
+    stone: { top: '#4a4955', topHi: '#5d5c6a', topLo: '#3a3943', line: '#24232b', edge: '#17161c' },
+    brick: ['#5b5a66', '#55545f', '#62616e', '#4f4e59'],
+    brickMortar: '#2a2930',
+    torch: 0xff9a3a,
+    dark: 0x05040a,
+  },
+  {
+    name: 'Krypta',
+    floor: ['#4c5260', '#484e5b', '#515866', '#454a56'],
+    mortar: '#262a33',
+    moss: ['#3a4a5a', '#44586a', '#2f3d4a'],
+    stone: { top: '#3c4250', topHi: '#4d5466', topLo: '#2f3440', line: '#1c2028', edge: '#12141a' },
+    brick: ['#4a5163', '#454b5c', '#525a6e', '#40465a'],
+    brickMortar: '#20232c',
+    torch: 0x9ab8ff,
+    dark: 0x04050c,
+  },
+  {
+    name: 'Jeskyně',
+    floor: ['#5a5a3a', '#545436', '#606040', '#4e4e32'],
+    mortar: '#2e2e1c',
+    moss: ['#3f6a24', '#4d7b2b', '#5d8f33'],
+    stone: { top: '#3e4a3a', topHi: '#4e5c49', topLo: '#323d2f', line: '#1e261c', edge: '#121810' },
+    brick: ['#4b5a46', '#46543f', '#53634d', '#404d3b'],
+    brickMortar: '#222a1f',
+    torch: 0xc8ff7a,
+    dark: 0x040805,
+  },
+  {
+    name: 'Výheň',
+    floor: ['#5a3028', '#552c24', '#62352c', '#4f2a22'],
+    mortar: '#2a1210',
+    moss: ['#ff6a1a', '#ff8a2a', '#c84a10'],
+    stone: { top: '#2e2a2c', topHi: '#3e3638', topLo: '#241f21', line: '#141012', edge: '#0c0809' },
+    brick: ['#3a3032', '#352b2d', '#42373a', '#302729'],
+    brickMortar: '#1a1213',
+    torch: 0xff5a1a,
+    dark: 0x0a0403,
+  },
+  {
+    name: 'Ledové hlubiny',
+    floor: ['#7d97ab', '#7690a4', '#849fb3', '#718a9e'],
+    mortar: '#435869',
+    moss: ['#cfefff', '#b8e0ff', '#e8f8ff'],
+    stone: { top: '#5f7689', topHi: '#7b94a8', topLo: '#4f6272', line: '#33434f', edge: '#222c35' },
+    brick: ['#7089a0', '#6a8399', '#7891a8', '#637c92'],
+    brickMortar: '#3a4b5a',
+    torch: 0x8fe0ff,
+    dark: 0x03060a,
+  },
+];
+
+export function themeForFloor(floor: number) {
+  return Math.floor((Math.max(1, floor) - 1) / 10) % THEMES.length;
+}
+
+function drawFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const base = th.floor;
+  const mortar = th.mortar;
   rect(ctx, ox, 0, 16, 16, mortar);
   // 4 slabs with offset pattern
   const slabs = v % 2 === 0 ? [[0, 0, 8, 8], [8, 0, 8, 8], [0, 8, 8, 8], [8, 8, 8, 8]] : [[0, 0, 10, 7], [10, 0, 6, 7], [0, 7, 6, 9], [6, 7, 10, 9]];
@@ -101,9 +176,9 @@ function drawFloor(ctx: CanvasRenderingContext2D, ox: number, v: number) {
     line(ctx, ox + 3, 4, ox + 7, 9, shade(mortar, 0.05));
     line(ctx, ox + 7, 9, ox + 6, 13, shade(mortar, 0.05));
   }
-  // moss
+  // moss / embers / frost depending on the theme
   if (v === 5 || v === 7) {
-    const mc = ['#3f5a24', '#4d6b2b', '#5d7f33'];
+    const mc = th.moss;
     for (let k = 0; k < 14; k++) {
       const sx = Math.floor(hash(v, k, 3) * 7) + (v === 5 ? 1 : 8),
         sy = Math.floor(hash(k, v, 5) * 6) + (v === 5 ? 8 : 1);
@@ -112,9 +187,8 @@ function drawFloor(ctx: CanvasRenderingContext2D, ox: number, v: number) {
   }
 }
 
-const STONE = { top: '#4a4955', topHi: '#5d5c6a', topLo: '#3a3943', line: '#24232b', edge: '#17161c' };
-
-function drawWallTop(ctx: CanvasRenderingContext2D, ox: number, mask: number) {
+function drawWallTop(ctx: CanvasRenderingContext2D, ox: number, mask: number, th: Theme) {
+  const STONE = th.stone;
   // mask bits: 1 = floor north, 2 = floor east, 4 = floor west
   rect(ctx, ox, 0, 16, 16, STONE.top);
   // big blocks
@@ -148,9 +222,10 @@ function drawWallTop(ctx: CanvasRenderingContext2D, ox: number, mask: number) {
   }
 }
 
-function drawWallFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked = false) {
-  const brick = ['#5b5a66', '#55545f', '#62616e', '#4f4e59'];
-  const mortar = '#2a2930';
+function drawWallFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) {
+  const STONE = th.stone;
+  const brick = th.brick;
+  const mortar = th.brickMortar;
   rect(ctx, ox, 0, 16, 16, mortar);
   // top cap
   rect(ctx, ox, 0, 16, 3, STONE.topHi);
@@ -175,27 +250,31 @@ function drawWallFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, 
     }
   });
   // bottom shadow
-  rect(ctx, ox, 15, 16, 1, '#1b1a20');
+  rect(ctx, ox, 15, 16, 1, shade(mortar, -0.35));
   if (mask & 1) rect(ctx, ox + 15, 0, 1, 16, STONE.edge);
   if (mask & 2) rect(ctx, ox, 0, 1, 16, STONE.edge);
   if (cracked) {
-    line(ctx, ox + 5, 4, ox + 8, 8, '#18171c');
-    line(ctx, ox + 8, 8, ox + 7, 12, '#18171c');
-    line(ctx, ox + 8, 8, ox + 11, 10, '#18171c');
-    px(ctx, ox + 6, 5, '#77768a');
+    const c = shade(mortar, -0.4);
+    line(ctx, ox + 5, 4, ox + 8, 8, c);
+    line(ctx, ox + 8, 8, ox + 7, 12, c);
+    line(ctx, ox + 8, 8, ox + 11, 10, c);
+    px(ctx, ox + 6, 5, shade(brick[0], 0.25));
   }
 }
 
 function buildTileset() {
-  const [c, ctx] = canvas(16 * TILE.count, 16);
-  for (let v = 0; v < 8; v++) drawFloor(ctx, 16 * (1 + v), v);
-  for (let m = 0; m < 8; m++) drawWallTop(ctx, 16 * (TILE.top + m), m);
-  for (let m = 0; m < 4; m++) drawWallFront(ctx, 16 * (TILE.front + m), m);
-  drawWallFront(ctx, 16 * TILE.frontCrack, 0, true);
-  drawWallFront(ctx, 16 * (TILE.frontCrack + 1), 0, true);
-  drawFloor(ctx, 16 * 23, 0);
-  rect(ctx, 16 * TILE.fog, 0, 16, 16, '#07060a');
-  addCanvas('tiles', c);
+  THEMES.forEach((th, ti) => {
+    const [c, ctx] = canvas(16 * TILE.count, 16);
+    for (let v = 0; v < 8; v++) drawFloor(ctx, 16 * (1 + v), v, th);
+    for (let m = 0; m < 8; m++) drawWallTop(ctx, 16 * (TILE.top + m), m, th);
+    for (let m = 0; m < 4; m++) drawWallFront(ctx, 16 * (TILE.front + m), m, false, th);
+    drawWallFront(ctx, 16 * TILE.frontCrack, 0, true, th);
+    drawWallFront(ctx, 16 * (TILE.frontCrack + 1), 0, true, th);
+    drawFloor(ctx, 16 * 23, 0, th);
+    rect(ctx, 16 * TILE.fog, 0, 16, 16, '#07060a');
+    addCanvas('tiles_' + ti, c);
+    if (ti === 0) addCanvas('tiles', c);
+  });
 }
 
 // ---------------------------------------------------------------------------

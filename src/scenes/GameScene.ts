@@ -17,6 +17,7 @@ import { Item } from '../data/types';
 import { Element } from '../data/types';
 import { UI } from '../ui/ui';
 import { createAllAnims } from '../gfx/anims';
+import { THEMES, themeForFloor } from '../gfx/textures';
 import { bus } from '../systems/events';
 import { sfx } from '../systems/audio';
 
@@ -174,7 +175,8 @@ export class GameScene extends Phaser.Scene {
     this.map.revealAround(this.player.x, this.player.y, 8);
     this.updateGlowVisibility();
     UI.attachGame(this);
-    UI.banner(this.floorTitle(), isBossFloor(this.floor) ? 'Patro strážce – připrav se!' : this.dungeon.hasMerchant ? 'Někde zde čeká obchodník…' : '');
+    const sub = isBossFloor(this.floor) ? 'Patro strážce – připrav se!' : this.floor % 10 === 1 ? `Vstupuješ: ${this.theme.name}` : this.dungeon.hasMerchant ? 'Někde zde čeká obchodník…' : this.theme.name;
+    UI.banner(this.floorTitle(), sub);
     save.floor = this.floor;
     save.maxFloor = Math.max(save.maxFloor, this.floor);
     saveGame(save);
@@ -192,6 +194,10 @@ export class GameScene extends Phaser.Scene {
       'Najdi schody dolů a sestup hlouběji. Každé 5. patro hlídá strážce!',
     ];
     tips.forEach((t, i) => this.time.delayedCall(2800 + i * 6000, () => UI.hint(t, 5500)));
+  }
+
+  get theme() {
+    return THEMES[themeForFloor(this.floor)];
   }
 
   floorTitle() {
@@ -238,7 +244,7 @@ export class GameScene extends Phaser.Scene {
       case 'torch': {
         const s = this.add.sprite(px, o.y * TS + 9, 'torch').play('torch_loop').setDepth(D.wallDeco);
         s.anims.setProgress(Math.random());
-        const glow = this.add.image(px, o.y * TS + 6, 'glow').setTint(0xff9a3a).setAlpha(0.22).setScale(1.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
+        const glow = this.add.image(px, o.y * TS + 6, 'glow').setTint(this.theme.torch).setAlpha(0.22).setScale(1.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
         this.trackGlow(glow, o.x, o.y + 1);
         this.lamps.push({ x: px, y: o.y * TS + 12, r: 66, flicker: Math.random() * 10, glow });
         break;
@@ -1026,7 +1032,7 @@ export class GameScene extends Phaser.Scene {
       oy = Math.floor(v.y) - 2;
     rt.setPosition(ox, oy);
     rt.clear();
-    rt.fill(0x05040a, this.darkness);
+    rt.fill(this.theme.dark, this.darkness);
     const L = this.lightImg;
     const t = this.time.now / 1000;
     const p = this.player;
