@@ -79,6 +79,7 @@ export class GameScene extends Phaser.Scene {
   dark!: Phaser.GameObjects.RenderTexture;
   lightImg!: Phaser.GameObjects.Image;
   hpBars!: Phaser.GameObjects.Graphics;
+  targetMarker!: Phaser.GameObjects.Image;
   keys!: Record<string, Phaser.Input.Keyboard.Key>;
   flowT = 0;
   revealT = 0;
@@ -153,6 +154,7 @@ export class GameScene extends Phaser.Scene {
     this.dark = this.add.renderTexture(0, 0, 64, 64).setOrigin(0).setDepth(D.dark);
     this.lightImg = this.make.image({ key: 'light', add: false }).setOrigin(0.5);
     this.hpBars = this.add.graphics().setDepth(D.bright + 5);
+    this.targetMarker = this.add.image(0, 0, 'ring').setTint(0xff4040).setAlpha(0).setDepth(D.floorDeco + 2).setBlendMode(Phaser.BlendModes.ADD);
 
     // input
     const kb = this.input.keyboard!;
@@ -948,6 +950,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.drawHpBars();
+    // marker under the auto-attack target
+    const tgt = p.target;
+    if (tgt && !tgt.dead && !p.dead) {
+      const sz = (tgt.r * tgt.baseScale * 2 + 10) / 256;
+      this.targetMarker.setPosition(tgt.x, tgt.y + 2).setScale(sz, sz * 0.55).setAlpha(0.55 + Math.sin(this.time.now / 140) * 0.2);
+    } else this.targetMarker.setAlpha(0);
     this.updateLighting(dt);
 
     this.achT += dt;

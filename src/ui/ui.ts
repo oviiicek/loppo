@@ -75,6 +75,21 @@ class UIManager {
       }
     });
     window.addEventListener('pagehide', persist);
+    // Android back button / browser back: open the pause menu instead of leaving the game
+    try {
+      history.pushState({ loppo: 1 }, '');
+      window.addEventListener('popstate', () => {
+        if (this.scene && !this.panel && !this.scene.player.dead) this.menus.pause();
+        else if (this.panel && this.scene) this.closeOverlay();
+        try {
+          history.pushState({ loppo: 1 }, '');
+        } catch {
+          /* ignore */
+        }
+      });
+    } catch {
+      /* history not available (sandbox) */
+    }
     // while a panel is open the game scene (and its keyboard input) is paused
     document.addEventListener('keydown', (e) => {
       if (!this.panel || !this.scene) return;

@@ -4,7 +4,7 @@ import { Actor, Enemy } from './entities';
 import { D, EL_COLOR } from './fx';
 import { SaveData, derive, Derived } from '../systems/state';
 import { BuffMods } from '../data/spells';
-import { BASE_BY_ID } from '../data/items';
+import { BASE_BY_ID, itemTier } from '../data/items';
 import { bus } from '../systems/events';
 import { sfx } from '../systems/audio';
 
@@ -98,12 +98,12 @@ export class Player extends Actor {
     this.offhand = null;
     const main = this.save.equip.main;
     if (main) {
-      const key = 'wp_' + main.base;
+      const key = `wp_${main.base}_t${itemTier(main)}`;
       this.weapon = this.scene.add.image(this.x, this.y, key).setOrigin(0.5, 0.85);
     }
     const off = this.save.equip.off;
     if (off) {
-      const key = 'wp_' + off.base;
+      const key = `wp_${off.base}_t${itemTier(off)}`;
       this.offhand = this.scene.add.image(this.x, this.y, key).setOrigin(0.5, off.base === 'shield' || off.base === 'orb' ? 0.5 : 0.85);
     }
   }

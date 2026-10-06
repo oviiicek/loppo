@@ -2208,6 +2208,54 @@ export function spellIcon(glyph: string, color: string, size = 40): string {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// MATERIAL TIERS: metal parts of weapons/armour are recoloured per item tier
+// (rusty, iron, steel, rune, mithril, dragon, demonic, star)
+// ---------------------------------------------------------------------------
+export const TIER_TINTS = ['#b07a52', '#a7aeb6', '#e2e8ee', '#7fb8ff', '#c8f4ff', '#ff6a4a', '#b47cff', '#ffd86a'];
+const TIERED_ICONS = ['ic_sword', 'ic_greatsword', 'ic_dagger', 'ic_knuckle', 'ic_axe', 'ic_greataxe', 'ic_mace', 'ic_hammer', 'ic_spear', 'ic_bow', 'ic_crossbow', 'ic_staff', 'ic_wand', 'ic_shield', 'ic_orb', 'ic_helmet', 'ic_chest', 'ic_pants', 'ic_belt', 'ic_boots', 'ic_ring', 'ic_amulet', 'ic_bracer'];
+const TIERED_WEAPONS = ['sword', 'greatsword', 'dagger', 'knuckle', 'axe', 'greataxe', 'mace', 'hammer', 'spear', 'bow', 'crossbow', 'staff', 'wand', 'shield', 'orb'];
+
+function recolorMetal(src: HTMLCanvasElement, tint: string): HTMLCanvasElement {
+  const [c, ctx] = canvas(src.width, src.height);
+  ctx.drawImage(src, 0, 0);
+  const img = ctx.getImageData(0, 0, c.width, c.height);
+  const d = img.data;
+  const t = parseInt(tint.slice(1), 16);
+  const tr = (t >> 16) & 255,
+    tg = (t >> 8) & 255,
+    tb = t & 255;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 10) continue;
+    const r = d[i],
+      g = d[i + 1],
+      b = d[i + 2];
+    const mx = Math.max(r, g, b),
+      mn = Math.min(r, g, b);
+    // only greyish, reasonably bright pixels are metal (wood, gold and outline stay)
+    if (mx - mn > 28 || mx < 70) continue;
+    const l = (r + g + b) / 3 / 210;
+    d[i] = Math.min(255, tr * l);
+    d[i + 1] = Math.min(255, tg * l);
+    d[i + 2] = Math.min(255, tb * l);
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function buildTierVariants() {
+  TIER_TINTS.forEach((tint, t) => {
+    for (const k of TIERED_ICONS) {
+      const src = canvases.get(k);
+      if (src) addCanvas(`${k}_t${t}`, recolorMetal(src, tint));
+    }
+    for (const w of TIERED_WEAPONS) {
+      const src = canvases.get('wp_' + w);
+      if (src) addCanvas(`wp_${w}_t${t}`, recolorMetal(src, tint));
+    }
+  });
+}
+
 export function buildAllTextures(scene: Phaser.Scene) {
   SCENE = scene;
   buildTileset();
@@ -2215,6 +2263,7 @@ export function buildAllTextures(scene: Phaser.Scene) {
   buildEnemies();
   buildWeapons();
   buildIcons();
+  buildTierVariants();
   buildObjects();
   buildProjectiles();
 }

@@ -335,3 +335,13 @@ Object.assign(dev, {
     return c.toDataURL('image/png');
   },
 });
+
+Object.assign(dev, {
+  // fills the inventory with items across all material tiers (for checking icons)
+  giveTierItems() {
+    const s = (window as any).__scene.save;
+    const bases = ['sword', 'greataxe', 'helmet', 'chest', 'shield', 'bow'];
+    for (let i = 0; i < 30; i++) s.inventory[i] = generateItem(1 + (i % 8) * 8, { base: bases[Math.floor(i / 8) % bases.length], rarity: i % 6 });
+    return true;
+  },
+});

@@ -436,6 +436,11 @@ export function isTwoHanded(it: Item | null | undefined) {
   return !!it && BASE_BY_ID[it.base].cat === 'weapon2h';
 }
 
+export function itemTier(it: Item) {
+  return Math.min(7, Math.floor(it.ilvl / 8));
+}
+
+// icon key including the material tint of the item tier
 export function itemIcon(it: Item) {
-  return BASE_BY_ID[it.base].icon;
+  return `${BASE_BY_ID[it.base].icon}_t${itemTier(it)}`;
 }

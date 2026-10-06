@@ -837,7 +837,16 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   const spawns: Spawn[] = [];
   const pool = ENEMIES.filter((e) => e.minFloor <= floor && e.weight > 0);
   const eliteChance = Math.min(0.16, 0.05 + floor * 0.004);
-  const pickEnemy = (): EnemyDef => r.weighted(pool, (e) => e.weight * (floor - e.minFloor < 6 ? 1.3 : 1));
+  // every theme (10 floors) favours its own monsters
+  const THEME_FAVOURITES: string[][] = [
+    ['skeleton', 'bat', 'slime', 'goblin', 'skelArcher'],
+    ['skeleton', 'skelArcher', 'ghost', 'zombie', 'darkMage', 'cultist'],
+    ['spider', 'slime', 'goblin', 'orc', 'bat'],
+    ['imp', 'cultist', 'orc', 'golem', 'darkMage'],
+    ['wraith', 'ghost', 'golem', 'skelArcher', 'zombie'],
+  ];
+  const fav = THEME_FAVOURITES[Math.floor((floor - 1) / 10) % THEME_FAVOURITES.length];
+  const pickEnemy = (): EnemyDef => r.weighted(pool, (e) => e.weight * (floor - e.minFloor < 6 ? 1.3 : 1) * (fav.includes(e.id) ? 2.5 : 1));
   for (const rm of rooms) {
     if (['start', 'merchant', 'shrine', 'fountain', 'forge', 'boss', 'closet'].includes(rm.type)) continue;
     const cells = freeFloor(rm).filter((c) => Math.hypot((c % W) - start.x, Math.floor(c / W) - start.y) > 8);
