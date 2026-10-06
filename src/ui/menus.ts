@@ -88,6 +88,9 @@ export class Menus {
         <p><b style="color:#ffd76a">Kořist:</b> 6 kvalit – běžná, neobvyklá, vzácná, epická, legendární a mýtická. Předměty můžeš nasadit, prodat, rozebrat, vylepšit (+1 až +10) a očarovat.</p>
         <p><b style="color:#ffd76a">Vybavení:</b> jednoruční zbraň + štít, dvě jednoruční zbraně, nebo obouruční zbraň. Dále helma, brnění, kalhoty, opasek, boty, 2 prsteny, náhrdelník a náramek.</p>
         <p><b style="color:#ffd76a">Dungeon:</b> každé patro je náhodně generované a postupně větší. Hledej tajné místnosti (praskliny ve zdech), trezory zamčené paklíčem a obchodníky. Každé 5. patro hlídá strážce – po jeho porážce si vybereš jednu ze tří truhel.</p>
+        <p><b style="color:#ffd76a">Prostředí:</b> každých 10 pater se dungeon promění – Kobky, Krypta, Jeskyně, Výheň a Ledové hlubiny, každé s vlastními nepřáteli.</p>
+        <p><b style="color:#ffd76a">Mapa:</b> klepni na minimapu (klávesa M) pro velkou mapu prozkoumaného patra. Pozor na bodcové pasti!</p>
+        <p><b style="color:#ffd76a">Úspěchy:</b> v menu pauzy najdeš 25 úspěchů s odměnami (zlato, materiály i body atributů).</p>
         <p><b style="color:#ffd76a">Smrt:</b> přijdeš o 15 % zlata a část zkušeností a začneš patro znovu.</p>
       </div></div></div>`);
     this.ui.root.appendChild(p);

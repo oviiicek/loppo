@@ -141,11 +141,28 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
   - očarování, které přidá nebo přehodí magický efekt.
 - Chytrý loot: část zbraní padá podle typu útoku postavy a přednost mají prázdné sloty.
 
+### Prostředí a průzkum
+- 5 prostředí, která se střídají po 10 patrech, každé s vlastní paletou a typickými nepřáteli:
+  - Kobky,
+  - Krypta,
+  - Jeskyně,
+  - Výheň,
+  - Ledové hlubiny.
+
+  Každé končí strážcem.
+- Mlha války s přímou viditelností: neprozkoumané části patra jsou černé.
+- Velká mapa po klepnutí na minimapu (klávesa M).
+- Rozbitné bedny, sudy a hliněné nádoby s drobnou kořistí. Bodcové pasti v chodbách a místnostech.
+- 25 úspěchů s odměnami (zlato, materiály, body atributů).
+- Barva kovu u zbraní a zbroje odpovídá materiálu předmětu (rezavý, železný, ocelový, runový, mithrilový, dračí, démonický, hvězdný). Vidět je to v inventáři i na zbrani v ruce postavy.
+
 ### Ostatní
 - Dynamické osvětlení s blikajícími pochodněmi, minimapa s mlhou války, čísla poškození, částicové efekty a otřesy obrazovky.
 - Automatické ukládání do `localStorage`: při změně patra, každých 20 s a při odchodu z aplikace.
 - Smrt znamená ztrátu 15 % zlata a části zkušeností. Patro se pak vygeneruje znovu.
-- Nápověda na začátku hry, nastavení zvuku, hudby a vibrací.
+- Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání a automatické rozebírání slabých předmětů.
+- Hlavní menu má živé pozadí, náhodně vygenerovaný dungeon s pochodněmi.
+- Tlačítko Zpět na Androidu otevře pauzu místo opuštění hry.
 
 ## Struktura projektu
 
