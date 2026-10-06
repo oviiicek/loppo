@@ -36,6 +36,18 @@ export interface SaveData {
   merchantPity: number;
   classChanges: number;
   playTime: number;
+  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number };
+  achievements?: string[];
+}
+
+export function bumpStat(s: SaveData, key: keyof NonNullable<SaveData['stats']>, by = 1) {
+  const st = s.stats ?? (s.stats = {});
+  st[key] = (st[key] ?? 0) + by;
+}
+
+export function maxStat(s: SaveData, key: keyof NonNullable<SaveData['stats']>, v: number) {
+  const st = s.stats ?? (s.stats = {});
+  st[key] = Math.max(st[key] ?? 0, v);
 }
 
 export function xpForLevel(level: number) {

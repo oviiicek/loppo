@@ -9,7 +9,8 @@ import { Spells } from '../game/spells';
 import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
 import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale } from '../data/enemies';
-import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout } from '../systems/state';
+import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat } from '../systems/state';
+import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { spellsForClass, BuffMods } from '../data/spells';
 import { generateItem } from '../data/items';
 import { Item } from '../data/types';
@@ -646,6 +647,7 @@ export class GameScene extends Phaser.Scene {
         }
         UI.lockpick(this.floor, (ok) => {
           if (ok) {
+            bumpStat(this.save, 'locks');
             if (it.kind === 'door') this.openDoor(it);
             else this.openChest(it);
           }
@@ -700,6 +702,7 @@ export class GameScene extends Phaser.Scene {
 
   revealSecret(it: Interactable) {
     it.used = true;
+    bumpStat(this.save, 'secrets');
     this.map.openTile(it.tx, it.ty);
     sfx('door');
     this.fx.burst(it.x, it.y - 6, 0x9a99a6, 24, 'puff');
@@ -718,6 +721,7 @@ export class GameScene extends Phaser.Scene {
   openChest(it: Interactable) {
     if (it.used) return;
     it.used = true;
+    bumpStat(this.save, 'chests');
     const tier = it.data.tier ?? 'wood';
     (it.sprite as Phaser.GameObjects.Image).setTexture('chest_' + tier + '_open');
     sfx('chest');
@@ -785,6 +789,7 @@ export class GameScene extends Phaser.Scene {
 
   onBossKilled(b: Enemy) {
     this.bossDefeated = true;
+    bumpStat(this.save, 'bosses');
     UI.hideBoss();
     UI.banner('Strážce poražen!', `${b.name} padl`);
     this.fx.shake(0.012, 500);
@@ -813,6 +818,25 @@ export class GameScene extends Phaser.Scene {
     this.lamps.push({ x: it.x, y: it.y, r: 70, flicker: 0 });
     // clear minions
     for (const e of this.enemies) if (!e.dead && e.isMinion) this.combat.killEnemy(e);
+  }
+
+  // ---------------------------------------------------------------- achievements
+  achT = 0;
+  checkAchievements() {
+    const s = this.save;
+    const got = s.achievements ?? (s.achievements = []);
+    for (const a of ACHIEVEMENTS) {
+      if (got.includes(a.id) || !a.check(s)) continue;
+      got.push(a.id);
+      const r = a.reward;
+      if (r.gold) s.gold += r.gold;
+      if (r.stone) s.mats.stone += r.stone;
+      if (r.dust) s.mats.dust += r.dust;
+      if (r.lockpick) s.mats.lockpick += r.lockpick;
+      if (r.attr) s.attrPoints += r.attr;
+      sfx('levelup');
+      UI.toast(`🏆 Úspěch: ${a.name} – ${achievementReward(a.reward)}`, '#ffd23a');
+    }
   }
 
   // ---------------------------------------------------------------- death / floors
@@ -920,6 +944,11 @@ export class GameScene extends Phaser.Scene {
     this.drawHpBars();
     this.updateLighting(dt);
 
+    this.achT += dt;
+    if (this.achT > 1) {
+      this.achT = 0;
+      this.checkAchievements();
+    }
     this.saveT += dt;
     if (this.saveT > 20) {
       this.saveT = 0;

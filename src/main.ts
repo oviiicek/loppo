@@ -31,5 +31,12 @@ const game = new Phaser.Game(config);
 
 if (import.meta.env.DEV || import.meta.env.MODE === 'devtools') import('./dev');
 else if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  // offline support when installed as a PWA (silently skipped in sandboxed frames)
+  window.addEventListener('load', () => {
+    try {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    } catch {
+      /* not available here */
+    }
+  });
 }

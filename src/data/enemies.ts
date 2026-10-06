@@ -93,7 +93,7 @@ export function enemyHpScale(floor: number) {
 }
 export function enemyDmgScale(floor: number) {
   const f = floor - 1;
-  return 1.35 * (1 + 0.26 * f + 0.012 * f * f) * Math.pow(1.02, f);
+  return 1.6 * (1 + 0.26 * f + 0.012 * f * f) * Math.pow(1.02, f);
 }
 export function enemyXpScale(floor: number) {
   return 1 + 0.25 * (floor - 1) + 0.004 * (floor - 1) * (floor - 1);

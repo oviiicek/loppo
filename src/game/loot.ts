@@ -4,7 +4,7 @@ import { Enemy } from './entities';
 import { D } from './fx';
 import { Item } from '../data/types';
 import { generateItem, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult } from '../data/items';
-import { addToInventory, Materials } from '../systems/state';
+import { addToInventory, Materials, maxStat, derive, equipItem, SaveData } from '../systems/state';
 import { sfx, settings } from '../systems/audio';
 import { bus } from '../systems/events';
 
@@ -103,7 +103,7 @@ export class Loot {
     const minion = e.isMinion ? 0.35 : 1;
     if (Math.random() < 0.11 * minion) this.dropItem(this.item(f), x, y);
     if (Math.random() < 0.4 * minion) this.dropGold(this.goldAmount(), x, y);
-    if (Math.random() < 0.05 * minion * potMult) this.dropMat(Math.random() < 0.65 ? 'hpPotion' : 'mpPotion', 1, x, y);
+    if (Math.random() < 0.04 * minion * potMult) this.dropMat(Math.random() < 0.65 ? 'hpPotion' : 'mpPotion', 1, x, y);
     if (Math.random() < 0.018 * minion) this.dropMat('lockpick', 1, x, y);
     if (Math.random() < 0.03 * minion) this.dropMat('stone', 1, x, y);
     if (Math.random() < 0.02 * minion) this.dropMat('dust', 1, x, y);
@@ -152,6 +152,11 @@ export class Loot {
     const sc = this.scene;
     let tx = x,
       ty = y;
+    // loot from a monster inside a wall (ghosts) falls next to the player instead
+    if (sc.map.collides(x, y, 3)) {
+      x = tx = sc.player.x;
+      y = ty = sc.player.y;
+    }
     for (let t = 0; t < 10; t++) {
       const a = Math.random() * Math.PI * 2,
         r = 8 + Math.random() * 18;
@@ -263,13 +268,32 @@ export class Loot {
         return;
       }
       sfx('pickup');
-      sc.ui.toast(g.item.name, RARITIES[g.item.rarity].color, g.item);
+      maxStat(p.save, 'bestRarity', g.item.rarity);
+      sc.ui.toast(g.item.name + (this.isUpgrade(g.item) ? '  ▲ lepší' : ''), RARITIES[g.item.rarity].color, g.item);
     }
     g.dead = true;
     g.sprite.destroy();
     g.label?.destroy();
     g.beam?.destroy();
     bus.emit('stats');
+  }
+
+  // would equipping this item raise damage output, armour or HP? (cheap estimate on a copy)
+  isUpgrade(it: Item) {
+    try {
+      const s = this.scene.save;
+      const idx = s.inventory.findIndex((x) => x?.uid === it.uid);
+      if (idx < 0) return false;
+      const before = derive(s);
+      const clone: SaveData = JSON.parse(JSON.stringify(s));
+      if (equipItem(clone, idx)) return false;
+      const after = derive(clone);
+      const dps = (d: typeof before) => ((d.dmgMin + d.dmgMax) / 2) * d.aps * (1 + (d.crit / 100) * (d.critDmg / 100 - 1)) * (d.attack === 'magic' ? 1 : 1);
+      const score = (d: typeof before) => dps(d) / Math.max(1, dps(before)) + d.armor / Math.max(10, before.armor) * 0.35 + d.maxHp / before.maxHp * 0.35 + d.spellMult / before.spellMult * 0.3;
+      return score(after) > score(before) * 1.02;
+    } catch {
+      return false;
+    }
   }
 
   clear() {

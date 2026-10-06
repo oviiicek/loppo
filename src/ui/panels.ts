@@ -24,7 +24,7 @@ import {
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat } from '../systems/state';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -667,6 +667,7 @@ export class Panels {
         s.mats.stone -= c.stones;
         if (Math.random() < c.chance) {
           it.upgrade++;
+          maxStat(s, 'maxUpgrade', it.upgrade);
           sfx('upgrade');
           this.ui.toast(`Úspěch! ${it.name} je nyní +${it.upgrade}`, '#7cc8ff');
         } else {

@@ -144,10 +144,12 @@ function botTick() {
   const p = sc.player;
   const now = performance.now();
   if (botState.lastFloor !== sc.floor) {
-    botLog.push({ floor: sc.floor, level: s.level, t: Math.round((now - botState.started) / 1000), deaths: botState.deaths, gold: s.gold, hp: p.d.maxHp, dmg: p.d.dmgMin + '-' + p.d.dmgMax, armor: p.d.armor, kills: s.kills });
+    botLog.push({ floor: sc.floor, level: s.level, t: Math.round((now - botState.started) / 1000), deaths: botState.deaths, gold: s.gold, hp: p.d.maxHp, dmg: p.d.dmgMin + '-' + p.d.dmgMax, armor: p.d.armor, kills: s.kills, minHp: Math.round((botState as any).minHp * 100), pots: s.mats.hpPotion });
+    (botState as any).minHp = 1;
     botState.lastFloor = sc.floor;
     botState.floorStart = now;
   }
+  (botState as any).minHp = Math.min((botState as any).minHp ?? 1, p.hp / p.d.maxHp);
   if (p.dead) {
     if (!(botState as any).deadSince) (botState as any).deadSince = now;
     if (now - (botState as any).deadSince > 1500) {

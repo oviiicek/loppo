@@ -842,7 +842,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     if (['start', 'merchant', 'shrine', 'fountain', 'forge', 'boss', 'closet'].includes(rm.type)) continue;
     const cells = freeFloor(rm).filter((c) => Math.hypot((c % W) - start.x, Math.floor(c / W) - start.y) > 8);
     if (!cells.length) continue;
-    let count = Math.round((cells.length / 16) * r.float(0.7, 1.2) * (1 + Math.min(1, floor * 0.03)));
+    let count = Math.round((cells.length / 13) * r.float(0.75, 1.2) * (1 + Math.min(1, floor * 0.03)));
     if (rm.type === 'den') count = Math.round(count * 2 + 3);
     if (rm.type === 'secret' || rm.type === 'vault') count = r.chance(0.5) ? 1 : 0;
     if (rm.type === 'treasure') count = Math.round(count * 0.7);

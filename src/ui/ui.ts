@@ -323,7 +323,7 @@ class UIManager {
     if (!this.hud) return;
     const h = window.innerHeight,
       w = window.innerWidth;
-    const sc = Math.max(0.6, Math.min(1, Math.min(h / 560, w / 1000))) * (settings.uiScale || 1);
+    const sc = Math.max(0.72, Math.min(1, Math.min(h / 520, w / 950))) * (settings.uiScale || 1);
     const sk = $('.skills', this.hud);
     sk.style.transform = `scale(${sc})`;
     sk.style.transformOrigin = 'bottom right';
