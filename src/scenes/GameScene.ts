@@ -358,7 +358,7 @@ export class GameScene extends Phaser.Scene {
   makeStock(): MerchantStock {
     const f = this.floor;
     const items: Item[] = [];
-    for (let i = 0; i < 9; i++) items.push(generateItem(f + Math.floor(Math.random() * 3), { magicFind: 30, rarityBonus: Math.random() < 0.25 ? 1 : 0 }));
+    for (let i = 0; i < 9; i++) items.push(generateItem(f + Math.floor(Math.random() * 3), { magicFind: 30, rarityBonus: Math.random() < 0.25 ? 1 : 0, filter: i < 3 ? this.loot.bias() : undefined }));
     const sc = 1 + f * 0.12;
     return {
       items,

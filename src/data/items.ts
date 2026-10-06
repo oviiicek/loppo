@@ -281,7 +281,8 @@ export function rollRarity(r: RNG, magicFind = 0, bonus = 0): number {
 }
 
 export function pickBase(r: RNG, filter?: (b: BaseType) => boolean): BaseType {
-  const pool = BASES.filter((b) => !filter || filter(b));
+  let pool = BASES.filter((b) => !filter || filter(b));
+  if (!pool.length) pool = BASES;
   return r.weighted(pool, (b) => (b.cat === 'weapon1h' || b.cat === 'weapon2h' ? 1.1 : b.cat === 'ring' ? 1.2 : 1));
 }
 

@@ -86,13 +86,14 @@ export function bossForFloor(floor: number): { def: BossDef; tier: number } {
 }
 
 // Scaling curves
+// Enemy power grows polynomially plus a gentle exponential so the endless dungeon keeps up with loot
 export function enemyHpScale(floor: number) {
   const f = floor - 1;
-  return 1.1 * (1 + 0.32 * f + 0.014 * f * f);
+  return 1.15 * (1 + 0.35 * f + 0.02 * f * f) * Math.pow(1.03, f);
 }
 export function enemyDmgScale(floor: number) {
   const f = floor - 1;
-  return 1.35 * (1 + 0.24 * f + 0.009 * f * f);
+  return 1.35 * (1 + 0.26 * f + 0.012 * f * f) * Math.pow(1.02, f);
 }
 export function enemyXpScale(floor: number) {
   return 1 + 0.25 * (floor - 1) + 0.004 * (floor - 1) * (floor - 1);

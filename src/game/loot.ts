@@ -3,7 +3,7 @@ import type { GameScene } from '../scenes/GameScene';
 import { Enemy } from './entities';
 import { D } from './fx';
 import { Item } from '../data/types';
-import { generateItem, RARITIES, itemIcon } from '../data/items';
+import { generateItem, RARITIES, itemIcon, BASE_BY_ID, BaseType } from '../data/items';
 import { addToInventory, Materials } from '../systems/state';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -51,6 +51,28 @@ export class Loot {
     return 1 + p.d.gold / 100 + (p.d.specials.has('goldRush') ? 0.6 : 0) + this.scene.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0) / 100, 0);
   }
 
+  // "smart loot": some drops favour the weapon type / slots the player actually uses
+  bias(): ((b: BaseType) => boolean) | undefined {
+    const p = this.scene.player;
+    const main = p.save.equip.main ? BASE_BY_ID[p.save.equip.main.base] : null;
+    const r = Math.random();
+    if (main && r < 0.3) return (b) => !!b.attack && b.attack === main.attack;
+    if (r < 0.45) {
+      // an empty equipment slot gets priority
+      const empty = (['helmet', 'chest', 'pants', 'belt', 'boots', 'amulet', 'bracer'] as const).filter((sl) => !p.save.equip[sl]);
+      if (!p.save.equip.ring1 || !p.save.equip.ring2) (empty as string[]).push('ring');
+      if (empty.length) {
+        const pick = empty[Math.floor(Math.random() * empty.length)] as string;
+        return (b) => b.cat === pick;
+      }
+    }
+    return undefined;
+  }
+
+  item(ilvl: number, rarityBonus = 0) {
+    return generateItem(ilvl, { magicFind: this.mf, rarityBonus, filter: this.bias() });
+  }
+
   goldAmount(mult = 1) {
     const f = this.scene.floor;
     return Math.max(1, Math.round((2 + f * 1.6 + Math.random() * (3 + f)) * mult * this.goldMult));
@@ -63,7 +85,7 @@ export class Loot {
     const potMult = this.scene.player.d.specials.has('goldRush') ? 2 : 1;
     if (e.boss) {
       const n = 3 + e.bossTier;
-      for (let i = 0; i < n; i++) this.dropItem(generateItem(f + 1, { magicFind: this.mf, rarityBonus: 2 }), x, y);
+      for (let i = 0; i < n; i++) this.dropItem(this.item(f + 1, 2), x, y);
       for (let i = 0; i < 6; i++) this.dropGold(this.goldAmount(4), x, y);
       this.dropMat('stone', 2 + Math.floor(f / 10), x, y);
       this.dropMat('dust', 2 + Math.floor(f / 10), x, y);
@@ -71,15 +93,15 @@ export class Loot {
       return;
     }
     if (e.elite) {
-      this.dropItem(generateItem(f, { magicFind: this.mf, rarityBonus: 1 }), x, y);
-      if (Math.random() < 0.35) this.dropItem(generateItem(f, { magicFind: this.mf }), x, y);
+      this.dropItem(this.item(f, 1), x, y);
+      if (Math.random() < 0.35) this.dropItem(this.item(f), x, y);
       this.dropGold(this.goldAmount(2.5), x, y);
       if (Math.random() < 0.4) this.dropMat(Math.random() < 0.6 ? 'hpPotion' : 'mpPotion', 1, x, y);
       if (Math.random() < 0.25) this.dropMat('stone', 1, x, y);
       return;
     }
     const minion = e.isMinion ? 0.35 : 1;
-    if (Math.random() < 0.11 * minion) this.dropItem(generateItem(f, { magicFind: this.mf }), x, y);
+    if (Math.random() < 0.11 * minion) this.dropItem(this.item(f), x, y);
     if (Math.random() < 0.4 * minion) this.dropGold(this.goldAmount(), x, y);
     if (Math.random() < 0.05 * minion * potMult) this.dropMat(Math.random() < 0.65 ? 'hpPotion' : 'mpPotion', 1, x, y);
     if (Math.random() < 0.018 * minion) this.dropMat('lockpick', 1, x, y);
@@ -110,7 +132,7 @@ export class Loot {
       goldMult = 8;
     }
     for (let i = 0; i < nItems; i++) {
-      const it = generateItem(f + (tier === 'boss' ? 2 : 0), { magicFind: mf, rarityBonus: bonus });
+      const it = generateItem(f + (tier === 'boss' ? 2 : 0), { magicFind: mf, rarityBonus: bonus, filter: this.bias() });
       if (tier === 'boss' && i === 0 && it.rarity < 3) {
         // boss chest guarantees an epic or better
         const better = generateItem(f + 2, { rarity: Math.random() < 0.15 ? 5 : Math.random() < 0.4 ? 4 : 3 });
