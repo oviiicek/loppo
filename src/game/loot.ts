@@ -180,7 +180,7 @@ export class Loot {
     }
     sc.time.delayedCall(400, () => {
       if (g.dead) return;
-      g.label = sc.fx.label(tx, ty - 7, it.name, col, 6);
+      g.label = sc.fx.label(tx, ty - 7, it.name, col, 6, true);
       this.unclutter(g.label);
     });
     this.ground.push(g);

@@ -85,7 +85,13 @@ export class Player extends Actor {
     this.syncOrbit();
   }
 
+  private weaponKey = '';
+
   buildWeaponSprites() {
+    // only rebuild when the equipped weapons actually changed
+    const key = (this.save.equip.main?.uid ?? '-') + '|' + (this.save.equip.off?.uid ?? '-');
+    if (key === this.weaponKey && (this.weapon || this.offhand || key === '-|-')) return;
+    this.weaponKey = key;
     this.weapon?.destroy();
     this.offhand?.destroy();
     this.weapon = null;

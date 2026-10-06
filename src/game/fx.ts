@@ -80,8 +80,11 @@ export class FX {
     });
   }
 
-  label(x: number, y: number, text: string, color: string, size = 7) {
-    const t = this.scene.add.text(x, y, text, { fontFamily: '"Jersey 10", monospace', fontSize: Math.round(size * 1.3) + 'px', color, stroke: '#000', strokeThickness: 2 });
+  label(x: number, y: number, text: string, color: string, size = 7, boxed = false) {
+    const style: Phaser.Types.GameObjects.Text.TextStyle = boxed
+      ? { fontFamily: '"Jersey 10", monospace', fontSize: Math.round(size * 1.3) + 'px', color, backgroundColor: 'rgba(14,10,22,0.82)', padding: { x: 3, y: 1 } }
+      : { fontFamily: '"Jersey 10", monospace', fontSize: Math.round(size * 1.3) + 'px', color, stroke: '#000', strokeThickness: 2 };
+    const t = this.scene.add.text(x, y, text, style);
     t.setResolution(this.res).setOrigin(0.5, 1).setDepth(D.ui - 1);
     return t;
   }

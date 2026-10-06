@@ -814,6 +814,25 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
       objects.push({ kind: 'web', x, y, data: { flip: grid[idx(x + 1, y)] === T_WALL } });
   }
 
+  // spike traps in corridors and some rooms (never near the start)
+  if (floor >= 2) {
+    const trapChance = Math.min(0.025, 0.008 + floor * 0.0008);
+    for (const c of corridorCells) {
+      const x = c % W,
+        y = Math.floor(c / W);
+      if (occupied.has(c) || Math.hypot(x - start.x, y - start.y) < 8) continue;
+      if (r.chance(trapChance)) put('spikes', x, y);
+    }
+    for (const rm of rooms) {
+      if (rm.type !== 'normal' || !r.chance(0.15)) continue;
+      const cells = innerCells(rm);
+      for (let k = 0; k < Math.min(6, Math.floor(cells.length / 10)); k++) {
+        const c = pickCell(cells);
+        if (c && Math.hypot(c.x - start.x, c.y - start.y) > 6) put('spikes', c.x, c.y);
+      }
+    }
+  }
+
   // ------------------------------------------------------------ enemies
   const spawns: Spawn[] = [];
   const pool = ENEMIES.filter((e) => e.minFloor <= floor && e.weight > 0);

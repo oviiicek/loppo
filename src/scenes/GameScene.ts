@@ -8,7 +8,7 @@ import { Combat } from '../game/combat';
 import { Spells } from '../game/spells';
 import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
-import { ENEMY_BY_ID, bossForFloor, isBossFloor } from '../data/enemies';
+import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale } from '../data/enemies';
 import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout } from '../systems/state';
 import { spellsForClass, BuffMods } from '../data/spells';
 import { generateItem } from '../data/items';
@@ -85,7 +85,7 @@ export class GameScene extends Phaser.Scene {
   stairsObj: Interactable | null = null;
   paused = false;
   zoom = 3;
-  darkness = 0.8;
+  darkness = 0.74;
   merchantStocks = new Map<Interactable, MerchantStock>();
   currentAction: Interactable | null = null;
   playTimeT = 0;
@@ -103,6 +103,8 @@ export class GameScene extends Phaser.Scene {
     this.projectiles = [];
     this.interactables = [];
     this.lamps = [];
+    this.glows = [];
+    this.traps = [];
     this.shrineBuffs = [];
     this.boss = null;
     this.bossDefeated = false;
@@ -166,7 +168,8 @@ export class GameScene extends Phaser.Scene {
     kb.on('keydown-K', () => UI.openPanel('spells'));
     kb.on('keydown-ESC', () => UI.togglePause());
 
-    this.map.revealAround(this.player.x, this.player.y);
+    this.map.revealAround(this.player.x, this.player.y, 8);
+    this.updateGlowVisibility();
     UI.attachGame(this);
     UI.banner(this.floorTitle(), isBossFloor(this.floor) ? 'Patro strážce – připrav se!' : this.dungeon.hasMerchant ? 'Někde zde čeká obchodník…' : '');
     save.floor = this.floor;
@@ -244,6 +247,7 @@ export class GameScene extends Phaser.Scene {
         const s = this.add.sprite(px, o.y * TS + 9, 'torch').play('torch_loop').setDepth(D.wallDeco);
         s.anims.setProgress(Math.random());
         const glow = this.add.image(px, o.y * TS + 6, 'glow').setTint(0xff9a3a).setAlpha(0.22).setScale(1.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
+        this.trackGlow(glow, o.x, o.y + 1);
         this.lamps.push({ x: px, y: o.y * TS + 12, r: 66, flicker: Math.random() * 10, glow });
         break;
       }
@@ -258,12 +262,21 @@ export class GameScene extends Phaser.Scene {
         break;
       case 'crate':
       case 'barrel':
-      case 'pot':
+      case 'pot': {
+        const s = add(o.kind);
+        this.interactables.push({ kind: 'breakable', x: px, y: py + 4, tx: o.x, ty: o.y, sprite: s, data: { what: o.kind } });
+        break;
+      }
       case 'table':
       case 'skull':
         add(o.kind);
         if (o.kind === 'table') this.lamps.push({ x: px, y: py, r: 50, flicker: Math.random() * 10 });
         break;
+      case 'spikes': {
+        const s = this.add.sprite(px, py, 'spikes', 0).setDepth(D.floorDeco + 1);
+        this.traps.push({ x: px, y: py, sprite: s, t: Math.random() * 3, hit: false });
+        break;
+      }
       case 'chair':
         add('chair').setFlipX(!!o.data?.flip);
         break;
@@ -301,7 +314,7 @@ export class GameScene extends Phaser.Scene {
       }
       case 'door': {
         const s = this.add.image(px, py, 'door').setDepth(D.entityBase + o.y * TS + 16);
-        this.interactables.push({ kind: 'door', x: px, y: py + 8, tx: o.x, ty: o.y, sprite: s, data: {} });
+        this.interactables.push({ kind: 'door', x: px, y: py + 2, tx: o.x, ty: o.y, sprite: s, data: {} });
         break;
       }
       case 'chest':
@@ -325,7 +338,7 @@ export class GameScene extends Phaser.Scene {
         this.merchantStocks.set(it, this.makeStock());
         this.lamps.push({ x: px, y: py, r: 80, flicker: 0 });
         const t = this.fx.label(px, py - 16, 'Obchodník', '#ffd23a', 6);
-        t.setDepth(D.ui - 2);
+        t.setDepth(99980);
         break;
       }
       case 'anvil': {
@@ -333,6 +346,7 @@ export class GameScene extends Phaser.Scene {
         this.interactables.push({ kind: 'anvil', x: px, y: py + 4, tx: o.x, ty: o.y, sprite: s, data: {} });
         this.lamps.push({ x: px, y: py, r: 60, flicker: 3 });
         const glow = this.add.image(px - 6, py - 2, 'glow').setTint(0xff7a1a).setAlpha(0.25).setScale(0.6).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
+        this.trackGlow(glow, o.x, o.y);
         void glow;
         break;
       }
@@ -342,6 +356,7 @@ export class GameScene extends Phaser.Scene {
         this.interactables.push({ kind: 'shrine', x: px, y: py + 4, tx: o.x, ty: o.y, sprite: s, data: { type } });
         const col = SHRINES[type]?.color ?? 0xffffff;
         const glow = this.add.image(px, py - 6, 'glow').setTint(col).setAlpha(0.3).setScale(0.8).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
+        this.trackGlow(glow, o.x, o.y);
         this.tweens.add({ targets: glow, alpha: 0.12, yoyo: true, repeat: -1, duration: 900 });
         this.interactables[this.interactables.length - 1].data.glow = glow;
         this.lamps.push({ x: px, y: py, r: 55, flicker: 0 });
@@ -354,6 +369,41 @@ export class GameScene extends Phaser.Scene {
         break;
       }
     }
+  }
+
+  glows: { img: Phaser.GameObjects.Image; i: number }[] = [];
+  traps: { x: number; y: number; sprite: Phaser.GameObjects.Sprite; t: number; hit: boolean }[] = [];
+
+  // spike traps cycle: retracted 1.8 s, warning 0.35 s, extended 0.8 s
+  updateTraps(dt: number) {
+    const p = this.player;
+    for (const tr of this.traps) {
+      tr.t = (tr.t + dt) % 2.95;
+      const up = tr.t >= 2.15;
+      const warn = tr.t >= 1.8 && !up;
+      tr.sprite.setFrame(up ? 1 : 0);
+      tr.sprite.setTint(warn ? 0xff9a9a : 0xffffff);
+      if (!up) {
+        tr.hit = false;
+        continue;
+      }
+      if (!tr.hit && !p.dead && Math.abs(p.x - tr.x) < 8 && Math.abs(p.y - tr.y) < 8) {
+        tr.hit = true;
+        this.combat.damagePlayer(7 * enemyDmgScale(this.floor), null);
+        this.fx.burst(tr.x, tr.y, 0xcfd6dc, 6, 'pix');
+      }
+    }
+  }
+
+  // additive glows sit above the fog, so hide them until their tile has been explored
+  trackGlow(img: Phaser.GameObjects.Image, tx: number, ty: number) {
+    const i = this.map.idx(tx, ty);
+    img.setVisible(!!this.map.explored[i]);
+    this.glows.push({ img, i });
+  }
+
+  updateGlowVisibility() {
+    for (const g of this.glows) if (!g.img.visible && this.map.explored[g.i]) g.img.setVisible(true);
   }
 
   addSparkle(s: Phaser.GameObjects.Image) {
@@ -545,11 +595,11 @@ export class GameScene extends Phaser.Scene {
   findInteractable(): Interactable | null {
     const p = this.player;
     let best: Interactable | null = null,
-      bd = 22;
+      bd = 24;
     for (const it of this.interactables) {
       if (it.used) continue;
       if (it.kind === 'chest' && !it.data.locked && !it.data.bossChoice) continue; // auto-open
-      if (it.kind === 'goldpile' || it.kind === 'mimic') continue;
+      if (it.kind === 'goldpile' || it.kind === 'mimic' || it.kind === 'breakable') continue;
       const d = Math.hypot(it.x - p.x, it.y - p.y);
       if (d < bd) {
         bd = d;
@@ -684,6 +734,21 @@ export class GameScene extends Phaser.Scene {
     this.loot.chestDrops(tier, it.x, it.y);
   }
 
+  breakObject(it: Interactable) {
+    it.used = true;
+    const s = it.sprite!;
+    const col = it.data.what === 'pot' ? 0x9a5a32 : 0x8a5a2b;
+    this.fx.burst(s.x, s.y - 6, col, 10, 'pix');
+    this.fx.burst(s.x, s.y - 6, 0x888888, 3, 'puff');
+    sfx('hit');
+    s.destroy();
+    const r = Math.random();
+    if (r < 0.25) this.loot.dropGold(this.loot.goldAmount(0.6), it.x, it.y - 4);
+    else if (r < 0.29) this.loot.dropMat('hpPotion', 1, it.x, it.y - 4);
+    else if (r < 0.32) this.loot.dropMat('mpPotion', 1, it.x, it.y - 4);
+    else if (r < 0.33) this.loot.dropMat('lockpick', 1, it.x, it.y - 4);
+  }
+
   openBossChest(it: Interactable) {
     this.openChest(it);
     for (const other of this.interactables) {
@@ -702,7 +767,8 @@ export class GameScene extends Phaser.Scene {
     for (const it of this.interactables) {
       if (it.used) continue;
       const d = Math.hypot(it.x - p.x, it.y - p.y);
-      if (it.kind === 'chest' && !it.data.locked && !it.data.bossChoice && d < 13) this.openChest(it);
+      if (it.kind === 'breakable' && d < 11) this.breakObject(it);
+      else if (it.kind === 'chest' && !it.data.locked && !it.data.bossChoice && d < 13) this.openChest(it);
       else if (it.kind === 'goldpile' && d < 12) {
         it.used = true;
         it.sprite?.destroy();
@@ -826,7 +892,7 @@ export class GameScene extends Phaser.Scene {
     this.revealT -= dt;
     if (this.revealT <= 0) {
       this.revealT = 0.2;
-      this.map.revealAround(p.x, p.y, 8);
+      if (this.map.revealAround(p.x, p.y, 8)) this.updateGlowVisibility();
     }
 
     for (const e of this.enemies) e.update(dt);
@@ -838,6 +904,7 @@ export class GameScene extends Phaser.Scene {
     if (this.projectiles.some((pr) => pr.dead)) this.projectiles = this.projectiles.filter((pr) => !pr.dead);
     this.spells.update(dt);
     this.loot.update(dt);
+    this.updateTraps(dt);
 
     // shrine buffs
     if (this.shrineBuffs.length) {
@@ -946,10 +1013,10 @@ export class GameScene extends Phaser.Scene {
     // all lights are drawn into one capture which is then erased from the darkness in a single pass
     rt.beginDraw();
     L.setAlpha(0.6);
-    L.setScale((145 * 2) / 128);
+    L.setScale((160 * 2) / 128);
     rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
     L.setAlpha(1);
-    L.setScale((92 * 2) / 128);
+    L.setScale((108 * 2) / 128);
     rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
     for (const l of this.lamps) {
       const x = l.x - ox,

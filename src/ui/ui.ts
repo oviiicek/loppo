@@ -165,6 +165,11 @@ class UIManager {
       });
     });
     $('.topbtns', hud).style.pointerEvents = 'auto';
+    $('.minimap', hud).addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      sfx('ui');
+      this.bigMap();
+    });
     const act = $('.action', hud);
     act.style.pointerEvents = 'auto';
     act.addEventListener('pointerdown', (e) => {
@@ -475,6 +480,55 @@ class UIManager {
     ctx.closePath();
     ctx.fill();
     ctx.restore();
+  }
+
+  bigMap() {
+    const sc = this.scene;
+    if (!sc || this.panel) return;
+    const m = sc.map;
+    const p = el(`<div class="panel" style="width:min(96vw,1000px)"><div class="head"><h2>Mapa – patro ${sc.floor}</h2><span class="hint"><b style="color:#fff">●</b> ty &nbsp; <b style="color:#ffd23a">■</b> schody &nbsp; <b style="color:#c77dff">●</b> obchodník &nbsp; <b style="color:#e9b949">■</b> truhla &nbsp; <b style="color:#7cc8ff">■</b> svatyně / fontána / kovadlina &nbsp; <b style="color:#ff3030">●</b> strážce</span><button class="close">✕</button></div>
+      <div class="body" style="align-items:center;justify-content:center"><canvas></canvas></div></div>`);
+    this.showOverlay(p, () => {});
+    $('.close', p).addEventListener('click', () => this.closeOverlay());
+    const body = $('.body', p);
+    const cv = $('canvas', p) as HTMLCanvasElement;
+    const bw = body.clientWidth - 20,
+      bh = body.clientHeight - 20;
+    const cell = Math.max(2, Math.floor(Math.min(bw / m.w, bh / m.h)));
+    cv.width = m.w * cell;
+    cv.height = m.h * cell;
+    const ctx = cv.getContext('2d')!;
+    ctx.fillStyle = '#0a0910';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    for (let y = 0; y < m.h; y++)
+      for (let x = 0; x < m.w; x++) {
+        const i = m.idx(x, y);
+        if (!m.explored[i]) continue;
+        const t = m.d.grid[i];
+        ctx.fillStyle = t === T_FLOOR ? '#6a5a4a' : t === T_WALL ? '#2c2a34' : '#000';
+        if (t) ctx.fillRect(x * cell, y * cell, cell, cell);
+      }
+    const dot = (wx: number, wy: number, col: string, r: number, square = false) => {
+      const x = (wx / TS) * cell,
+        y = (wy / TS) * cell;
+      ctx.fillStyle = col;
+      if (square) ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      else {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+    for (const it of sc.interactables) {
+      if (!m.explored[m.idx(it.tx, it.ty)]) continue;
+      if (it.kind === 'stairs') dot(it.x, it.y, '#ffd23a', Math.max(3, cell), true);
+      else if (it.used) continue;
+      else if (it.kind === 'merchant') dot(it.x, it.y, '#c77dff', Math.max(3, cell));
+      else if (it.kind === 'chest' || it.kind === 'mimic') dot(it.x, it.y, '#e9b949', Math.max(2, cell * 0.6), true);
+      else if (['shrine', 'fountain', 'anvil'].includes(it.kind)) dot(it.x, it.y, '#7cc8ff', Math.max(2, cell * 0.6), true);
+    }
+    if (sc.boss && !sc.boss.dead && m.explored[m.idx(Math.floor(sc.boss.x / TS), Math.floor(sc.boss.y / TS))]) dot(sc.boss.x, sc.boss.y, '#ff3030', Math.max(4, cell * 1.2));
+    dot(sc.player.x, sc.player.y, '#ffffff', Math.max(3, cell));
   }
 
   renderBuffs() {

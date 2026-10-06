@@ -14,6 +14,7 @@ export class WorldMap {
   explored: Uint8Array;
   flow: Int16Array;
   layer!: Phaser.Tilemaps.TilemapLayer;
+  fog!: Phaser.Tilemaps.TilemapLayer;
   map!: Phaser.Tilemaps.Tilemap;
   private flowFrom = -1;
 
@@ -87,6 +88,10 @@ export class WorldMap {
     const ts = this.map.addTilesetImage('tiles', 'tiles', TS, TS, 0, 0)!;
     this.layer = this.map.createLayer(0, ts, 0, 0)!;
     this.layer.setDepth(0);
+    // fog of war: black tiles removed as the player explores (just below the darkness overlay)
+    this.fog = this.map.createBlankLayer('fog', ts, 0, 0)!;
+    this.fog.fill(TILE.fog);
+    this.fog.setDepth(99990);
     // floor shadows under front walls
     for (let y = 0; y < this.h; y++)
       for (let x = 0; x < this.w; x++) {
@@ -214,6 +219,30 @@ export class WorldMap {
     return [(cx - x) / l, (cy - y) / l];
   }
 
+  // can tile (x, y) be seen from tile (tx, ty)? walls block the view but are themselves visible
+  private visible(tx: number, ty: number, x: number, y: number) {
+    let x0 = tx,
+      y0 = ty;
+    const dx = Math.abs(x - x0),
+      dy = -Math.abs(y - y0);
+    const sx = x0 < x ? 1 : -1,
+      sy = y0 < y ? 1 : -1;
+    let err = dx + dy;
+    for (;;) {
+      if (x0 === x && y0 === y) return true;
+      if ((x0 !== tx || y0 !== ty) && this.solid[this.idx(x0, y0)]) return false;
+      const e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy;
+        x0 += sx;
+      }
+      if (e2 <= dx) {
+        err += dx;
+        y0 += sy;
+      }
+    }
+  }
+
   revealAround(px: number, py: number, r = 7) {
     const tx = Math.floor(px / TS),
       ty = Math.floor(py / TS);
@@ -223,12 +252,24 @@ export class WorldMap {
         if (x < 0 || y < 0 || x >= this.w || y >= this.h) continue;
         if ((x - tx) ** 2 + (y - ty) ** 2 > r * r) continue;
         const i = this.idx(x, y);
-        if (!this.explored[i]) {
-          this.explored[i] = 1;
-          changed = true;
-        }
+        if (this.explored[i]) continue;
+        if (!this.visible(tx, ty, x, y)) continue;
+        this.explored[i] = 1;
+        changed = true;
+        this.clearFog(x, y);
       }
     return changed;
+  }
+
+  clearFog(x: number, y: number) {
+    if (!this.fog) return;
+    this.fog.removeTileAt(x, y);
+    // soften the edge of the remaining fog
+    for (let yy = y - 1; yy <= y + 1; yy++)
+      for (let xx = x - 1; xx <= x + 1; xx++) {
+        const t = this.fog.getTileAt(xx, yy);
+        if (t) t.setAlpha(0.6);
+      }
   }
 
   randomFloorNear(px: number, py: number, radius: number): [number, number] | null {

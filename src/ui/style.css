@@ -249,7 +249,8 @@ img.px {
   box-shadow: 0 0 0 2px #1a140c, 0 0 12px #000;
   overflow: hidden;
   background: #0a0910;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 .minimap canvas {
   width: 100%;

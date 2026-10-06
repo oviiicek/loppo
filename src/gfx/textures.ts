@@ -72,7 +72,8 @@ export const TILE = {
   top: 9, // + mask (0..7)
   front: 17, // + mask (0..3)
   frontCrack: 21,
-  count: 24,
+  fog: 24,
+  count: 25,
 };
 
 function drawFloor(ctx: CanvasRenderingContext2D, ox: number, v: number) {
@@ -193,6 +194,7 @@ function buildTileset() {
   drawWallFront(ctx, 16 * TILE.frontCrack, 0, true);
   drawWallFront(ctx, 16 * (TILE.frontCrack + 1), 0, true);
   drawFloor(ctx, 16 * 23, 0);
+  rect(ctx, 16 * TILE.fog, 0, 16, 16, '#07060a');
   addCanvas('tiles', c);
 }
 
@@ -1392,6 +1394,30 @@ function buildObjects() {
   for (const [n, b, d, t] of tiers) {
     addCanvas('chest_' + n, iconCanvasSized(16, 14, chest(b, d, t, false, null)));
     addCanvas('chest_' + n + '_open', iconCanvasSized(16, 14, chest(b, d, t, true, null)));
+  }
+  // spike trap 16x16, 2 frames (retracted / extended)
+  {
+    const [c, ctx] = canvas(32, 16);
+    for (let f = 0; f < 2; f++) {
+      const ox = f * 16;
+      rect(ctx, ox + 1, 1, 14, 14, '#3a3530');
+      rect(ctx, ox + 1, 1, 14, 1, '#4f4943');
+      rect(ctx, ox + 1, 14, 14, 1, '#24201c');
+      for (let yy = 0; yy < 3; yy++)
+        for (let xx = 0; xx < 3; xx++) {
+          const hx = ox + 3 + xx * 4,
+            hy = 3 + yy * 4;
+          if (f === 0) {
+            rect(ctx, hx, hy + 1, 2, 2, '#14110e');
+          } else {
+            rect(ctx, hx, hy + 2, 2, 1, '#14110e');
+            px(ctx, hx, hy, '#e8eef2');
+            px(ctx, hx + 1, hy, '#9aa3ad');
+            rect(ctx, hx, hy + 1, 2, 1, '#cfd6dc');
+          }
+        }
+    }
+    addStrip('spikes', c, 16, 16, 2);
   }
   // gold pile
   addCanvas(
