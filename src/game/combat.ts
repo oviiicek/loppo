@@ -2,7 +2,7 @@ import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy } from './entities';
 import { EL_COLOR } from './fx';
 import { Element } from '../data/types';
-import { sfx } from '../systems/audio';
+import { sfx, vibrate } from '../systems/audio';
 import { bus } from '../systems/events';
 
 export interface HitOpts {
@@ -233,6 +233,7 @@ export class Combat {
     p.hp -= dmg;
     if (!isDot) {
       sfx('hurt');
+      vibrate(20);
       p.hurtFlash();
       sc.fx.number(p.x, p.y - 18, Math.round(dmg).toString(), '#ff5050');
       sc.ui.hurtVignette();

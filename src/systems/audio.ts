@@ -35,6 +35,8 @@ export function isMuted() {
 
 export function setMuted(m: boolean) {
   muted = m;
+  if (m) stopMusic();
+  else startMusic();
   try {
     localStorage.setItem('loppo-muted', m ? '1' : '0');
   } catch {
@@ -167,5 +169,118 @@ export function sfx(name: string) {
       tone('square', 600, 1200, 0.2, 0.08);
       noise(0.1, 0.15, 3000, 0, 'highpass');
       break;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Settings shared with the UI (persisted)
+// ---------------------------------------------------------------------------
+export const settings = { music: true, vibrate: true };
+try {
+  const raw = localStorage.getItem('loppo-settings');
+  if (raw) Object.assign(settings, JSON.parse(raw));
+} catch {
+  /* ignore */
+}
+export function saveSettings() {
+  try {
+    localStorage.setItem('loppo-settings', JSON.stringify(settings));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function vibrate(ms = 25) {
+  if (!settings.vibrate) return;
+  try {
+    navigator.vibrate?.(ms);
+  } catch {
+    /* ignore */
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Procedural ambient music: a dark drone with sparse echoing notes
+// ---------------------------------------------------------------------------
+let music: { nodes: AudioNode[]; timer: any; gain: GainNode } | null = null;
+
+export function startMusic() {
+  if (music || muted || !settings.music) return;
+  const c = ac();
+  if (!c || !master) return;
+  const gain = c.createGain();
+  gain.gain.value = 0;
+  gain.gain.linearRampToValueAtTime(0.12, c.currentTime + 4);
+  gain.connect(master);
+  const filter = c.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 420;
+  filter.connect(gain);
+  const nodes: AudioNode[] = [gain, filter];
+  for (const [f, type, det] of [
+    [55, 'sawtooth', -6],
+    [55.3, 'sawtooth', 5],
+    [82.4, 'triangle', 0],
+  ] as [number, OscillatorType, number][]) {
+    const o = c.createOscillator();
+    o.type = type;
+    o.frequency.value = f;
+    o.detune.value = det;
+    const g = c.createGain();
+    g.gain.value = type === 'triangle' ? 0.35 : 0.18;
+    o.connect(g);
+    g.connect(filter);
+    o.start();
+    nodes.push(o, g);
+  }
+  // slow filter sweep
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 0.05;
+  const lfoGain = c.createGain();
+  lfoGain.gain.value = 180;
+  lfo.connect(lfoGain);
+  lfoGain.connect(filter.frequency);
+  lfo.start();
+  nodes.push(lfo, lfoGain);
+  // echo for the sparse notes
+  const delay = c.createDelay(2);
+  delay.delayTime.value = 0.55;
+  const fb = c.createGain();
+  fb.gain.value = 0.45;
+  delay.connect(fb);
+  fb.connect(delay);
+  delay.connect(gain);
+  nodes.push(delay, fb);
+  const scale = [220, 246.9, 261.6, 329.6, 349.2, 440, 493.9, 523.3];
+  const timer = setInterval(() => {
+    if (!ctx || Math.random() < 0.45) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = scale[Math.floor(Math.random() * scale.length)] / (Math.random() < 0.5 ? 2 : 1);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.09, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0005, t + 2.5);
+    o.connect(g);
+    g.connect(delay);
+    g.connect(gain);
+    o.start(t);
+    o.stop(t + 2.6);
+  }, 1700);
+  music = { nodes, timer, gain };
+}
+
+export function stopMusic() {
+  if (!music) return;
+  clearInterval(music.timer);
+  const m = music;
+  music = null;
+  try {
+    const c = ac();
+    if (c) m.gain.gain.linearRampToValueAtTime(0, c.currentTime + 0.5);
+    setTimeout(() => m.nodes.forEach((n) => (n as any).stop?.() ?? n.disconnect()), 600);
+  } catch {
+    /* ignore */
   }
 }

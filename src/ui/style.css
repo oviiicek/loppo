@@ -1277,3 +1277,25 @@ img.px {
     padding: 8px 14px;
   }
 }
+
+.hintbox {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  max-width: min(56vw, 520px);
+  text-align: center;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 2px solid #4a6a8a;
+  background: rgba(12, 18, 28, 0.88);
+  color: #cfe6ff;
+  font-size: 18px;
+  text-shadow: 1px 1px 0 #000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.hintbox.on {
+  opacity: 1;
+}

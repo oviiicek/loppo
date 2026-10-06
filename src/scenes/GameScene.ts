@@ -173,7 +173,19 @@ export class GameScene extends Phaser.Scene {
     save.maxFloor = Math.max(save.maxFloor, this.floor);
     saveGame(save);
     this.events.once('shutdown', () => this.cleanup());
+    if (this.floor === 1 && save.kills === 0 && save.level === 1) this.tutorial();
     (window as any).__scene = this;
+  }
+
+  tutorial() {
+    const tips = [
+      'Pohybuj se joystickem vlevo dole (na PC klávesy WASD).',
+      'Útok je automatický – stačí se přiblížit k nepříteli na dosah zbraně.',
+      'Kouzla sesíláš tlačítky vpravo. Velké tlačítko je ultimátní kouzlo.',
+      'Lektvary obnoví zdraví a manu. Truhly se otevřou, když na ně stoupneš.',
+      'Najdi schody dolů a sestup hlouběji. Každé 5. patro hlídá strážce!',
+    ];
+    tips.forEach((t, i) => this.time.delayedCall(2800 + i * 6000, () => UI.hint(t, 5500)));
   }
 
   floorTitle() {

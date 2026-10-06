@@ -24,7 +24,7 @@ import {
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs } from '../systems/state';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -161,7 +161,7 @@ export class Panels {
       <div class="col" style="flex:1;min-width:0">
         <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv" data-idx="${i}`)).join('')}</div></div>
         <div class="box">${this.matsHtml()}</div>
-        <div class="row">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : '<button class="btn small" data-a="salvcommon">Rozebrat běžné předměty</button>'}<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span></div>
+        <div class="row">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : '<button class="btn small" data-a="salvcommon">Rozebrat běžné předměty</button>'}<button class="btn small blue" data-a="sort">Seřadit</button><span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span></div>
       </div>
       <div class="col detail box scroll" style="width:min(300px,34%)"></div>`;
     const detail = $('.detail', body);
@@ -270,6 +270,15 @@ export class Panels {
       s.gold += g;
       if (n) sfx('coin');
       this.ui.toast(n ? `Prodáno ${n} předmětů za ${g} zlata` : 'Nic k prodeji', '#ffd76a');
+      rerender();
+    });
+    body.querySelector('[data-a=sort]')?.addEventListener('click', () => {
+      const items = s.inventory.filter((x): x is Item => !!x);
+      const catOrder = ['weapon1h', 'weapon2h', 'shield', 'offhand', 'helmet', 'chest', 'pants', 'belt', 'boots', 'ring', 'amulet', 'bracer'];
+      items.sort((a, b) => b.rarity - a.rarity || catOrder.indexOf(BASE_BY_ID[a.base].cat) - catOrder.indexOf(BASE_BY_ID[b.base].cat) || b.ilvl - a.ilvl);
+      s.inventory = s.inventory.map((_, i) => items[i] ?? null);
+      this.sel = null;
+      sfx('ui');
       rerender();
     });
     body.querySelector('[data-a=salvcommon]')?.addEventListener('click', () => {
@@ -717,12 +726,31 @@ export class Panels {
     body.innerHTML = `
       <div class="col" style="flex:1;min-width:0">
         <div class="hint">Změna classy stojí <b style="color:#ffd76a">${cost} zlata</b> (máš ${s.gold}). Úroveň, atributy, vybavení i univerzální kouzla zůstanou. Body investované do kouzel současné classy (<b>${invested}</b>) se vrátí jako volné.</div>
+        <div class="row box" style="justify-content:space-between"><span class="hint">Přerozdělit všechny body atributů (${this.respecCost()} zlata)</span><button class="btn small purple" data-a="respec" ${s.gold < this.respecCost() || s.level <= 1 ? 'disabled' : ''}>Přerozdělit atributy</button></div>
         <div class="scroll" style="flex:1"><div class="classgrid">${CLASSES.map(
           (c) => `<div class="ccard ${c.id === s.cls ? 'sel' : ''}" data-cls="${c.id}"><img src="${iconURL('pl_' + c.id, 64)}"><div class="nm">${c.name}</div><div class="st">${c.style}</div>${c.id === s.cls ? '<div class="st" style="color:#6dff7a">současná</div>' : ''}</div>`,
         ).join('')}</div></div>
       </div>
       <div class="col detail box scroll" style="width:min(320px,36%)"><p class="hint">Vyber novou classu.</p></div>`;
     const detail = $('.detail', body);
+    body.querySelector('[data-a=respec]')?.addEventListener('click', () => {
+      const cost = this.respecCost();
+      if (s.gold < cost) return;
+      this.ui.confirm('Přerozdělit atributy?', `Všechny body atributů získané za úrovně se vrátí jako volné. Cena ${cost} zlata.`, () => {
+        s.gold -= cost;
+        const base = newCharacterAttrs(s.cls);
+        let refunded = 0;
+        for (const k of ATTR_KEYS) {
+          refunded += Math.max(0, s.attrs[k] - base[k]);
+          s.attrs[k] = base[k];
+        }
+        s.attrPoints += refunded;
+        this.sc.player.recalc();
+        sfx('levelup');
+        this.ui.toast(`Vráceno ${refunded} bodů atributů`, '#c8a8ff');
+        this.classChange(host);
+      });
+    });
     body.querySelectorAll<HTMLElement>('.ccard').forEach((c) =>
       c.addEventListener('click', () => {
         sfx('ui');
@@ -745,6 +773,10 @@ export class Panels {
         });
       }),
     );
+  }
+
+  respecCost() {
+    return Math.round(150 + this.save.level * this.save.level * 6);
   }
 
   // ------------------------------------------------------------------ LOCKPICK minigame

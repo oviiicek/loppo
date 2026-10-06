@@ -6,7 +6,7 @@ import { spellsForClass } from '../data/spells';
 import { BASE_BY_ID } from '../data/items';
 import { ClassId } from '../data/types';
 import { loadGame, newCharacter, saveGame, game as G, deleteSave } from '../systems/state';
-import { sfx, isMuted, setMuted, unlockAudio } from '../systems/audio';
+import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
 
 type UIM = typeof UIType;
 
@@ -149,7 +149,7 @@ export class Menus {
         <button class="btn" data-a="inv">Inventář</button>
         <button class="btn" data-a="char">Postava</button>
         <button class="btn" data-a="spells">Kouzla</button>
-        <button class="btn blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>
+        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button></div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
       </div></div>`);
     this.ui.showOverlay(p, () => {});
@@ -163,6 +163,16 @@ export class Menus {
       else if (a === 'sound') {
         setMuted(!isMuted());
         b.textContent = isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut';
+      } else if (a === 'music') {
+        settings.music = !settings.music;
+        saveSettings();
+        if (settings.music) startMusic();
+        else stopMusic();
+        b.textContent = settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta';
+      } else if (a === 'vibrate') {
+        settings.vibrate = !settings.vibrate;
+        saveSettings();
+        b.textContent = settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty';
       } else if (a === 'inv' || a === 'char' || a === 'spells') {
         this.ui.closeOverlay();
         this.ui.openPanel(a === 'inv' ? 'inventory' : a === 'char' ? 'character' : 'spells');

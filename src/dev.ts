@@ -303,3 +303,33 @@ Object.assign(dev, {
   },
   derive,
 });
+
+// Renders an app icon from the generated sprites (used once to create public/icons/*.png)
+import { getCanvas } from './gfx/textures';
+Object.assign(dev, {
+  makeIcon(size: number) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const x = c.getContext('2d')!;
+    const g = x.createRadialGradient(size / 2, size * 0.45, size * 0.05, size / 2, size / 2, size * 0.7);
+    g.addColorStop(0, '#5a3a1a');
+    g.addColorStop(0.5, '#24160c');
+    g.addColorStop(1, '#0b0a10');
+    x.fillStyle = g;
+    x.fillRect(0, 0, size, size);
+    x.imageSmoothingEnabled = false;
+    const hero = getCanvas('pl_warrior')!;
+    const s = Math.floor(size / 26);
+    // hero frame 0 (16x20)
+    x.drawImage(hero, 0, 0, 16, 20, size / 2 - 8 * s - s * 2, size / 2 - 10 * s + s, 16 * s, 20 * s);
+    const sword = getCanvas('wp_sword')!;
+    x.save();
+    x.translate(size / 2 + 6 * s, size / 2 + 2 * s);
+    x.rotate(0.5);
+    x.drawImage(sword, -sword.width * s / 2, -sword.height * s * 0.85, sword.width * s, sword.height * s);
+    x.restore();
+    const shield = getCanvas('wp_shield')!;
+    x.drawImage(shield, size / 2 - 13 * s, size / 2 - 1 * s, shield.width * s * 0.8, shield.height * s * 0.8);
+    return c.toDataURL('image/png');
+  },
+});

@@ -29,3 +29,6 @@ const game = new Phaser.Game(config);
 (window as any).__game = game;
 
 if (import.meta.env.DEV) import('./dev');
+else if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}

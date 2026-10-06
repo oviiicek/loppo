@@ -42,10 +42,16 @@ export function xpForLevel(level: number) {
   return Math.round(25 * Math.pow(level, 1.75) + 35);
 }
 
-export function newCharacter(cls: ClassId): SaveData {
+export function newCharacterAttrs(cls: ClassId): Record<AttrKey, number> {
   const def = CLASS_BY_ID[cls];
   const attrs = { str: 5, dex: 5, vit: 5, ene: 5, int: 5, spd: 0 } as Record<AttrKey, number>;
   for (const [k, v] of Object.entries(def.attrs)) attrs[k as AttrKey] += v as number;
+  return attrs;
+}
+
+export function newCharacter(cls: ClassId): SaveData {
+  const def = CLASS_BY_ID[cls];
+  const attrs = newCharacterAttrs(cls);
   const s: SaveData = {
     version: 1,
     cls,

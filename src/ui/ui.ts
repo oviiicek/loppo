@@ -7,7 +7,7 @@ import { Item } from '../data/types';
 import { itemIcon } from '../data/items';
 import { xpForLevel, game as G, saveGame } from '../systems/state';
 import { bus } from '../systems/events';
-import { sfx, unlockAudio } from '../systems/audio';
+import { sfx, unlockAudio, startMusic } from '../systems/audio';
 import { Panels } from './panels';
 import { Menus } from './menus';
 import { TS } from '../game/map';
@@ -56,7 +56,14 @@ class UIManager {
     this.root = document.getElementById('ui')!;
     bus.on('buffs', () => this.renderBuffs());
     bus.on('equip', () => this.refreshSkills());
-    document.addEventListener('pointerdown', () => unlockAudio(), { once: true });
+    document.addEventListener(
+      'pointerdown',
+      () => {
+        unlockAudio();
+        startMusic();
+      },
+      { once: true },
+    );
     // save when the app goes to background (mobile)
     const persist = () => {
       if (this.scene) saveGame(this.scene.save);
@@ -140,6 +147,7 @@ class UIManager {
       <div class="banner"><h1></h1><p></p></div>
       <div class="levelup"><h2></h2><p>+3 body atributů • +1 bod kouzel</p></div>
       <div class="skills"></div>
+      <div class="hintbox"></div>
       <div class="action"></div>
     </div>`);
     this.root.appendChild(hud);
@@ -505,6 +513,15 @@ class UIManager {
       t.style.opacity = '0';
       setTimeout(() => t.remove(), 400);
     }, 2400);
+  }
+
+  hint(text: string, ms = 5000) {
+    if (!this.hud) return;
+    const h = $('.hintbox', this.hud);
+    h.textContent = text;
+    h.classList.add('on');
+    clearTimeout((h as any)._t);
+    (h as any)._t = setTimeout(() => h.classList.remove('on'), ms);
   }
 
   banner(title: string, sub = '') {
