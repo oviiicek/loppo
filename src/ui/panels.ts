@@ -20,6 +20,8 @@ import {
   isTwoHanded,
   itemIcon,
   scaledAffix,
+  generateItem,
+  BaseType,
 } from '../data/items';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
@@ -33,6 +35,14 @@ type UIM = typeof UIType;
 
 const EQUIP_LEFT: Slot[] = ['main', 'helmet', 'chest', 'pants', 'boots'];
 const EQUIP_RIGHT: Slot[] = ['off', 'amulet', 'bracer', 'belt', 'ring1', 'ring2'];
+
+type MysteryId = 'weapon' | 'armor' | 'jewel' | 'any';
+const MYSTERY: { id: MysteryId; name: string; icon: string }[] = [
+  { id: 'weapon', name: 'Zbraň tvého stylu', icon: 'ic_sword_t3' },
+  { id: 'armor', name: 'Zbroj', icon: 'ic_chest_t3' },
+  { id: 'jewel', name: 'Šperk', icon: 'ic_ring_t3' },
+  { id: 'any', name: 'Cokoliv', icon: 'chest_gold' },
+];
 
 // Where the selected item lives
 type Sel = { from: 'inv'; idx: number } | { from: 'eq'; slot: Slot } | { from: 'shop'; idx: number } | null;
@@ -545,6 +555,26 @@ export class Panels {
 
   curStock: MerchantStock | null = null;
 
+  mysteryPrice(id: MysteryId) {
+    const f = this.sc.floor;
+    return Math.round(160 * (1 + 0.18 * f) * (id === 'any' ? 0.75 : 1));
+  }
+
+  rollMystery(id: MysteryId): Item {
+    const f = this.sc.floor;
+    const main = this.save.equip.main ? BASE_BY_ID[this.save.equip.main.base] : null;
+    const filters: Record<MysteryId, ((b: BaseType) => boolean) | undefined> = {
+      weapon: (b) => (b.cat === 'weapon1h' || b.cat === 'weapon2h') && (!main?.attack || b.attack === main.attack),
+      armor: (b) => ['helmet', 'chest', 'pants', 'belt', 'boots', 'shield'].includes(b.cat),
+      jewel: (b) => ['ring', 'amulet', 'bracer'].includes(b.cat),
+      any: undefined,
+    };
+    // uncommon 45 %, rare 32 %, epic 16 %, legendary 6 %, mythic 1 %
+    const x = Math.random();
+    const rarity = x < 0.45 ? 1 : x < 0.77 ? 2 : x < 0.93 ? 3 : x < 0.99 ? 4 : 5;
+    return generateItem(f + 1, { rarity, filter: filters[id] });
+  }
+
   // sold items stay at the merchant for a while so an accidental sale can be undone
   private sold(it: Item, price: number) {
     const st = this.curStock;
@@ -587,6 +617,11 @@ export class Panels {
         <div class="hint">Zboží se u každého obchodníka liší. Klepni na předmět pro detail.</div>
         <div class="scroll" style="flex:1"><div class="grid">${stock.items.map((it, i) => this.slotHtml(it, `shop" data-idx="${i}`, '', buyPrice(it))).join('')}</div>
         ${stock.buyback?.length ? `<b style="color:#ffd76a;display:block;margin-top:8px">Zpětný odkup</b><div class="hint">Předměty, které jsi tu prodal. Koupíš je zpět za stejnou cenu.</div><div class="grid">${stock.buyback.map((b, i) => this.slotHtml(b.it, `back" data-idx="${i}`, '', b.price)).join('')}</div>` : ''}
+        <div class="box" style="margin-top:8px"><b style="color:#ffd76a">Tajemné zboží</b> <span class="hint">předmět neznámé kvality, často vzácný nebo lepší</span>
+          <div class="mystery">${MYSTERY.map(
+            (m) => `<div class="myst"><div class="slot r2"><img src="${iconURL(m.icon, 64)}"><span class="q">?</span></div><div class="nm">${m.name}</div><button class="btn small green" data-myst="${m.id}" ${s.gold < this.mysteryPrice(m.id) ? 'disabled' : ''}>${this.mysteryPrice(m.id)} zl.</button></div>`,
+          ).join('')}</div>
+        </div>
         <div class="box" style="margin-top:8px">${stock.mats
           .map(
             (m, i) => `<div class="statline" style="align-items:center"><span class="row"><img style="width:28px;height:28px;image-rendering:pixelated" src="${iconURL(MAT_INFO[m.key].icon, 32)}">${MAT_INFO[m.key].name} <span class="hint">(skladem ${m.qty})</span></span>
@@ -597,6 +632,13 @@ export class Panels {
       </div>
       <div class="col detail box scroll" style="width:min(320px,36%)"><p class="hint">Vyber předmět.</p></div>`;
     const detail = $('.detail', body);
+    // re-render after a purchase without losing the scroll position
+    const refresh = () => {
+      const sy = $('.scroll', body)?.scrollTop ?? 0;
+      this.merchant(stock, p);
+      const sc2 = $('.scroll', $('.body', p));
+      if (sc2) sc2.scrollTop = sy;
+    };
     body.querySelectorAll<HTMLElement>('.slot.shop').forEach((sl) =>
       sl.addEventListener('click', () => {
         sfx('ui');
@@ -617,7 +659,7 @@ export class Panels {
           stock.items.splice(i, 1);
           sfx('coin');
           this.ui.toast(`Koupeno: ${it.name}`, RARITIES[it.rarity].color);
-          this.merchant(stock, p);
+          refresh();
         });
       }),
     );
@@ -640,8 +682,29 @@ export class Panels {
           stock.buyback!.splice(i, 1);
           sfx('coin');
           this.ui.toast(`Vráceno do inventáře: ${bb.it.name}`, RARITIES[bb.it.rarity].color);
-          this.merchant(stock, p);
+          refresh();
         });
+      }),
+    );
+    body.querySelectorAll<HTMLButtonElement>('[data-myst]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const id = b.dataset.myst as MysteryId;
+        const price = this.mysteryPrice(id);
+        if (s.gold < price) return;
+        if (!s.inventory.some((x) => !x)) {
+          this.ui.toast('Inventář je plný', '#ff8080');
+          return;
+        }
+        const it = this.rollMystery(id);
+        addToInventory(s, it);
+        s.gold -= price;
+        maxStat(s, 'bestRarity', it.rarity);
+        sfx(it.rarity >= 4 ? 'levelup' : it.rarity >= 3 ? 'chest' : 'coin');
+        this.ui.toast(`${RARITIES[it.rarity].name}: ${it.name}`, RARITIES[it.rarity].color, it);
+        refresh();
+        // show what came out of the bag
+        const det = $('.detail', $('.body', p));
+        det.innerHTML = this.itemDetailHtml(it) + '<p class="hint">Předmět je v inventáři.</p>';
       }),
     );
     body.querySelectorAll<HTMLButtonElement>('[data-mat]').forEach((b) =>
@@ -652,7 +715,7 @@ export class Panels {
         m.qty--;
         s.mats[m.key]++;
         sfx('coin');
-        this.merchant(stock, p);
+        refresh();
       }),
     );
   }

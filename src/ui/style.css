@@ -1374,3 +1374,45 @@ img.px {
   color: #6dff7a;
   text-shadow: 1px 1px 0 #000;
 }
+
+/* merchant mystery goods */
+.mystery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.myst {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  text-align: center;
+}
+.myst .slot {
+  width: 64px;
+  max-width: 100%;
+  cursor: default;
+}
+.myst .slot img {
+  opacity: 0.45;
+  filter: brightness(0.6) saturate(0.4);
+}
+.myst .q {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  color: var(--gold2);
+  text-shadow: 2px 2px 0 #000;
+}
+.myst .nm {
+  font-size: 15px;
+  line-height: 1.1;
+  min-height: 2.2em;
+  display: flex;
+  align-items: center;
+}
