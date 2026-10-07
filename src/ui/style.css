@@ -900,6 +900,8 @@ img.px {
   text-align: center;
   font-size: 12px;
   color: #6a6276;
+  white-space: nowrap;
+  overflow: hidden;
 }
 .slot .price {
   position: absolute;
@@ -1432,4 +1434,39 @@ textarea.code {
   user-select: text;
   -webkit-user-select: text;
   touch-action: auto;
+}
+
+/* short phones (e.g. 360 px tall Androids): all 11 equipment slots must stay reachable */
+@media (max-height: 400px) {
+  .equip {
+    grid-template-columns: 38px 1fr 38px;
+    gap: 4px;
+  }
+  .equip .side {
+    gap: 3px;
+  }
+  .equip .slot {
+    width: 38px;
+  }
+  .equip .slot .lbl {
+    font-size: 10px;
+  }
+  .doll img {
+    width: 52px;
+    height: 66px;
+  }
+  .doll {
+    min-height: 0;
+  }
+}
+@supports not (aspect-ratio: 1) {
+  @media (max-height: 400px) {
+    .equip .slot {
+      height: 38px;
+    }
+  }
+}
+/* anything even smaller can still scroll the equipment column */
+.col:has(> .box.equip) {
+  overflow-y: auto;
 }
