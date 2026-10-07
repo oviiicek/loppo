@@ -341,6 +341,13 @@ Object.assign(dev, {
 
 Object.assign(dev, {
   // fills the inventory with items across all material tiers (for checking icons)
+  /** inventory filled with items of the given bases (for checking the inventory panel) */
+  fillInv(bases: string[]) {
+    const sc = (window as any).__scene;
+    const s = sc.save;
+    bases.forEach((b, i) => (s.inventory[i] = generateItem(Math.max(1, sc.floor), { base: b, rarity: 1 + (i % 5) })));
+    return true;
+  },
   giveTierItems() {
     const s = (window as any).__scene.save;
     const bases = ['sword', 'greataxe', 'helmet', 'chest', 'shield', 'bow'];

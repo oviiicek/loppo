@@ -176,7 +176,9 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   - náramek.
 
   Obouruční zbraň zabere obě ruce.
-- Grafický inventář s 30 políčky, detailem předmětu a porovnáním s nasazenou výbavou. Předměty jde řadit, prodávat a rozebírat na materiály. Zelená šipka ▲ označuje předměty, které jsou lepší než nasazená výbava, a tlačítko „Nasadit lepší“ je nasadí jedním klepnutím.
+- Grafický inventář s 30 políčky. Po klepnutí na předmět jsou v detailu nahoře tlačítka Nasadit (u jednoručních zbraní „Do pravé ruky“ a „Do levé ruky“, u prstenů Prsten 1 a 2), Prodat, Rozebrat a Zahodit, pod nimi porovnání s nasazenou výbavou a pak vlastnosti předmětu. Předměty, které se vejdou do dvou slotů, se porovnávají s oběma nasazenými a lepší volba je označená ▲.
+- Prodávat jde přímo z inventáře kdekoliv (vzácné a lepší předměty se nejdřív potvrdí). Předměty jde také řadit a rozebírat na materiály. Zelená šipka ▲ označuje předměty, které jsou lepší než nasazená výbava, a tlačítko „Nasadit lepší“ je nasadí jedním klepnutím.
+- Sebrané předměty a materiály se ukazují v malém seznamu vlevo pod životy, oznámení o nové úrovni nahoře uprostřed.
 - Obchodník:
   - náhodné zboží,
   - zpětný odkup omylem prodaných předmětů za stejnou cenu,

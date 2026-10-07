@@ -666,31 +666,106 @@ img.px {
     opacity: 0.6;
   }
 }
+/* level up: a compact banner at the top between the health bars and the minimap (placed by levelUp) */
 .levelup {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 40%;
+  left: 50%;
+  top: 8px;
+  width: max-content;
+  padding: 3px 16px 4px;
+  border: 2px solid #b8902e;
+  border-radius: 10px;
+  background: linear-gradient(rgba(58, 42, 12, 0.92), rgba(22, 16, 6, 0.92));
+  box-shadow: 0 0 0 2px #120c04, 0 0 18px rgba(255, 210, 80, 0.45);
   text-align: center;
   pointer-events: none;
   opacity: 0;
-  transform: scale(0.8);
-  transition: all 0.4s;
+  /* grows with the rest of the HUD on big screens */
+  transform-origin: top center;
+  transform: translate(-50%, -10px) scale(calc(0.9 * var(--hud-k, 1)));
+  transition:
+    opacity 0.35s,
+    transform 0.35s;
 }
 .levelup.on {
   opacity: 1;
-  transform: scale(1);
+  transform: translate(-50%, 0) scale(var(--hud-k, 1));
 }
 .levelup h2 {
   margin: 0;
-  font-size: 51px;
+  font-size: 28px;
+  line-height: 1.05;
+  letter-spacing: 1px;
   color: #ffe45c;
-  text-shadow: 3px 3px 0 #000, 0 0 24px rgba(255, 220, 80, 0.7);
+  text-shadow: 2px 2px 0 #000, 0 0 14px rgba(255, 220, 80, 0.75);
+}
+.levelup h2::before,
+.levelup h2::after {
+  content: '✦';
+  margin: 0 8px;
+  font-size: 16px;
+  vertical-align: 4px;
+  color: #ffb347;
 }
 .levelup p {
-  margin: 2px 0;
-  font-size: 20px;
-  text-shadow: 2px 2px 0 #000;
+  margin: 0;
+  font-size: 15px;
+  color: #f0e6d0;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* picked up items and materials: a small feed on the left, under the health bars */
+.lootfeed {
+  position: absolute;
+  left: calc(10px + var(--safe-l));
+  top: calc(8px + 112px * var(--hud-k, 1));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  max-width: min(46vw, 300px);
+  pointer-events: none;
+  transform: scale(var(--hud-k, 1));
+  transform-origin: top left;
+}
+.lootline {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 2px 8px 2px 3px;
+  border-left: 3px solid currentColor;
+  border-radius: 0 6px 6px 0;
+  background: linear-gradient(90deg, rgba(10, 8, 14, 0.85), rgba(10, 8, 14, 0.35));
+  font-size: 15px;
+  line-height: 1.1;
+  text-shadow: 1px 1px 0 #000;
+  animation: lootin 0.25s ease-out;
+  transition:
+    opacity 0.45s,
+    transform 0.45s;
+}
+.lootline span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lootline img {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+}
+.lootline.out {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+@keyframes lootin {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
 }
 
 /* ------------------------------------------------------------ panels */
@@ -1047,6 +1122,207 @@ img.px {
 .hint {
   color: var(--dim);
   font-size: 17px;
+}
+
+/* item detail: name, actions on top, comparison cards, then the item's text */
+.detail {
+  background:
+    radial-gradient(ellipse at 50% 0, rgba(255, 210, 120, 0.07), transparent 60%),
+    linear-gradient(#1d1824, #120f17);
+  border-color: #4a3a24;
+  box-shadow: inset 0 0 0 1px #0c0a10, inset 0 0 18px rgba(0, 0, 0, 0.5);
+}
+.ihead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.iicon {
+  flex: 0 0 auto;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #3a3040;
+  border-radius: 8px;
+  background: radial-gradient(circle at 50% 40%, #2e2738, #120f17);
+}
+.iicon img {
+  width: 42px;
+  height: 42px;
+  image-rendering: pixelated;
+}
+.iname {
+  min-width: 0;
+}
+.iname h3 {
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+.iname .sub {
+  margin-bottom: 0 !important;
+  font-size: 15px !important;
+  line-height: 1.15;
+}
+.iacts {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+.iacts .eqrow {
+  flex-wrap: nowrap;
+}
+.iacts .eqrow .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px 6px;
+  font-size: 18px;
+}
+.iacts .subrow .btn {
+  flex: 1 1 auto;
+}
+.btn.green.best {
+  border-color: #7cff8a;
+  box-shadow: 0 0 10px rgba(110, 255, 130, 0.45);
+}
+.btn.gold {
+  border-color: #b8902e;
+  background: linear-gradient(#5a4214, #2c1f08);
+  color: #ffe08a;
+}
+.orn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 5px;
+  font-size: 15px;
+  letter-spacing: 1px;
+  color: #c9a35a;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.orn::before,
+.orn::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #7a6034);
+}
+.orn::after {
+  background: linear-gradient(90deg, #7a6034, transparent);
+}
+.orn span::before,
+.orn span::after {
+  content: '✦';
+  margin: 0 5px;
+  font-size: 11px;
+  color: #8a6a3a;
+}
+.cmpcard {
+  margin-bottom: 6px;
+  padding: 5px 7px 6px;
+  border: 1px solid #3a2f20;
+  border-left: 3px solid #8a6a3a;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+}
+.cmpslot {
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #c9a35a;
+  text-transform: uppercase;
+}
+.cmpitem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 17px;
+  line-height: 1.1;
+}
+.cmpitem img {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+}
+.cmpitem span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.chip {
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.chip.up {
+  color: #8dff98;
+  background: rgba(40, 120, 50, 0.35);
+  border: 1px solid rgba(110, 255, 130, 0.35);
+}
+.chip.down {
+  color: #ff9a9a;
+  background: rgba(130, 30, 30, 0.35);
+  border: 1px solid rgba(255, 110, 110, 0.35);
+}
+.chip.same {
+  color: var(--dim);
+  border: 1px solid #3a3040;
+}
+.cmpcard details {
+  margin-top: 4px;
+}
+.cmpcard summary {
+  font-size: 15px;
+  color: #9a93a6;
+  cursor: pointer;
+}
+.istats.small .main,
+.istats.small .aff,
+.istats.small .spec,
+.istats.small .ench,
+.istats.small .hint {
+  font-size: 15px;
+}
+/* equipment column: the hero stands on a lit pedestal inside a framed box */
+.box.equip {
+  background:
+    radial-gradient(ellipse at 50% 58%, rgba(255, 190, 90, 0.12), transparent 55%),
+    linear-gradient(#1e1926, #110e15);
+  border-color: #4a3a24;
+  box-shadow: inset 0 0 0 1px #0c0a10, inset 0 0 22px rgba(0, 0, 0, 0.55);
+}
+.doll img {
+  filter: drop-shadow(0 4px 2px rgba(0, 0, 0, 0.6));
+}
+.doll::before {
+  content: '';
+  width: 76px;
+  height: 14px;
+  order: 1;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 200, 110, 0.35), rgba(255, 200, 110, 0) 70%);
+}
+.doll img {
+  order: 0;
+}
+.doll > div {
+  order: 2;
+}
+.panel.framed .head h2::before {
+  content: '✦ ';
+  color: #8a6a3a;
 }
 
 /* spells */

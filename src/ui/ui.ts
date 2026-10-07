@@ -246,6 +246,7 @@ class UIManager {
       </div>
       <div class="bossbar"><div class="name"></div><div class="bar hp"><div class="fill"></div></div></div>
       <div class="toasts"></div>
+      <div class="lootfeed"></div>
       <div class="banner"><h1></h1><p></p></div>
       <div class="levelup"><h2></h2><p>+3 body atributů • +1 bod kouzel</p></div>
       <div class="skills"></div>
@@ -818,10 +819,41 @@ class UIManager {
   levelUp(level: number) {
     if (!this.hud) return;
     const l = $('.levelup', this.hud);
-    $('h2', l).textContent = `ÚROVEŇ ${level}!`;
+    $('h2', l).textContent = `Úroveň ${level}!`;
+    // at the top, centred in the free space between the health bars and the buttons (on narrow
+    // phones that gap is too small, so it goes just below the buttons, left of the minimap)
+    const root = this.root.getBoundingClientRect();
+    const bars = $('.hud-status', this.hud).getBoundingClientRect();
+    const btns = $('.topbtns', this.hud).getBoundingClientRect();
+    const mini = $('.minimap', this.hud).getBoundingClientRect();
+    let left = bars.right + 8,
+      right = btns.left - 8,
+      top = 8;
+    if (right - left < 210) {
+      right = mini.left - 8;
+      top = btns.bottom + 6;
+    }
+    l.style.left = `${(left + right) / 2 - root.left}px`;
+    l.style.top = `${top}px`;
+    l.style.maxWidth = `${Math.max(180, right - left)}px`;
+    l.classList.remove('on');
+    void l.offsetWidth;
     l.classList.add('on');
     clearTimeout((l as any)._t);
-    (l as any)._t = setTimeout(() => l.classList.remove('on'), 2200);
+    (l as any)._t = setTimeout(() => l.classList.remove('on'), 2600);
+  }
+
+  /** small pickup line on the left side (items and materials picked up) */
+  loot(text: string, color: string, icon: string) {
+    if (!this.hud) return;
+    const box = $('.lootfeed', this.hud);
+    const t = el(`<div class="lootline" style="color:${color}"><img src="${icon}"><span>${esc(text)}</span></div>`);
+    box.appendChild(t);
+    while (box.children.length > 4) box.firstElementChild!.remove();
+    setTimeout(() => {
+      t.classList.add('out');
+      setTimeout(() => t.remove(), 450);
+    }, 2800);
   }
 
   hurtVignette() {

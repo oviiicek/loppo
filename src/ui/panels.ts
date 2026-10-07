@@ -36,6 +36,8 @@ type UIM = typeof UIType;
 
 const EQUIP_LEFT: Slot[] = ['main', 'helmet', 'chest', 'pants', 'boots'];
 const EQUIP_RIGHT: Slot[] = ['off', 'amulet', 'bracer', 'belt', 'ring1', 'ring2'];
+// equip buttons of items that fit two slots
+const EQUIP_TO: Partial<Record<Slot, string>> = { main: 'Do pravé ruky', off: 'Do levé ruky', ring1: 'Prsten 1', ring2: 'Prsten 2' };
 
 type MysteryId = 'weapon' | 'armor' | 'jewel' | 'any';
 const MYSTERY: { id: MysteryId; name: string; icon: string }[] = [
@@ -70,7 +72,7 @@ export class Panels {
   }
 
   frame(title: string, tabs: { id: string; label: string }[] = [], active = '') {
-    const p = el(`<div class="panel">
+    const p = el(`<div class="panel framed">
       <div class="head"><h2>${esc(title)}</h2><div class="tabs">${tabs.map((t) => `<button class="tab ${t.id === active ? 'on' : ''}" data-tab="${t.id}">${esc(t.label)}</button>`).join('')}</div><button class="close">✕</button></div>
       <div class="body"></div></div>`);
     $('.close', p).addEventListener('click', () => {
@@ -92,16 +94,22 @@ export class Panels {
     return `<div class="mats"><span><img src="${iconURL('ic_gold', 32)}"><b style="color:#ffd76a">${s.gold.toLocaleString('cs-CZ')}</b></span>${m('hpPotion')}${m('mpPotion')}${m('lockpick')}${m('stone')}${m('dust')}</div>`;
   }
 
-  itemDetailHtml(it: Item, compareTo?: Item | null) {
+  /** icon, name and kind of an item */
+  itemHeadHtml(it: Item) {
     const base = BASE_BY_ID[it.base];
     const rar = RARITIES[it.rarity];
-    let h = `<h3 style="color:${rar.color}">${it.upgrade ? '+' + it.upgrade + ' ' : ''}${esc(it.name)}</h3>`;
-    h += `<div class="sub">${rar.name} • ${CATEGORY_NAMES[base.cat]} • úroveň předmětu ${it.ilvl}</div>`;
+    return `<div class="ihead"><div class="iicon r${it.rarity}"><img src="${iconURL(itemIcon(it), 48)}"></div><div class="iname"><h3 style="color:${rar.color}">${it.upgrade ? '+' + it.upgrade + ' ' : ''}${esc(it.name)}</h3><div class="sub">${rar.name} • ${CATEGORY_NAMES[base.cat]} • úroveň ${it.ilvl}</div></div></div>`;
+  }
+
+  /** everything an item does */
+  itemStatsHtml(it: Item) {
+    const base = BASE_BY_ID[it.base];
+    let h = '';
     if (it.dmgMin !== undefined) {
       const [a, b] = weaponDamage(it);
       const kind = base.attack === 'melee' ? 'na blízko' : base.attack === 'ranged' ? 'na dálku' : 'magická';
       h += `<div class="main">Poškození: <b>${a}–${b}</b></div><div class="main">Útoků za sekundu: ${base.aps?.toFixed(2).replace('.', ',')} • zbraň ${kind}</div>`;
-      h += `<div class="hint">Dosah: ${base.attack === 'melee' ? 'krátký (' + Math.round((base.range ?? 0) / 16 * 10) / 10 + ' pole)' : Math.round((base.range ?? 0) / 16) + ' polí'}</div>`;
+      h += `<div class="hint">Dosah: ${base.attack === 'melee' ? 'krátký (' + Math.round(((base.range ?? 0) / 16) * 10) / 10 + ' pole)' : Math.round((base.range ?? 0) / 16) + ' polí'}</div>`;
     }
     const st = itemStats(it);
     if (st.armor) h += `<div class="main">Brnění: <b>${st.armor}</b></div>`;
@@ -110,42 +118,87 @@ export class Panels {
     const am = 1 + 0.04 * it.upgrade;
     for (const a of it.affixes) h += `<div class="aff">${formatStat(a.key, scaledAffix(a.key, a.value, am))}</div>`;
     if (it.enchant) h += `<div class="ench">✧ Očarování: ${formatStat(it.enchant.key, scaledAffix(it.enchant.key, it.enchant.value, am))}</div>`;
-    for (const s of it.specials) h += `<div class="spec">★ ${esc(SPECIAL_BY_ID[s]?.desc ?? s)}</div>`;
+    for (const sp of it.specials) h += `<div class="spec">★ ${esc(SPECIAL_BY_ID[sp]?.desc ?? sp)}</div>`;
     if (base.cat === 'weapon2h') h += `<div class="hint">Obouruční – zabírá obě ruce</div>`;
-    if (base.cat === 'weapon1h') h += `<div class="hint">Jednoruční – lze nosit se štítem nebo dvě zbraně</div>`;
+    if (base.cat === 'weapon1h') h += `<div class="hint">Jednoruční – do pravé i levé ruky (se štítem nebo dvě zbraně)</div>`;
     h += `<div class="hint" style="margin-top:4px">Prodejní cena: <span style="color:#ffd76a">${itemValue(it)}</span> zlata</div>`;
-    if (compareTo !== undefined) h += this.compareHtml(it);
     return h;
   }
 
-  // compare derived stats if item were equipped
-  compareHtml(it: Item) {
+  /** the detail column: the name, the actions right under it, then the comparison and the item's text */
+  itemDetailHtml(it: Item, actions = '', compare = false) {
+    return this.itemHeadHtml(it) + (actions ? `<div class="iacts">${actions}</div>` : '') + (compare ? this.compareHtml(it) : '') + `<div class="orn"><span>Vlastnosti</span></div><div class="istats">${this.itemStatsHtml(it)}</div>`;
+  }
+
+  /** slots an item can be worn in (one-handed weapons and rings fit two) */
+  targetSlots(it: Item): Slot[] {
+    const cat = BASE_BY_ID[it.base].cat;
+    if (cat === 'weapon1h') return ['main', 'off'];
+    if (cat === 'ring') return ['ring1', 'ring2'];
+    if (cat === 'weapon2h') return ['main'];
+    if (cat === 'shield' || cat === 'offhand') return ['off'];
+    return [cat as Slot];
+  }
+
+  /** how the hero's main numbers change when the item is worn in a slot (and a rough overall score) */
+  slotDelta(it: Item, slot: Slot): { rows: [string, number, string][]; score: number; err?: string } {
     const s = this.save;
     const before = derive(s);
     const clone: SaveData = JSON.parse(JSON.stringify(s));
-    const idx = clone.inventory.findIndex((x) => x?.uid === it.uid);
-    if (idx < 0) return '';
-    equipItem(clone, idx);
+    // room for whatever the swap pushes out (a full bag must not spoil the comparison)
+    clone.inventory.push(null, null);
+    let idx = clone.inventory.findIndex((x) => x?.uid === it.uid);
+    if (idx < 0) {
+      idx = clone.inventory.findIndex((x) => !x);
+      clone.inventory[idx] = JSON.parse(JSON.stringify(it));
+    }
+    const err = equipItem(clone, idx, slot);
+    if (err) return { rows: [], score: 0, err };
     const after = derive(clone);
     const dps = (d: typeof before) => ((d.dmgMin + d.dmgMax) / 2) * d.aps * (1 + (d.crit / 100) * (d.critDmg / 100 - 1));
-    const rows: [string, number, number, boolean?][] = [
-      ['DPS', dps(before), dps(after)],
-      ['Brnění', before.armor, after.armor],
-      ['Max. HP', before.maxHp, after.maxHp],
-      ['Max. mana', before.maxMp, after.maxMp],
-      ['Síla kouzel', before.spellMult * 100, after.spellMult * 100],
-      ['Krit. šance', before.crit, after.crit],
+    const all: [string, number, string][] = [
+      ['DPS', dps(after) - dps(before), ''],
+      ['Síla kouzel', (after.spellMult - before.spellMult) * 100, ' %'],
+      ['Brnění', after.armor - before.armor, ''],
+      ['HP', after.maxHp - before.maxHp, ''],
+      ['Mana', after.maxMp - before.maxMp, ''],
+      ['Krit.', after.crit - before.crit, ' %'],
+      ['Úhyb', after.dodge - before.dodge, ' %'],
+      ['Blok', after.block - before.block, ' %'],
     ];
-    let h = '<div class="cmp"><div class="hint">Po nasazení:</div>';
-    let any = false;
-    for (const [n, a, b] of rows) {
-      const d = b - a;
-      if (Math.abs(d) < 0.05) continue;
-      any = true;
-      h += `<div class="statline"><span>${n}</span><b class="${d > 0 ? 'up-g' : 'up-r'}">${d > 0 ? '+' : ''}${Math.abs(d) >= 10 ? Math.round(d) : d.toFixed(1).replace('.', ',')}</b></div>`;
+    const rows = all.filter(([, d]) => Math.abs(d) >= 0.05);
+    // relative gains, so a sword is judged by damage and a helmet by health and armour
+    const rel = (a: number, b: number) => (b - a) / Math.max(1, Math.abs(a));
+    const score = rel(dps(before), dps(after)) + rel(before.spellMult, after.spellMult) + 0.5 * rel(before.maxHp, after.maxHp) + 0.4 * rel(before.armor, after.armor) + 0.2 * rel(before.maxMp, after.maxMp);
+    return { rows, score };
+  }
+
+  /** the item next to what is worn now: one card per slot it fits, with the change it would make */
+  compareHtml(it: Item, slots = this.targetSlots(it)) {
+    const s = this.save;
+    const fmt = (d: number) => {
+      const a = Math.abs(d);
+      return (d > 0 ? '+' : '−') + (a >= 10 || Math.abs(a - Math.round(a)) < 0.05 ? Math.round(a).toLocaleString('cs-CZ') : a.toFixed(1).replace('.', ','));
+    };
+    let h = `<div class="orn"><span>Porovnání s nasazeným</span></div>`;
+    for (const sl of slots) {
+      const cur = s.equip[sl] ?? null;
+      const blocked = sl === 'off' && isTwoHanded(s.equip.main);
+      const { rows, err } = this.slotDelta(it, sl);
+      const curHtml = cur
+        ? `<img src="${iconURL(itemIcon(cur), 32)}"><span style="color:${RARITIES[cur.rarity].color}">${cur.upgrade ? '+' + cur.upgrade + ' ' : ''}${esc(cur.name)}</span>`
+        : `<span class="hint">${blocked ? 'zabraná obouruční zbraní' : 'nic nenasazeno'}</span>`;
+      const chips = err
+        ? `<span class="chip down">${esc(err)}</span>`
+        : rows.length
+          ? rows.map(([n, d, unit]) => `<span class="chip ${d > 0 ? 'up' : 'down'}">${n} ${fmt(d)}${unit}</span>`).join('')
+          : '<span class="chip same">beze změny</span>';
+      const note = BASE_BY_ID[it.base].cat === 'weapon2h' && s.equip.off ? `<div class="hint">Uvolní i levou ruku (${esc(s.equip.off.name)}).</div>` : '';
+      h += `<div class="cmpcard"><div class="cmpslot">${SLOT_NAMES[sl]}</div><div class="cmpitem">${curHtml}</div><div class="chips">${chips}</div>${note}${
+        cur ? `<details><summary>Vlastnosti nasazeného</summary><div class="istats small">${this.itemStatsHtml(cur)}</div></details>` : ''
+      }</div>`;
     }
-    if (!any) h += '<div class="hint">beze změny hlavních statistik</div>';
-    return h + '</div>';
+    return h;
   }
 
   // ------------------------------------------------------------------ INVENTORY
@@ -180,29 +233,30 @@ export class Panels {
       <div class="col detail box scroll" style="width:min(300px,34%)"></div>`;
     const detail = $('.detail', body);
     const renderDetail = () => {
+      // a newly picked item starts at the top, where its buttons are
+      detail.scrollTop = 0;
       const sel = this.sel;
       let it: Item | null | undefined = null;
       if (sel?.from === 'inv') it = s.inventory[sel.idx];
       else if (sel?.from === 'eq') it = s.equip[sel.slot];
       if (!it) {
-        detail.innerHTML = `<p class="hint">Klepni na předmět pro zobrazení detailu.</p><p class="hint">Předměty se sbírají automaticky, když přes ně přejdeš. Nepotřebné věci můžeš prodat u obchodníka, nebo rozebrat na materiály pro vylepšování.</p>`;
+        detail.innerHTML = `<div class="orn"><span>Předmět</span></div><p class="hint">Klepni na předmět: nahoře se objeví Nasadit a Prodat a pod tím porovnání s tím, co máš na sobě.</p><p class="hint">Předměty se sbírají automaticky, když přes ně přejdeš. Dvojitým klepnutím předmět rovnou nasadíš.</p>`;
         return;
       }
-      const base = BASE_BY_ID[it.base];
-      let actions = '';
       if (sel!.from === 'inv') {
-        if (base.cat === 'weapon1h') actions += `<button class="btn green" data-a="equip">Do hlavní ruky</button><button class="btn green" data-a="equipoff">Do druhé ruky</button>`;
-        else if (base.cat === 'ring') actions += `<button class="btn green" data-a="equip" data-t="ring1">Prsten 1</button><button class="btn green" data-a="equip" data-t="ring2">Prsten 2</button>`;
-        else actions += `<button class="btn green" data-a="equip">Nasadit</button>`;
-        if (mode === 'sell') actions += `<button class="btn" data-a="sell">Prodat (${itemValue(it)} zl.)</button>`;
-        const sv = salvageResult(it);
-        actions += `<button class="btn purple" data-a="salvage">Rozebrat</button>`;
-        void sv;
-        actions += `<button class="btn red" data-a="drop">Zahodit</button>`;
+        // equip first (both hands / both rings side by side), then sell / salvage / drop, then the comparison
+        const slots = this.targetSlots(it);
+        let eq: string;
+        if (slots.length > 1) {
+          const sc = slots.map((sl) => this.slotDelta(it!, sl).score);
+          const best = sc[0] === sc[1] || Math.max(...sc) <= 0.001 ? -1 : sc.indexOf(Math.max(...sc));
+          eq = slots.map((sl, i) => `<button class="btn green${i === best ? ' best' : ''}" data-a="equip" data-t="${sl}">${EQUIP_TO[sl] ?? 'Nasadit'}${i === best ? ' ▲' : ''}</button>`).join('');
+        } else eq = `<button class="btn green" data-a="equip" data-t="${slots[0]}">Nasadit</button>`;
+        const acts = `<div class="row eqrow">${eq}</div><div class="row subrow"><button class="btn gold small" data-a="sell">Prodat · ${itemValue(it)} zl.</button><button class="btn purple small" data-a="salvage">Rozebrat</button><button class="btn red small" data-a="drop">Zahodit</button></div>`;
+        detail.innerHTML = this.itemDetailHtml(it, acts, true) + `<div class="hint" style="margin-top:6px">Rozebrání dá: ${this.salvageText(it)}</div>`;
       } else {
-        actions += `<button class="btn" data-a="unequip">Sundat</button>`;
+        detail.innerHTML = this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn" data-a="unequip">Sundat do inventáře</button></div>`);
       }
-      detail.innerHTML = this.itemDetailHtml(it, sel!.from === 'inv' ? null : undefined) + `<div class="row" style="margin-top:8px">${actions}</div>` + (sel!.from === 'inv' ? `<div class="hint" style="margin-top:4px">Rozebrání dá: ${this.salvageText(it)}</div>` : '');
     };
     const rerender = () => this.inventory(mode, p);
     body.querySelectorAll<HTMLElement>('.slot.inv').forEach((sl) =>
@@ -243,9 +297,9 @@ export class Panels {
       const a = b.dataset.a;
       const sel = this.sel;
       if (!sel) return;
-      if (a === 'equip' || a === 'equipoff') {
+      if (a === 'equip') {
         if (sel.from !== 'inv') return;
-        const err = equipItem(s, sel.idx, a === 'equipoff' ? 'off' : (b.dataset.t as Slot | undefined));
+        const err = equipItem(s, sel.idx, b.dataset.t as Slot | undefined);
         if (err) this.ui.toast(err, '#ff8080');
         else this.afterEquip();
         this.sel = null;
@@ -256,11 +310,24 @@ export class Panels {
         this.sel = null;
       } else if (a === 'sell' && sel.from === 'inv') {
         const it = s.inventory[sel.idx]!;
-        s.gold += itemValue(it);
-        this.sold(it, itemValue(it));
-        s.inventory[sel.idx] = null;
-        sfx('coin');
-        this.sel = null;
+        const sell = () => {
+          if (s.inventory[sel.idx] !== it) return;
+          const price = itemValue(it);
+          s.gold += price;
+          this.sold(it, price);
+          s.inventory[sel.idx] = null;
+          sfx('coin');
+          this.ui.toast(`Prodáno za ${price} zlata`, '#ffd76a');
+          this.sel = null;
+          rerender();
+        };
+        // valuable things are easy to sell by mistake: ask first
+        if (it.rarity >= 3) {
+          this.ui.confirm(`Prodat ${it.name}?`, `Dostaneš ${itemValue(it)} zlata. ${RARITIES[it.rarity].name} předmět se nedá vzít zpět.`, sell, 'Prodat', 'Ponechat');
+          return;
+        }
+        sell();
+        return;
       } else if (a === 'salvage' && sel.from === 'inv') {
         this.salvage(sel.idx);
         this.sel = null;
@@ -666,7 +733,8 @@ export class Panels {
         body.querySelectorAll('.slot').forEach((x) => x.classList.remove('sel'));
         sl.classList.add('sel');
         const price = buyPrice(it);
-        detail.innerHTML = this.itemDetailHtml(it) + `<div class="row" style="margin-top:8px"><button class="btn green" data-a="buy" ${s.gold < price ? 'disabled' : ''}>Koupit za ${price} zl.</button></div>`;
+        detail.scrollTop = 0;
+        detail.innerHTML = this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn green" data-a="buy" ${s.gold < price ? 'disabled' : ''}>Koupit za ${price} zl.</button></div>`, true);
         $('[data-a=buy]', detail).addEventListener('click', () => {
           if (s.gold < price) return;
           if (!addToInventory(s, it)) {
@@ -689,7 +757,8 @@ export class Panels {
         if (!bb) return;
         body.querySelectorAll('.slot').forEach((x) => x.classList.remove('sel'));
         sl.classList.add('sel');
-        detail.innerHTML = this.itemDetailHtml(bb.it) + `<div class="row" style="margin-top:8px"><button class="btn green" data-a="buyback" ${s.gold < bb.price ? 'disabled' : ''}>Koupit zpět za ${bb.price} zl.</button></div>`;
+        detail.scrollTop = 0;
+        detail.innerHTML = this.itemDetailHtml(bb.it, `<div class="row eqrow"><button class="btn green" data-a="buyback" ${s.gold < bb.price ? 'disabled' : ''}>Koupit zpět za ${bb.price} zl.</button></div>`, true);
         $('[data-a=buyback]', detail).addEventListener('click', () => {
           if (s.gold < bb.price) return;
           if (!addToInventory(s, bb.it)) {
@@ -865,7 +934,8 @@ export class Panels {
         detail.innerHTML = '<p class="hint">Úložiště je u každého obchodníka stejné. Ulož si sem předměty, které nechceš nosit, ale nechceš je ani prodat.</p>';
         return;
       }
-      detail.innerHTML = this.itemDetailHtml(it) + `<div class="row" style="margin-top:8px"><button class="btn green" data-a="move">${sel.from === 'inv' ? 'Uložit do úložiště' : 'Vzít do inventáře'}</button></div>`;
+      detail.scrollTop = 0;
+      detail.innerHTML = this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn green" data-a="move">${sel.from === 'inv' ? 'Uložit do úložiště' : 'Vzít do inventáře'}</button></div>`, sel.from !== 'inv');
       $('[data-a=move]', detail).addEventListener('click', () => {
         sfx('pickup');
         const to = sel.from === 'inv' ? st : s.inventory;

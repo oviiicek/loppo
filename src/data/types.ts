@@ -71,8 +71,8 @@ export type Slot =
   | 'bracer';
 
 export const SLOT_NAMES: Record<Slot, string> = {
-  main: 'Hlavní ruka',
-  off: 'Druhá ruka',
+  main: 'Pravá ruka',
+  off: 'Levá ruka',
   helmet: 'Helma',
   chest: 'Brnění',
   pants: 'Kalhoty',

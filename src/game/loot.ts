@@ -7,6 +7,7 @@ import { generateItem, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, 
 import { addToInventory, Materials, maxStat, derive, equipItem, SaveData } from '../systems/state';
 import { sfx, settings } from '../systems/audio';
 import { bus } from '../systems/events';
+import { iconURL } from '../gfx/textures';
 
 export type MatKey = keyof Materials;
 
@@ -260,7 +261,7 @@ export class Loot {
     } else if (g.kind === 'mat') {
       p.save.mats[g.mat!] += g.amount;
       sfx('pickup');
-      sc.ui.toast(`+${g.amount} ${MAT_INFO[g.mat!].name}`, MAT_INFO[g.mat!].color);
+      sc.ui.loot(`+${g.amount} ${MAT_INFO[g.mat!].name}`, MAT_INFO[g.mat!].color, iconURL(MAT_INFO[g.mat!].icon, 32));
     } else if (g.item && g.item.rarity < settings.autoSalvage && !this.isUpgrade(g.item)) {
       // auto-salvage weak items straight into materials
       const r = salvageResult(g.item);
@@ -280,7 +281,7 @@ export class Loot {
       sfx('pickup');
       maxStat(p.save, 'bestRarity', g.item.rarity);
       sc.ui.newItems++;
-      sc.ui.toast(g.item.name + (this.isUpgrade(g.item) ? '  ▲ lepší' : ''), RARITIES[g.item.rarity].color, g.item);
+      sc.ui.loot(g.item.name + (this.isUpgrade(g.item) ? '  ▲' : ''), RARITIES[g.item.rarity].color, iconURL(itemIcon(g.item), 32));
     }
     g.dead = true;
     g.sprite.destroy();
