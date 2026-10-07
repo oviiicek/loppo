@@ -70,9 +70,9 @@ export class Panels {
   }
 
   // ------------------------------------------------------------------ helpers
-  slotHtml(it: Item | null | undefined, extra = '', label = '', price?: number) {
+  slotHtml(it: Item | null | undefined, extra = '', label = '', price?: number, better = false) {
     if (!it) return `<div class="slot ${extra}">${label ? `<span class="lbl">${esc(label)}</span>` : ''}</div>`;
-    return `<div class="slot r${it.rarity} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}</div>`;
+    return `<div class="slot r${it.rarity} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}</div>`;
   }
 
   matsHtml() {
@@ -139,6 +139,7 @@ export class Panels {
 
   // ------------------------------------------------------------------ INVENTORY
   inventory(mode: 'normal' | 'sell' = 'normal', host?: HTMLElement) {
+    this.ui.newItems = 0;
     const p = host ?? this.frame('Inventář');
     const body = $('.body', p);
     const s = this.save;
@@ -159,7 +160,7 @@ export class Panels {
         </div>
       </div>
       <div class="col" style="flex:1;min-width:0">
-        <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv" data-idx="${i}`)).join('')}</div></div>
+        <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv" data-idx="${i}`, '', undefined, !!it && this.sc.loot.isUpgrade(it))).join('')}</div></div>
         <div class="box">${this.matsHtml()}</div>
         <div class="row">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : '<button class="btn small" data-a="salvcommon">Rozebrat běžné předměty</button>'}<button class="btn small blue" data-a="sort">Seřadit</button><span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span></div>
       </div>

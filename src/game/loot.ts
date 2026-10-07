@@ -271,6 +271,7 @@ export class Loot {
       }
       sfx('pickup');
       maxStat(p.save, 'bestRarity', g.item.rarity);
+      sc.ui.newItems++;
       sc.ui.toast(g.item.name + (this.isUpgrade(g.item) ? '  ▲ lepší' : ''), RARITIES[g.item.rarity].color, g.item);
     }
     g.dead = true;

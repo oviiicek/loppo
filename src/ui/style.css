@@ -1328,3 +1328,12 @@ img.px {
     height: 54px;
   }
 }
+
+.slot .better {
+  position: absolute;
+  left: 3px;
+  top: 0;
+  font-size: 15px;
+  color: #6dff7a;
+  text-shadow: 1px 1px 0 #000;
+}

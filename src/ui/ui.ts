@@ -39,6 +39,7 @@ class UIManager {
   scene: GameScene | null = null;
   root!: HTMLElement;
   joy: [number, number] = [0, 0];
+  newItems = 0;
   hud: HTMLElement | null = null;
   panel: HTMLElement | null = null;
   panels = new Panels(this);
@@ -379,8 +380,8 @@ class UIManager {
     sp.classList.toggle('on', s.spellPoints > 0);
     const inv = $('.badge.inv', hud);
     const free = s.inventory.filter((x) => !x).length;
-    inv.textContent = free === 0 ? '!' : '';
-    inv.classList.toggle('on', free === 0);
+    inv.textContent = free === 0 ? 'plno' : this.newItems > 0 ? String(this.newItems) : '';
+    inv.classList.toggle('on', free === 0 || this.newItems > 0);
     // potions
     $('.php .cnt', hud).textContent = String(s.mats.hpPotion);
     $('.pmp .cnt', hud).textContent = String(s.mats.mpPotion);
