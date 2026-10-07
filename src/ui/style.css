@@ -1613,3 +1613,46 @@ textarea.code {
     top: 106px;
   }
 }
+
+/* fullscreen button icon (inline SVG – the ⛶ glyph is missing on many phones) */
+.fsico {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.14em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: square;
+}
+.rbtn .fsico {
+  width: 22px;
+  height: 22px;
+  vertical-align: 0;
+}
+
+/* short message above everything (e.g. "this browser does not allow fullscreen") */
+.notice {
+  position: fixed;
+  left: 50%;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 500;
+  width: max-content;
+  max-width: min(86vw, 560px);
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 2px solid #4a6a8a;
+  background: rgba(12, 18, 28, 0.94);
+  color: #cfe6ff;
+  font-family: var(--font);
+  font-size: 18px;
+  line-height: 1.25;
+  text-align: center;
+  text-shadow: 1px 1px 0 #000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.notice.on {
+  opacity: 1;
+}

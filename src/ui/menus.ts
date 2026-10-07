@@ -8,6 +8,7 @@ import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave } from '../systems/state';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
+import { fsButtonHTML, isStandalone } from './fullscreen';
 
 type UIM = typeof UIType;
 
@@ -39,7 +40,7 @@ export class Menus {
       <button class="btn" data-a="new">Nová hra</button>
       <button class="btn" data-a="slots">Postavy</button>
       <button class="btn blue" data-a="help">Jak hrát</button>
-      <button class="btn small" data-a="sound" style="min-width:0;font-size:18px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>
+      <div class="row" style="justify-content:center"><button class="btn small" data-a="sound" style="min-width:0;font-size:18px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>${isStandalone() ? '' : `<button class="btn small" data-a="fs" data-fs="label" style="min-width:0;font-size:18px">${fsButtonHTML('label')}</button>`}</div>
       <div class="sprites">${CLASSES.map((c, i) => `<img src="${iconURL('pl_' + c.id, 64)}" style="animation-delay:${i * 0.15}s">`).join('')}</div>
     </div>`);
     this.ui.root.appendChild(m);
@@ -63,6 +64,7 @@ export class Menus {
         } else this.slots(m, 'Všechny sloty jsou obsazené. Vyber postavu, kterou chceš nahradit.');
       } else if (a === 'slots') this.slots(m);
       else if (a === 'help') this.help(m);
+      else if (a === 'fs') this.ui.toggleFullscreen();
       else if (a === 'sound') {
         setMuted(!isMuted());
         b.textContent = isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut';
@@ -286,7 +288,7 @@ export class Menus {
         <button class="btn green" data-a="resume">Pokračovat</button>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button></div>
         <button class="btn" data-a="ach">Úspěchy (${(sc.save.achievements ?? []).length}/${ACHIEVEMENTS.length})</button>
-        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button></div>
+        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button>${isStandalone() ? '' : `<button class="btn small blue" data-a="fs" data-fs="label">${fsButtonHTML('label')}</button>`}</div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Rozebírat: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button></div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
       </div></div>`);
@@ -298,6 +300,7 @@ export class Menus {
       sfx('ui');
       const a = b.dataset.a;
       if (a === 'resume') this.ui.closeOverlay();
+      else if (a === 'fs') this.ui.toggleFullscreen();
       else if (a === 'sound') {
         setMuted(!isMuted());
         b.textContent = isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut';

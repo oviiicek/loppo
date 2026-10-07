@@ -12,6 +12,7 @@ import { Panels } from './panels';
 import { Menus } from './menus';
 import { TS } from '../game/map';
 import { T_FLOOR, T_WALL } from '../systems/dungeon';
+import { FS_HELP, autoFullscreen, fsActive, fsButtonHTML, fsSupported, isStandalone, onFullscreenChange, syncFsButtons, toggleFullscreen } from './fullscreen';
 
 export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
 
@@ -104,6 +105,13 @@ class UIManager {
       }
     });
     window.addEventListener('resize', () => this.layout());
+    // F = fullscreen on a keyboard (handled here, inside the key event, or the browser refuses)
+    document.addEventListener('keydown', (e) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== 'f') return;
+      if ((e.target as HTMLElement).closest?.('input, textarea')) return;
+      this.toggleFullscreen();
+    });
+    onFullscreenChange(() => syncFsButtons());
     // prevent context menu / double-tap zoom
     // (text boxes keep their long-press menu so a transfer code can be pasted on phones)
     document.addEventListener('contextmenu', (e) => {
@@ -130,13 +138,7 @@ class UIManager {
     if (sm.isActive('Menu')) sm.stop('Menu');
     if (sm.isActive('Game') || sm.isPaused('Game')) sm.stop('Game');
     sm.start('Game', { save });
-    try {
-      if (!document.fullscreenElement && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)) {
-        document.documentElement.requestFullscreen?.().then(() => (screen.orientation as any)?.lock?.('landscape').catch(() => {})).catch(() => {});
-      }
-    } catch {
-      /* ignore */
-    }
+    autoFullscreen();
   }
 
   clearAll() {
@@ -176,6 +178,7 @@ class UIManager {
       <div class="minimap"><canvas width="124" height="124"></canvas></div>
       <div class="floorlbl"></div>
       <div class="topbtns">
+        ${fsSupported() && !isStandalone() ? `<div class="rbtn fs" data-a="fs" data-fs="icon" title="Celá obrazovka (F)">${fsButtonHTML('icon')}</div>` : ''}
         <div class="rbtn" data-a="spells" title="Kouzla (K)">✦<span class="badge sp"></span></div>
         <div class="rbtn" data-a="character" title="Postava (C)">☗<span class="badge at"></span></div>
         <div class="rbtn" data-a="pause" title="Menu (Esc)">☰</div>
@@ -194,6 +197,16 @@ class UIManager {
     this.minimapCtx = ($('.minimap canvas', hud) as HTMLCanvasElement).getContext('2d');
     hud.querySelectorAll<HTMLElement>('.topbtns .rbtn').forEach((b) => {
       b.style.pointerEvents = 'auto';
+      if (b.dataset.a === 'fs') {
+        // fullscreen must come from a click – phones ignore a request made on pointerdown
+        b.addEventListener('pointerdown', (e) => e.stopPropagation());
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          sfx('ui');
+          this.toggleFullscreen();
+        });
+        return;
+      }
       b.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         sfx('ui');
@@ -646,6 +659,28 @@ class UIManager {
     h.classList.add('on');
     clearTimeout((h as any)._t);
     (h as any)._t = setTimeout(() => h.classList.remove('on'), ms);
+  }
+
+  /** a short message shown above everything, menus included */
+  notice(text: string, ms = 6000) {
+    let n = document.querySelector<HTMLElement>('.notice');
+    if (!n) {
+      n = el('<div class="notice"></div>');
+      document.body.appendChild(n);
+    }
+    const box = n;
+    box.textContent = text;
+    box.classList.add('on');
+    clearTimeout((box as any)._t);
+    (box as any)._t = setTimeout(() => box.classList.remove('on'), ms);
+  }
+
+  /** fullscreen buttons and the F key; explains it when the browser refuses */
+  toggleFullscreen() {
+    const leaving = fsActive();
+    toggleFullscreen().then((ok) => {
+      if (!ok && !leaving) this.notice(FS_HELP, 8000);
+    });
   }
 
   banner(title: string, sub = '') {
