@@ -162,7 +162,7 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
   - Šampioni,
   - Poklady.
 - Mlha války s přímou viditelností: neprozkoumané části patra jsou černé.
-- Velká mapa po klepnutí na minimapu (klávesa M).
+- Velká mapa po klepnutí na minimapu (klávesa M). Když jsou objevené schody nebo obchodník mimo minimapu, ukazuje k nim šipka na jejím okraji.
 - Rozbitné bedny, sudy a hliněné nádoby s drobnou kořistí. Bodcové pasti v chodbách a místnostech.
 - Zlatý skřet: vzácný zloděj, který před hráčem utíká a po 18 sekundách zmizí portálem. Když ho chytíš, vysype hromadu zlata a vzácný předmět. Při Zlaté horečce se objevuje častěji.
 - 27 úspěchů s odměnami (zlato, materiály, paklíče, body atributů).
