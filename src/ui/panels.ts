@@ -244,6 +244,7 @@ export class Panels {
       } else if (a === 'sell' && sel.from === 'inv') {
         const it = s.inventory[sel.idx]!;
         s.gold += itemValue(it);
+        this.sold(it, itemValue(it));
         s.inventory[sel.idx] = null;
         sfx('coin');
         this.sel = null;
@@ -262,8 +263,9 @@ export class Panels {
       let n = 0,
         g = 0;
       s.inventory.forEach((it, i) => {
-        if (it && it.rarity <= 1) {
+        if (it && it.rarity <= 1 && !this.sc.loot.isUpgrade(it)) {
           g += itemValue(it);
+          this.sold(it, itemValue(it));
           s.inventory[i] = null;
           n++;
         }
@@ -285,7 +287,7 @@ export class Panels {
     body.querySelector('[data-a=salvcommon]')?.addEventListener('click', () => {
       let n = 0;
       s.inventory.forEach((it, i) => {
-        if (it && it.rarity === 0) {
+        if (it && it.rarity === 0 && !this.sc.loot.isUpgrade(it)) {
           this.salvage(i, true);
           n++;
         }
@@ -541,7 +543,18 @@ export class Panels {
   // ------------------------------------------------------------------ MERCHANT
   merchantTab: 'buy' | 'sell' | 'forge' | 'class' | 'stash' = 'buy';
 
+  curStock: MerchantStock | null = null;
+
+  // sold items stay at the merchant for a while so an accidental sale can be undone
+  private sold(it: Item, price: number) {
+    const st = this.curStock;
+    if (!st) return;
+    (st.buyback ??= []).unshift({ it, price });
+    st.buyback.length = Math.min(st.buyback.length, 12);
+  }
+
   merchant(stock: MerchantStock, host?: HTMLElement) {
+    this.curStock = stock;
     const tabs = [
       { id: 'buy', label: 'Koupit' },
       { id: 'sell', label: 'Prodat' },
@@ -573,6 +586,7 @@ export class Panels {
       <div class="col" style="flex:1;min-width:0">
         <div class="hint">Zboží se u každého obchodníka liší. Klepni na předmět pro detail.</div>
         <div class="scroll" style="flex:1"><div class="grid">${stock.items.map((it, i) => this.slotHtml(it, `shop" data-idx="${i}`, '', buyPrice(it))).join('')}</div>
+        ${stock.buyback?.length ? `<b style="color:#ffd76a;display:block;margin-top:8px">Zpětný odkup</b><div class="hint">Předměty, které jsi tu prodal. Koupíš je zpět za stejnou cenu.</div><div class="grid">${stock.buyback.map((b, i) => this.slotHtml(b.it, `back" data-idx="${i}`, '', b.price)).join('')}</div>` : ''}
         <div class="box" style="margin-top:8px">${stock.mats
           .map(
             (m, i) => `<div class="statline" style="align-items:center"><span class="row"><img style="width:28px;height:28px;image-rendering:pixelated" src="${iconURL(MAT_INFO[m.key].icon, 32)}">${MAT_INFO[m.key].name} <span class="hint">(skladem ${m.qty})</span></span>
@@ -603,6 +617,29 @@ export class Panels {
           stock.items.splice(i, 1);
           sfx('coin');
           this.ui.toast(`Koupeno: ${it.name}`, RARITIES[it.rarity].color);
+          this.merchant(stock, p);
+        });
+      }),
+    );
+    body.querySelectorAll<HTMLElement>('.slot.back').forEach((sl) =>
+      sl.addEventListener('click', () => {
+        sfx('ui');
+        const i = +sl.dataset.idx!;
+        const bb = stock.buyback?.[i];
+        if (!bb) return;
+        body.querySelectorAll('.slot').forEach((x) => x.classList.remove('sel'));
+        sl.classList.add('sel');
+        detail.innerHTML = this.itemDetailHtml(bb.it) + `<div class="row" style="margin-top:8px"><button class="btn green" data-a="buyback" ${s.gold < bb.price ? 'disabled' : ''}>Koupit zpět za ${bb.price} zl.</button></div>`;
+        $('[data-a=buyback]', detail).addEventListener('click', () => {
+          if (s.gold < bb.price) return;
+          if (!addToInventory(s, bb.it)) {
+            this.ui.toast('Inventář je plný', '#ff8080');
+            return;
+          }
+          s.gold -= bb.price;
+          stock.buyback!.splice(i, 1);
+          sfx('coin');
+          this.ui.toast(`Vráceno do inventáře: ${bb.it.name}`, RARITIES[bb.it.rarity].color);
           this.merchant(stock, p);
         });
       }),

@@ -3,6 +3,8 @@ type Handler = (...args: any[]) => void;
 
 class Bus {
   private map = new Map<string, Set<Handler>>();
+  // set while simulating changes on a copy of the save (e.g. upgrade checks)
+  muted = false;
   on(ev: string, fn: Handler) {
     if (!this.map.has(ev)) this.map.set(ev, new Set());
     this.map.get(ev)!.add(fn);
@@ -12,6 +14,7 @@ class Bus {
     this.map.get(ev)?.delete(fn);
   }
   emit(ev: string, ...args: any[]) {
+    if (this.muted) return;
     this.map.get(ev)?.forEach((fn) => fn(...args));
   }
 }

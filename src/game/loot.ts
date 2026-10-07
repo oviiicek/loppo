@@ -288,13 +288,18 @@ export class Loot {
       const idx = s.inventory.findIndex((x) => x?.uid === it.uid);
       if (idx < 0) return false;
       const before = derive(s);
-      const clone: SaveData = JSON.parse(JSON.stringify(s));
-      if (equipItem(clone, idx)) return false;
+      // equipItem only rearranges equip/inventory, so shallow copies of those are enough
+      const clone: SaveData = { ...s, equip: { ...s.equip }, inventory: s.inventory.slice() };
+      bus.muted = true;
+      const err = equipItem(clone, idx);
+      bus.muted = false;
+      if (err) return false;
       const after = derive(clone);
       const dps = (d: typeof before) => ((d.dmgMin + d.dmgMax) / 2) * d.aps * (1 + (d.crit / 100) * (d.critDmg / 100 - 1)) * (d.attack === 'magic' ? 1 : 1);
       const score = (d: typeof before) => dps(d) / Math.max(1, dps(before)) + d.armor / Math.max(10, before.armor) * 0.35 + d.maxHp / before.maxHp * 0.35 + d.spellMult / before.spellMult * 0.3;
       return score(after) > score(before) * 1.02;
     } catch {
+      bus.muted = false;
       return false;
     }
   }

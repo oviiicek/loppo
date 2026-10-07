@@ -46,6 +46,8 @@ export interface ShrineBuff {
 export interface MerchantStock {
   items: Item[];
   mats: { key: 'hpPotion' | 'mpPotion' | 'lockpick' | 'stone' | 'dust'; price: number; qty: number }[];
+  // items the player sold here, newest first – can be bought back for the same price
+  buyback?: { it: Item; price: number }[];
 }
 
 export interface FloorMod {
