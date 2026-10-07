@@ -48,6 +48,30 @@ export interface MerchantStock {
   mats: { key: 'hpPotion' | 'mpPotion' | 'lockpick' | 'stone' | 'dust'; price: number; qty: number }[];
 }
 
+export interface FloorMod {
+  id: string;
+  name: string;
+  desc: string;
+  enemyHp?: number;
+  enemyDmg?: number;
+  xp?: number;
+  gold?: number;
+  mf?: number;
+  extraEnemies?: number;
+  eliteMult?: number;
+  darkness?: number;
+  chestBonus?: boolean;
+}
+
+export const FLOOR_MODS: FloorMod[] = [
+  { id: 'dark', name: 'Temnota', desc: 'Je tu větší tma, ale kořist je lepší', darkness: 0.9, mf: 40 },
+  { id: 'gold', name: 'Zlatá horečka', desc: 'Nepřátelé a truhly dávají dvojnásobek zlata', gold: 1 },
+  { id: 'curse', name: 'Prokletí', desc: 'Silnější nepřátelé, víc zkušeností a lepší kořist', enemyHp: 1.2, enemyDmg: 1.25, xp: 0.4, mf: 40 },
+  { id: 'horde', name: 'Hordy', desc: 'Mnohem víc nepřátel a víc zkušeností', extraEnemies: 0.4, xp: 0.2 },
+  { id: 'champions', name: 'Šampioni', desc: 'Elitních nepřátel je třikrát víc', eliteMult: 3, mf: 20 },
+  { id: 'treasure', name: 'Poklady', desc: 'Truhly obsahují lepší předměty', chestBonus: true },
+];
+
 const SHRINES: Record<string, { name: string; mods: BuffMods; xp?: number; mf?: number; color: number }> = {
   power: { name: 'Svatyně síly', mods: { dmgPct: 30 }, color: 0xff4d4d },
   speed: { name: 'Svatyně rychlosti', mods: { atkSpdPct: 25, move: 20 }, color: 0xffe45c },
@@ -90,6 +114,7 @@ export class GameScene extends Phaser.Scene {
   paused = false;
   zoom = 3;
   darkness = 0.74;
+  mod: FloorMod | null = null;
   merchantStocks = new Map<Interactable, MerchantStock>();
   currentAction: Interactable | null = null;
   playTimeT = 0;
@@ -118,6 +143,8 @@ export class GameScene extends Phaser.Scene {
     this.currentAction = null;
     this.floorKills = 0;
     this.deathAt = 0;
+    this.darkness = 0.74;
+    this.mod = null;
   }
 
   create() {
@@ -140,6 +167,14 @@ export class GameScene extends Phaser.Scene {
 
     const s = this.dungeon.start;
     this.player = new Player(this, s.x * TS + 8, s.y * TS + 10, save);
+    // ~25 % of regular floors get a random modifier
+    const forced = (window as any).__forceMod as string | undefined; // dev testing hook
+    this.mod = forced
+      ? FLOOR_MODS.find((m) => m.id === forced) ?? null
+      : !isBossFloor(this.floor) && this.floor > 1 && Math.random() < 0.25
+        ? FLOOR_MODS[Math.floor(Math.random() * FLOOR_MODS.length)]
+        : null;
+    if (this.mod?.darkness) this.darkness = this.mod.darkness;
     this.placeObjects();
     this.spawnEnemies();
 
@@ -178,7 +213,15 @@ export class GameScene extends Phaser.Scene {
     this.map.revealAround(this.player.x, this.player.y, 8);
     this.updateGlowVisibility();
     UI.attachGame(this);
-    const sub = isBossFloor(this.floor) ? 'Patro strážce – připrav se!' : this.floor % 10 === 1 ? `Vstupuješ: ${this.theme.name}` : this.dungeon.hasMerchant ? 'Někde zde čeká obchodník…' : this.theme.name;
+    const sub = isBossFloor(this.floor)
+      ? 'Patro strážce – připrav se!'
+      : this.mod
+        ? `${this.mod.name}: ${this.mod.desc}`
+        : this.floor % 10 === 1
+          ? `Vstupuješ: ${this.theme.name}`
+          : this.dungeon.hasMerchant
+            ? 'Někde zde čeká obchodník…'
+            : this.theme.name;
     UI.banner(this.floorTitle(), sub);
     save.floor = this.floor;
     save.maxFloor = Math.max(save.maxFloor, this.floor);
@@ -443,10 +486,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnEnemies() {
-    for (const sp of this.dungeon.spawns) {
+    const m = this.mod;
+    const spawns = [...this.dungeon.spawns];
+    if (m?.extraEnemies) {
+      const extra = Math.round(spawns.length * m.extraEnemies);
+      for (let i = 0; i < extra; i++) {
+        const b = spawns[Math.floor(Math.random() * spawns.length)];
+        if (b) spawns.push({ ...b, elite: false });
+      }
+    }
+    for (const sp of spawns) {
       const def = ENEMY_BY_ID[sp.id];
       if (!def) continue;
-      this.spawnEnemy(sp.id, sp.x * TS + 8, sp.y * TS + 10, sp.elite, sp.room);
+      const elite = sp.elite || (!!m?.eliteMult && Math.random() < 0.08 * (m.eliteMult - 1));
+      const ox = sp.x * TS + 8 + (Math.random() - 0.5) * 6,
+        oy = sp.y * TS + 10 + (Math.random() - 0.5) * 6;
+      const e = this.spawnEnemy(sp.id, ox, oy, elite, sp.room);
+      if (m?.enemyHp) e.maxHp = e.hp = Math.round(e.maxHp * m.enemyHp);
+      if (m?.enemyDmg) e.dmg *= m.enemyDmg;
     }
     const br = this.dungeon.bossRoom;
     if (br) {

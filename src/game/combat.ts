@@ -154,7 +154,7 @@ export class Combat {
     sc.tweens.add({ targets: e.shadow, alpha: 0, duration: 260 });
     e.nameLabel?.destroy();
     // rewards
-    const xpMult = 1 + p.d.xp / 100 + sc.shrineBuffs.reduce((a, b) => a + (b.xp ?? 0), 0);
+    const xpMult = 1 + p.d.xp / 100 + sc.shrineBuffs.reduce((a, b) => a + (b.xp ?? 0), 0) + (sc.mod?.xp ?? 0);
     sc.gainXp(Math.round(e.xp * xpMult));
     p.save.kills++;
     sc.loot.enemyDrops(e);

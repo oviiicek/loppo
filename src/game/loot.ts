@@ -43,12 +43,13 @@ export class Loot {
 
   get mf() {
     const sc = this.scene;
-    return sc.player.d.magicFind + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0), 0);
+    return sc.player.d.magicFind + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0), 0) + (sc.mod?.mf ?? 0);
   }
 
   get goldMult() {
-    const p = this.scene.player;
-    return 1 + p.d.gold / 100 + (p.d.specials.has('goldRush') ? 0.6 : 0) + this.scene.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0) / 100, 0);
+    const sc = this.scene;
+    const p = sc.player;
+    return 1 + p.d.gold / 100 + (p.d.specials.has('goldRush') ? 0.6 : 0) + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0) / 100, 0) + (sc.mod?.gold ?? 0);
   }
 
   // "smart loot": some drops favour the weapon type / slots the player actually uses
@@ -131,6 +132,7 @@ export class Loot {
       bonus = 2;
       goldMult = 8;
     }
+    if (this.scene.mod?.chestBonus) bonus = Math.min(3, bonus + 1);
     for (let i = 0; i < nItems; i++) {
       const it = generateItem(f + (tier === 'boss' ? 2 : 0), { magicFind: mf, rarityBonus: bonus, filter: this.bias() });
       if (tier === 'boss' && i === 0 && it.rarity < 3) {

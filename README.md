@@ -150,6 +150,13 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
   - Ledové hlubiny.
 
   Každé končí strážcem.
+- Asi čtvrtina pater má náhodný modifikátor. Vyšší riziko přináší lepší odměnu:
+  - Temnota,
+  - Zlatá horečka,
+  - Prokletí,
+  - Hordy,
+  - Šampioni,
+  - Poklady.
 - Mlha války s přímou viditelností: neprozkoumané části patra jsou černé.
 - Velká mapa po klepnutí na minimapu (klávesa M).
 - Rozbitné bedny, sudy a hliněné nádoby s drobnou kořistí. Bodcové pasti v chodbách a místnostech.
@@ -158,7 +165,8 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
 
 ### Ostatní
 - Dynamické osvětlení s blikajícími pochodněmi, minimapa s mlhou války, čísla poškození, částicové efekty a otřesy obrazovky.
-- Automatické ukládání do `localStorage`: při změně patra, každých 20 s a při odchodu z aplikace.
+- Automatické ukládání do `localStorage`: při změně patra, každých 20 s a při odchodu z aplikace. K dispozici jsou 3 sloty pro různé postavy.
+- Úložiště u obchodníka (42 míst) pro předměty, které nechceš nosit ani prodat.
 - Smrt znamená ztrátu 15 % zlata a části zkušeností. Patro se pak vygeneruje znovu.
 - Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání a automatické rozebírání slabých předmětů.
 - Hlavní menu má živé pozadí, náhodně vygenerovaný dungeon s pochodněmi.
