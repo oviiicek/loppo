@@ -430,6 +430,29 @@ export function loadGame(slot = activeSlot()): SaveData | null {
   }
 }
 
+// Transfer codes let a character move between devices or browsers (plain base64 of the save JSON).
+const CODE_PREFIX = 'LOPPO1:';
+
+export function exportSave(s: SaveData): string {
+  return CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+}
+
+export function importSave(code: string, slot: number): SaveData | string {
+  let s: SaveData;
+  try {
+    const raw = code.trim().replace(CODE_PREFIX, '').replace(/\s+/g, '');
+    s = JSON.parse(decodeURIComponent(escape(atob(raw))));
+  } catch {
+    return 'Kód se nepodařilo přečíst. Zkontroluj, že jsi zkopíroval celý text.';
+  }
+  if (!s || s.version !== 1 || !CLASS_BY_ID[s.cls] || typeof s.level !== 'number' || !Array.isArray(s.inventory) || !s.equip || !s.attrs) return 'Tohle není platný kód postavy.';
+  while (s.inventory.length < INVENTORY_SIZE) s.inventory.push(null);
+  s.slot = slot;
+  saveGame(s);
+  if (!loadGame(slot)) return 'Tento prohlížeč neumožňuje ukládat hru.';
+  return s;
+}
+
 export function listSlots(): (SaveData | null)[] {
   const out: (SaveData | null)[] = [];
   for (let i = 0; i < SLOTS; i++) out.push(loadGame(i));

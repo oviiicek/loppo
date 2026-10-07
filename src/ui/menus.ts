@@ -6,7 +6,7 @@ import { spellsForClass } from '../data/spells';
 import { BASE_BY_ID } from '../data/items';
 import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
-import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS } from '../systems/state';
+import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave } from '../systems/state';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
 
 type UIM = typeof UIType;
@@ -76,8 +76,8 @@ export class Menus {
           .map((sv, i) =>
             sv
               ? `<div class="box row" style="justify-content:space-between;flex-wrap:nowrap;${i === act ? 'border-color:#8a6a3a' : ''}"><div class="row" style="flex-wrap:nowrap"><img style="height:56px;image-rendering:pixelated" src="${iconURL('pl_' + sv.cls, 64)}"><div><div style="font-size:20px;color:#ffd76a">${esc(CLASS_BY_ID[sv.cls].name)} • úroveň ${sv.level}</div><div class="hint">Patro ${sv.floor} (nejhlouběji ${sv.maxFloor}) • ${Math.floor(sv.playTime / 60)} min • zabito ${sv.kills}</div></div></div>
-                 <div class="row" style="flex-wrap:nowrap"><button class="btn green" data-play="${i}">Hrát</button><button class="btn red small" data-del="${i}">Smazat</button></div></div>`
-              : `<div class="box row" style="justify-content:space-between"><span class="hint" style="font-size:18px">Slot ${i + 1} – volný</span><button class="btn" data-new="${i}">Nová postava</button></div>`,
+                 <div class="row" style="flex-wrap:nowrap"><button class="btn green" data-play="${i}">Hrát</button><button class="btn blue small" data-exp="${i}">Přenést</button><button class="btn red small" data-del="${i}">Smazat</button></div></div>`
+              : `<div class="box row" style="justify-content:space-between"><span class="hint" style="font-size:18px">Slot ${i + 1} – volný</span><div class="row"><button class="btn" data-new="${i}">Nová postava</button><button class="btn blue small" data-imp="${i}">Vložit kód</button></div></div>`,
           )
           .join('')}
       </div></div></div>`);
@@ -101,6 +101,14 @@ export class Menus {
         p.remove();
         menu.remove();
         this.classSelect();
+      } else if (b.dataset.exp !== undefined) {
+        const sv = listSlots()[+b.dataset.exp];
+        if (sv) this.transferOut(sv);
+      } else if (b.dataset.imp !== undefined) {
+        this.transferIn(+b.dataset.imp, () => {
+          p.remove();
+          this.slots(menu);
+        });
       } else if (b.dataset.del !== undefined) {
         const i = +b.dataset.del;
         const sure = el(`<div class="overlay" style="z-index:90"><div class="panel small"><div class="head"><h2>Smazat postavu?</h2></div><div style="padding:14px"><p class="hint" style="font-size:16px">Postava ve slotu ${i + 1} bude nenávratně smazána.</p><div class="row" style="justify-content:flex-end"><button class="btn" data-x="no">Zpět</button><button class="btn red" data-x="yes">Smazat</button></div></div></div></div>`);
@@ -117,6 +125,58 @@ export class Menus {
           } else sure.remove();
         });
       }
+    });
+  }
+
+  // export: show the transfer code with a copy button (clipboard may be refused, so the text stays selectable)
+  transferOut(sv: NonNullable<ReturnType<typeof loadGame>>) {
+    const code = exportSave(sv);
+    const p = el(`<div class="overlay" style="z-index:90"><div class="panel small" style="width:min(94vw,560px)"><div class="head"><h2>Přenést postavu</h2><button class="close">✕</button></div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
+        <p class="hint" style="margin:0">Zkopíruj tento kód a na jiném zařízení ho vlož v menu Postavy → Vložit kód.</p>
+        <textarea class="code" readonly></textarea>
+        <div class="row" style="justify-content:flex-end"><span class="hint" data-msg></span><button class="btn green" data-x="copy">Kopírovat</button></div>
+      </div></div></div>`);
+    const ta = $('textarea', p) as HTMLTextAreaElement;
+    ta.value = code;
+    this.ui.root.appendChild(p);
+    $('.close', p).addEventListener('click', () => p.remove());
+    $('[data-x=copy]', p).addEventListener('click', () => {
+      const msg = $('[data-msg]', p);
+      const manual = () => {
+        ta.focus();
+        ta.select();
+        msg.textContent = 'Text je označený – zkopíruj ho ručně.';
+      };
+      try {
+        navigator.clipboard.writeText(code).then(() => (msg.textContent = 'Zkopírováno ✓'), manual);
+      } catch {
+        manual();
+      }
+    });
+  }
+
+  transferIn(slot: number, done: () => void) {
+    const p = el(`<div class="overlay" style="z-index:90"><div class="panel small" style="width:min(94vw,560px)"><div class="head"><h2>Vložit kód postavy</h2><button class="close">✕</button></div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
+        <p class="hint" style="margin:0">Vlož kód, který jsi zkopíroval z menu Postavy → Přenést.</p>
+        <textarea class="code" placeholder="LOPPO1:…"></textarea>
+        <div class="row" style="justify-content:flex-end"><span class="hint" data-msg style="color:#ff8080"></span><button class="btn green" data-x="load">Načíst do slotu ${slot + 1}</button></div>
+      </div></div></div>`);
+    this.ui.root.appendChild(p);
+    const ta = $('textarea', p) as HTMLTextAreaElement;
+    // the game blocks text selection globally; the code box needs normal editing
+    ta.addEventListener('pointerdown', (e) => e.stopPropagation());
+    $('.close', p).addEventListener('click', () => p.remove());
+    $('[data-x=load]', p).addEventListener('click', () => {
+      const r = importSave(ta.value, slot);
+      if (typeof r === 'string') {
+        $('[data-msg]', p).textContent = r;
+        return;
+      }
+      sfx('levelup');
+      p.remove();
+      done();
     });
   }
 
@@ -277,7 +337,7 @@ export class Menus {
     const st = sc.save.stats ?? {};
     const p = el(`<div class="panel"><div class="head"><h2>Úspěchy ${got.length}/${ACHIEVEMENTS.length}</h2><button class="close">✕</button></div>
       <div class="body scroll" style="display:block">
-        <div class="hint" style="margin-bottom:8px">Strážců poraženo: ${st.bosses ?? 0} • truhel otevřeno: ${st.chests ?? 0} • tajných místností: ${st.secrets ?? 0} • zámků odemčeno: ${st.locks ?? 0} • nepřátel zabito: ${sc.save.kills}</div>
+        <div class="hint" style="margin-bottom:8px">Strážců poraženo: ${st.bosses ?? 0} • truhel otevřeno: ${st.chests ?? 0} • tajných místností: ${st.secrets ?? 0} • zámků odemčeno: ${st.locks ?? 0} • zlatých skřetů: ${st.thieves ?? 0} • nepřátel zabito: ${sc.save.kills}</div>
         <div class="spgrid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${ACHIEVEMENTS.map((a) => {
           const done = got.includes(a.id);
           return `<div class="spcard ${done ? '' : 'locked'}" style="align-items:flex-start"><div style="font-size:26px;line-height:1">${done ? '🏆' : '🔒'}</div><div style="min-width:0"><div class="nm" style="color:${done ? '#ffd76a' : '#ddd'}">${esc(a.name)}</div><div class="lv2">${esc(a.desc)}</div><div class="lv2" style="color:#9dff9d">Odměna: ${achievementReward(a.reward)}</div></div></div>`;

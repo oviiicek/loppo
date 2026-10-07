@@ -105,7 +105,10 @@ class UIManager {
     });
     window.addEventListener('resize', () => this.layout());
     // prevent context menu / double-tap zoom
-    document.addEventListener('contextmenu', (e) => e.preventDefault());
+    // (text boxes keep their long-press menu so a transfer code can be pasted on phones)
+    document.addEventListener('contextmenu', (e) => {
+      if (!(e.target as HTMLElement).closest?.('textarea')) e.preventDefault();
+    });
     // iOS Safari ignores user-scalable=no; block its pinch-zoom gestures explicitly
     document.addEventListener('gesturestart', (e) => e.preventDefault());
     document.addEventListener('dblclick', (e) => e.preventDefault());

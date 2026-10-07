@@ -1416,3 +1416,20 @@ img.px {
   display: flex;
   align-items: center;
 }
+
+/* transfer code box */
+textarea.code {
+  width: 100%;
+  height: 96px;
+  resize: none;
+  background: #0d0b12;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px;
+  font: 13px/1.3 ui-monospace, monospace;
+  word-break: break-all;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: auto;
+}
