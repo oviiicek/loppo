@@ -469,6 +469,30 @@ class UIManager {
         ctx.fillRect((x - x0) * cell - offX, (y - y0) * cell - offY, cell, cell);
       }
     const toMini = (wx: number, wy: number): [number, number] => [(wx / TS - x0) * cell - offX, (wy / TS - y0) * cell - offY];
+    // explored stairs / merchant outside the minimap: arrow on the rim pointing at them
+    const edgeArrow = (wx: number, wy: number, color: string) => {
+      const [mx, my] = toMini(wx, wy);
+      // the minimap is drawn as a circle
+      if (Math.hypot(mx - W / 2, my - H / 2) < W / 2 - 6) return;
+      const a = Math.atan2(my - H / 2, mx - W / 2);
+      const rr = W / 2 - 7;
+      ctx.save();
+      ctx.translate(W / 2 + Math.cos(a) * rr, H / 2 + Math.sin(a) * rr);
+      ctx.rotate(a);
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#000';
+      ctx.beginPath();
+      ctx.moveTo(6, 0);
+      ctx.lineTo(-4, -5);
+      ctx.lineTo(-4, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    };
+    for (const it of sc.interactables) {
+      if ((it.kind === 'stairs' || it.kind === 'merchant') && m.explored[m.idx(it.tx, it.ty)]) edgeArrow(it.x, it.y, it.kind === 'stairs' ? '#ffd23a' : '#c77dff');
+    }
     // interactables
     for (const it of sc.interactables) {
       if (it.used && it.kind !== 'stairs') continue;
