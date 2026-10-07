@@ -80,7 +80,7 @@ export class Combat {
       e.st.burnT = 3;
       e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.2);
     }
-    for (const b of p.buffs) {
+    for (const b of [...p.buffs, ...sc.shrineBuffs]) {
       if (b.mods.onHitPoison) {
         e.st.poisonT = 4;
         e.st.poisonDps = Math.max(e.st.poisonDps, dmg * 0.3);

@@ -4,7 +4,7 @@ import { iconURL, spellIcon } from '../gfx/textures';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
 import { spellsForClass } from '../data/spells';
 import { BASE_BY_ID, RARITIES } from '../data/items';
-import { PETS } from '../data/pets';
+import { PETS, PET_BY_ID, petTitle, petLevel } from '../data/pets';
 import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, listFallen } from '../systems/state';
@@ -91,7 +91,7 @@ export class Menus {
         ${slots
           .map((sv, i) =>
             sv
-              ? `<div class="box row" style="justify-content:space-between;flex-wrap:nowrap;${i === act ? 'border-color:#8a6a3a' : ''}"><div class="row" style="flex-wrap:nowrap"><img style="height:56px;image-rendering:pixelated" src="${iconURL('pl_' + sv.cls, 64)}"><div><div style="font-size:20px;color:#ffd76a">${esc(CLASS_BY_ID[sv.cls].name)} • úroveň ${sv.level}</div><div class="hint">Patro ${sv.floor} (nejhlouběji ${sv.maxFloor}) • ${diffTag(sv)} • ${Math.floor(sv.playTime / 60)} min • zabito ${sv.kills}</div></div></div>
+              ? `<div class="box row" style="justify-content:space-between;flex-wrap:nowrap;${i === act ? 'border-color:#8a6a3a' : ''}"><div class="row" style="flex-wrap:nowrap"><span class="slothero"><img style="height:56px;image-rendering:pixelated" src="${iconURL('pl_' + sv.cls, 64)}">${sv.pets?.active ? `<img class="slotpet" src="${iconURL('pet_' + sv.pets.active, 48)}">` : ''}</span><div><div style="font-size:20px;color:#ffd76a">${esc(CLASS_BY_ID[sv.cls].name)} • úroveň ${sv.level}</div><div class="hint">Patro ${sv.floor} (nejhlouběji ${sv.maxFloor}) • ${diffTag(sv)} • ${Math.floor(sv.playTime / 60)} min • zabito ${sv.kills}</div><div class="hint">🏆 ${(sv.achievements ?? []).length}/${ACHIEVEMENTS.length}${sv.pets?.active ? ` • 🐾 ${esc(petTitle(PET_BY_ID[sv.pets.active]))} (úr. ${petLevel(sv.pets, sv.pets.active)})` : ''}</div></div></div>
                  <div class="row" style="flex-wrap:nowrap"><button class="btn green" data-play="${i}">Hrát</button><button class="btn blue small" data-exp="${i}">Přenést</button><button class="btn red small" data-del="${i}">Smazat</button></div></div>`
               : `<div class="box row" style="justify-content:space-between"><span class="hint" style="font-size:18px">Slot ${i + 1} – volný</span><div class="row"><button class="btn" data-new="${i}">Nová postava</button><button class="btn blue small" data-imp="${i}">Vložit kód</button></div></div>`,
           )

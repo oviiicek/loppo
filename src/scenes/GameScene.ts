@@ -102,6 +102,9 @@ const SHRINES: Record<string, { name: string; mods: BuffMods; xp?: number; mf?: 
   armor: { name: 'Svatyně ochrany', mods: { armorPct: 60 }, color: 0x7fb2ff },
   fortune: { name: 'Svatyně štěstí', mods: {}, mf: 60, color: 0x52ff8f },
   wisdom: { name: 'Svatyně moudrosti', mods: { spellDmg: 30 }, xp: 0.5, color: 0xc77dff },
+  life: { name: 'Svatyně života', mods: { regenPct: 1.5 }, color: 0xff6aa0 },
+  storm: { name: 'Svatyně bouře', mods: { novaPulse: 0.5 }, color: 0x7ae0ff },
+  gems: { name: 'Svatyně klenotů', mods: {}, mf: 30, color: 0xff9ab0 },
 };
 
 export class GameScene extends Phaser.Scene {
@@ -1348,6 +1351,8 @@ export class GameScene extends Phaser.Scene {
         (it.sprite as Phaser.GameObjects.Image).setTexture('shrine_used');
         it.data.glow?.destroy();
         this.shrineBuffs.push({ id: it.data.type, name: def.name, mods: def.mods, xp: def.xp, mf: def.mf, t: 90, total: 90, color: def.color });
+        // the gem shrine also gives two gems right away
+        if (it.data.type === 'gems') for (let i = 0; i < 2; i++) this.loot.dropRandomGem(it.x, it.y + 6, Math.random() < 0.3 ? 1 : 0);
         p.recalc();
         sfx('levelup');
         this.fx.ring(it.x, it.y - 10, 40, def.color, 600);
@@ -1774,7 +1779,7 @@ export class GameScene extends Phaser.Scene {
     if (this.paused) return;
     const dt = Math.min(0.05, dms / 1000);
     const p = this.player;
-    this.weather?.update();
+    this.weather?.update(this.cinematic ? 0 : Math.min(0.05, dms / 1000));
     if (this.cinematic) {
       // walking the stairs: the world holds still, the hero is moved by tweens, the light follows
       p.scriptedTick(dt, this.cinematicMove);

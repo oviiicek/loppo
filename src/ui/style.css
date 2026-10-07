@@ -1734,6 +1734,21 @@ img.px {
   font-variant-numeric: tabular-nums;
 }
 
+/* a hero card in the character slots: the pet sits at the hero's feet */
+.slothero {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  margin-right: 14px;
+}
+.slotpet {
+  position: absolute;
+  right: -14px;
+  bottom: 0;
+  height: 26px;
+  image-rendering: pixelated;
+}
+
 /* pets */
 .petgrid {
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));

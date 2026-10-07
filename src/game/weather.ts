@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { D } from './fx';
-import { settings } from '../systems/audio';
+import { settings, sfx } from '../systems/audio';
 
 type Cfg = Phaser.Types.GameObjects.Particles.ParticleEmitterConfig;
 
@@ -30,9 +30,13 @@ export class Weather {
   private zone = new Phaser.Geom.Rectangle(0, 0, 10, 10);
   private emitters: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
   private on = true;
+  private style: string;
+  /** seconds to the next flash of the abyss / rumble of the forge */
+  private eventT = 10 + Math.random() * 10;
 
   constructor(scene: GameScene, style: string) {
     this.scene = scene;
+    this.style = style;
     for (const [tex, cfg, glow] of LAYERS[style] ?? []) {
       const e = scene.add.particles(0, 0, tex, { ...cfg, emitZone: { type: 'random', source: this.zone } as Phaser.Types.GameObjects.Particles.EmitZoneData });
       // under the darkness only lit parts show the dust; glowing things shine through it
@@ -42,8 +46,21 @@ export class Weather {
     this.update();
   }
 
-  update() {
-    const v = this.scene.cameras.main.worldView;
+  update(dt = 0) {
+    const sc = this.scene;
+    // now and then the abyss flashes with purple lightning and the forge rumbles
+    this.eventT -= dt;
+    if (this.eventT <= 0 && !settings.lowFx) {
+      this.eventT = 14 + Math.random() * 14;
+      if (this.style === 'abyss') {
+        sc.cameras.main.flash(260, 150, 90, 230, true);
+        sfx('thunder');
+      } else if (this.style === 'lava') {
+        sc.fx.shake(0.0025, 600);
+        sfx('rumble');
+      }
+    }
+    const v = sc.cameras.main.worldView;
     // a margin around the view so drifting particles come in from the edges too
     this.zone.setTo(v.x - 24, v.y - 24, v.width + 48, v.height + 48);
     const on = !settings.lowFx;

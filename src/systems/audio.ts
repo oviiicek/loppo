@@ -154,6 +154,13 @@ export function sfx(name: string) {
     case 'stairs':
       [400, 300, 200].forEach((f, i) => tone('triangle', f, f * 0.8, 0.15, 0.12, i * 0.12));
       break;
+    case 'thunder':
+      noise(1.1, 0.16, 260);
+      tone('sine', 70, 38, 1, 0.12);
+      break;
+    case 'rumble':
+      noise(0.8, 0.1, 160);
+      break;
     case 'summon':
       noise(0.35, 0.12, 900, 0, 'bandpass');
       tone('sine', 220, 520, 0.3, 0.06);

@@ -2798,6 +2798,9 @@ function buildObjects() {
     ['armor', '#7fb2ff'],
     ['fortune', '#52ff8f'],
     ['wisdom', '#c77dff'],
+    ['life', '#ff6aa0'],
+    ['storm', '#7ae0ff'],
+    ['gems', '#ff9ab0'],
     ['used', '#555'],
   ]) {
     addCanvas(

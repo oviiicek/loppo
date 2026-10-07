@@ -253,7 +253,8 @@ export class Player extends Actor {
     if ((this.save.cls === 'berserker' || this.d.specials.has('berserk')) && Math.random() < dt * 2) this.recalc();
 
     // regen
-    const regenPct = this.buffs.reduce((a, b) => a + (b.mods.regenPct ?? 0), 0);
+    // spell buffs and shrine blessings
+    const regenPct = [...this.buffs, ...this.scene.shrineBuffs].reduce((a, b) => a + (b.mods.regenPct ?? 0), 0);
     this.hp = Math.min(this.d.maxHp, this.hp + (this.d.hpRegen + (this.d.maxHp * regenPct) / 100) * dt);
     this.mp = Math.min(this.d.maxMp, this.mp + this.d.mpRegen * dt);
 
@@ -392,12 +393,14 @@ export class Player extends Actor {
   specialsTick(dt: number) {
     const sc = this.scene;
     // nova pulse buff (Avatar války)
-    const pulse = this.buffs.find((b) => b.mods.novaPulse);
+    // (and the storm shrine: a lightning pulse)
+    const pulse = this.buffs.find((b) => b.mods.novaPulse) ?? sc.shrineBuffs.find((b) => b.mods.novaPulse);
     if (pulse) {
       this.novaPulseT -= dt;
       if (this.novaPulseT <= 0) {
         this.novaPulseT = 1;
-        sc.spells.nova(this.x, this.y, 60, this.weaponHit() * (pulse.mods.novaPulse ?? 1), 'phys', {});
+        const storm = !this.buffs.some((b) => b.mods.novaPulse);
+        sc.spells.nova(this.x, this.y, 60, this.weaponHit() * (pulse.mods.novaPulse ?? 1), storm ? 'lightning' : 'phys', {});
       }
     }
     if (this.orbitFx.length) {

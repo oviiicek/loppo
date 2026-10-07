@@ -799,7 +799,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
         }
         if (r.chance(0.3)) {
           const c = pickCell(innerCells(rm));
-          if (c) put('shrine', c.x, c.y, { type: r.pick(['power', 'speed', 'armor', 'fortune']) });
+          if (c) put('shrine', c.x, c.y, { type: r.pick(['power', 'speed', 'armor', 'fortune', 'life', 'gems']) });
         }
         break;
       }
@@ -821,7 +821,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
         break;
       }
       case 'shrine':
-        put('shrine', rm.cx, rm.cy, { type: r.pick(['power', 'speed', 'armor', 'fortune', 'wisdom']) });
+        put('shrine', rm.cx, rm.cy, { type: r.pick(['power', 'speed', 'armor', 'fortune', 'wisdom', 'life', 'storm', 'gems']) });
         break;
       case 'fountain':
         put('fountain', rm.cx, rm.cy);

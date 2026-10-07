@@ -21,10 +21,11 @@ import {
   itemIcon,
   scaledAffix,
   generateItem,
+  generateSetItem,
   BaseType,
   itemColor,
 } from '../data/items';
-import { setOf, equippedSetCounts } from '../data/sets';
+import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR } from '../data/sets';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
@@ -972,6 +973,12 @@ export class Panels {
     // uncommon 45 %, rare 32 %, epic 16 %, legendary 6 %, mythic 1 %
     const x = Math.random();
     const rarity = x < 0.45 ? 1 : x < 0.77 ? 2 : x < 0.93 ? 3 : x < 0.99 ? 4 : 5;
+    // a legendary roll can be a set piece of the asked kind (armour, jewel or anything)
+    if (rarity === 4 && f >= SET_MIN_FLOOR && Math.random() < 0.35) {
+      const fit = SETS.flatMap((st) => st.pieces.map((pc, i) => ({ st, i, base: BASE_BY_ID[pc.base] }))).filter((c) => !filters[id] || filters[id]!(c.base));
+      const pick = fit[Math.floor(Math.random() * fit.length)];
+      if (pick) return generateSetItem(f + 1, pick.st.id, pick.i);
+    }
     return generateItem(f + 1, { rarity, filter: filters[id] });
   }
 
