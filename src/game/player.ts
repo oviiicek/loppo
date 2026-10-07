@@ -282,6 +282,9 @@ export class Player extends Actor {
     if (!this.target || this.target.dead || Math.hypot(this.target.x - this.x, this.target.y - this.y) > range + this.target.r * this.target.baseScale + 6 || !sc.map.canSee(this.x, this.y, this.target.x, this.target.y)) {
       this.target = sc.nearestEnemy(this.x, this.y, range + 6, true);
     }
+    // a fleeing treasure goblin always takes priority
+    const th = sc.thief;
+    if (th && !th.dead && th.spotted && this.target !== th && Math.hypot(th.x - this.x, th.y - this.y) <= range + 6 && sc.map.canSee(this.x, this.y, th.x, th.y)) this.target = th;
     const t = this.target;
     if (!t) return;
     const dx = t.x - this.x,
@@ -297,6 +300,13 @@ export class Player extends Actor {
       this.stealthT = 0;
       this.sprite.setAlpha(1);
     }
+  }
+
+  // Where a basic shot starts. Point-blank targets (possibly around a wall corner) get the shot
+  // released right at them, so a monster hugging the player can always be hit.
+  shotOrigin(t: Enemy, a: number, off: number): [number, number] {
+    if (Math.hypot(t.x - this.x, t.y - this.y) < 20) return [t.x - Math.cos(a) * 3, t.y - 6 * t.baseScale - Math.sin(a) * 3];
+    return [this.x + Math.cos(a) * off, this.y - off + Math.sin(a) * off];
   }
 
   performAttack(t: Enemy) {
@@ -331,7 +341,8 @@ export class Player extends Actor {
       const n = 1 + (this.d.specials.has('extraProjectile') ? 1 : 0);
       for (let i = 0; i < n; i++) {
         const a = this.aim + (i - (n - 1) / 2) * 0.12;
-        sc.spawnPlayerAttackProjectile(this.x + Math.cos(a) * 6, this.y - 6 + Math.sin(a) * 6, a, base?.id === 'crossbow' ? 'pr_arrow' : 'pr_arrow', base?.id === 'crossbow' ? 1 : 0);
+        const [sx, sy] = this.shotOrigin(t, a, 6);
+        sc.spawnPlayerAttackProjectile(sx, sy, a, base?.id === 'crossbow' ? 'pr_arrow' : 'pr_arrow', base?.id === 'crossbow' ? 1 : 0);
       }
     } else {
       sfx('magic');
@@ -339,7 +350,8 @@ export class Player extends Actor {
       const spr = MAGIC_COLORS[base?.id ?? 'staff'] ?? 'pr_magic';
       for (let i = 0; i < n; i++) {
         const a = this.aim + (i - (n - 1) / 2) * 0.15;
-        sc.spawnPlayerAttackProjectile(this.x + Math.cos(a) * 8, this.y - 8 + Math.sin(a) * 8, a, spr, 0);
+        const [sx, sy] = this.shotOrigin(t, a, 8);
+        sc.spawnPlayerAttackProjectile(sx, sy, a, spr, 0);
       }
       sc.fx.burst(this.x + Math.cos(this.aim) * 8, this.y - 10, 0xc77dff, 4);
     }

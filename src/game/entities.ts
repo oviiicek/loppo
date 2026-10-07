@@ -162,6 +162,7 @@ export class Enemy extends Actor {
   baseTint: number | null = null;
   // treasure goblin: seconds left before it escapes, side-step timer when cornered
   escapeT = 0;
+  restT = 2.5;
   spotted = false;
   dodgeT = 0;
   sparkT = 0;
@@ -269,7 +270,7 @@ export class Enemy extends Actor {
       if (this.aggro || (dist < 120 && sc.map.los(this.x, this.y, p.x, p.y))) {
         this.spotted = true;
         this.aggro = true;
-        this.escapeT = 15;
+        this.escapeT = 18;
         sc.onThiefSpotted(this);
       } else {
         this.wander(dt);
@@ -292,6 +293,16 @@ export class Enemy extends Actor {
       // far enough away: catch its breath
       this.wander(dt);
       return;
+    }
+    // every few seconds it stops for a moment to count its gold – the chance to catch it
+    this.restT -= dt;
+    if (this.restT <= 0) {
+      if (this.restT < -0.9) this.restT = 2 + Math.random();
+      else {
+        if (Math.random() < 0.15) sc.fx.burst(this.x, this.y - 8, 0xffd23a, 3);
+        this.syncSprite(false);
+        return;
+      }
     }
     if (this.dodgeT > 0) {
       this.dodgeT -= dt;
@@ -759,6 +770,9 @@ export class Projectile {
         this.vy = Math.sin(na) * this.o.speed;
       }
     }
+    // hit whatever stands right here first – otherwise a monster pressed against a wall
+    // could never be hit at point-blank range (the next step would already be in the wall)
+    if (this.checkHits()) return;
     const nx = this.x + this.vx * dt,
       ny = this.y + this.vy * dt;
     this.traveled += Math.hypot(nx - this.x, ny - this.y);
@@ -797,7 +811,12 @@ export class Projectile {
       }
     }
 
-    // collisions
+    this.checkHits();
+  }
+
+  // returns true when the projectile is gone
+  checkHits(): boolean {
+    const sc = this.scene;
     if (this.o.owner === 'player') {
       const hitR = 7 * (this.o.size ?? 1);
       for (const e of sc.enemies) {
@@ -806,7 +825,7 @@ export class Projectile {
         if (Math.abs(e.x - this.x) > hitR + e.r * e.baseScale || Math.abs(ey - this.y) > hitR + 8 * e.baseScale) continue;
         this.hitIds.add(e.id);
         this.hitEnemy(e);
-        if (this.dead) return;
+        if (this.dead) return true;
       }
     } else {
       const p = sc.player;
@@ -816,17 +835,18 @@ export class Projectile {
         if (this.o.el === 'poison') p.applyPoison(this.o.dmg * 0.3, 3);
         sc.fx.burst(this.x, this.y, EL_COLOR[this.o.el] ?? 0xffffff, 6);
         this.kill();
-        return;
+        return true;
       }
       for (const a of sc.allies) {
         if (a.dead || a.def.totem) continue;
         if (Math.abs(a.x - this.x) < 7 && Math.abs(a.y - 5 - this.y) < 9) {
           a.takeDamage(this.o.dmg);
           this.kill();
-          return;
+          return true;
         }
       }
     }
+    return false;
   }
 
   hitEnemy(e: Enemy) {

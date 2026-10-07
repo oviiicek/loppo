@@ -517,8 +517,11 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  thief: Enemy | null = null;
+
   // a treasure goblin hides on some floors (much more often during a gold rush)
   spawnThief() {
+    this.thief = null;
     if (this.floor < 2 || isBossFloor(this.floor)) return;
     const forced = (window as any).__forceThief; // dev testing hook
     if (!forced && Math.random() > (this.mod?.id === 'gold' ? 0.6 : 0.14)) return;
@@ -526,7 +529,7 @@ export class GameScene extends Phaser.Scene {
     const rooms = this.dungeon.rooms.filter((r) => r.type === 'normal' && Math.hypot(r.cx - st.x, r.cy - st.y) > (forced ? 4 : 18));
     const r = rooms[Math.floor(Math.random() * rooms.length)];
     if (!r) return;
-    this.spawnEnemy('thief', r.cx * TS + 8, r.cy * TS + 10, false, r.id);
+    this.thief = this.spawnEnemy('thief', r.cx * TS + 8, r.cy * TS + 10, false, r.id);
   }
 
   onThiefSpotted(_e: Enemy) {
