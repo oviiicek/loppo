@@ -5,6 +5,7 @@ import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
 import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase } from '../data/enemies';
 import { ArenaKind, BOSS_PHASE_HP } from '../data/bossphases';
+import type { Nemesis } from '../data/nemesis';
 import { Element } from '../data/types';
 
 /** champion traits: what they do is in Enemy.affixTick (and a few in combat); each glows its own colour */
@@ -209,8 +210,10 @@ export class Enemy extends Actor {
   affT = 1.5 + Math.random() * 2;
   /** the champion that summoned this one (summoners keep at most a few) */
   summoner: Enemy | null = null;
+  /** a named champion that once killed the hero */
+  nemesis: Nemesis | null = null;
 
-  constructor(scene: GameScene, def: EnemyDef, x: number, y: number, floor: number, elite: boolean, roomId: number) {
+  constructor(scene: GameScene, def: EnemyDef, x: number, y: number, floor: number, elite: boolean, roomId: number, affix?: string | null) {
     super(scene, x, y, def.sprite);
     this.def = def;
     this.roomId = roomId;
@@ -238,7 +241,7 @@ export class Enemy extends Actor {
       sc *= 1.25;
       // the new traits only show up from floor 4 on (the first floors stay simple)
       const pool = floor < 4 ? AFFIX_IDS.slice(0, 5) : AFFIX_IDS;
-      this.eliteAffix = pool[Math.floor(Math.random() * pool.length)];
+      this.eliteAffix = affix && ELITE_AFFIXES[affix] ? affix : pool[Math.floor(Math.random() * pool.length)];
       if (this.eliteAffix === 'rychlý') this.speed *= 1.45;
       if (this.eliteAffix === 'obrněný') this.armor = this.armor * 2 + 20;
       this.name = `${def.name} (${this.eliteAffix})`;
@@ -319,6 +322,12 @@ export class Enemy extends Actor {
     this.sprite.preFX?.addGlow(i === def.phases.length - 1 && def.phases.length > 1 ? 0xff40c0 : 0xff3030, 3, 0, false, 0.1, 16);
   }
 
+  destroyVisuals() {
+    super.destroyVisuals();
+    this.nameLabel?.destroy();
+    this.nameLabel = null;
+  }
+
   get phaseCount() {
     return this.story ? this.story.phases.length : 1;
   }
@@ -383,13 +392,13 @@ export class Enemy extends Actor {
       case 'ohnivý':
         // burning ground along its path
         this.affT = 0.75;
-        sc.addHazard(this.x, this.y + 1, 9, this.dmg * 0.45, 'fire', 3.2, 0xff5a1a, this.name);
+        sc.addHazard(this.x, this.y + 1, 9, this.dmg * 0.45, 'fire', 3.2, 0xff5a1a, this.name, false, this);
         break;
       case 'elektrický': {
         this.affT = 2.4;
         if (d < 150 && sc.map.canSee(this.x, this.y, p.x, p.y)) {
           const a = Math.atan2(p.y - 4 - (this.y - 6), p.x - this.x);
-          for (const da of [-0.32, 0, 0.32]) sc.spawnEnemyProjectile(this.x, this.y - 6, a + da, 'pr_bolt', this.dmg * 0.55, 'lightning', 80, this.name);
+          for (const da of [-0.32, 0, 0.32]) sc.spawnEnemyProjectile(this.x, this.y - 6, a + da, 'pr_bolt', this.dmg * 0.55, 'lightning', 80, this.name, this);
           sc.fx.burst(this.x, this.y - 8, 0xfff27a, 6);
         }
         break;
@@ -664,7 +673,7 @@ export class Enemy extends Actor {
     const def = this.def;
     if (def.behavior === 'ranged' || def.behavior === 'caster' || def.behavior === 'summoner') {
       const a = Math.atan2(dy, dx);
-      sc.spawnEnemyProjectile(this.x, this.y - 6, a, def.proj ?? 'arrow', this.dmg, def.el ?? 'phys', 130, this.name);
+      sc.spawnEnemyProjectile(this.x, this.y - 6, a, def.proj ?? 'arrow', this.dmg, def.el ?? 'phys', 130, this.name, this);
       return;
     }
     if (dist <= def.range + this.r + target.r + 6) {
@@ -907,6 +916,7 @@ export interface ProjOpts {
   onHitFx?: boolean;
   /** who shot it (a monster's projectile; named on the death screen) */
   srcName?: string;
+  srcFoe?: Enemy;
 }
 
 export class Projectile {
@@ -1023,6 +1033,7 @@ export class Projectile {
       const p = sc.player;
       if (Math.abs(p.x - this.x) < 6 && Math.abs(p.y - 6 - this.y) < 9) {
         sc.combat.cause = this.o.srcName ?? null;
+        sc.combat.causeFoe = this.o.srcFoe ?? null;
         sc.combat.damagePlayer(this.o.dmg, null, this.o.el);
         if (this.o.el === 'ice') p.chill(1.2);
         if (this.o.el === 'poison') p.applyPoison(this.o.dmg * 0.3, 3);

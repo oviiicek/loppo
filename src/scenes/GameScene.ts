@@ -27,6 +27,7 @@ import { areaForFloor } from '../data/biomes';
 import { Difficulty, difficultyOf } from '../data/difficulty';
 import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
+import { Nemesis, NEMESIS_MAX, nemesisName, nemesisTitle, victimOf, nemesisPower, nemesisLabel } from '../data/nemesis';
 
 /** seconds between kills that keep a kill streak going */
 const STREAK_WINDOW = 2.6;
@@ -156,11 +157,11 @@ export class GameScene extends Phaser.Scene {
   playTimeT = 0;
   floorKills = 0;
   /** lingering danger zones (spore clouds, void pools) left by story guardians */
-  hazards: { x: number; y: number; r: number; dps: number; el: Element; t: number; tick: number; img: Phaser.GameObjects.Image; src?: string; slow?: boolean; a?: number }[] = [];
+  hazards: { x: number; y: number; r: number; dps: number; el: Element; t: number; tick: number; img: Phaser.GameObjects.Image; src?: string; slow?: boolean; a?: number; foe?: Enemy }[] = [];
   /** the pet travelling with the hero */
   pet: PetFollower | null = null;
   /** the last blow the hero took (who, how hard, what kind of source) for the death screen */
-  lastHit: { who: string; amount: number; el: Element; kind: string } | null = null;
+  lastHit: { who: string; amount: number; el: Element; kind: string; foe?: Enemy | null } | null = null;
   /** the optional task of this floor */
   bounty: Bounty | null = null;
   /** dust, spores, snow, embers or wisps of the biome */
@@ -206,6 +207,10 @@ export class GameScene extends Phaser.Scene {
     this.lastHit = null;
     this.cursed = null;
     this.bounty = null;
+    this.nemesis = null;
+    this.nemesisNote = null;
+    this.arenaDark = 0;
+    this.hitStop = 0;
   }
 
   create() {
@@ -741,6 +746,7 @@ export class GameScene extends Phaser.Scene {
       if (m?.enemyDmg) e.dmg *= m.enemyDmg;
     }
     this.spawnThief();
+    this.spawnNemesis();
     const br = this.dungeon.bossRoom;
     if (br) {
       const story = storyBossForFloor(this.floor);
@@ -788,10 +794,10 @@ export class GameScene extends Phaser.Scene {
     UI.toast('Zlatý skřet utekl portálem…', '#c8a8ff');
   }
 
-  spawnEnemy(id: string, x: number, y: number, elite: boolean, room: number, spriteOverride?: string): Enemy {
+  spawnEnemy(id: string, x: number, y: number, elite: boolean, room: number, spriteOverride?: string, affix?: string | null): Enemy {
     const base = ENEMY_BY_ID[id];
     const def = spriteOverride ? { ...base, sprite: spriteOverride } : base;
-    const e = new Enemy(this, def, x, y, this.floor, elite, room);
+    const e = new Enemy(this, def, x, y, this.floor, elite, room, affix);
     this.enemies.push(e);
     return e;
   }
@@ -893,6 +899,119 @@ export class GameScene extends Phaser.Scene {
       this.bountyStep('elite');
       bumpStat(this.save, 'elites');
     }
+    if (e.nemesis) this.nemesisDefeated(e);
+  }
+
+  // ---------------------------------------------------------------- nemesis
+  /** the nemesis waiting on this floor */
+  nemesis: Enemy | null = null;
+  /** what the death screen says about a nemesis that was born or grew */
+  nemesisNote: string | null = null;
+
+  /** a nemesis whose time has come waits somewhere on the floor */
+  spawnNemesis() {
+    this.nemesis = null;
+    const list = this.save.nemeses ?? [];
+    if (!list.length || this.floor < 3 || isBossFloor(this.floor)) return;
+    const forced = (window as any).__forceNemesis; // dev testing hook
+    const ready = list.filter((n) => n.next <= this.floor).sort((a, b) => a.next - b.next);
+    const n = ready[0];
+    if (!n) return;
+    // it comes for sure once it has waited a few floors
+    if (!forced && this.floor < n.next + 4 && Math.random() > 0.45) return;
+    const spot = this.freeSpot(forced ? 5 : 14) ?? this.freeSpot(5);
+    if (!spot) return;
+    const base = ENEMY_BY_ID[n.base] && ENEMY_BY_ID[n.base].behavior !== 'thief' ? n.base : 'skeleton';
+    const e = this.spawnEnemy(base, spot.x * TS + 8, spot.y * TS + 10, true, spot.room, undefined, n.affix);
+    const pw = nemesisPower(n);
+    e.maxHp = e.hp = Math.round(e.maxHp * pw.hp);
+    e.dmg *= pw.dmg;
+    e.speed *= pw.speed;
+    e.xp = Math.round(e.xp * 3);
+    e.nemesis = n;
+    e.name = nemesisLabel(n);
+    e.setScale(e.baseScale * 1.12);
+    e.sprite.preFX?.addGlow(0xff2a2a, 3, 0, false, 0.1, 14);
+    this.nemesis = e;
+  }
+
+  /** the nemesis shows itself when the hero first sees it; its name follows it around */
+  updateNemesis() {
+    const e = this.nemesis;
+    if (!e) return;
+    if (e.dead) {
+      this.nemesis = null;
+      return;
+    }
+    const p = this.player;
+    const d = Math.hypot(p.x - e.x, p.y - e.y);
+    if (!e.spotted && d < 150 && this.map.los(e.x, e.y, p.x, p.y)) {
+      const n = e.nemesis!;
+      e.spotted = true;
+      e.aggro = true;
+      sfx('boss');
+      this.fx.shake(0.006, 300);
+      this.fx.ring(e.x, e.y - 8, 50, 0xff2a2a, 600);
+      UI.banner(`☠ ${n.name}, ${n.title}`, `Tvůj nemesis · ${e.def.name} · úroveň ${n.level}`);
+      e.nameLabel = this.fx.label(e.x, e.y - 20, `☠ ${n.name} · úr. ${n.level}`, '#ff6a5a', 6);
+      e.nameLabel.setDepth(99980);
+    }
+    if (e.nameLabel) {
+      e.nameLabel.setPosition(Math.round(e.x), Math.round(e.y - 15 * e.baseScale));
+      e.nameLabel.setVisible(d < 230);
+    }
+  }
+
+  /** a champion that kills the hero may take a name (or a nemesis grows stronger) */
+  recordNemesis() {
+    this.nemesisNote = null;
+    const s = this.save;
+    if (s.hardcore) return;
+    const foe = this.lastHit?.foe;
+    if (!foe || !foe.elite || foe.boss || foe.story || foe.isMinion || foe.summoner || foe.def.behavior === 'thief') return;
+    const list = s.nemeses ?? (s.nemeses = []);
+    if (foe.nemesis) {
+      const n = list.find((x) => x.id === foe.nemesis!.id) ?? foe.nemesis;
+      n.kills++;
+      n.level = Math.max(n.level + 3, s.level + 2);
+      if (n.kills >= 3 && !n.title.startsWith('Noční můra')) n.title = nemesisTitle(victimOf(s.heroName, s.cls), n.kills);
+      n.next = this.floor + 2;
+      if (!list.includes(n)) list.push(n);
+      this.nemesisNote = `☠ ${n.name}, ${n.title}, tě porazil už ${n.kills}× a sílí – teď má úroveň ${n.level}. Ještě se potkáte!`;
+    } else {
+      // the first champion to kill the hero always takes a name, later ones often
+      if (list.length && Math.random() > 0.65) return;
+      const n: Nemesis = {
+        id: Date.now(),
+        name: nemesisName(),
+        title: nemesisTitle(victimOf(s.heroName, s.cls), 1),
+        base: foe.def.id,
+        affix: foe.eliteAffix,
+        level: s.level + 2,
+        kills: 1,
+        born: this.floor,
+        next: this.floor + 2,
+      };
+      list.push(n);
+      while (list.length > NEMESIS_MAX) list.shift();
+      this.nemesisNote = `☠ Tvůj přemožitel dostal jméno: ${n.name}, ${n.title} (úroveň ${n.level}). Až ho porazíš, čeká tě bohatá kořist.`;
+    }
+    saveGame(s);
+  }
+
+  /** revenge: the nemesis is gone for good and leaves a rich reward */
+  nemesisDefeated(e: Enemy) {
+    const n = e.nemesis!;
+    const s = this.save;
+    s.nemeses = (s.nemeses ?? []).filter((x) => x.id !== n.id);
+    bumpStat(s, 'nemeses');
+    sfx('levelup');
+    this.fx.shake(0.008, 320);
+    for (let i = 0; i < 3; i++) this.time.delayedCall(i * 160, () => this.fx.ring(e.x, e.y - 8, 40 + i * 20, 0xff5a4a, 500));
+    UI.banner('Pomsta!', `${n.name}, ${n.title}, padl`);
+    this.loot.nemesisDrops(e.x, e.y, n.kills);
+    this.nemesis = null;
+    saveGame(s);
   }
 
   // ---------------------------------------------------------------- cursed chest
@@ -1179,8 +1298,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- projectiles
-  spawnEnemyProjectile(x: number, y: number, angle: number, sprite: string, dmg: number, el: Element, speed: number, srcName?: string) {
-    this.projectiles.push(new Projectile(this, { x, y, angle, speed, sprite, dmg, el, owner: 'enemy', range: 260, srcName }));
+  spawnEnemyProjectile(x: number, y: number, angle: number, sprite: string, dmg: number, el: Element, speed: number, srcName?: string, srcFoe?: Enemy) {
+    this.projectiles.push(new Projectile(this, { x, y, angle, speed, sprite, dmg, el, owner: 'enemy', range: 260, srcName, srcFoe }));
   }
 
   spawnAllyProjectile(x: number, y: number, angle: number, sprite: string, dmg: number, el: Element) {
@@ -1573,7 +1692,7 @@ export class GameScene extends Phaser.Scene {
     saveGame(this.save);
   }
 
-  addHazard(x: number, y: number, r: number, dps: number, el: Element, dur: number, color: number, src?: string, slow = false) {
+  addHazard(x: number, y: number, r: number, dps: number, el: Element, dur: number, color: number, src?: string, slow = false, foe?: Enemy) {
     if (slow) {
       // a web: drawn plainly (not glowing) so it reads on any floor
       const img = this.add.image(x, y, 'webzone').setTint(color).setAlpha(0).setScale((r * 2) / 128).setDepth(D.floorDeco + 3).setAngle(Math.random() * 360);
@@ -1583,7 +1702,7 @@ export class GameScene extends Phaser.Scene {
     }
     const img = this.add.image(x, y, 'disc').setTint(color).setAlpha(0.32).setScale((r * 2) / 256).setDepth(D.floorDeco + 3).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: img, alpha: 0.18, yoyo: true, repeat: -1, duration: 500 });
-    this.hazards.push({ x, y, r, dps, el, t: dur, tick: 0.25, img, src, slow });
+    this.hazards.push({ x, y, r, dps, el, t: dur, tick: 0.25, img, src, slow, foe });
   }
 
   updateHazards(dt: number) {
@@ -1600,6 +1719,7 @@ export class GameScene extends Phaser.Scene {
         if (h.tick <= 0) {
           h.tick = 0.5;
           this.combat.cause = h.src ?? null;
+          this.combat.causeFoe = h.foe ?? null;
           this.combat.damagePlayer(h.dps * 0.5, null, h.el, true);
         }
       }
@@ -1686,6 +1806,7 @@ export class GameScene extends Phaser.Scene {
     p.offhand?.setVisible(false);
     // a hardcore hero is gone at once (closing the game now must not save them)
     if (this.save.hardcore) buryHero(this.save, this.floor);
+    else this.recordNemesis();
     this.time.delayedCall(900, () => UI.death(this.floor, this.deathGold()));
     this.deathAt = this.time.now;
   }
@@ -1715,6 +1836,12 @@ export class GameScene extends Phaser.Scene {
     if (this.descending) return;
     this.descending = true;
     this.cinematic = true;
+    // a nemesis left behind waits a few floors deeper
+    const nem = this.nemesis?.nemesis;
+    if (nem && !this.nemesis!.dead) {
+      nem.met = (nem.met ?? 0) + 1;
+      nem.next = this.floor + 3;
+    }
     this.save.floor = this.floor + 1;
     this.save.maxFloor = Math.max(this.save.maxFloor, this.save.floor);
     // the pet goes down with the hero and grows with every few floors
@@ -1881,6 +2008,7 @@ export class GameScene extends Phaser.Scene {
     this.loot.update(dt);
     this.updateTraps(dt);
     this.updateHazards(dt);
+    this.updateNemesis();
 
     // shrine buffs
     if (this.shrineBuffs.length) {

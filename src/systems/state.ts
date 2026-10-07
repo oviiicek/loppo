@@ -1,3 +1,4 @@
+import type { Nemesis } from '../data/nemesis';
 import { ATTR_KEYS, AttrKey, ClassId, Item, Slot, StatKey, Stats } from '../data/types';
 import { DEFAULT_DIFFICULTY } from '../data/difficulty';
 import { CLASS_BY_ID } from '../data/classes';
@@ -43,7 +44,7 @@ export interface SaveData {
   playTime: number;
   stash?: (Item | null)[];
   slot?: number;
-  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number };
+  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number };
   achievements?: string[];
   story?: StoryState;
   /** combat difficulty (index into DIFFICULTIES, normal when missing) */
@@ -56,6 +57,10 @@ export interface SaveData {
   pets?: PetState;
   /** the gem pouch: how many of each gem ("ruby3": 2) */
   gems?: Record<string, number>;
+  /** the hero's own name (optional; nemeses are named after it) */
+  heroName?: string;
+  /** champions that killed the hero and wait for them deeper down */
+  nemeses?: Nemesis[];
 }
 
 export function gemPouch(s: SaveData): Record<string, number> {

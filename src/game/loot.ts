@@ -130,6 +130,18 @@ export class Loot {
     if (Math.random() < 0.01 * minion) this.dropRandomGem(x, y);
   }
 
+  /** a beaten nemesis: a legendary (or a set piece), more items, gems and a heap of gold */
+  nemesisDrops(x: number, y: number, kills: number) {
+    const f = this.scene.floor;
+    const set = f >= SET_MIN_FLOOR && Math.random() < 0.35;
+    this.dropItem(set ? generateSetItem(f + 2) : generateItem(f + 2, { rarity: kills >= 3 && Math.random() < 0.5 ? 5 : 4, filter: this.bias() }), x, y);
+    for (let i = 0; i < 1 + Math.min(3, kills); i++) this.dropItem(this.item(f + 2, 2), x, y);
+    for (let i = 0; i < 2 + Math.min(2, kills - 1); i++) this.dropRandomGem(x, y, 1);
+    for (let i = 0; i < 8; i++) this.dropGold(this.goldAmount(3 + kills), x, y);
+    this.dropMat('dust', 2 + Math.floor(f / 12), x, y);
+    this.dropMat('stone', 1 + Math.floor(f / 15), x, y);
+  }
+
   chestDrops(tier: string, x: number, y: number) {
     const f = this.scene.floor;
     const mf = this.mf;

@@ -640,13 +640,13 @@ class UIManager {
       if (e.dead) continue;
       const tx = Math.floor(e.x / TS),
         ty = Math.floor(e.y / TS);
-      // a spotted treasure goblin stays on the map even when it runs into the unknown
-      const thief = e.def.behavior === 'thief' && e.spotted;
+      // a spotted treasure goblin (or nemesis) stays on the map even when it runs into the unknown
+      const thief = (e.def.behavior === 'thief' || !!e.nemesis) && e.spotted;
       if (!m.explored[m.idx(tx, ty)] && !thief) continue;
       if (Math.hypot(e.x - p.x, e.y - p.y) > 200 && !e.boss && !thief) continue;
       const [mx, my] = toMini(e.x, e.y);
       const big = e.boss || thief;
-      ctx.fillStyle = e.boss ? '#ff3030' : thief ? '#ffd23a' : e.elite ? '#ffa020' : '#e04040';
+      ctx.fillStyle = e.boss ? '#ff3030' : e.nemesis ? '#ff5a8a' : thief ? '#ffd23a' : e.elite ? '#ffa020' : '#e04040';
       ctx.fillRect(mx - (big ? 3 : 1.5), my - (big ? 3 : 1.5), big ? 6 : 3, big ? 6 : 3);
     }
     // player arrow
@@ -671,7 +671,7 @@ class UIManager {
     const sc = this.scene;
     if (!sc || this.panel) return;
     const m = sc.map;
-    const p = el(`<div class="panel" style="width:min(96vw,1000px)"><div class="head"><h2>Mapa – patro ${sc.floor}</h2><span class="hint"><b style="color:#fff">●</b> ty &nbsp; <b style="color:#ffd23a">■</b> schody &nbsp; <b style="color:#c77dff">●</b> obchodník &nbsp; <b style="color:#e9b949">■</b> truhla &nbsp; <b style="color:#7cc8ff">■</b> svatyně / fontána / kovadlina &nbsp; <b style="color:#ff9ab0">●</b> klec &nbsp; <b style="color:#7dff9a">■</b> prokletá truhla &nbsp; <b style="color:#ff3030">●</b> strážce</span><button class="close">✕</button></div>
+    const p = el(`<div class="panel" style="width:min(96vw,1000px)"><div class="head"><h2>Mapa – patro ${sc.floor}</h2><span class="hint"><b style="color:#fff">●</b> ty &nbsp; <b style="color:#ffd23a">■</b> schody &nbsp; <b style="color:#c77dff">●</b> obchodník &nbsp; <b style="color:#e9b949">■</b> truhla &nbsp; <b style="color:#7cc8ff">■</b> svatyně / fontána / kovadlina &nbsp; <b style="color:#ff9ab0">●</b> klec &nbsp; <b style="color:#7dff9a">■</b> prokletá truhla &nbsp; <b style="color:#ff3030">●</b> strážce${sc.nemesis?.spotted && !sc.nemesis.dead ? ' &nbsp; <b style="color:#ff5a8a">●</b> nemesis' : ''}</span><button class="close">✕</button></div>
       <div class="body" style="align-items:center;justify-content:center"><canvas></canvas></div></div>`);
     this.showOverlay(p, () => {});
     $('.close', p).addEventListener('click', () => this.closeOverlay());
@@ -715,6 +715,8 @@ class UIManager {
       else if (it.kind === 'cursed') dot(it.x, it.y, '#7dff9a', Math.max(3, cell * 0.8), true);
     }
     if (sc.boss && !sc.boss.dead && m.explored[m.idx(Math.floor(sc.boss.x / TS), Math.floor(sc.boss.y / TS))]) dot(sc.boss.x, sc.boss.y, '#ff3030', Math.max(4, cell * 1.2));
+    const nem = sc.nemesis;
+    if (nem && !nem.dead && nem.spotted) dot(nem.x, nem.y, '#ff5a8a', Math.max(4, cell * 1.1));
     dot(sc.player.x, sc.player.y, '#ffffff', Math.max(3, cell));
   }
 

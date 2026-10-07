@@ -236,12 +236,16 @@ export class Combat {
 
   /** set by a hit without a monster as its source (a trap, a projectile, a burning floor) just before it lands */
   cause: string | null = null;
+  /** the monster behind such a hit (its arrow, its burning trail), when there is one */
+  causeFoe: Enemy | null = null;
 
   damagePlayer(amount: number, src: Actor | null, el: Element = 'phys', isDot = false) {
     const sc = this.scene;
     const p = sc.player;
     const cause = this.cause;
+    const causeFoe = this.causeFoe;
     this.cause = null;
+    this.causeFoe = null;
     if (p.dead || amount <= 0 || sc.godMode) return;
     if (!isDot) p.combatPing();
     if (p.invulnT > 0) return;
@@ -297,7 +301,8 @@ export class Combat {
       amount: Math.round(dmg),
       el,
       // without a monster object: a trap, the guardian in the fight, a champion's shot (named "X (trait)") or a monster's
-      kind: foe ? (foe.boss || foe.story ? 'boss' : foe.elite ? 'elite' : 'monster') : cause === 'Bodcová past' ? 'trap' : boss && (!cause || cause.startsWith(boss.name)) ? 'boss' : cause?.includes('(') ? 'elite' : cause ? 'monster' : 'other',
+      kind: foe ? (foe.boss || foe.story ? 'boss' : foe.elite ? 'elite' : 'monster') : cause === 'Bodcová past' ? 'trap' : boss && (!cause || cause.startsWith(boss.name)) ? 'boss' : cause?.includes('(') || causeFoe?.elite ? 'elite' : cause ? 'monster' : 'other',
+      foe: foe ?? causeFoe,
     };
     p.hp -= dmg;
     if (!isDot) {

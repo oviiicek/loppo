@@ -634,3 +634,28 @@ Object.assign(dev, {
     return true;
   },
 });
+
+// Nemeses on demand (tests)
+Object.assign(dev, {
+  /** gives the hero a nemesis that shows up on the current floor's next load */
+  nemesis(base = 'skeleton', kills = 1, affix: string | null = 'ohnivý') {
+    const sc = (window as any).__scene;
+    const s = sc.save;
+    const list = s.nemeses ?? (s.nemeses = []);
+    const n = { id: Date.now(), name: 'Grak', title: 'Zabiják ' + (s.heroName ? s.heroName + 'a' : 'paladinů'), base, affix, level: s.level + 2 + (kills - 1) * 3, kills, born: Math.max(1, sc.floor - 2), next: sc.floor };
+    list.push(n);
+    return n;
+  },
+  nemesisInfo() {
+    const sc = (window as any).__scene;
+    const e = sc.nemesis;
+    return { list: (sc.save.nemeses ?? []).map((n: any) => `${n.name}, ${n.title} L${n.level} k${n.kills} next${n.next}`), here: e ? { name: e.name, hp: Math.round(e.hp), max: e.maxHp, spotted: e.spotted, dead: e.dead, affix: e.eliteAffix, label: e.nameLabel?.text ?? null } : null, note: sc.nemesisNote, beaten: sc.save.stats?.nemeses ?? 0 };
+  },
+});
+Object.assign(dev, {
+  /** the achievements / statistics / nemesis panel */
+  openStats(tab: 'ach' | 'stats' | 'nem' = 'ach') {
+    UI.menus.achievements(tab);
+    return true;
+  },
+});

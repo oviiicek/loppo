@@ -13,6 +13,8 @@ import { areaForFloor } from '../data/biomes';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
 import { fsButtonHTML, isStandalone } from './fullscreen';
 import { CHRONICLE_ORDER, CUTSCENE_BY_ID } from '../data/story';
+import { ENEMY_BY_ID } from '../data/enemies';
+import { cleanName } from '../data/nemesis';
 
 type UIM = typeof UIType;
 
@@ -91,7 +93,7 @@ export class Menus {
         ${slots
           .map((sv, i) =>
             sv
-              ? `<div class="box row" style="justify-content:space-between;flex-wrap:nowrap;${i === act ? 'border-color:#8a6a3a' : ''}"><div class="row" style="flex-wrap:nowrap"><span class="slothero"><img style="height:56px;image-rendering:pixelated" src="${iconURL('pl_' + sv.cls, 64)}">${sv.pets?.active ? `<img class="slotpet" src="${iconURL('pet_' + sv.pets.active, 48)}">` : ''}</span><div><div style="font-size:20px;color:#ffd76a">${esc(CLASS_BY_ID[sv.cls].name)} • úroveň ${sv.level}</div><div class="hint">Patro ${sv.floor} (nejhlouběji ${sv.maxFloor}) • ${diffTag(sv)} • ${Math.floor(sv.playTime / 60)} min • zabito ${sv.kills}</div><div class="hint">🏆 ${(sv.achievements ?? []).length}/${ACHIEVEMENTS.length}${sv.pets?.active ? ` • 🐾 ${esc(petTitle(PET_BY_ID[sv.pets.active]))} (úr. ${petLevel(sv.pets, sv.pets.active)})` : ''}</div></div></div>
+              ? `<div class="box row" style="justify-content:space-between;flex-wrap:nowrap;${i === act ? 'border-color:#8a6a3a' : ''}"><div class="row" style="flex-wrap:nowrap"><span class="slothero"><img style="height:56px;image-rendering:pixelated" src="${iconURL('pl_' + sv.cls, 64)}">${sv.pets?.active ? `<img class="slotpet" src="${iconURL('pet_' + sv.pets.active, 48)}">` : ''}</span><div><div style="font-size:20px;color:#ffd76a">${sv.heroName ? `${esc(sv.heroName)} – ` : ''}${esc(CLASS_BY_ID[sv.cls].name)} • úroveň ${sv.level} <button class="btn small renbtn" data-ren="${i}" title="Pojmenovat hrdinu">✎</button></div><div class="hint">Patro ${sv.floor} (nejhlouběji ${sv.maxFloor}) • ${diffTag(sv)} • ${Math.floor(sv.playTime / 60)} min • zabito ${sv.kills}</div><div class="hint">🏆 ${(sv.achievements ?? []).length}/${ACHIEVEMENTS.length}${sv.pets?.active ? ` • 🐾 ${esc(petTitle(PET_BY_ID[sv.pets.active]))} (úr. ${petLevel(sv.pets, sv.pets.active)})` : ''}</div></div></div>
                  <div class="row" style="flex-wrap:nowrap"><button class="btn green" data-play="${i}">Hrát</button><button class="btn blue small" data-exp="${i}">Přenést</button><button class="btn red small" data-del="${i}">Smazat</button></div></div>`
               : `<div class="box row" style="justify-content:space-between"><span class="hint" style="font-size:18px">Slot ${i + 1} – volný</span><div class="row"><button class="btn" data-new="${i}">Nová postava</button><button class="btn blue small" data-imp="${i}">Vložit kód</button></div></div>`,
           )
@@ -118,6 +120,33 @@ export class Menus {
         p.remove();
         menu.remove();
         this.classSelect();
+      } else if (b.dataset.ren !== undefined) {
+        const i = +b.dataset.ren;
+        const sv = listSlots()[i];
+        if (!sv) return;
+        const d = el(`<div class="overlay" style="z-index:90"><div class="panel small"><div class="head"><h2>Jméno hrdiny</h2></div><div style="padding:14px"><label class="heroname" style="margin:0 0 12px"><span>Jméno</span><input type="text" maxlength="14" placeholder="nepovinné" autocomplete="off" spellcheck="false"></label><div class="row" style="justify-content:flex-end"><button class="btn" data-x="no">Zpět</button><button class="btn green" data-x="yes">Uložit</button></div></div></div></div>`);
+        const inp = $('input', d) as HTMLInputElement;
+        inp.value = sv.heroName ?? '';
+        // typing must not reach the game's keyboard shortcuts
+        inp.addEventListener('keydown', (ev) => ev.stopPropagation());
+        this.ui.root.appendChild(d);
+        d.addEventListener('click', (ev) => {
+          const bb = (ev.target as HTMLElement).closest('button');
+          if (!bb) return;
+          sfx('ui');
+          if (bb.dataset.x === 'yes') {
+            const nm = cleanName(inp.value);
+            if (nm) sv.heroName = nm;
+            else delete sv.heroName;
+            saveGame(sv);
+            if (G.save?.slot === i) G.save.heroName = sv.heroName;
+          }
+          d.remove();
+          if (bb.dataset.x === 'yes') {
+            p.remove();
+            this.slots(menu);
+          }
+        });
       } else if (b.dataset.exp !== undefined) {
         const sv = listSlots()[+b.dataset.exp];
         if (sv) this.transferOut(sv);
@@ -318,6 +347,7 @@ export class Menus {
               .join('')}</ul></div>`,
         ).join('')}</div>
         <button class="hcbox" data-a="hc"><span class="tick"></span><span class="hctext"><b>☠ Hardcore</b><small>Jen jeden život: po smrti postava navždy zmizí a začínáš znovu od začátku.</small></span></button>
+        <label class="heroname"><span>Jméno hrdiny</span><input type="text" maxlength="14" placeholder="nepovinné" autocomplete="off" spellcheck="false"></label>
         <div class="row diffgo"><span class="hint">Obtížnost jde později změnit v pauze (platí od dalšího patra), Hardcore ne.</span><button class="btn green" data-a="go">Do hlubin!</button></div>
       </div></div></div>`);
     this.ui.root.appendChild(p);
@@ -330,6 +360,7 @@ export class Menus {
         p.querySelectorAll('.dcard').forEach((x) => x.classList.toggle('sel', x === c));
       }),
     );
+    ($('.heroname input', p) as HTMLInputElement).addEventListener('keydown', (ev) => ev.stopPropagation());
     const hcBtn = $('[data-a=hc]', p);
     hcBtn.addEventListener('click', () => {
       sfx('ui');
@@ -339,6 +370,8 @@ export class Menus {
     $('[data-a=go]', p).addEventListener('click', () => {
       sfx('levelup');
       const save = newCharacter(cls, { difficulty: dsel, hardcore: hc });
+      const nm = cleanName(($('.heroname input', p) as HTMLInputElement).value);
+      if (nm) save.heroName = nm;
       save.slot = activeSlot();
       G.save = save;
       saveGame(save);
@@ -479,7 +512,7 @@ export class Menus {
   }
 
   /** achievements and, on the second tab, the hero's statistics */
-  achievements(tab: 'ach' | 'stats' = 'ach') {
+  achievements(tab: 'ach' | 'stats' | 'nem' = 'ach') {
     const sc = this.ui.scene!;
     const s = sc.save;
     const got = s.achievements ?? [];
@@ -491,6 +524,19 @@ export class Menus {
         const done = got.includes(a.id);
         return `<div class="spcard ${done ? '' : 'locked'}" style="align-items:flex-start"><div style="font-size:26px;line-height:1">${done ? '🏆' : '🔒'}</div><div style="min-width:0"><div class="nm" style="color:${done ? '#ffd76a' : '#ddd'}">${esc(a.name)}</div><div class="lv2">${esc(a.desc)}</div><div class="lv2" style="color:#9dff9d">Odměna: ${achievementReward(a.reward)}</div></div></div>`;
       }).join('')}</div>`;
+    } else if (tab === 'nem') {
+      const list = s.nemeses ?? [];
+      const beaten = st.nemeses ?? 0;
+      body =
+        `<p class="hint" style="margin:0 0 8px">Šampion, který tě zabije, si může vysloužit jméno. Vrátí se o pár pater hlouběji – a s každým dalším vítězstvím nad tebou sílí. Když ho porazíš, nechá po sobě legendární kořist. Poraženo nemesis: <b style="color:#ffd76a">${beaten}</b>.</p>` +
+        (list.length
+          ? `<div class="nemlist">${list
+              .map((nm) => {
+                const def = ENEMY_BY_ID[nm.base];
+                return `<div class="nemcard"><img src="${iconURL(def?.sprite ?? 'en_skeleton', 48)}"><div style="min-width:0"><div class="nm">☠ ${esc(nm.name)}, ${esc(nm.title)}</div><div class="lv2">${esc(def?.name ?? '')}${nm.affix ? ' · ' + esc(nm.affix) : ''} · úroveň ${nm.level}</div><div class="lv2">Zabil tě ${nm.kills}× · poprvé v patře ${nm.born} · ${nm.next <= s.floor ? 'může se objevit kdykoli' : 'objeví se od patra ' + nm.next}</div></div></div>`;
+              })
+              .join('')}</div>`
+          : `<div class="box hint" style="text-align:center;padding:18px">Zatím tě žádný šampion nepřemohl.</div>`);
     } else {
       const t = Math.round(s.playTime);
       const time = t >= 3600 ? `${Math.floor(t / 3600)} h ${Math.floor((t % 3600) / 60)} min` : `${Math.floor(t / 60)} min`;
@@ -516,11 +562,12 @@ export class Menus {
         ['👺', 'Chycených skřetů', n(st.thieves)],
         ['🧪', 'Vypitých lektvarů', n(st.potions)],
         ['🐾', 'Osvobozených mazlíčků', `${s.pets?.owned.length ?? 0}/${PETS.length}`],
+        ['🗡️', 'Poražených nemesis', n(st.nemeses)],
         ['⚰️', 'Smrtí', n(st.deaths)],
       ];
       body = `<div class="statgrid">${tiles.map(([ic, lb, vl, col]) => `<div class="stattile"><span class="ic">${ic}</span><span><span class="lb">${lb}</span><br><b class="vl" ${col ? `style="color:${col}"` : ''}>${esc(vl)}</b></span></div>`).join('')}</div>`;
     }
-    const p = el(`<div class="panel"><div class="head"><h2>${tab === 'ach' ? `Úspěchy ${got.length}/${ACHIEVEMENTS.length}` : 'Statistiky'}</h2><div class="tabs"><button class="tab ${tab === 'ach' ? 'on' : ''}" data-tab="ach">Úspěchy</button><button class="tab ${tab === 'stats' ? 'on' : ''}" data-tab="stats">Statistiky</button></div><button class="close">✕</button></div>
+    const p = el(`<div class="panel"><div class="head"><h2>${tab === 'ach' ? `Úspěchy ${got.length}/${ACHIEVEMENTS.length}` : tab === 'nem' ? 'Nemesis' : 'Statistiky'}</h2><div class="tabs"><button class="tab ${tab === 'ach' ? 'on' : ''}" data-tab="ach">Úspěchy</button><button class="tab ${tab === 'stats' ? 'on' : ''}" data-tab="stats">Statistiky</button><button class="tab ${tab === 'nem' ? 'on' : ''}" data-tab="nem">Nemesis${s.nemeses?.length ? ` (${s.nemeses.length})` : ''}</button></div><button class="close">✕</button></div>
       <div class="body scroll" style="display:block">${body}</div></div>`);
     this.ui.showOverlay(p, () => {});
     $('.close', p).addEventListener('click', () => this.ui.closeOverlay());
@@ -528,7 +575,7 @@ export class Menus {
       b.addEventListener('click', () => {
         if (b.dataset.tab === tab) return;
         sfx('ui');
-        this.achievements(b.dataset.tab as 'ach' | 'stats');
+        this.achievements(b.dataset.tab as 'ach' | 'stats' | 'nem');
       }),
     );
   }
@@ -548,7 +595,8 @@ export class Menus {
             : h.el === 'fire' || h.el === 'poison'
               ? 'Z hořící nebo jedovaté země co nejdřív vystup – zraňuje, dokud v ní stojíš.'
               : 'Vylepši výbavu u kovadliny, vsaď drahokamy do soketů, nebo si v pauze zvol nižší obtížnost.';
-    return `<div class="recap"><div>Poslední úder: <b>${esc(h.who)}</b> – ${h.amount.toLocaleString('cs-CZ')} poškození${el[h.el] ? ' ' + el[h.el] : ''}</div><div class="hint">💡 ${tip}</div></div>`;
+    const nem = this.ui.scene?.nemesisNote;
+    return `<div class="recap"><div>Poslední úder: <b>${esc(h.who)}</b> – ${h.amount.toLocaleString('cs-CZ')} poškození${el[h.el] ? ' ' + el[h.el] : ''}</div>${nem ? `<div class="nemnote">${esc(nem)}</div>` : ''}<div class="hint">💡 ${tip}</div></div>`;
   }
 
   death(floor: number, lostGold: number) {

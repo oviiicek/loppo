@@ -3122,3 +3122,63 @@ textarea.code {
     font-size: 25px;
   }
 }
+
+/* nemesis: the note on the death screen, the list in the statistics, the hero's name */
+.recap .nemnote {
+  color: #ff8a7a;
+  margin: 4px 0;
+}
+.nemlist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.nemcard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: rgba(60, 14, 18, 0.55);
+  border: 2px solid #6a2228;
+  border-radius: 6px;
+}
+.nemcard img {
+  width: 44px;
+  height: 44px;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+.nemcard .nm {
+  color: #ff8a7a;
+  font-size: 20px;
+}
+.heroname {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 4px;
+  font-size: 19px;
+  color: #ffd76a;
+}
+.heroname input {
+  flex: 1;
+  min-width: 0;
+  max-width: 260px;
+  font: inherit;
+  font-size: 20px;
+  color: #fff;
+  background: #140e18;
+  border: 2px solid #6b5432;
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+.heroname input:focus {
+  outline: none;
+  border-color: #ffd76a;
+}
+.renbtn {
+  min-width: 0 !important;
+  padding: 0 8px !important;
+  font-size: 16px !important;
+  vertical-align: middle;
+}
