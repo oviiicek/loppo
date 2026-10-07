@@ -1301,3 +1301,20 @@ img.px {
 .hintbox.on {
   opacity: 1;
 }
+
+@media (max-height: 430px) {
+  .menu h1 {
+    font-size: 60px;
+  }
+  .menu .subtitle {
+    margin-bottom: 8px;
+  }
+  .menu .btn {
+    margin: 3px;
+    padding: 6px 14px;
+    font-size: 18px;
+  }
+  .menu .sprites {
+    display: none;
+  }
+}

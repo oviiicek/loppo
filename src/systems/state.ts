@@ -5,6 +5,7 @@ import { SPELL_BY_ID, spellsForClass, MAX_SPELL_RANK, BuffMods } from '../data/s
 import { bus } from './events';
 
 export const INVENTORY_SIZE = 30;
+export const STASH_SIZE = 42;
 export const ATTR_POINTS_PER_LEVEL = 3;
 export const SPELL_POINTS_PER_LEVEL = 1;
 
@@ -36,6 +37,8 @@ export interface SaveData {
   merchantPity: number;
   classChanges: number;
   playTime: number;
+  stash?: (Item | null)[];
+  slot?: number;
   stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number };
   achievements?: string[];
 }
@@ -369,32 +372,73 @@ export function unequip(s: SaveData, slot: Slot): string | null {
 // ---------------------------------------------------------------------------
 // Persistence
 // ---------------------------------------------------------------------------
-const SAVE_KEY = 'loppo-save-v1';
+// Three character slots; the legacy single save is migrated into slot 0.
+const LEGACY_KEY = 'loppo-save-v1';
+const SLOT_KEY = 'loppo-slot';
+export const SLOTS = 3;
+const slotKey = (n: number) => `loppo-save-v1-s${n}`;
 
-export function saveGame(s: SaveData) {
+export function activeSlot(): number {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(s));
+    const v = parseInt(localStorage.getItem(SLOT_KEY) ?? '0', 10);
+    return v >= 0 && v < SLOTS ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function setActiveSlot(n: number) {
+  try {
+    localStorage.setItem(SLOT_KEY, String(n));
   } catch {
     /* ignore */
   }
 }
 
-export function loadGame(): SaveData | null {
+function migrateLegacy() {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const old = localStorage.getItem(LEGACY_KEY);
+    if (old && !localStorage.getItem(slotKey(0))) localStorage.setItem(slotKey(0), old);
+    if (old) localStorage.removeItem(LEGACY_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function saveGame(s: SaveData) {
+  try {
+    const slot = s.slot ?? activeSlot();
+    s.slot = slot;
+    localStorage.setItem(slotKey(slot), JSON.stringify(s));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function loadGame(slot = activeSlot()): SaveData | null {
+  migrateLegacy();
+  try {
+    const raw = localStorage.getItem(slotKey(slot));
     if (!raw) return null;
     const s = JSON.parse(raw) as SaveData;
     if (!s || s.version !== 1) return null;
     while (s.inventory.length < INVENTORY_SIZE) s.inventory.push(null);
+    s.slot = slot;
     return s;
   } catch {
     return null;
   }
 }
 
-export function deleteSave() {
+export function listSlots(): (SaveData | null)[] {
+  const out: (SaveData | null)[] = [];
+  for (let i = 0; i < SLOTS; i++) out.push(loadGame(i));
+  return out;
+}
+
+export function deleteSave(slot = activeSlot()) {
   try {
-    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(slotKey(slot));
   } catch {
     /* ignore */
   }

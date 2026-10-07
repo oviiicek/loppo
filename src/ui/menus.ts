@@ -6,7 +6,7 @@ import { spellsForClass } from '../data/spells';
 import { BASE_BY_ID } from '../data/items';
 import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
-import { loadGame, newCharacter, saveGame, game as G, deleteSave } from '../systems/state';
+import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS } from '../systems/state';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
 
 type UIM = typeof UIType;
@@ -33,6 +33,7 @@ export class Menus {
       <div class="subtitle">Nekonečný dungeon</div>
       ${save ? `<button class="btn green" data-a="continue">Pokračovat</button><div class="saveinfo">${esc(CLASS_BY_ID[save.cls].name)} • úroveň ${save.level} • patro ${save.floor}</div>` : ''}
       <button class="btn" data-a="new">Nová hra</button>
+      <button class="btn" data-a="slots">Postavy</button>
       <button class="btn blue" data-a="help">Jak hrát</button>
       <button class="btn small" data-a="sound" style="min-width:0;font-size:18px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>
       <div class="sprites">${CLASSES.map((c, i) => `<img src="${iconURL('pl_' + c.id, 64)}" style="animation-delay:${i * 0.15}s">`).join('')}</div>
@@ -49,15 +50,72 @@ export class Menus {
         m.remove();
         this.ui.startGame();
       } else if (a === 'new') {
-        if (save) this.confirmNew(m);
-        else {
+        const slots = listSlots();
+        const empty = slots.findIndex((x) => !x);
+        if (empty >= 0) {
+          setActiveSlot(empty);
           m.remove();
           this.classSelect();
-        }
-      } else if (a === 'help') this.help(m);
+        } else this.slots(m, 'Všechny sloty jsou obsazené. Vyber postavu, kterou chceš nahradit.');
+      } else if (a === 'slots') this.slots(m);
+      else if (a === 'help') this.help(m);
       else if (a === 'sound') {
         setMuted(!isMuted());
         b.textContent = isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut';
+      }
+    });
+  }
+
+  slots(menu: HTMLElement, note = '') {
+    const slots = listSlots();
+    const act = activeSlot();
+    const p = el(`<div class="overlay" style="z-index:80"><div class="panel" style="height:auto;max-height:92vh;width:min(94vw,760px)"><div class="head"><h2>Postavy</h2><button class="close">✕</button></div>
+      <div class="body scroll" style="display:flex;flex-direction:column;gap:8px">
+        ${note ? `<div class="hint">${esc(note)}</div>` : ''}
+        ${slots
+          .map((sv, i) =>
+            sv
+              ? `<div class="box row" style="justify-content:space-between;flex-wrap:nowrap;${i === act ? 'border-color:#8a6a3a' : ''}"><div class="row" style="flex-wrap:nowrap"><img style="height:56px;image-rendering:pixelated" src="${iconURL('pl_' + sv.cls, 64)}"><div><div style="font-size:20px;color:#ffd76a">${esc(CLASS_BY_ID[sv.cls].name)} • úroveň ${sv.level}</div><div class="hint">Patro ${sv.floor} (nejhlouběji ${sv.maxFloor}) • ${Math.floor(sv.playTime / 60)} min • zabito ${sv.kills}</div></div></div>
+                 <div class="row" style="flex-wrap:nowrap"><button class="btn green" data-play="${i}">Hrát</button><button class="btn red small" data-del="${i}">Smazat</button></div></div>`
+              : `<div class="box row" style="justify-content:space-between"><span class="hint" style="font-size:18px">Slot ${i + 1} – volný</span><button class="btn" data-new="${i}">Nová postava</button></div>`,
+          )
+          .join('')}
+      </div></div></div>`);
+    this.ui.root.appendChild(p);
+    $('.close', p).addEventListener('click', () => p.remove());
+    p.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest('button');
+      if (!b) return;
+      sfx('ui');
+      if (b.dataset.play !== undefined) {
+        const i = +b.dataset.play;
+        const sv = listSlots()[i];
+        if (!sv) return;
+        setActiveSlot(i);
+        G.save = sv;
+        p.remove();
+        menu.remove();
+        this.ui.startGame();
+      } else if (b.dataset.new !== undefined) {
+        setActiveSlot(+b.dataset.new);
+        p.remove();
+        menu.remove();
+        this.classSelect();
+      } else if (b.dataset.del !== undefined) {
+        const i = +b.dataset.del;
+        const sure = el(`<div class="overlay" style="z-index:90"><div class="panel small"><div class="head"><h2>Smazat postavu?</h2></div><div style="padding:14px"><p class="hint" style="font-size:16px">Postava ve slotu ${i + 1} bude nenávratně smazána.</p><div class="row" style="justify-content:flex-end"><button class="btn" data-x="no">Zpět</button><button class="btn red" data-x="yes">Smazat</button></div></div></div></div>`);
+        this.ui.root.appendChild(sure);
+        sure.addEventListener('click', (ev) => {
+          const bb = (ev.target as HTMLElement).closest('button');
+          if (!bb) return;
+          if (bb.dataset.x === 'yes') {
+            deleteSave(i);
+            sure.remove();
+            p.remove();
+            menu.remove();
+            this.main();
+          } else sure.remove();
+        });
       }
     });
   }
@@ -131,6 +189,7 @@ export class Menus {
       $('[data-a=start]', detail).addEventListener('click', () => {
         sfx('levelup');
         const save = newCharacter(sel);
+        save.slot = activeSlot();
         G.save = save;
         saveGame(save);
         m.remove();

@@ -24,7 +24,7 @@ import {
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, STASH_SIZE } from '../systems/state';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -538,13 +538,14 @@ export class Panels {
   }
 
   // ------------------------------------------------------------------ MERCHANT
-  merchantTab: 'buy' | 'sell' | 'forge' | 'class' = 'buy';
+  merchantTab: 'buy' | 'sell' | 'forge' | 'class' | 'stash' = 'buy';
 
   merchant(stock: MerchantStock, host?: HTMLElement) {
     const tabs = [
       { id: 'buy', label: 'Koupit' },
       { id: 'sell', label: 'Prodat' },
       { id: 'forge', label: 'Kovárna' },
+      { id: 'stash', label: 'Úložiště' },
       { id: 'class', label: 'Změna classy' },
     ];
     const p = host ?? this.frame('Obchodník', tabs, this.merchantTab);
@@ -564,6 +565,7 @@ export class Panels {
     if (this.merchantTab === 'sell') return this.inventory('sell', p);
     if (this.merchantTab === 'forge') return this.forge(p);
     if (this.merchantTab === 'class') return this.classChange(p);
+    if (this.merchantTab === 'stash') return this.stash(p);
     const body = $('.body', p);
     const s = this.save;
     body.innerHTML = `
@@ -714,6 +716,66 @@ export class Panels {
     // keep selection highlight
     if (this.forgeSel?.from === 'eq') body.querySelector(`.slot.feq[data-slot="${this.forgeSel.slot}"]`)?.classList.add('sel');
     if (this.forgeSel?.from === 'inv') body.querySelector(`.slot.finv[data-idx="${this.forgeSel.idx}"]`)?.classList.add('sel');
+    render();
+  }
+
+  // ------------------------------------------------------------------ STASH (shared storage at merchants)
+  stashSel: { from: 'inv' | 'stash'; idx: number } | null = null;
+
+  stash(host: HTMLElement) {
+    const body = $('.body', host);
+    const s = this.save;
+    if (!s.stash) s.stash = new Array(STASH_SIZE).fill(null);
+    while (s.stash.length < STASH_SIZE) s.stash.push(null);
+    const st = s.stash;
+    body.innerHTML = `
+      <div class="col" style="flex:1;min-width:0">
+        <b style="color:#ffd76a">Inventář</b>
+        <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `sinv" data-idx="${i}`)).join('')}</div></div>
+      </div>
+      <div class="col" style="flex:1;min-width:0">
+        <b style="color:#ffd76a">Úložiště (${st.filter(Boolean).length}/${STASH_SIZE})</b>
+        <div class="scroll" style="flex:1"><div class="grid">${st.map((it, i) => this.slotHtml(it, `sst" data-idx="${i}`)).join('')}</div></div>
+      </div>
+      <div class="col detail box scroll" style="width:min(280px,32%)"></div>`;
+    const detail = $('.detail', body);
+    const render = () => {
+      const sel = this.stashSel;
+      const it = sel ? (sel.from === 'inv' ? s.inventory[sel.idx] : st[sel.idx]) : null;
+      if (!it || !sel) {
+        detail.innerHTML = '<p class="hint">Úložiště je u každého obchodníka stejné. Ulož si sem předměty, které nechceš nosit, ale nechceš je ani prodat.</p>';
+        return;
+      }
+      detail.innerHTML = this.itemDetailHtml(it) + `<div class="row" style="margin-top:8px"><button class="btn green" data-a="move">${sel.from === 'inv' ? 'Uložit do úložiště' : 'Vzít do inventáře'}</button></div>`;
+      $('[data-a=move]', detail).addEventListener('click', () => {
+        sfx('pickup');
+        const to = sel.from === 'inv' ? st : s.inventory;
+        const free = to.findIndex((x) => !x);
+        if (free < 0) {
+          this.ui.toast(sel.from === 'inv' ? 'Úložiště je plné' : 'Inventář je plný', '#ff8080');
+          return;
+        }
+        to[free] = it;
+        if (sel.from === 'inv') s.inventory[sel.idx] = null;
+        else st[sel.idx] = null;
+        this.stashSel = null;
+        this.stash(host);
+      });
+    };
+    const bind = (cls: string, from: 'inv' | 'stash') =>
+      body.querySelectorAll<HTMLElement>('.slot.' + cls).forEach((sl) =>
+        sl.addEventListener('click', () => {
+          const i = +sl.dataset.idx!;
+          if (!(from === 'inv' ? s.inventory[i] : st[i])) return;
+          sfx('ui');
+          this.stashSel = { from, idx: i };
+          body.querySelectorAll('.slot').forEach((x) => x.classList.remove('sel'));
+          sl.classList.add('sel');
+          render();
+        }),
+      );
+    bind('sinv', 'inv');
+    bind('sst', 'stash');
     render();
   }
 
