@@ -1486,6 +1486,37 @@ img.px {
   color: #ffe45c;
 }
 
+/* statistics */
+.statgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px;
+}
+.stattile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 2px solid #2f2618;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  line-height: 1.05;
+}
+.stattile .ic {
+  width: 28px;
+  font-size: 22px;
+  text-align: center;
+}
+.stattile .lb {
+  color: var(--dim);
+  font-size: 15px;
+}
+.stattile .vl {
+  color: #ffd76a;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* pets */
 .petgrid {
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));

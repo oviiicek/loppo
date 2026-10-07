@@ -2,7 +2,7 @@ import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy } from './entities';
 import { EL_COLOR } from './fx';
 import { Element } from '../data/types';
-import { bumpStat } from '../systems/state';
+import { bumpStat, maxStat } from '../systems/state';
 import { sfx, vibrate } from '../systems/audio';
 import { bus } from '../systems/events';
 
@@ -121,6 +121,8 @@ export class Combat {
     }
     dmg = Math.max(1, dmg);
     e.hp -= dmg;
+    // the hardest single hit of the hero (statistics)
+    if (!o.fromAlly && !o.dot && dmg > (p.save.stats?.maxHit ?? 0)) maxStat(p.save, 'maxHit', Math.round(dmg));
     e.hpBarT = 3;
     if (!e.aggro) e.aggro = true;
     // knockback (bosses resist)

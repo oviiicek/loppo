@@ -4,7 +4,7 @@ import { Enemy } from './entities';
 import { D } from './fx';
 import { Item, Slot } from '../data/types';
 import { generateItem, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded } from '../data/items';
-import { addToInventory, Materials, maxStat, derive, equipItem, SaveData } from '../systems/state';
+import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData } from '../systems/state';
 import { sfx, settings } from '../systems/audio';
 import { bus } from '../systems/events';
 import { iconURL } from '../gfx/textures';
@@ -256,6 +256,7 @@ export class Loot {
     const p = sc.player;
     if (g.kind === 'gold') {
       p.save.gold += g.amount;
+      bumpStat(p.save, 'goldEarned', g.amount);
       sfx('coin');
       sc.fx.number(p.x, p.y - 20, '+' + g.amount, '#ffd23a');
     } else if (g.kind === 'mat') {
@@ -280,6 +281,7 @@ export class Loot {
       }
       sfx('pickup');
       maxStat(p.save, 'bestRarity', g.item.rarity);
+      bumpStat(p.save, 'items');
       sc.ui.newItems++;
       sc.ui.loot(g.item.name + (this.isUpgrade(g.item) ? '  ▲' : ''), RARITIES[g.item.rarity].color, iconURL(itemIcon(g.item), 32));
     }

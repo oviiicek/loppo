@@ -20,7 +20,7 @@ export const PAD_GLYPHS = {
 export type PadGlyphs = (typeof PAD_GLYPHS)['xbox'];
 
 // what the highlight can land on in menus and panels
-const FOCUSABLE = 'button:not(:disabled), .slot, .ccard, .dcard, .spcard, .lslot, summary, textarea';
+const FOCUSABLE = 'button:not(:disabled), .slot, .ccard, .dcard, .spcard, .lslot, .stattile, summary, textarea';
 // where the highlight starts in a newly opened menu (first match wins); a question starts on its safe
 // answer, so pressing A twice never sells or destroys something by accident
 const FIRST = ['[data-a="no"]', '.slot.inv', '.slot.shop', '.ccard.sel', '.dcard.sel', '.spcard.sel', '.spcard:not(.locked)', '.btn.green', '.slot', 'button'];

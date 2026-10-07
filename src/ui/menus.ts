@@ -3,7 +3,8 @@ import type { UI as UIType } from './ui';
 import { iconURL, spellIcon } from '../gfx/textures';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
 import { spellsForClass } from '../data/spells';
-import { BASE_BY_ID } from '../data/items';
+import { BASE_BY_ID, RARITIES } from '../data/items';
+import { PETS } from '../data/pets';
 import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, listFallen } from '../systems/state';
@@ -241,7 +242,10 @@ export class Menus {
         <p><b style="color:#ffd76a">Mapa:</b> klepni na minimapu (klávesa M) pro velkou mapu prozkoumaného patra. Pozor na bodcové pasti!</p>
         <p><b style="color:#ffd76a">Obchodník:</b> kromě nákupu a prodeje nabízí zpětný odkup prodaných věcí, tajemné zboží neznámé kvality, kovárnu, úložiště a změnu classy.</p>
         <p><b style="color:#ffd76a">Zlatý skřet:</b> občas se v patře skrývá zlatý skřet. Jakmile tě uvidí, uteče a za 18 sekund zmizí portálem. Když ho chytíš, vysype spoustu zlata a vzácný předmět.</p>
-        <p><b style="color:#ffd76a">Úspěchy:</b> v menu pauzy najdeš ${ACHIEVEMENTS.length} úspěchů s odměnami (zlato, materiály, paklíče i body atributů).</p>
+        <p><b style="color:#ffd76a">Mazlíčci:</b> v kobkách čeká v klecích 8 zvířátek (kočka, pes, liška, sova, želva, sliz, bludička a dráček). První klec najdeš nejpozději ve 3. patře – dojdi k ní a otevři ji. Mazlíček s tebou chodí, nosí ti kořist, která leží kolem, a dává svůj bonus. Pes kouše a dráček plive oheň. Za každá 4 patra, která s tebou sestoupí, získá úroveň (nejvýš 10). Vyměnit ho jde v pauze (Mazlíčci).</p>
+        <p><b style="color:#ffd76a">Úkol patra:</b> pod minimapou je volitelný úkol (poraz nestvůry nebo šampiony, otevři truhly, rozbij bedny, prozkoumej patro). Za jeho splnění padne k tvým nohám odměna.</p>
+        <p><b style="color:#ffd76a">Prokletá truhla:</b> černá truhla se zelenými runami. Kdo ji otevře, musí 30 sekund odolávat vlnám nestvůr – čím víc jich porazíš, tím bohatší kořist v ní najdeš.</p>
+        <p><b style="color:#ffd76a">Úspěchy a statistiky:</b> v menu pauzy najdeš ${ACHIEVEMENTS.length} úspěchů s odměnami (zlato, materiály, paklíče i body atributů) a na druhé záložce statistiky tvé postavy.</p>
         <p><b style="color:#ffd76a">Obtížnost:</b> při zakládání postavy si vybereš Lehkou, Normální, Těžkou nebo Noční můru. Na vyšší obtížnosti mají nepřátelé víc zdraví a silnější útoky, ale dávají víc zkušeností, zlata a lepší kořist. Změnit ji jde v pauze.</p>
         <p><b style="color:#ffd76a">Smrt:</b> přijdeš o část zlata (Lehká 5 %, Normální 15 %, Těžká 20 %, Noční můra 25 %) a zkušeností a začneš patro znovu. V režimu <b style="color:#ff6b6b">☠ Hardcore</b> máš jen jeden život – po smrti postava navždy zmizí.</p>
       </div></div></div>`);
@@ -383,7 +387,7 @@ export class Menus {
         <div class="hint">${esc(CLASS_BY_ID[sc.save.cls].name)} • úroveň ${sc.save.level} • patro ${sc.floor} • herní čas ${Math.floor(sc.save.playTime / 60)} min • <button class="linkbtn" data-a="diff">${diffTag(sc.save)} ✎</button></div>
         <button class="btn green" data-a="resume">Pokračovat</button>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button></div>
-        <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="pets">🐾 Mazlíčci</button><button class="btn" style="flex:1" data-a="ach">Úspěchy ${(sc.save.achievements ?? []).length}/${ACHIEVEMENTS.length}</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
+        <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="pets">🐾 Mazlíčci</button><button class="btn" style="flex:1" data-a="ach">🏆 Úspěchy</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button>${isStandalone() ? '' : `<button class="btn small blue" data-a="fs" data-fs="label">${fsButtonHTML('label')}</button>`}</div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Rozebírat: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button></div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
@@ -474,20 +478,58 @@ export class Menus {
     });
   }
 
-  achievements() {
+  /** achievements and, on the second tab, the hero's statistics */
+  achievements(tab: 'ach' | 'stats' = 'ach') {
     const sc = this.ui.scene!;
-    const got = sc.save.achievements ?? [];
-    const st = sc.save.stats ?? {};
-    const p = el(`<div class="panel"><div class="head"><h2>Úspěchy ${got.length}/${ACHIEVEMENTS.length}</h2><button class="close">✕</button></div>
-      <div class="body scroll" style="display:block">
-        <div class="hint" style="margin-bottom:8px">Strážců poraženo: ${st.bosses ?? 0} • truhel otevřeno: ${st.chests ?? 0} • tajných místností: ${st.secrets ?? 0} • zámků odemčeno: ${st.locks ?? 0} • zlatých skřetů: ${st.thieves ?? 0} • nepřátel zabito: ${sc.save.kills}</div>
-        <div class="spgrid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${ACHIEVEMENTS.map((a) => {
-          const done = got.includes(a.id);
-          return `<div class="spcard ${done ? '' : 'locked'}" style="align-items:flex-start"><div style="font-size:26px;line-height:1">${done ? '🏆' : '🔒'}</div><div style="min-width:0"><div class="nm" style="color:${done ? '#ffd76a' : '#ddd'}">${esc(a.name)}</div><div class="lv2">${esc(a.desc)}</div><div class="lv2" style="color:#9dff9d">Odměna: ${achievementReward(a.reward)}</div></div></div>`;
-        }).join('')}</div>
-      </div></div>`);
+    const s = sc.save;
+    const got = s.achievements ?? [];
+    const st = s.stats ?? {};
+    const n = (v?: number) => (v ?? 0).toLocaleString('cs-CZ');
+    let body: string;
+    if (tab === 'ach') {
+      body = `<div class="spgrid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${ACHIEVEMENTS.map((a) => {
+        const done = got.includes(a.id);
+        return `<div class="spcard ${done ? '' : 'locked'}" style="align-items:flex-start"><div style="font-size:26px;line-height:1">${done ? '🏆' : '🔒'}</div><div style="min-width:0"><div class="nm" style="color:${done ? '#ffd76a' : '#ddd'}">${esc(a.name)}</div><div class="lv2">${esc(a.desc)}</div><div class="lv2" style="color:#9dff9d">Odměna: ${achievementReward(a.reward)}</div></div></div>`;
+      }).join('')}</div>`;
+    } else {
+      const t = Math.round(s.playTime);
+      const time = t >= 3600 ? `${Math.floor(t / 3600)} h ${Math.floor((t % 3600) / 60)} min` : `${Math.floor(t / 60)} min`;
+      const best = RARITIES[st.bestRarity ?? 0];
+      const tiles: [string, string, string, string?][] = [
+        ['⏱️', 'Herní čas', time],
+        ['⬇️', 'Nejhlubší patro', String(s.maxFloor)],
+        ['⭐', 'Úroveň', String(s.level)],
+        ['⚔️', 'Poražených nepřátel', n(s.kills)],
+        ['👑', 'Z toho šampionů', n(st.elites)],
+        ['☠️', 'Poražených strážců', n(st.bosses)],
+        ['💰', 'Sebraného zlata', n(st.goldEarned)],
+        ['🎒', 'Sebraných předmětů', n(st.items)],
+        ['💎', 'Nejlepší nález', best.name, best.color],
+        ['⚒️', 'Nejvyšší vylepšení', '+' + (st.maxUpgrade ?? 0)],
+        ['💥', 'Nejsilnější zásah', n(st.maxHit)],
+        ['📦', 'Otevřených truhel', n(st.chests)],
+        ['🟩', 'Prokletých truhel', n(st.cursed)],
+        ['✅', 'Splněných úkolů', n(st.bounties)],
+        ['🚪', 'Tajných místností', n(st.secrets)],
+        ['🔑', 'Odemčených zámků', n(st.locks)],
+        ['👺', 'Chycených skřetů', n(st.thieves)],
+        ['🧪', 'Vypitých lektvarů', n(st.potions)],
+        ['🐾', 'Osvobozených mazlíčků', `${s.pets?.owned.length ?? 0}/${PETS.length}`],
+        ['⚰️', 'Smrtí', n(st.deaths)],
+      ];
+      body = `<div class="statgrid">${tiles.map(([ic, lb, vl, col]) => `<div class="stattile"><span class="ic">${ic}</span><span><span class="lb">${lb}</span><br><b class="vl" ${col ? `style="color:${col}"` : ''}>${esc(vl)}</b></span></div>`).join('')}</div>`;
+    }
+    const p = el(`<div class="panel"><div class="head"><h2>${tab === 'ach' ? `Úspěchy ${got.length}/${ACHIEVEMENTS.length}` : 'Statistiky'}</h2><div class="tabs"><button class="tab ${tab === 'ach' ? 'on' : ''}" data-tab="ach">Úspěchy</button><button class="tab ${tab === 'stats' ? 'on' : ''}" data-tab="stats">Statistiky</button></div><button class="close">✕</button></div>
+      <div class="body scroll" style="display:block">${body}</div></div>`);
     this.ui.showOverlay(p, () => {});
     $('.close', p).addEventListener('click', () => this.ui.closeOverlay());
+    p.querySelectorAll<HTMLElement>('.tab').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (b.dataset.tab === tab) return;
+        sfx('ui');
+        this.achievements(b.dataset.tab as 'ach' | 'stats');
+      }),
+    );
   }
 
   death(floor: number, lostGold: number) {

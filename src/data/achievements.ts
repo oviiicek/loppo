@@ -46,6 +46,16 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'story5', name: 'Pečeť hlubin', desc: "Poraz Nyx'thara a dokonči příběh", reward: { gold: 1000000, dust: 20, attr: 10 }, check: (s) => !!s.story?.ended },
   { id: 'pages', name: 'Kronikář', desc: 'Najdi všech 20 stránek a vzkazů', reward: { gold: 100000, attr: 4 }, check: (s) => (s.story?.seen ?? []).filter((x) => x.startsWith('note')).length >= 20 },
   { id: 'floor250', name: 'Dno podsvětí', desc: 'Dosáhni patra 250', reward: { gold: 500000, attr: 8 }, check: (s) => s.maxFloor >= 250 },
+  // pets, cursed chests and floor tasks
+  { id: 'pet1', name: 'Přítel zvířat', desc: 'Osvoboď prvního mazlíčka z klece', reward: { gold: 300, dust: 2 }, check: (s) => (s.pets?.owned.length ?? 0) >= 1 },
+  { id: 'pet4', name: 'Zvěřinec', desc: 'Osvoboď 4 mazlíčky', reward: { gold: 6000, attr: 2 }, check: (s) => (s.pets?.owned.length ?? 0) >= 4 },
+  { id: 'pet8', name: 'Pán zvířat', desc: 'Osvoboď všech 8 mazlíčků', reward: { gold: 120000, attr: 5 }, check: (s) => (s.pets?.owned.length ?? 0) >= 8 },
+  { id: 'petmax', name: 'Věrný parťák', desc: 'Doveď mazlíčka na úroveň 10', reward: { gold: 25000, dust: 8 }, check: (s) => Object.values(s.pets?.floors ?? {}).some((f) => (f ?? 0) >= 36) },
+  { id: 'cursed1', name: 'Prokletí nezlomí', desc: 'Přežij výzvu prokleté truhly', reward: { gold: 1500, dust: 3 }, check: (s) => (st(s).cursed ?? 0) >= 1 },
+  { id: 'cursed10', name: 'Lovec prokletí', desc: 'Přežij 10 prokletých truhel', reward: { gold: 30000, attr: 3 }, check: (s) => (st(s).cursed ?? 0) >= 10 },
+  { id: 'bounty10', name: 'Spolehlivý', desc: 'Splň 10 úkolů patra', reward: { gold: 3000, stone: 3 }, check: (s) => (st(s).bounties ?? 0) >= 10 },
+  { id: 'bounty50', name: 'Žoldák hlubin', desc: 'Splň 50 úkolů patra', reward: { gold: 40000, attr: 3 }, check: (s) => (st(s).bounties ?? 0) >= 50 },
+  { id: 'elite100', name: 'Přemožitel šampionů', desc: 'Poraz 100 elitních šampionů', reward: { gold: 15000, dust: 6 }, check: (s) => (st(s).elites ?? 0) >= 100 },
 ];
 
 export function achievementReward(r: Achievement['reward']) {

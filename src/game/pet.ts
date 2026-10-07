@@ -220,7 +220,7 @@ export class PetFollower {
       const dh = Math.hypot(g.x - p.x, g.y - p.y);
       if (dh > 150 || (g.kind !== 'item' && dh < 40)) continue;
       // a full bag only takes what is salvaged on pickup
-      if (g.kind === 'item' && full && !(g.item!.rarity < settings.autoSalvage && !sc.loot.isUpgrade(g.item!))) continue;
+      if (g.kind === 'item' && full && !this.salvaged(g)) continue;
       const d = Math.hypot(g.x - this.x, g.y - this.y);
       if (d < bd && (this.def.flying || sc.map.los(this.x, this.y, g.x, g.y) || d < 40)) {
         bd = d;
@@ -228,6 +228,17 @@ export class PetFollower {
       }
     }
     return best;
+  }
+
+  /** would this item be salvaged on pickup (weak and no upgrade)? remembered per item, the check is not free */
+  private salvageMemo = new WeakMap<Ground, boolean>();
+  private salvaged(g: Ground) {
+    let v = this.salvageMemo.get(g);
+    if (v === undefined) {
+      v = g.item!.rarity < settings.autoSalvage && !this.scene.loot.isUpgrade(g.item!);
+      this.salvageMemo.set(g, v);
+    }
+    return v;
   }
 
   /** picks the loot up: it flies to the hero, who gets it */

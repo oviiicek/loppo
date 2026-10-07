@@ -1215,6 +1215,7 @@ export class GameScene extends Phaser.Scene {
     if (kind === 'hpPotion' && p.hp >= p.d.maxHp) return;
     if (kind === 'mpPotion' && p.mp >= p.d.maxMp) return;
     this.save.mats[kind]--;
+    bumpStat(this.save, 'potions');
     if (kind === 'hpPotion') {
       p.heal(p.d.maxHp * 0.45 + 30);
       this.fx.burst(p.x, p.y - 6, 0xff5050, 12);
@@ -1634,6 +1635,7 @@ export class GameScene extends Phaser.Scene {
     const p = this.player;
     if (p.dead) return;
     p.dead = true;
+    bumpStat(this.save, 'deaths');
     sfx('death');
     this.tweens.add({ targets: p.sprite, angle: 90 * p.facing, alpha: 0.5, duration: 500 });
     p.weapon?.setVisible(false);

@@ -1,6 +1,6 @@
 # Loppo – Nekonečný dungeon
 
-Mobilní akční dungeon RPG na šířku inspirované hrou *Dungeon Madness*. Hra obsahuje příběh s cutscénami (250 pater, 5 prostředí, příběhoví bossové), náhodně generovaná patra, 10 class, 211 kouzel, loot v 6 kvalitách, vylepšování a očarování vybavení, obchodníky, paklíče, tajné místnosti a bosse. Hraje se v prohlížeči (i v mobilu). Jde nainstalovat jako aplikace (PWA) nebo zabalit do Android/iOS aplikace přes Capacitor.
+Mobilní akční dungeon RPG na šířku inspirované hrou *Dungeon Madness*. Hra obsahuje příběh s cutscénami (250 pater, 5 prostředí, příběhoví bossové), náhodně generovaná patra, 10 class, 211 kouzel, loot v 6 kvalitách, vylepšování a očarování vybavení, obchodníky, paklíče, tajné místnosti, bosse, 8 mazlíčků, prokleté truhly a úkoly pater. Hraje se v prohlížeči (i v mobilu). Jde nainstalovat jako aplikace (PWA) nebo zabalit do Android/iOS aplikace přes Capacitor.
 
 Celá grafika (postavy, nepřátelé, dlaždice, předměty, efekty i ikony kouzel) se generuje procedurálně v kódu jako pixel-art. Hra nepotřebuje žádné externí obrázky ani zvuky. Zvuky a hudba se syntetizují přes WebAudio.
 
@@ -209,8 +209,38 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
 - Velká mapa po klepnutí na minimapu (klávesa M). Když jsou objevené schody nebo obchodník mimo minimapu, ukazuje k nim šipka na jejím okraji.
 - Rozbitné bedny, sudy a hliněné nádoby s drobnou kořistí. Bodcové pasti v chodbách a místnostech.
 - Zlatý skřet: vzácný zloděj, který před hráčem utíká a po 18 sekundách zmizí portálem. Když ho chytíš, vysype hromadu zlata a vzácný předmět. Při Zlaté horečce se objevuje častěji.
-- 27 úspěchů s odměnami (zlato, materiály, paklíče, body atributů).
+- Úkol patra: každé běžné patro od druhého má jeden volitelný úkol podle toho, co v něm je:
+  - poraz určitý počet nestvůr,
+  - poraz šampiony,
+  - otevři truhly,
+  - rozbij bedny a nádoby,
+  - prozkoumej 75 % patra.
+
+  Postup ukazuje rámeček pod minimapou. Za splnění padne k hrdinovým nohám zlato, předmět, materiály a někdy paklíč.
+- Prokletá truhla: vzácná černá truhla se zelenými runami. Po přijetí výzvy se 30 sekund kolem ní otevírají zelené portály s vlnami nestvůr. Nahoře běží čas a počet poražených. Na konci zbylé nestvůry zmizí a truhla se otevře; čím víc nestvůr padlo, tím víc předmětů v ní je (od 20 poražených i legendární nebo mýtický).
+- Atmosféra prostředí: v kobkách poletuje prach, v jeskyních svítící spory, v ledových hlubinách sněží, ve výhni stoupají jiskry a padá popel a v propasti blikají fialové jiskřičky. Úsporná grafika je vypne.
+- 43 úspěchů s odměnami (zlato, materiály, paklíče, body atributů). Na druhé záložce panelu úspěchů jsou statistiky postavy: herní čas, poražení nepřátelé a šampioni, sebrané zlato a předměty, nejlepší nález, nejsilnější zásah, splněné úkoly, prokleté truhly, mazlíčci, smrti a další.
 - Barva kovu u zbraní a zbroje odpovídá materiálu předmětu (rezavý, železný, ocelový, runový, mithrilový, dračí, démonický, hvězdný). Vidět je to v inventáři i na zbrani v ruce postavy.
+
+### Mazlíčci
+V dungeonu čeká v klecích 8 zvířátek. První klec se objeví nejpozději ve 3. patře, další asi každých 10–15 pater (od patra, kde dané zvíře žije). Klec se pozná podle nápisu nad ní; stačí k ní dojít a otevřít ji. S hrdinou chodí vždy jeden mazlíček:
+
+- sbírá kořist, která leží kolem (předměty, zlato i materiály mu přinese k nohám),
+- dává svůj bonus,
+- za každá 4 patra, která s hrdinou sestoupí, získá úroveň (nejvýš 10) a bonus roste.
+
+| Mazlíček | Od patra | Co umí |
+| --- | --- | --- |
+| Kočka Mína | 3 | lepší kořist |
+| Pes Ořech | 7 | kouše nepřátele vedle hrdiny, víc zdraví |
+| Liška Zrzka | 12 | víc zlata |
+| Sova Hú | 20 | víc zkušeností, odkrývá větší kus mapy |
+| Želva Tonda | 32 | víc zdraví a blok |
+| Sliz Bublina | 45 | vysávání života a obnova zdraví |
+| Bludička Jiskra | 70 | silnější kouzla a rychlejší mana, svítí |
+| Dráček Uhlík | 100 | plive oheň, kritické zásahy |
+
+Létající mazlíčci (sova, bludička, dráček) se vznášejí nad zemí a když hrdina dlouho stojí, sova a dráček si sednou. Když hrdina odpočívá, mazlíček se prochází kolem, občas ukáže srdíčko a po delší době usne. Mazlíčky jde přepínat v pauze (Mazlíčci) nebo v okně postavy.
 
 ### Ostatní
 - Dynamické osvětlení s blikajícími pochodněmi, minimapa s mlhou války, čísla poškození, částicové efekty a otřesy obrazovky.
@@ -243,4 +273,5 @@ src/
   - `__dev.start('mage', 30, 10)` spustí postavu na úrovni 30 v patře 10,
   - `__dev.castAll('mage')` sešle všechna kouzla classy,
   - `__dev.bot(true)` zapne bota, který hraje sám,
-  - `__dev.speed(3)` zrychlí herní logiku.
+  - `__dev.speed(3)` zrychlí herní logiku,
+  - `__dev.pets('owl')` dá postavě všechny mazlíčky a s sebou vezme sovu.
