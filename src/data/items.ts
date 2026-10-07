@@ -49,7 +49,7 @@ export const BASES: BaseType[] = [
   { id: 'sword', noun: 'meč', gender: 'm', cat: 'weapon1h', icon: 'ic_sword', attack: 'melee', dmg: [5, 9], aps: 1.4, range: 30, arc: 110 },
   { id: 'axe', noun: 'sekera', gender: 'f', cat: 'weapon1h', icon: 'ic_axe', attack: 'melee', dmg: [6, 11], aps: 1.2, range: 28, arc: 120 },
   { id: 'mace', noun: 'palcát', gender: 'm', cat: 'weapon1h', icon: 'ic_mace', attack: 'melee', dmg: [7, 11], aps: 1.1, range: 28, arc: 100, implicit: { armor: 4 } },
-  { id: 'dagger', noun: 'dýka', gender: 'f', cat: 'weapon1h', icon: 'ic_dagger', attack: 'melee', dmg: [3, 6], aps: 1.9, range: 24, arc: 80, implicit: { crit: 4 } },
+  { id: 'dagger', noun: 'dýka', gender: 'f', cat: 'weapon1h', icon: 'ic_dagger', attack: 'melee', dmg: [4, 7], aps: 1.9, range: 24, arc: 80, implicit: { crit: 4 } },
   { id: 'knuckle', noun: 'kastet', gender: 'm', cat: 'weapon1h', icon: 'ic_knuckle', attack: 'melee', dmg: [3, 5], aps: 2.2, range: 22, arc: 80, implicit: { dodge: 2 } },
   { id: 'wand', noun: 'hůlka', gender: 'f', cat: 'weapon1h', icon: 'ic_wand', attack: 'magic', dmg: [4, 7], aps: 1.3, range: 110, implicit: { int: 2 } },
   // two-handed weapons
