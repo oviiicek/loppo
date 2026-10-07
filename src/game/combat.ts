@@ -1,5 +1,5 @@
 import type { GameScene } from '../scenes/GameScene';
-import { Actor, Enemy } from './entities';
+import { Actor, Enemy, ELITE_AFFIXES } from './entities';
 import { EL_COLOR } from './fx';
 import { Element } from '../data/types';
 import { bumpStat, maxStat } from '../systems/state';
@@ -143,7 +143,14 @@ export class Combat {
       const txt = Math.round(dmg).toString();
       sc.fx.number(e.x, e.y - 14 * e.baseScale, crit ? txt + '!' : txt, crit ? '#ffd23a' : o.dot ? '#c8a8a8' : EL_TEXT[el] ?? '#fff', crit);
     }
-    if (crit) sfx('crit');
+    if (crit) {
+      sfx('crit');
+      // a crit that takes a big bite out of a tough monster shakes the screen a little
+      if (dmg > e.maxHp * 0.25 && (e.elite || e.boss)) {
+        sc.fx.shake(0.003, 90);
+        sc.freeze(0.05);
+      }
+    }
     // lifesteal / mana on hit
     if (!o.fromAlly) {
       let ls = (p.d.lifesteal + (o.lifesteal ?? 0)) / 100;
@@ -171,6 +178,15 @@ export class Combat {
     sfx('enemyDie');
     sc.fx.burst(e.x, e.y - 6, 0xd8d0c0, 10, 'puff');
     sc.fx.burst(e.x, e.y - 6, e.boss ? 0xffd23a : 0xff6040, e.boss ? 40 : 8);
+    // a champion goes down with a flash of its colour, a ring and a short freeze
+    if (e.elite && !e.boss) {
+      const col = ELITE_AFFIXES[e.eliteAffix ?? '']?.glow ?? 0xffb020;
+      sc.fx.ring(e.x, e.y - 6, 34, col, 450);
+      sc.fx.burst(e.x, e.y - 8, col, 18);
+      sc.fx.shake(0.004, 140);
+      sc.freeze(0.07);
+    }
+    if (e.boss) sc.freeze(0.12);
     // death animation
     const spr = e.sprite;
     sc.tweens.add({ targets: spr, alpha: 0, scaleY: spr.scaleY * 0.2, angle: (Math.random() - 0.5) * 60, duration: 260, onComplete: () => e.destroyVisuals() });

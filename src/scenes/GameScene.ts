@@ -1775,8 +1775,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- main loop
+  /** seconds the world stands still for a heavy blow (a champion falls, a huge crit) */
+  hitStop = 0;
+
+  /** a short freeze of the action that makes a big hit feel heavy */
+  freeze(sec: number) {
+    if (settings.lowFx) return;
+    this.hitStop = Math.max(this.hitStop, sec);
+  }
+
   update(_t: number, dms: number) {
     if (this.paused) return;
+    if (this.hitStop > 0) {
+      this.hitStop -= dms / 1000;
+      UI.tick(dms / 1000);
+      return;
+    }
     const dt = Math.min(0.05, dms / 1000);
     const p = this.player;
     this.weather?.update(this.cinematic ? 0 : Math.min(0.05, dms / 1000));
