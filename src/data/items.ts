@@ -1,5 +1,6 @@
 import { AttackKind, Affix, Item, ItemCategory, Slot, StatKey, Stats } from './types';
 import { RNG, rng as globalRng } from '../systems/rng';
+import { rollSockets, socketStats } from './gems';
 
 // ---------------------------------------------------------------------------
 // Rarities
@@ -349,6 +350,8 @@ export function generateItem(ilvl: number, opts: { rarity?: number; base?: strin
     if (s) item.specials.push(s.id);
   }
   item.name = buildName(base, rarity, ilvl, item.affixes, r);
+  const sockets = rollSockets(base.cat, rarity, () => r.next());
+  if (sockets) item.sockets = sockets;
   return item;
 }
 
@@ -370,6 +373,7 @@ export function itemStats(it: Item): Stats {
   const am = upgradeAffixMult(it);
   for (const a of it.affixes) add(a.key, scaledAffix(a.key, a.value, am));
   if (it.enchant) add(it.enchant.key, scaledAffix(it.enchant.key, it.enchant.value, am));
+  socketStats(it, base.cat, s);
   return s;
 }
 

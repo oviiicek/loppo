@@ -42,7 +42,7 @@ export interface SaveData {
   playTime: number;
   stash?: (Item | null)[];
   slot?: number;
-  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number };
+  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number };
   achievements?: string[];
   story?: StoryState;
   /** combat difficulty (index into DIFFICULTIES, normal when missing) */
@@ -53,6 +53,32 @@ export interface SaveData {
   fallen?: boolean;
   /** freed pets, the one that comes along and how far each has travelled */
   pets?: PetState;
+  /** the gem pouch: how many of each gem ("ruby3": 2) */
+  gems?: Record<string, number>;
+}
+
+export function gemPouch(s: SaveData): Record<string, number> {
+  return s.gems ?? (s.gems = {});
+}
+
+export function addGem(s: SaveData, key: string, n = 1) {
+  const p = gemPouch(s);
+  p[key] = (p[key] ?? 0) + n;
+  if (p[key] <= 0) delete p[key];
+}
+
+/** an item leaves the hero (sold, salvaged): its gems go back to the pouch; true if there were any */
+export function returnGems(s: SaveData, it: Item): boolean {
+  let any = false;
+  if (!it.sockets) return false;
+  it.sockets = it.sockets.map((g) => {
+    if (g) {
+      addGem(s, g);
+      any = true;
+    }
+    return null;
+  });
+  return any;
 }
 
 /** the pets of a character (older saves get the record on first use) */

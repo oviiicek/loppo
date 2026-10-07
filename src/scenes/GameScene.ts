@@ -848,6 +848,7 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < 3; i++) this.loot.dropGold(this.loot.goldAmount(2), p.x, p.y);
     this.loot.dropMat(Math.random() < 0.5 ? 'stone' : 'dust', 1 + Math.floor(f / 25), p.x, p.y);
     if (Math.random() < 0.3) this.loot.dropMat('lockpick', 1, p.x, p.y);
+    if (Math.random() < 0.3) this.loot.dropRandomGem(p.x, p.y);
     bumpStat(this.save, 'bounties');
     UI.bounty(b);
     UI.toast(`✔ Úkol splněn: ${b.text}! Odměna padla k tvým nohám.`, '#ffd76a');
@@ -959,6 +960,7 @@ export class GameScene extends Phaser.Scene {
     if (kills >= 20) this.loot.dropItem(generateItem(f + 2, { rarity: Math.random() < 0.25 ? 5 : 4 }), it.x, it.y);
     this.loot.dropMat('dust', 1 + Math.floor(kills / 8), it.x, it.y);
     if (kills >= 10) this.loot.dropMat('stone', 1 + Math.floor(kills / 12), it.x, it.y);
+    for (let i = 0; i < 1 + Math.floor(kills / 10); i++) this.loot.dropRandomGem(it.x, it.y);
     bumpStat(this.save, 'cursed');
     UI.toast(`Prokletí zlomeno! Poraženo ${kills} ${kills === 1 ? 'nestvůra' : kills > 1 && kills < 5 ? 'nestvůry' : 'nestvůr'}.`, '#9dff9a');
     bus.emit('stats');

@@ -1031,6 +1031,24 @@ class UIManager {
     this.menus.pause();
   }
 
+  /** a dialog over the open panel (which comes back when the dialog closes); returns the close function */
+  dialog(content: HTMLElement): () => void {
+    const prev = this.panel;
+    if (prev) prev.style.display = 'none';
+    const ov = el('<div class="overlay" style="z-index:70"></div>');
+    ov.appendChild(content);
+    this.root.appendChild(ov);
+    if (!prev) this.pauseGame();
+    let open = true;
+    return () => {
+      if (!open) return;
+      open = false;
+      ov.remove();
+      if (prev) prev.style.display = '';
+      else this.resumeGame();
+    };
+  }
+
   confirm(title: string, text: string, yes: () => void, yesLabel = 'Ano', noLabel = 'Ne', no?: () => void) {
     const p = el(`<div class="panel small"><div class="head"><h2>${esc(title)}</h2></div>
       <div style="padding:14px"><p class="hint" style="font-size:19px;margin:0 0 14px">${esc(text)}</p>

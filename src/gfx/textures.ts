@@ -4,6 +4,7 @@ import { CLASSES } from '../data/classes';
 import { biomeForFloor } from '../data/biomes';
 import { buildHeroStrip, HERO_W, HERO_H, HERO_FRAMES } from './heroes';
 import { PET_ART } from './pets';
+import { GEMS, GEM_MAX_TIER } from '../data/gems';
 
 // ---------------------------------------------------------------------------
 // Registry helpers
@@ -3551,6 +3552,65 @@ function buildTierVariants() {
   });
 }
 
+// cut gems, one shape per kind (cushion, oval, emerald cut, pear, crystal, brilliant); higher grades are
+// bigger and the royal ones sparkle
+function buildGems() {
+  const inside: Record<string, (dx: number, dy: number, r: number) => boolean> = {
+    ruby: (dx, dy, r) => Math.abs(dx) <= r && Math.abs(dy) <= r * 0.9 && Math.abs(dx) + Math.abs(dy) <= r * 1.45,
+    sapphire: (dx, dy, r) => (dx * dx) / (r * r) + (dy * dy) / (r * r * 0.72) <= 1.05,
+    emerald: (dx, dy, r) => Math.abs(dx) <= r * 0.78 && Math.abs(dy) <= r && Math.abs(dx) + Math.abs(dy) <= r * 1.5,
+    topaz: (dx, dy, r) => (dy >= 0 ? dx * dx + dy * dy <= r * r : Math.abs(dx) <= r * (1 + dy / (r * 1.35))),
+    amethyst: (dx, dy, r) => Math.abs(dx) <= r * 0.72 && Math.abs(dy) <= r * 1.15 - Math.abs(dx) * 0.55,
+    diamond: (dx, dy, r) => (dy <= 0 ? dy >= -r * 0.62 && Math.abs(dx) <= r - -dy * 0.45 : Math.abs(dx) <= r * (1 - dy / (r * 1.15))),
+  };
+  for (const g of GEMS)
+    for (let t = 1; t <= GEM_MAX_TIER; t++) {
+      const S = 15;
+      const [c, ctx] = canvas(S, S);
+      const r = 2.5 + t * 0.7;
+      const cx = 7.5,
+        cy = 7.5;
+      const inG = (x: number, y: number) => inside[g.id](x + 0.5 - cx, y + 0.5 - cy, r);
+      for (let y = 0; y < S; y++)
+        for (let x = 0; x < S; x++) {
+          if (!inG(x, y)) continue;
+          const dx = x + 0.5 - cx,
+            dy = y + 0.5 - cy;
+          const d = (dx + dy) / r;
+          let col = d < -0.55 ? g.light : d > 0.55 ? g.dark : g.color;
+          // the flat top facet in the middle is a touch lighter
+          if (Math.abs(dx) <= r * 0.32 && Math.abs(dy) <= r * 0.32 && col === g.color) col = shade(g.color, 0.22);
+          px(ctx, x, y, col);
+        }
+      // shine
+      const sx = Math.round(cx - r * 0.45 - 0.5),
+        sy = Math.round(cy - r * 0.45 - 0.5);
+      if (inG(sx, sy)) px(ctx, sx, sy, '#ffffff');
+      if (t >= 4 && inG(sx + 1, sy)) px(ctx, sx + 1, sy, '#ffffff');
+      outline(c, OUT);
+      // a royal gem twinkles
+      if (t === GEM_MAX_TIER) {
+        const k = Math.round(cx + r + 0.5);
+        for (const [x, y] of [
+          [k, 2],
+          [k, 4],
+          [k - 1, 3],
+          [k + 1, 3],
+          [2, S - 4],
+        ])
+          if (x >= 0 && x < S && y >= 0 && y < S) px(ctx, x, y, '#fff6c0');
+      }
+      addCanvas(`gem_${g.id}_${t}`, c);
+    }
+  // an empty socket (for the item detail)
+  const [c, ctx] = canvas(15, 15);
+  circle(ctx, 7, 7, 5, '#2a2430');
+  circle(ctx, 7, 7, 3, '#120e16');
+  px(ctx, 5, 5, '#4a4250');
+  outline(c, OUT);
+  addCanvas('socket_empty', c);
+}
+
 // pets are drawn at double detail already (like the heroes); cages are furniture
 function buildPets() {
   for (const [id, a] of Object.entries(PET_ART)) {
@@ -3611,6 +3671,7 @@ export function buildAllTextures(scene: Phaser.Scene) {
   buildClassSprites();
   buildEnemies();
   buildPets();
+  buildGems();
   buildWeapons();
   buildIcons();
   buildTierVariants();

@@ -608,3 +608,15 @@ Object.assign(dev, {
     return pet ? { id: pet.def.id, lvl: pet.lvl, x: Math.round(pet.x), y: Math.round(pet.y), dHero: Math.round(Math.hypot(pet.x - sc.player.x, pet.y - sc.player.y)), visible: pet.sprite.visible } : null;
   },
 });
+
+// Gems on demand (tests and screenshots)
+Object.assign(dev, {
+  /** a few of every gem in the given grades, sockets in the equipped weapon and armour */
+  gems(n = 3, tiers = [1, 2, 3, 4, 5]) {
+    const s = (window as any).__scene.save;
+    s.gems = s.gems ?? {};
+    for (const g of ['ruby', 'sapphire', 'emerald', 'topaz', 'amethyst', 'diamond']) for (const t of tiers) s.gems[g + t] = (s.gems[g + t] ?? 0) + n;
+    for (const sl of ['main', 'chest', 'ring1', 'helmet']) if (s.equip[sl]) s.equip[sl].sockets = s.equip[sl].sockets ?? [null, null].slice(0, sl === 'ring1' ? 1 : 2);
+    return s.gems;
+  },
+});

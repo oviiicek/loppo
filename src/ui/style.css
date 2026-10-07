@@ -1486,6 +1486,120 @@ img.px {
   color: #ffe45c;
 }
 
+/* gems and sockets */
+.matbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  padding: 1px 8px 1px 4px;
+  border: 2px solid #6a3a8a;
+  border-radius: 8px;
+  background: rgba(60, 30, 80, 0.55);
+  color: #f0d8ff;
+  font-family: var(--font);
+  font-size: 18px;
+  cursor: pointer;
+}
+.matbtn img {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+}
+.slot .socks {
+  position: absolute;
+  left: 3px;
+  bottom: 3px;
+  display: flex;
+  gap: 1px;
+  pointer-events: none;
+}
+.slot .socks i {
+  width: 6px;
+  height: 6px;
+  border: 1px solid #a8a090;
+  border-radius: 50%;
+  background: #120e16;
+  box-shadow: 0 0 0 1px #000;
+}
+.sockets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 2px solid #4a3a5a;
+  border-radius: 8px;
+  background: rgba(40, 24, 56, 0.45);
+  color: #e8dcc4;
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.05;
+  text-align: left;
+  cursor: pointer;
+}
+.sock.empty {
+  border-style: dashed;
+  color: #b8b0c8;
+}
+.sock img {
+  width: 30px;
+  height: 30px;
+  image-rendering: pixelated;
+}
+.sock small {
+  display: block;
+  color: #b8b0c8;
+  font-size: 14px;
+}
+.gemlist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 6px;
+}
+.gempick {
+  width: 100%;
+  color: inherit;
+  font-family: var(--font);
+  text-align: left;
+}
+.gempick img {
+  width: 30px;
+  height: 30px;
+  image-rendering: pixelated;
+}
+.gemgrid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gemrow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gemrow .gname {
+  width: 74px;
+  font-size: 16px;
+}
+.gemcell {
+  width: 46px;
+  height: 46px;
+}
+.gemcell img {
+  width: 30px;
+  height: 30px;
+  image-rendering: pixelated;
+}
+.gemcell.none img {
+  opacity: 0.25;
+  filter: grayscale(0.7);
+}
+
 /* statistics */
 .statgrid {
   display: grid;

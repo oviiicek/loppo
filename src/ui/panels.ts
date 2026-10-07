@@ -26,7 +26,8 @@ import {
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, STASH_SIZE, storyBonusPct, petsOf } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems } from '../systems/state';
+import { GEMS, GEM_TIERS, GEM_MAX_TIER, GEM_PLACE_NAME, GemPlace, gemPlace, gemEffect, gemIcon, gemName, parseGem, gemKey, maxSockets, drillCost, combineCost } from '../data/gems';
 import { PETS, PET_BY_ID, PetId, petLevel, petFloorsToNext, petBonusText, petTitle, PET_MAX_LEVEL, PET_FLOORS_PER_LEVEL } from '../data/pets';
 import { difficultyOf } from '../data/difficulty';
 import { MAT_INFO, MatKey } from '../game/loot';
@@ -71,6 +72,7 @@ export class Panels {
     else if (name === 'character') this.character();
     else if (name === 'spells') this.spells();
     else if (name === 'pets') this.pets();
+    else if (name === 'gems') this.gems();
   }
 
   frame(title: string, tabs: { id: string; label: string }[] = [], active = '') {
@@ -81,19 +83,32 @@ export class Panels {
       sfx('ui');
       this.ui.closeOverlay();
     });
+    // the gem pouch in the materials bar opens the gems over the panel
+    p.addEventListener('click', (e) => {
+      if (!(e.target as HTMLElement).closest('[data-a=gemchip]')) return;
+      sfx('ui');
+      this.gems(undefined, true);
+    });
     return p;
   }
 
   // ------------------------------------------------------------------ helpers
   slotHtml(it: Item | null | undefined, extra = '', label = '', price?: number, better = false) {
     if (!it) return `<div class="slot ${extra}">${label ? `<span class="lbl">${esc(label)}</span>` : ''}</div>`;
-    return `<div class="slot r${it.rarity} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}</div>`;
+    const socks = it.sockets?.length ? `<span class="socks">${it.sockets.map((g) => `<i${g ? ` style="background:${parseGem(g)?.def.color}"` : ''}></i>`).join('')}</span>` : '';
+    return `<div class="slot r${it.rarity} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}</div>`;
   }
 
   matsHtml() {
     const s = this.save;
     const m = (k: MatKey) => `<span title="${MAT_INFO[k].name}"><img src="${iconURL(MAT_INFO[k].icon, 32)}">${s.mats[k]}</span>`;
-    return `<div class="mats"><span><img src="${iconURL('ic_gold', 32)}"><b style="color:#ffd76a">${s.gold.toLocaleString('cs-CZ')}</b></span>${m('hpPotion')}${m('mpPotion')}${m('lockpick')}${m('stone')}${m('dust')}</div>`;
+    // the gem pouch: the best gem in it and how many there are (tap: the gems panel)
+    const pouch = gemPouch(s);
+    const keys = Object.keys(pouch).filter((k) => pouch[k] > 0 && parseGem(k));
+    const best = keys.sort((a, b) => parseGem(b)!.tier - parseGem(a)!.tier)[0] ?? gemKey('ruby', 1);
+    const n = keys.reduce((a, k) => a + pouch[k], 0);
+    const gems = `<button class="matbtn" data-a="gemchip" title="Drahokamy"><img src="${iconURL(gemIcon(best), 30)}"><b>${n}</b></button>`;
+    return `<div class="mats"><span><img src="${iconURL('ic_gold', 32)}"><b style="color:#ffd76a">${s.gold.toLocaleString('cs-CZ')}</b></span>${m('hpPotion')}${m('mpPotion')}${m('lockpick')}${m('stone')}${m('dust')}${gems}</div>`;
   }
 
   /** icon, name and kind of an item */
@@ -104,7 +119,7 @@ export class Panels {
   }
 
   /** everything an item does */
-  itemStatsHtml(it: Item) {
+  itemStatsHtml(it: Item, socketLines = true) {
     const base = BASE_BY_ID[it.base];
     let h = '';
     if (it.dmgMin !== undefined) {
@@ -121,6 +136,13 @@ export class Panels {
     for (const a of it.affixes) h += `<div class="aff">${formatStat(a.key, scaledAffix(a.key, a.value, am))}</div>`;
     if (it.enchant) h += `<div class="ench">✧ Očarování: ${formatStat(it.enchant.key, scaledAffix(it.enchant.key, it.enchant.value, am))}</div>`;
     for (const sp of it.specials) h += `<div class="spec">★ ${esc(SPECIAL_BY_ID[sp]?.desc ?? sp)}</div>`;
+    if (socketLines && it.sockets?.length) {
+      const place = gemPlace(base.cat);
+      for (const g of it.sockets) {
+        const e = g ? gemEffect(g, place) : null;
+        h += g && e ? `<div class="aff" style="color:${parseGem(g)?.def.color}">◆ ${gemName(g)}: ${formatStat(e.key, e.value)}</div>` : `<div class="aff" style="color:#9a94a8">◇ Volný soket</div>`;
+      }
+    }
     if (base.cat === 'weapon2h') h += `<div class="hint">Obouruční – zabírá obě ruce</div>`;
     if (base.cat === 'weapon1h') h += `<div class="hint">Jednoruční – do pravé i levé ruky (se štítem nebo dvě zbraně)</div>`;
     h += `<div class="hint" style="margin-top:4px">Prodejní cena: <span style="color:#ffd76a">${itemValue(it)}</span> zlata</div>`;
@@ -128,8 +150,178 @@ export class Panels {
   }
 
   /** the detail column: the name, the actions right under it, then the comparison and the item's text */
-  itemDetailHtml(it: Item, actions = '', compare = false) {
-    return this.itemHeadHtml(it) + (actions ? `<div class="iacts">${actions}</div>` : '') + (compare ? this.compareHtml(it) : '') + `<div class="orn"><span>Vlastnosti</span></div><div class="istats">${this.itemStatsHtml(it)}</div>`;
+  itemDetailHtml(it: Item, actions = '', compare = false, sockets = false) {
+    return this.itemHeadHtml(it) + (actions ? `<div class="iacts">${actions}</div>` : '') + (sockets ? this.socketsHtml(it) : '') + (compare ? this.compareHtml(it) : '') + `<div class="orn"><span>Vlastnosti</span></div><div class="istats">${this.itemStatsHtml(it, !sockets)}</div>`;
+  }
+
+  /** the sockets of an item as buttons: a set gem (tap: take it out) or an empty socket (tap: set a gem) */
+  socketsHtml(it: Item) {
+    if (!it.sockets?.length) return '';
+    const place = gemPlace(BASE_BY_ID[it.base].cat);
+    return `<div class="orn"><span>Sokety</span></div><div class="sockets">${it.sockets
+      .map((g, i) => {
+        if (!g) return `<button class="sock empty" data-a="sock" data-sock="${i}"><img src="${iconURL('socket_empty', 30)}"><span>Volný soket<small>vsadit drahokam</small></span></button>`;
+        const e = gemEffect(g, place)!;
+        return `<button class="sock" data-a="sock" data-sock="${i}"><img src="${iconURL(gemIcon(g), 30)}"><span style="color:${parseGem(g)!.def.color}">${gemName(g)}<small>${formatStat(e.key, e.value)} • vyjmout</small></span></button>`;
+      })
+      .join('')}</div>`;
+  }
+
+  /** a socket was tapped: take the gem out (it goes back to the pouch) or pick one to set */
+  socketClick(it: Item, i: number, after: () => void) {
+    const s = this.save;
+    const g = it.sockets?.[i];
+    if (g === undefined) return;
+    if (g) {
+      it.sockets![i] = null;
+      addGem(s, g);
+      sfx('ui');
+      this.ui.toast(`${gemName(g)} je zpět ve váčku`, parseGem(g)?.def.color ?? '#fff');
+      this.sc.player.recalc();
+      after();
+      return;
+    }
+    this.gemPicker(it, i, after);
+  }
+
+  /** the gems in the pouch with what each would give in this item */
+  gemPicker(it: Item, i: number, after: () => void) {
+    const s = this.save;
+    const pouch = gemPouch(s);
+    const place = gemPlace(BASE_BY_ID[it.base].cat);
+    const order = (k: string) => {
+      const g = parseGem(k)!;
+      return GEMS.indexOf(g.def) * 10 - g.tier;
+    };
+    const keys = Object.keys(pouch).filter((k) => pouch[k] > 0 && parseGem(k)).sort((a, b) => order(a) - order(b));
+    const p = el(`<div class="panel small"><div class="head"><h2>Vsadit drahokam</h2><button class="close">✕</button></div>
+      <div style="padding:10px">${
+        keys.length
+          ? `<div class="hint" style="margin-bottom:6px">Co který drahokam dá ${GEM_PLACE_NAME[place]} (${esc(it.name)}):</div><div class="gemlist">${keys
+              .map((k) => {
+                const e = gemEffect(k, place)!;
+                return `<button class="spcard gempick" data-gem="${k}"><img src="${iconURL(gemIcon(k), 30)}"><div><div class="nm" style="color:${parseGem(k)!.def.color}">${gemName(k)} <span class="hint">×${pouch[k]}</span></div><div class="lv2">${formatStat(e.key, e.value)}</div></div></button>`;
+              })
+              .join('')}</div>`
+          : '<p class="hint">Nemáš žádné drahokamy. Padají z nestvůr (hlavně šampionů), strážců, zlatých skřetů a truhel.</p>'
+      }</div></div>`);
+    const close = this.ui.dialog(p);
+    $('.close', p).addEventListener('click', () => {
+      sfx('ui');
+      close();
+    });
+    p.querySelectorAll<HTMLElement>('.gempick').forEach((b) =>
+      b.addEventListener('click', () => {
+        const k = b.dataset.gem!;
+        if (!pouch[k] || !it.sockets || it.sockets[i]) return close();
+        addGem(s, k, -1);
+        it.sockets[i] = k;
+        bumpStat(s, 'gemsSet');
+        sfx('upgrade');
+        const e = gemEffect(k, place)!;
+        this.ui.toast(`Vsazeno: ${gemName(k)} (${formatStat(e.key, e.value)})`, parseGem(k)!.def.color);
+        this.sc.player.recalc();
+        close();
+        after();
+      }),
+    );
+  }
+
+  // ------------------------------------------------------------------ GEMS
+  selGem: string | null = null;
+
+  /** the gem pouch: every kind in every grade, joining three into one of the next grade */
+  gems(host?: HTMLElement, overPanel = false) {
+    const p = host ?? this.frame('Drahokamy');
+    const body = $('.body', p);
+    const s = this.save;
+    const pouch = gemPouch(s);
+    if (!this.selGem || !parseGem(this.selGem)) this.selGem = Object.keys(pouch).find((k) => pouch[k] > 0 && parseGem(k)) ?? gemKey('ruby', 1);
+    const total = Object.values(pouch).reduce((a, b) => a + b, 0);
+    body.innerHTML = `
+      <div class="col" style="flex:1;min-width:0">
+        <div class="hint">Drahokamy vsadíš do soketů předmětů v detailu předmětu (inventář) – zbraň, zbroj a šperk dostanou od stejného drahokamu jiný bonus. Tři stejné drahokamy spojíš v jeden lepší.</div>
+        <div class="scroll" style="flex:1"><div class="gemgrid">${GEMS.map(
+          (g) =>
+            `<div class="gemrow"><span class="gname" style="color:${g.color}">${g.name[0].toUpperCase() + g.name.slice(1)}</span>${GEM_TIERS.map((_, t) => {
+              const k = gemKey(g.id, t + 1);
+              const n = pouch[k] ?? 0;
+              return `<div class="slot gemcell ${n ? '' : 'none'} ${this.selGem === k ? 'sel' : ''}" data-gem="${k}"><img src="${iconURL(gemIcon(k), 30)}"><span class="price">${n ? '×' + n : ''}</span></div>`;
+            }).join('')}</div>`,
+        ).join('')}</div></div>
+        <div class="hint">Ve váčku: ${total} ${total === 1 ? 'drahokam' : total > 1 && total < 5 ? 'drahokamy' : 'drahokamů'}</div>
+      </div>
+      <div class="col detail box scroll" style="width:min(300px,38%)"></div>`;
+    const detail = $('.detail', body);
+    const render = () => {
+      detail.scrollTop = 0;
+      const k = this.selGem!;
+      const g = parseGem(k)!;
+      const n = pouch[k] ?? 0;
+      const next = g.tier < GEM_MAX_TIER ? gemKey(g.def.id, g.tier + 1) : null;
+      const cost = combineCost(g.tier, this.sc.floor);
+      const can = !!next && n >= 3 && s.gold >= cost;
+      const eff = (pl: GemPlace) => {
+        const e = gemEffect(k, pl)!;
+        return `<div class="statline"><span>${pl === 'weapon' ? 'Ve zbrani' : pl === 'armor' ? 'Ve zbroji' : 'Ve šperku'}</span><b style="color:#9dff9d;text-align:right">${formatStat(e.key, e.value)}</b></div>`;
+      };
+      detail.innerHTML = `<div class="orn"><span>Drahokam</span></div>
+        <div class="petbig"><img src="${iconURL(gemIcon(k), 75)}"></div>
+        <div style="text-align:center;font-size:22px;color:${g.def.color}">${gemName(k)}</div>
+        <div class="hint" style="text-align:center">ve váčku: ${n}</div>
+        ${eff('weapon')}${eff('armor')}${eff('jewel')}
+        <div class="hint" style="margin-top:4px">Zbraň a magická koule berou bonus zbraně; helma, brnění, kalhoty, opasek, boty a štít zbroje; prsten, náhrdelník a náramek šperku.</div>
+        ${
+          next
+            ? `<div class="box" style="margin-top:8px"><b style="color:#d08aff">Spojit 3 → 1</b><div class="statline"><span>Vznikne</span><b style="color:${g.def.color}">${gemName(next)}</b></div><div class="statline"><span>Cena</span><b>${cost} zl.</b></div>
+              <div class="row eqrow"><button class="btn purple" data-a="join" ${can ? '' : 'disabled'}>Spojit</button><button class="btn small" data-a="joinall" ${n >= 3 ? '' : 'disabled'}>Spojit vše</button></div></div>`
+            : '<div class="hint" style="margin-top:8px">Královský drahokam je nejlepší, dál už spojit nejde.</div>'
+        }`;
+      const join = (all: boolean) => {
+        let made = 0;
+        // bottom-up: chips into small ones, small into cut ones… as far as the gold goes
+        for (let t = all ? 1 : g.tier; t < GEM_MAX_TIER && (all || t === g.tier); t++) {
+          const from = gemKey(g.def.id, t);
+          const c = combineCost(t, this.sc.floor);
+          while ((pouch[from] ?? 0) >= 3 && s.gold >= c && (all || made === 0)) {
+            addGem(s, from, -3);
+            addGem(s, gemKey(g.def.id, t + 1));
+            s.gold -= c;
+            maxStat(s, 'bestGem', t + 1);
+            made++;
+          }
+        }
+        if (!made) return this.ui.toast(s.gold < cost ? 'Nemáš dost zlata' : 'Potřebuješ 3 stejné drahokamy', '#ff8080');
+        sfx('upgrade');
+        this.ui.toast(made === 1 ? `Spojeno: ${gemName(next!)}` : `Spojeno ${made}×`, g.def.color);
+        if (!all && (pouch[k] ?? 0) < 3 && next) this.selGem = next;
+        this.gems(p);
+      };
+      detail.querySelector('[data-a=join]')?.addEventListener('click', () => join(false));
+      detail.querySelector('[data-a=joinall]')?.addEventListener('click', () => join(true));
+    };
+    body.querySelectorAll<HTMLElement>('.gemcell').forEach((c) =>
+      c.addEventListener('click', () => {
+        sfx('ui');
+        this.selGem = c.dataset.gem!;
+        body.querySelectorAll('.gemcell').forEach((x) => x.classList.toggle('sel', x === c));
+        render();
+      }),
+    );
+    render();
+    if (host) return;
+    if (overPanel && this.ui.panel) {
+      // over another panel (from its materials bar): closing comes back to it, with fresh numbers
+      const close = this.ui.dialog(p);
+      const x = $('.close', p);
+      const nx = x.cloneNode(true) as HTMLElement;
+      x.replaceWith(nx);
+      nx.addEventListener('click', () => {
+        sfx('ui');
+        close();
+        this.ui.root.querySelectorAll<HTMLElement>('.mats').forEach((m) => (m.outerHTML = this.matsHtml()));
+      });
+    } else this.ui.showOverlay(p, () => {});
   }
 
   /** slots an item can be worn in (one-handed weapons and rings fit two) */
@@ -255,9 +447,9 @@ export class Panels {
           eq = slots.map((sl, i) => `<button class="btn green${i === best ? ' best' : ''}" data-a="equip" data-t="${sl}">${EQUIP_TO[sl] ?? 'Nasadit'}${i === best ? ' ▲' : ''}</button>`).join('');
         } else eq = `<button class="btn green" data-a="equip" data-t="${slots[0]}">Nasadit</button>`;
         const acts = `<div class="row eqrow">${eq}</div><div class="row subrow"><button class="btn gold small" data-a="sell">Prodat · ${itemValue(it)} zl.</button><button class="btn purple small" data-a="salvage">Rozebrat</button><button class="btn red small" data-a="drop">Zahodit</button></div>`;
-        detail.innerHTML = this.itemDetailHtml(it, acts, true) + `<div class="hint" style="margin-top:6px">Rozebrání dá: ${this.salvageText(it)}</div>`;
+        detail.innerHTML = this.itemDetailHtml(it, acts, true, true) + `<div class="hint" style="margin-top:6px">Rozebrání dá: ${this.salvageText(it)}${it.sockets?.some(Boolean) ? ' Drahokamy se při prodeji i rozebrání vrátí do váčku.' : ''}</div>`;
       } else {
-        detail.innerHTML = this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn" data-a="unequip">Sundat do inventáře</button></div>`);
+        detail.innerHTML = this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn" data-a="unequip">Sundat do inventáře</button></div>`, false, true);
       }
     };
     const rerender = () => this.inventory(mode, p);
@@ -299,6 +491,11 @@ export class Panels {
       const a = b.dataset.a;
       const sel = this.sel;
       if (!sel) return;
+      if (a === 'sock') {
+        const it = sel.from === 'inv' ? s.inventory[sel.idx] : sel.from === 'eq' ? s.equip[sel.slot] : null;
+        if (it) this.socketClick(it, +b.dataset.sock!, rerender);
+        return;
+      }
       if (a === 'equip') {
         if (sel.from !== 'inv') return;
         const err = equipItem(s, sel.idx, b.dataset.t as Slot | undefined);
@@ -316,6 +513,7 @@ export class Panels {
           if (s.inventory[sel.idx] !== it) return;
           const price = itemValue(it);
           s.gold += price;
+          if (returnGems(s, it)) this.ui.toast('Drahokamy se vrátily do váčku', '#d08aff');
           this.sold(it, price);
           s.inventory[sel.idx] = null;
           sfx('coin');
@@ -359,6 +557,7 @@ export class Panels {
       s.inventory.forEach((it, i) => {
         if (it && it.rarity <= 1 && !this.sc.loot.isUpgrade(it)) {
           g += itemValue(it);
+          returnGems(s, it);
           this.sold(it, itemValue(it));
           s.inventory[i] = null;
           n++;
@@ -419,6 +618,7 @@ export class Panels {
     const s = this.save;
     const it = s.inventory[idx];
     if (!it) return;
+    returnGems(s, it);
     const r = salvageResult(it);
     s.gold += r.gold;
     s.mats.dust += r.dust;
@@ -933,8 +1133,14 @@ export class Panels {
       const ec = enchantCost(it);
       const canUp = it.upgrade < MAX_UPGRADE && s.gold >= uc.gold && s.mats.stone >= uc.stones;
       const canEn = s.gold >= ec.gold && s.mats.dust >= ec.dust;
+      const nSock = it.sockets?.length ?? 0;
+      const maxS = maxSockets(BASE_BY_ID[it.base].cat);
+      const dc = drillCost(it);
+      const canDrill = nSock < maxS && s.gold >= dc.gold && s.mats.stone >= dc.stones;
       detail.innerHTML =
-        this.itemDetailHtml(it) +
+        this.itemDetailHtml(it, '', false, true) +
+        `<div class="box" style="margin-top:8px"><b style="color:#ff9ab0">Sokety ${nSock}/${maxS}</b>
+        ${nSock >= maxS ? '<div class="hint">Víc soketů se do tohoto předmětu nevejde.</div>' : `<div class="statline"><span>Vyvrtat soket</span><b>${dc.gold} zl. + ${dc.stones}× kámen</b></div><div class="hint">Do soketu pak vsadíš drahokam (klepnutím na soket výše).</div><button class="btn" data-a="drill" ${canDrill ? '' : 'disabled'}>Vyvrtat soket</button>`}</div>` +
         `<div class="box" style="margin-top:8px"><b style="color:#7cc8ff">Vylepšení na +${it.upgrade + 1}</b>
         ${it.upgrade >= MAX_UPGRADE ? '<div class="hint">Maximální stupeň dosažen.</div>' : `<div class="statline"><span>Cena</span><b>${uc.gold} zl. + ${uc.stones}× kámen</b></div><div class="statline"><span>Šance na úspěch</span><b style="color:${uc.chance >= 0.8 ? '#6dff7a' : uc.chance >= 0.5 ? '#ffd76a' : '#ff8080'}">${Math.round(uc.chance * 100)} %</b></div>
         <div class="hint">Při neúspěchu se materiály spotřebují, předmět zůstane.</div><button class="btn blue" data-a="up" ${canUp ? '' : 'disabled'}>Vylepšit</button>`}</div>
@@ -959,6 +1165,22 @@ export class Panels {
         this.sc.player.recalc();
         this.forge(p);
       });
+      detail.querySelector('[data-a=drill]')?.addEventListener('click', () => {
+        const c = drillCost(it);
+        if (s.gold < c.gold || s.mats.stone < c.stones || (it.sockets?.length ?? 0) >= maxSockets(BASE_BY_ID[it.base].cat)) return;
+        s.gold -= c.gold;
+        s.mats.stone -= c.stones;
+        (it.sockets ??= []).push(null);
+        sfx('upgrade');
+        this.ui.toast(`Vyvrtán soket (${it.sockets.length}/${maxSockets(BASE_BY_ID[it.base].cat)})`, '#ff9ab0');
+        this.forge(p);
+      });
+      detail.querySelectorAll<HTMLElement>('[data-a=sock]').forEach((b) =>
+        b.addEventListener('click', () => {
+          sfx('ui');
+          this.socketClick(it, +b.dataset.sock!, () => this.forge(p));
+        }),
+      );
       detail.querySelector('[data-a=en]')?.addEventListener('click', () => {
         const c = enchantCost(it);
         if (s.gold < c.gold || s.mats.dust < c.dust) return;
