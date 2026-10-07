@@ -5,6 +5,7 @@ import { BASE_BY_ID, generateItem, itemStats, weaponDamage, isTwoHanded } from '
 import { SPELL_BY_ID, spellsForClass, MAX_SPELL_RANK, BuffMods } from '../data/spells';
 import { bus } from './events';
 import { StoryState, newStory } from '../data/story';
+import { PetState, newPetState, PET_BY_ID, petLevel } from '../data/pets';
 
 export const INVENTORY_SIZE = 30;
 export const STASH_SIZE = 42;
@@ -41,7 +42,7 @@ export interface SaveData {
   playTime: number;
   stash?: (Item | null)[];
   slot?: number;
-  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number };
+  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; deepestDmg?: number; items?: number };
   achievements?: string[];
   story?: StoryState;
   /** combat difficulty (index into DIFFICULTIES, normal when missing) */
@@ -50,6 +51,13 @@ export interface SaveData {
   hardcore?: boolean;
   /** set on a hardcore hero's death: the save must never be written again */
   fallen?: boolean;
+  /** freed pets, the one that comes along and how far each has travelled */
+  pets?: PetState;
+}
+
+/** the pets of a character (older saves get the record on first use) */
+export function petsOf(s: SaveData): PetState {
+  return s.pets ?? (s.pets = newPetState());
 }
 
 /** story progress of a character (older saves get it on first use) */
@@ -225,6 +233,9 @@ export function gearStats(s: SaveData): { stats: Stats; specials: Set<string> } 
   }
   const cdef = CLASS_BY_ID[s.cls];
   for (const [k, v] of Object.entries(cdef.passiveStats)) add(k as StatKey, v as number);
+  // the pet that travels with the hero
+  const pet = s.pets?.active ? PET_BY_ID[s.pets.active] : null;
+  if (pet) for (const [k, v] of Object.entries(pet.stats(petLevel(s.pets!, pet.id)))) add(k as StatKey, v as number);
   return { stats, specials };
 }
 

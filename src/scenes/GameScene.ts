@@ -10,7 +10,9 @@ import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
 import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END } from '../data/enemies';
 import { CHAPTERS, noteForFloor } from '../data/story';
-import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, storyOf, buryHero } from '../systems/state';
+import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, storyOf, buryHero, petsOf } from '../systems/state';
+import { PetFollower } from '../game/pet';
+import { PET_BY_ID, PetId, petTitle, cagePetFor, cageChance, petLevel } from '../data/pets';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { spellsForClass, BuffMods } from '../data/spells';
 import { generateItem } from '../data/items';
@@ -24,6 +26,9 @@ import { areaForFloor } from '../data/biomes';
 import { Difficulty, difficultyOf } from '../data/difficulty';
 import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
+
+/** news about the pet to show once the hero is on the next floor ("Mína reached level 3") */
+let pendingPetNews: string | null = null;
 
 export interface Interactable {
   kind: string;
@@ -136,6 +141,10 @@ export class GameScene extends Phaser.Scene {
   floorKills = 0;
   /** lingering danger zones (spore clouds, void pools) left by story guardians */
   hazards: { x: number; y: number; r: number; dps: number; el: Element; t: number; tick: number; img: Phaser.GameObjects.Image }[] = [];
+  /** the pet travelling with the hero */
+  pet: PetFollower | null = null;
+  /** a cursed chest challenge in progress */
+  cursed: { it: Interactable; t: number; total: number; waveT: number; spawned: Enemy[] } | null = null;
 
   constructor() {
     super('Game');
@@ -169,6 +178,8 @@ export class GameScene extends Phaser.Scene {
     this.revealedRooms = new Set<number>();
     this.mod = null;
     this.hazards = [];
+    this.pet = null;
+    this.cursed = null;
   }
 
   create() {
@@ -209,6 +220,10 @@ export class GameScene extends Phaser.Scene {
     this.lamps.push({ x: ux, y: uy, r: 56, flicker: 0 });
     this.placeStoryPage();
     this.spawnEnemies();
+    this.placePetCage();
+    this.placeCursedChest();
+    // the pet comes down the stairs right after the hero (shown in arrive)
+    this.spawnPet(ux, uy + 4, false);
 
     // camera
     const cam = this.cameras.main;
@@ -312,6 +327,13 @@ export class GameScene extends Phaser.Scene {
     const done = () => {
       this.cinematic = false;
       this.cinematicMove = false;
+      this.petArrives();
+      if (pendingPetNews) {
+        sfx('pet');
+        UI.toast(pendingPetNews, '#ffb3d0');
+        this.pet?.emote('♥');
+        pendingPetNews = null;
+      }
     };
     if (!u || p.dead) return done();
     // first free spot next to the stairs, below them if possible
@@ -753,6 +775,247 @@ export class GameScene extends Phaser.Scene {
     return a;
   }
 
+  // ---------------------------------------------------------------- cursed chest
+  /** a rare black chest: whoever opens it must hold out against waves of monsters for 30 seconds */
+  placeCursedChest() {
+    if (this.floor < 4 || isBossFloor(this.floor)) return;
+    const forced = (window as any).__forceCursed; // dev testing hook
+    if (!forced && Math.random() > 0.12) return;
+    const c = this.freeSpot(10);
+    if (!c) return;
+    const px = c.x * TS + 8,
+      py = c.y * TS + 8;
+    const s = this.add.image(px, py + 8, 'chest_cursed').setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + py + 8);
+    const glow = this.add.image(px, py, 'glow').setTint(0x7dff9a).setAlpha(0.3).setScale(1.1).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
+    this.trackGlow(glow, c.x, c.y);
+    this.tweens.add({ targets: glow, alpha: 0.1, yoyo: true, repeat: -1, duration: 1100 });
+    const label = this.fx.label(px, py - 11, 'Prokletá truhla', '#9dff9a', 6);
+    label.setDepth(99980);
+    this.interactables.push({ kind: 'cursed', x: px, y: py + 4, tx: c.x, ty: c.y, sprite: s, data: { room: c.room, glow, label } });
+    this.lamps.push({ x: px, y: py, r: 44, flicker: 2 });
+  }
+
+  startCursed(it: Interactable) {
+    if (it.used || this.cursed) return;
+    it.used = true;
+    it.data.label?.destroy();
+    const total = 30;
+    this.cursed = { it, t: total, total, waveT: 0.6, spawned: [] };
+    sfx('boss');
+    this.fx.ring(it.x, it.y - 6, 70, 0x7dff9a, 700);
+    this.fx.shake(0.005, 300);
+    UI.banner('Prokletá truhla', 'Odolej 30 sekund! Čím víc nestvůr porazíš, tím bohatší kořist.');
+  }
+
+  /** monsters of this floor come out of green portals around the chest */
+  private cursedWave() {
+    const c = this.cursed!;
+    const it = c.it;
+    const p = this.player;
+    const pool = this.dungeon.spawns.map((sp) => sp.id).filter((id) => ENEMY_BY_ID[id] && ENEMY_BY_ID[id].behavior !== 'thief');
+    if (!pool.length) return;
+    const elapsed = c.total - c.t;
+    const n = 2 + Math.floor(elapsed / 10) + (this.floor >= 60 ? 1 : 0);
+    for (let i = 0; i < n; i++) {
+      let spot: [number, number] | null = null;
+      for (let k = 0; k < 12 && !spot; k++) {
+        const q = this.map.randomFloorNear(it.x, it.y, 105);
+        if (q && Math.hypot(q[0] - p.x, q[1] - p.y) > 40 && this.map.los(it.x, it.y - 4, q[0], q[1])) spot = q;
+      }
+      if (!spot) continue;
+      const [x, y] = spot;
+      const id = pool[Math.floor(Math.random() * pool.length)];
+      const e = this.spawnEnemy(id, x, y, Math.random() < 0.12, it.data.room ?? -1);
+      e.aggro = true;
+      c.spawned.push(e);
+      this.fx.burst(x, y - 6, 0x7dff9a, 10, 'puff');
+      this.fx.ring(x, y, 18, 0x9a5aff, 400);
+    }
+    sfx('summon');
+  }
+
+  private updateCursed(dt: number) {
+    const c = this.cursed!;
+    c.t -= dt;
+    c.waveT -= dt;
+    if (c.waveT <= 0 && c.t > 3) {
+      c.waveT = 3.2;
+      this.cursedWave();
+    }
+    const kills = c.spawned.filter((e) => e.dead && e.hp <= 0).length;
+    UI.eventBar(`☠ Prokletá truhla · ${Math.max(0, Math.ceil(c.t))} s · poraženo ${kills}`, Math.max(0, c.t / c.total));
+    if (c.t <= 0) this.endCursed(kills);
+  }
+
+  /** time is up: the rest of the monsters vanish and the chest opens (the more kills, the more loot) */
+  private endCursed(kills: number) {
+    const c = this.cursed!;
+    this.cursed = null;
+    UI.hideEventBar();
+    for (const e of c.spawned) {
+      if (e.dead) continue;
+      e.dead = true;
+      this.fx.burst(e.x, e.y - 6, 0x7dff9a, 8, 'puff');
+      e.destroyVisuals();
+    }
+    const it = c.it;
+    (it.sprite as Phaser.GameObjects.Image).setTexture('chest_cursed_open');
+    it.data.glow?.destroy();
+    sfx('chest');
+    this.fx.ring(it.x, it.y - 6, 60, 0x7dff9a, 600);
+    this.fx.burst(it.x, it.y - 8, 0x7dff9a, 24);
+    const f = this.floor;
+    this.loot.chestDrops('gold', it.x, it.y);
+    for (let i = 0; i < Math.min(6, Math.floor(kills / 5)); i++) this.loot.dropItem(this.loot.item(f + 1, 1), it.x, it.y);
+    if (kills >= 20) this.loot.dropItem(generateItem(f + 2, { rarity: Math.random() < 0.25 ? 5 : 4 }), it.x, it.y);
+    this.loot.dropMat('dust', 1 + Math.floor(kills / 8), it.x, it.y);
+    if (kills >= 10) this.loot.dropMat('stone', 1 + Math.floor(kills / 12), it.x, it.y);
+    bumpStat(this.save, 'cursed');
+    UI.toast(`Prokletí zlomeno! Poraženo ${kills} ${kills === 1 ? 'nestvůra' : kills > 1 && kills < 5 ? 'nestvůry' : 'nestvůr'}.`, '#9dff9a');
+    bus.emit('stats');
+  }
+
+  // ---------------------------------------------------------------- pets
+  /** the active pet appears at a spot (hidden while the hero is still on the stairs) */
+  spawnPet(x: number, y: number, visible = true) {
+    this.pet?.destroy();
+    this.pet = null;
+    const id = petsOf(this.save).active;
+    const def = id ? PET_BY_ID[id] : null;
+    if (!def) return;
+    this.pet = new PetFollower(this, def, x, y);
+    this.pet.setVisible(visible);
+  }
+
+  /** the pet hops off the stairs after the hero */
+  petArrives() {
+    const pet = this.pet;
+    const u = this.upStairs;
+    if (!pet || !u) return;
+    pet.x = u.x;
+    pet.y = u.y + 3;
+    pet.setVisible(true);
+    pet.sprite.setAlpha(0);
+    this.tweens.add({ targets: pet.sprite, alpha: 1, duration: 300 });
+  }
+
+  /** switch the travelling pet (from the pets panel); null leaves them all in the village */
+  setActivePet(id: PetId | null) {
+    const st = petsOf(this.save);
+    if (id && !st.owned.includes(id)) return;
+    st.active = id;
+    const p = this.player;
+    const old = this.pet;
+    const x = old?.x ?? p.x - p.facing * 12,
+      y = old?.y ?? p.y + 3;
+    if (old) this.fx.burst(old.x, old.y - 4, 0xffffff, 8, 'puff');
+    this.spawnPet(x, y);
+    if (this.pet) {
+      this.fx.burst(x, y - 4, 0xffb3d0, 10);
+      this.pet.emote('♥');
+    }
+    p.recalc();
+    bus.emit('stats');
+    saveGame(this.save);
+  }
+
+  /** now and then a caged animal waits in a room; the first one is there for sure from floor 3 on */
+  placePetCage() {
+    const st = petsOf(this.save);
+    if (this.floor < 3 || isBossFloor(this.floor)) return;
+    const forced = (window as any).__forcePet as PetId | undefined; // dev testing hook
+    const id = forced ?? cagePetFor(st, this.floor);
+    if (!id) return;
+    if (!forced && Math.random() > cageChance(st)) {
+      st.pity++;
+      return;
+    }
+    const c = this.freeSpot(st.owned.length ? 12 : 6);
+    if (c) {
+      st.pity = 0;
+      const px = c.x * TS + 8,
+        py = c.y * TS + 8;
+      const def = PET_BY_ID[id];
+      // the animal sits inside, behind the bars
+      const inside = this.add.sprite(px, py + 5, 'pet_' + id, 0).setOrigin(0.5, 1).setScale(ACTOR_SCALE).play('pet_' + id + '_idle').setDepth(D.entityBase + py + 6);
+      const cage = this.add.image(px, py + 9, 'cage').setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + py + 7);
+      this.add.image(px, py + 7, 'shadow').setDepth(D.floorDeco + 2).setScale(1.3, 1);
+      const label = this.fx.label(px, py - 13, `${petTitle(def)} v kleci`, def.color, 6);
+      label.setDepth(99980);
+      this.interactables.push({ kind: 'cage', x: px, y: py + 6, tx: c.x, ty: c.y, sprite: cage, data: { id, inside, label } });
+      this.lamps.push({ x: px, y: py, r: 48, flicker: 0 });
+      // it calls for help when the hero is near
+      this.time.addEvent({
+        delay: 2600,
+        loop: true,
+        callback: () => {
+          const it = this.interactables.find((i) => i.kind === 'cage' && i.data.id === id);
+          if (!it || it.used || !inside.active || !this.map.explored[this.map.idx(c.x, c.y)]) return;
+          if (Math.hypot(this.player.x - px, this.player.y - py) < 150) this.fx.number(px, py - 8, Math.random() < 0.5 ? '♥' : '!', def.color);
+        },
+      });
+    }
+  }
+
+  /** a free floor tile near the middle of a regular room away from the start, with nothing around it */
+  freeSpot(minStartDist: number): { x: number; y: number; room: number } | null {
+    const d = this.dungeon;
+    const s0 = d.start;
+    const busy = new Set(d.objects.map((o) => o.y * d.w + o.x));
+    for (const it of this.interactables) busy.add(it.ty * d.w + it.tx);
+    const rooms = d.rooms.filter((r) => r.type === 'normal' && Math.hypot(r.cx - s0.x, r.cy - s0.y) > minStartDist);
+    Phaser.Utils.Array.Shuffle(rooms);
+    for (const r of rooms) {
+      const cells = r.cells
+        .map((i) => [i % d.w, Math.floor(i / d.w)] as [number, number])
+        .filter(([x, y]) => {
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (d.grid[(y + dy) * d.w + x + dx] !== T_FLOOR || busy.has((y + dy) * d.w + x + dx)) return false;
+          return !this.map.isHidden(x, y);
+        })
+        .sort((a, b) => Math.hypot(a[0] - r.cx, a[1] - r.cy) - Math.hypot(b[0] - r.cx, b[1] - r.cy));
+      if (cells[0]) return { x: cells[0][0], y: cells[0][1], room: r.id };
+    }
+    return null;
+  }
+
+  /** opens the cage: the animal joins the hero's pets (and comes along when there is no other) */
+  freePet(it: Interactable) {
+    if (it.used) return;
+    it.used = true;
+    const id = it.data.id as PetId;
+    const def = PET_BY_ID[id];
+    const st = petsOf(this.save);
+    if (!st.owned.includes(id)) st.owned.push(id);
+    (it.sprite as Phaser.GameObjects.Image).setTexture('cage_open');
+    it.data.label?.destroy();
+    const inside = it.data.inside as Phaser.GameObjects.Sprite;
+    sfx('chest');
+    this.fx.burst(it.x, it.y - 8, 0xffd0e0, 16);
+    const freed = `${petTitle(def)} ${def.fem ? 'je volná' : 'je volný'}!`;
+    const join = () => {
+      inside.destroy();
+      this.setActivePet(id);
+      sfx('pet');
+      UI.toast(`${freed} Půjde s tebou. ${def.desc}`, def.color);
+    };
+    // staying behind: it runs off to the village (still yours, in the pets panel)
+    const stay = () => {
+      if (!inside.active) return;
+      this.fx.number(inside.x, inside.y - 14, '♥', def.color);
+      this.tweens.add({ targets: inside, alpha: 0, x: inside.x + 30, duration: 700, onComplete: () => inside.destroy() });
+      UI.toast(`${petTitle(def)} počká ve vesnici. Vyměnit mazlíčka jde v pauze (Mazlíčci).`, def.color);
+    };
+    // hops out of the cage
+    this.tweens.add({ targets: inside, y: inside.y + 6, x: inside.x + 4, duration: 260, ease: 'Quad.easeOut' });
+    this.time.delayedCall(320, () => {
+      const cur = st.active && st.active !== id ? PET_BY_ID[st.active] : null;
+      if (!cur) return join();
+      UI.confirm(freed, `${def.desc} Vezmeš ${def.fem ? 'ji' : 'ho'} s sebou? Teď s tebou chodí ${petTitle(cur)}. Mazlíčky jde kdykoliv vyměnit v pauze (Mazlíčci).`, join, 'Vzít s sebou', `Ponechat: ${cur.name}`, stay);
+    });
+    bus.emit('stats');
+    saveGame(this.save);
+  }
+
   // ---------------------------------------------------------------- queries
   nearestEnemy(x: number, y: number, range: number, needLos: boolean, exclude?: Set<number>): Enemy | null {
     let best: Enemy | null = null,
@@ -847,6 +1110,7 @@ export class GameScene extends Phaser.Scene {
       this.fx.ring(p.x, p.y - 6, 40, 0xffd23a, 600);
       this.fx.burst(p.x, p.y - 6, 0xffd23a, 30);
       UI.levelUp(s.level);
+      this.pet?.emote('♥');
       saveGame(s);
     }
     bus.emit('stats');
@@ -914,6 +1178,10 @@ export class GameScene extends Phaser.Scene {
         return 'Napít se';
       case 'secret':
         return 'Prozkoumat zeď';
+      case 'cage':
+        return `Osvobodit: ${PET_BY_ID[it.data.id as PetId].name}`;
+      case 'cursed':
+        return 'Prokletá truhla';
     }
     return 'Použít';
   }
@@ -980,6 +1248,12 @@ export class GameScene extends Phaser.Scene {
         break;
       case 'secret':
         this.revealSecret(it);
+        break;
+      case 'cage':
+        this.freePet(it);
+        break;
+      case 'cursed':
+        UI.confirm('Prokletá truhla', 'Kdo ji otevře, musí 30 sekund odolávat vlnám nestvůr. Čím víc jich porazíš, tím bohatší bude kořist.', () => this.startCursed(it), 'Přijmout výzvu', 'Raději ne');
         break;
     }
   }
@@ -1306,6 +1580,18 @@ export class GameScene extends Phaser.Scene {
     this.cinematic = true;
     this.save.floor = this.floor + 1;
     this.save.maxFloor = Math.max(this.save.maxFloor, this.save.floor);
+    // the pet goes down with the hero and grows with every few floors
+    const pets = petsOf(this.save);
+    if (pets.active) {
+      const before = petLevel(pets, pets.active);
+      pets.floors[pets.active] = (pets.floors[pets.active] ?? 0) + 1;
+      const after = petLevel(pets, pets.active);
+      if (after > before) {
+        const def = PET_BY_ID[pets.active];
+        pendingPetNews = `🐾 ${petTitle(def)} ${def.fem ? 'dosáhla' : 'dosáhl'} úrovně ${after}!`;
+      }
+    }
+    if (this.pet) this.tweens.add({ targets: [this.pet.sprite, this.pet.shadow], alpha: 0, duration: 500 });
     saveGame(this.save);
     this.currentAction = null;
     UI.setAction(null);
@@ -1405,7 +1691,8 @@ export class GameScene extends Phaser.Scene {
     this.revealT -= dt;
     if (this.revealT <= 0) {
       this.revealT = 0.2;
-      let changed = this.map.revealAround(p.x, p.y, 10);
+      // an owl sees further in the dark
+      let changed = this.map.revealAround(p.x, p.y, this.pet?.def.id === 'owl' ? 14 : 10);
       // stepping into a room lights up all of it (walls included)
       const rid = this.dungeon.roomId[this.map.idx(Math.floor(p.x / TS), Math.floor(p.y / TS))];
       if (rid >= 0 && !this.revealedRooms.has(rid)) {
@@ -1421,6 +1708,8 @@ export class GameScene extends Phaser.Scene {
     if (this.enemies.some((e) => e.dead)) this.enemies = this.enemies.filter((e) => !e.dead);
     for (const a of this.allies) a.update(dt);
     if (this.allies.some((a) => a.dead)) this.allies = this.allies.filter((a) => !a.dead);
+    if (this.pet && !p.dead) this.pet.update(dt);
+    if (this.cursed && !p.dead) this.updateCursed(dt);
     for (const pr of this.projectiles) pr.update(dt);
     if (this.projectiles.some((pr) => pr.dead)) this.projectiles = this.projectiles.filter((pr) => !pr.dead);
     this.spells.update(dt);

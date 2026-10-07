@@ -26,7 +26,8 @@ import {
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, STASH_SIZE, storyBonusPct } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, STASH_SIZE, storyBonusPct, petsOf } from '../systems/state';
+import { PETS, PET_BY_ID, PetId, petLevel, petFloorsToNext, petBonusText, petTitle, PET_MAX_LEVEL, PET_FLOORS_PER_LEVEL } from '../data/pets';
 import { difficultyOf } from '../data/difficulty';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx } from '../systems/audio';
@@ -69,6 +70,7 @@ export class Panels {
     if (name === 'inventory') this.inventory();
     else if (name === 'character') this.character();
     else if (name === 'spells') this.spells();
+    else if (name === 'pets') this.pets();
   }
 
   frame(title: string, tabs: { id: string; label: string }[] = [], active = '') {
@@ -478,13 +480,14 @@ export class Panels {
     if (d.elem.poison) st.push(['Jedové poškození', '+' + fmt(d.elem.poison)]);
     const specials = [...d.specials].map((x) => `<div class="spec" style="color:#ffb347;font-size:17px">★ ${esc(SPECIAL_BY_ID[x]?.desc ?? x)}</div>`).join('');
     body.innerHTML = `
-      <div class="col" style="width:min(240px,28%)">
+      <div class="col scroll" style="width:min(240px,28%)">
         <div class="box" style="text-align:center"><img class="px" style="height:96px;image-rendering:pixelated" src="${iconURL('pl_' + s.cls, 96)}">
           <div style="font-size:26px;color:#ffd76a">${cls.name}</div><div class="hint">Úroveň ${s.level} • Patro ${s.floor} (max ${s.maxFloor})</div>
           <div style="font-size:17px;margin-top:2px">Obtížnost: <span style="color:${difficultyOf(s).color}">${difficultyOf(s).name}</span>${s.hardcore ? ' <span class="hctag">☠ Hardcore</span>' : ''}</div>
           <div class="hint" style="margin-top:6px">${esc(cls.desc)}</div>
           <div style="margin-top:6px;font-size:17px;color:#9dff9d">Pasivní: ${esc(cls.passive)}</div>
           <div class="hint" style="margin-top:6px">Zabito nepřátel: ${s.kills.toLocaleString('cs-CZ')}</div>
+          ${this.petLineHtml()}
           ${s.story && (s.story.shards || s.story.blessing) ? `<div style="margin-top:6px;font-size:17px;color:#9fe6ff">Pečetní střepy: ${s.story.shards}/4${s.story.blessing ? ' • Elařino požehnání' : ''}<br><span class="hint">+${storyBonusPct(s)} % zdraví, poškození a síly kouzel</span></div>` : ''}
         </div>
       </div>
@@ -496,6 +499,10 @@ export class Panels {
         ${st.map(([a, b]) => `<div class="statline"><span>${a}</span><b>${b}</b></div>`).join('')}
         ${specials ? '<b style="color:#ffd76a;margin-top:6px">Zvláštní efekty</b>' + specials : ''}
       </div>`;
+    body.querySelector('[data-a=pets]')?.addEventListener('click', () => {
+      sfx('ui');
+      this.pets();
+    });
     body.querySelectorAll<HTMLButtonElement>('[data-attr],[data-attr5]').forEach((b) =>
       b.addEventListener('click', () => {
         const k = (b.dataset.attr ?? b.dataset.attr5) as AttrKey;
@@ -508,6 +515,79 @@ export class Panels {
         this.character(p);
       }),
     );
+    if (!host) this.ui.showOverlay(p, () => {});
+  }
+
+  // ------------------------------------------------------------------ PETS
+  selPet: PetId | null = null;
+
+  /** the active pet in the character panel (with the way to all of them) */
+  petLineHtml() {
+    const st = petsOf(this.save);
+    if (!st.owned.length) return `<div class="hint" style="margin-top:6px">🐾 Mazlíčka zatím nemáš – hledej zvířátka v klecích (od patra 3).</div>`;
+    const a = st.active ? PET_BY_ID[st.active] : null;
+    return `<div class="petline">${a ? `<img src="${iconURL('pet_' + a.id, 48)}"><span><b style="color:${a.color}">${esc(petTitle(a))}</b><br><span class="hint">úroveň ${petLevel(st, a.id)}</span></span>` : '<span class="hint">Žádný mazlíček s tebou nechodí.</span>'}<button class="btn small" data-a="pets">🐾 Mazlíčci</button></div>`;
+  }
+
+  pets(host?: HTMLElement) {
+    const p = host ?? this.frame('Mazlíčci');
+    const body = $('.body', p);
+    const st = petsOf(this.save);
+    if (!this.selPet || !PET_BY_ID[this.selPet]) this.selPet = st.active ?? st.owned[0] ?? PETS[0].id;
+    const cards = PETS.map((d) => {
+      const own = st.owned.includes(d.id);
+      const lvl = petLevel(st, d.id);
+      const sub = !own ? `klec od patra ${d.minFloor}` : st.active === d.id ? `úroveň ${lvl} • <span style="color:#6dff7a">● s tebou</span>` : `úroveň ${lvl} • ${petBonusText(d, lvl).split(', ').pop()}`;
+      return `<div class="spcard petcard ${own ? '' : 'locked'} ${this.selPet === d.id ? 'sel' : ''}" data-pet="${d.id}"><img src="${iconURL('pet_' + d.id, 64)}"><div style="min-width:0"><div class="nm" style="color:${own ? d.color : '#9a94a8'}">${own ? esc(petTitle(d)) : '???'}</div><div class="lv2">${sub}</div></div></div>`;
+    }).join('');
+    body.innerHTML = `
+      <div class="col" style="flex:1;min-width:0">
+        <div class="hint">Mazlíčky osvobodíš z klecí v dungeonu. S tebou chodí vždy jeden: nosí ti kořist, která leží kolem, a dává svůj bonus. Za každá ${PET_FLOORS_PER_LEVEL} patra, která s tebou sestoupí, získá úroveň (nejvýš ${PET_MAX_LEVEL}).</div>
+        <div class="scroll" style="flex:1"><div class="spgrid petgrid">${cards}</div></div>
+        <div class="hint">Osvobozeno: ${st.owned.length}/${PETS.length}</div>
+      </div>
+      <div class="col detail box scroll" style="width:min(300px,38%)"></div>`;
+    const detail = $('.detail', body);
+    const renderDetail = () => {
+      detail.scrollTop = 0;
+      const d = PET_BY_ID[this.selPet!];
+      const own = st.owned.includes(d.id);
+      if (!own) {
+        detail.innerHTML = `<div class="orn"><span>Neznámý mazlíček</span></div><div class="petbig locked"><img src="${iconURL('pet_' + d.id, 96)}"></div><p class="hint">Tohle zvířátko čeká v kleci někde od patra ${d.minFloor} níž. Klec poznáš podle nápisu nad ní – stačí k ní dojít a otevřít ji.</p>`;
+        return;
+      }
+      const lvl = petLevel(st, d.id);
+      const next = petFloorsToNext(st, d.id);
+      const active = st.active === d.id;
+      detail.innerHTML = `<div class="orn"><span>${esc(d.species)}</span></div>
+        <div class="petbig"><img src="${iconURL('pet_' + d.id, 96)}"></div>
+        <div style="text-align:center;font-size:24px;color:${d.color}">${esc(d.name)}</div>
+        <div class="hint" style="text-align:center">úroveň ${lvl}/${PET_MAX_LEVEL}${next ? ` • další za ${next} ${next === 1 ? 'patro' : next < 5 ? 'patra' : 'pater'}` : ' • nejvyšší'}</div>
+        <div class="row eqrow" style="margin:8px 0">${active ? '<button class="btn" data-a="home">Nechat doma</button>' : '<button class="btn green" data-a="take">Vzít s sebou</button>'}</div>
+        <p style="margin:4px 0">${esc(d.desc)}</p>
+        <div class="statline"><span>Bonus teď</span><b style="color:#9dff9d;text-align:right">${petBonusText(d, lvl)}</b></div>
+        ${lvl < PET_MAX_LEVEL ? `<div class="statline"><span>Na úrovni ${PET_MAX_LEVEL}</span><b style="color:#c8c0d8;text-align:right">${petBonusText(d, PET_MAX_LEVEL)}</b></div>` : ''}
+        <div class="hint" style="margin-top:6px">S tebou ${d.fem ? 'sestoupila' : 'sestoupil'} o ${st.floors[d.id] ?? 0} ${(st.floors[d.id] ?? 0) === 1 ? 'patro' : (st.floors[d.id] ?? 0) > 1 && (st.floors[d.id] ?? 0) < 5 ? 'patra' : 'pater'}.</div>`;
+      detail.querySelector('[data-a=take]')?.addEventListener('click', () => {
+        sfx('levelup');
+        this.sc.setActivePet(d.id);
+        this.pets(p);
+      });
+      detail.querySelector('[data-a=home]')?.addEventListener('click', () => {
+        sfx('ui');
+        this.sc.setActivePet(null);
+        this.pets(p);
+      });
+    };
+    body.querySelectorAll<HTMLElement>('.petcard').forEach((c) =>
+      c.addEventListener('click', () => {
+        sfx('ui');
+        this.selPet = c.dataset.pet as PetId;
+        body.querySelectorAll('.petcard').forEach((x) => x.classList.toggle('sel', x === c));
+        renderDetail();
+      }),
+    );
+    renderDetail();
     if (!host) this.ui.showOverlay(p, () => {});
   }
 

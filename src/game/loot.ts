@@ -19,7 +19,7 @@ export const MAT_INFO: Record<MatKey, { name: string; icon: string; color: strin
   dust: { name: 'Magický prach', icon: 'ic_dust', color: '#c8a8ff' },
 };
 
-interface Ground {
+export interface Ground {
   kind: 'item' | 'gold' | 'mat';
   item?: Item;
   mat?: MatKey;

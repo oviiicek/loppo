@@ -154,6 +154,15 @@ export function sfx(name: string) {
     case 'stairs':
       [400, 300, 200].forEach((f, i) => tone('triangle', f, f * 0.8, 0.15, 0.12, i * 0.12));
       break;
+    case 'summon':
+      noise(0.35, 0.12, 900, 0, 'bandpass');
+      tone('sine', 220, 520, 0.3, 0.06);
+      break;
+    case 'pet':
+      // a happy little chirp
+      tone('sine', 880, 1320, 0.08, 0.07);
+      tone('sine', 1320, 1760, 0.1, 0.06, 0.09);
+      break;
     case 'boss':
       tone('sawtooth', 80, 60, 1.2, 0.2);
       tone('sawtooth', 120, 90, 1.2, 0.15);

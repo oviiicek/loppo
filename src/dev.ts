@@ -590,3 +590,21 @@ Object.assign(dev, {
     return out.toDataURL();
   },
 });
+
+// Pets on demand (tests and screenshots)
+Object.assign(dev, {
+  /** every pet freed; the given one travels along */
+  pets(active: string | null = 'cat', floors = 0) {
+    const sc = (window as any).__scene;
+    const st = sc.save.pets ?? (sc.save.pets = { owned: [], active: null, floors: {}, pity: 0 });
+    st.owned = ['cat', 'dog', 'fox', 'owl', 'turtle', 'slime', 'wisp', 'dragon'];
+    for (const id of st.owned) st.floors[id] = floors;
+    sc.setActivePet(active);
+    return true;
+  },
+  petInfo() {
+    const sc = (window as any).__scene;
+    const pet = sc.pet;
+    return pet ? { id: pet.def.id, lvl: pet.lvl, x: Math.round(pet.x), y: Math.round(pet.y), dHero: Math.round(Math.hypot(pet.x - sc.player.x, pet.y - sc.player.y)), visible: pet.sprite.visible } : null;
+  },
+});

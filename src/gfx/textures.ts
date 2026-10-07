@@ -3,6 +3,7 @@ import { canvas, rect, px, tpl, outline, shade, hash, line, circle } from './pix
 import { CLASSES } from '../data/classes';
 import { biomeForFloor } from '../data/biomes';
 import { buildHeroStrip, HERO_W, HERO_H, HERO_FRAMES } from './heroes';
+import { PET_ART } from './pets';
 
 // ---------------------------------------------------------------------------
 // Registry helpers
@@ -16,7 +17,7 @@ const canvases = new Map<string, HTMLCanvasElement>();
 export const ACTOR_SCALE = 0.5;
 const HI_RES = ['pl_', 'en_', 'al_', 'npc_', 'totem_', 'wp_'];
 // dungeon furniture gets the same treatment (placed with ACTOR_SCALE by the scenes)
-const PROP_KEYS = new Set(['torch', 'bookshelf', 'crate', 'barrel', 'pot', 'table', 'chair', 'bones', 'skull', 'stairs', 'stairs_up', 'door', 'door_open', 'goldpile', 'anvil', 'fountain', 'fountain_used', 'spikes', 'page']);
+const PROP_KEYS = new Set(['torch', 'bookshelf', 'crate', 'barrel', 'pot', 'table', 'chair', 'bones', 'skull', 'stairs', 'stairs_up', 'door', 'door_open', 'goldpile', 'anvil', 'fountain', 'fountain_used', 'spikes', 'page', 'cage', 'cage_open']);
 const PROP_PREFIX = ['banner_', 'shrine_', 'chest_', 'torch_', 'deco_'];
 export const isPropTex = (key: string) => PROP_KEYS.has(key) || PROP_PREFIX.some((p) => key.startsWith(p));
 const isHiRes = (key: string) => HI_RES.some((p) => key.startsWith(p)) || isPropTex(key);
@@ -2715,6 +2716,33 @@ function buildObjects() {
     addCanvas('chest_' + n, iconCanvasSized(16, 14, chest(b, d, t, false, null)));
     addCanvas('chest_' + n + '_open', iconCanvasSized(16, 14, chest(b, d, t, true, null)));
   }
+  // the cursed chest: black wood, bone trim, glowing green runes and a skull lock
+  const cursed = (open: boolean) => (c: CanvasRenderingContext2D) => {
+    chest('#2e1a3a', '#170c1e', '#d8d0c0', open, open ? '#7dff9a' : null)(c);
+    const R = '#7dff9a';
+    for (const [x, y] of [
+      [3, 9],
+      [4, 10],
+      [3, 11],
+      [12, 9],
+      [11, 10],
+      [12, 11],
+    ])
+      px(c, x, y, R);
+    if (!open) {
+      for (const [x, y] of [
+        [3, 3],
+        [12, 3],
+      ])
+        px(c, x, y, R);
+      rect(c, 6, 3, 4, 3, '#e8e2cf');
+      px(c, 7, 4, '#1a1420');
+      px(c, 9, 4, '#1a1420');
+      rect(c, 7, 6, 2, 1, '#e8e2cf');
+    }
+  };
+  addCanvas('chest_cursed', iconCanvasSized(16, 14, cursed(false)));
+  addCanvas('chest_cursed_open', iconCanvasSized(16, 14, cursed(true)));
   // spike trap 16x16, 2 frames (retracted / extended)
   {
     const [c, ctx] = canvas(32, 16);
@@ -3503,11 +3531,66 @@ function buildTierVariants() {
   });
 }
 
+// pets are drawn at double detail already (like the heroes); cages are furniture
+function buildPets() {
+  for (const [id, a] of Object.entries(PET_ART)) {
+    const n = 6;
+    const [c, ctx] = canvas(a.w * n, a.h);
+    for (let f = 0; f < n; f++) {
+      const [fc, fctx] = canvas(a.w, a.h);
+      a.draw(fctx, f);
+      crisp(fc);
+      outline(fc, OUT);
+      ctx.drawImage(fc, f * a.w, 0);
+    }
+    addStrip('pet_' + id, c, a.w, a.h, n, false);
+  }
+  // a cage: the plank and the roof get an outline, the bars stay thin so the animal inside shows
+  const cage = (open: boolean) => (ctx: CanvasRenderingContext2D) => {
+    const W = '#7a5230',
+      WD = '#4e321c',
+      WL = '#a07040',
+      I = '#9aa0aa',
+      IL = '#d4dae2',
+      ID = '#4a4e56';
+    rect(ctx, 1, 17, 19, 4, W);
+    rect(ctx, 1, 20, 19, 1, WD);
+    rect(ctx, 1, 17, 19, 1, WL);
+    rect(ctx, 2, 3, 17, 3, W);
+    rect(ctx, 2, 3, 17, 1, WL);
+    rect(ctx, 2, 5, 17, 1, WD);
+    rect(ctx, 9, 1, 3, 1, I);
+    px(ctx, 8, 2, I);
+    px(ctx, 12, 2, I);
+    outline(ctx.canvas, OUT);
+    // bars with a dark edge (the door in the middle is open on the freed cage)
+    for (const x of [2, 6, 10, 14, 18]) {
+      if (open && x >= 6 && x <= 14) continue;
+      rect(ctx, x, 6, 1, 11, I);
+      px(ctx, x, 6, IL);
+      rect(ctx, x + 1, 7, 1, 10, ID);
+    }
+    if (!open) {
+      rect(ctx, 2, 11, 17, 1, ID);
+      // padlock
+      rect(ctx, 9, 10, 3, 3, '#e9b949');
+      px(ctx, 10, 11, '#7a5a1a');
+    } else {
+      // the door swung out to the right
+      rect(ctx, 20, 6, 1, 11, I);
+      for (const y of [8, 12, 16]) px(ctx, 19, y, ID);
+    }
+  };
+  creatureStrip('cage', 22, 22, 1, cage(false), false);
+  creatureStrip('cage_open', 22, 22, 1, cage(true), false);
+}
+
 export function buildAllTextures(scene: Phaser.Scene) {
   SCENE = scene;
   buildTileset();
   buildClassSprites();
   buildEnemies();
+  buildPets();
   buildWeapons();
   buildIcons();
   buildTierVariants();

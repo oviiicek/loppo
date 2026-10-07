@@ -249,6 +249,7 @@ class UIManager {
         <div class="rbtn" data-a="pause" title="Menu (Esc)">☰</div>
       </div>
       <div class="bossbar"><div class="name"></div><div class="bar hp"><div class="fill"></div></div></div>
+      <div class="eventbar"><div class="name"></div><div class="bar ev"><div class="fill"></div></div></div>
       <div class="toasts"></div>
       <div class="lootfeed"></div>
       <div class="banner"><h1></h1><p></p></div>
@@ -848,20 +849,8 @@ class UIManager {
     if (!this.hud) return;
     const l = $('.levelup', this.hud);
     $('h2', l).textContent = `Úroveň ${level}!`;
-    // at the top, centred in the free space between the health bars and the buttons (on narrow
-    // phones that gap is too small, so it goes just below the buttons, left of the minimap)
-    const root = this.root.getBoundingClientRect();
-    const bars = $('.hud-status', this.hud).getBoundingClientRect();
-    const btns = $('.topbtns', this.hud).getBoundingClientRect();
-    const mini = $('.minimap', this.hud).getBoundingClientRect();
-    let left = bars.right + 8,
-      right = btns.left - 8,
-      top = 8;
-    if (right - left < 210) {
-      right = mini.left - 8;
-      top = btns.bottom + 6;
-    }
-    l.style.left = `${(left + right) / 2 - root.left}px`;
+    const { left, right, top } = this.topSlot(210);
+    l.style.left = `${(left + right) / 2}px`;
     l.style.top = `${top}px`;
     l.style.maxWidth = `${Math.max(180, right - left)}px`;
     l.classList.remove('on');
@@ -869,6 +858,23 @@ class UIManager {
     l.classList.add('on');
     clearTimeout((l as any)._t);
     (l as any)._t = setTimeout(() => l.classList.remove('on'), 2600);
+  }
+
+  /** free space at the top centre between the health bars and the buttons (on narrow phones that gap
+   *  is too small, so it is just below the buttons, left of the minimap); relative to the game root */
+  topSlot(need: number) {
+    const root = this.root.getBoundingClientRect();
+    const bars = $('.hud-status', this.hud!).getBoundingClientRect();
+    const btns = $('.topbtns', this.hud!).getBoundingClientRect();
+    const mini = $('.minimap', this.hud!).getBoundingClientRect();
+    let left = bars.right + 8,
+      right = btns.left - 8,
+      top = 8;
+    if (right - left < need) {
+      right = mini.left - 8;
+      top = btns.bottom + 6;
+    }
+    return { left: left - root.left, right: right - root.left, top };
   }
 
   /** small pickup line on the left side (items and materials picked up) */
@@ -896,10 +902,35 @@ class UIManager {
     if (!this.hud) return;
     this.bossRef = b;
     const bb = $('.bossbar', this.hud);
+    // between the health bars and the buttons, or below them on narrow screens
+    const { left, right, top } = this.topSlot(280);
+    bb.style.left = `${(left + right) / 2}px`;
+    bb.style.top = `${top}px`;
+    bb.style.width = `${Math.min(420, right - left)}px`;
     const stages = b.phaseCount > 1 ? ` · fáze ${b.phase + 1}/${b.phaseCount}` : '';
     $('.name', bb).textContent = b.story ? `${b.name}, ${b.story.title}${stages}` : b.name;
     bb.classList.toggle('story', !!b.story);
     bb.classList.add('on');
+  }
+
+  /** progress of a floor event (the cursed chest) at the top of the screen */
+  eventBar(text: string, frac: number) {
+    if (!this.hud) return;
+    const b = $('.eventbar', this.hud);
+    if (!b.classList.contains('on')) {
+      const { left, right, top } = this.topSlot(260);
+      b.style.left = `${(left + right) / 2}px`;
+      b.style.top = `${top}px`;
+      b.style.width = `${Math.min(380, right - left)}px`;
+    }
+    b.classList.add('on');
+    const n = $('.name', b);
+    if (n.textContent !== text) n.textContent = text;
+    ($('.fill', b) as HTMLElement).style.transform = `scaleX(${frac})`;
+  }
+
+  hideEventBar() {
+    if (this.hud) $('.eventbar', this.hud).classList.remove('on');
   }
 
   hideBoss() {
@@ -983,7 +1014,7 @@ class UIManager {
     this.menus.pause();
   }
 
-  confirm(title: string, text: string, yes: () => void, yesLabel = 'Ano', noLabel = 'Ne') {
+  confirm(title: string, text: string, yes: () => void, yesLabel = 'Ano', noLabel = 'Ne', no?: () => void) {
     const p = el(`<div class="panel small"><div class="head"><h2>${esc(title)}</h2></div>
       <div style="padding:14px"><p class="hint" style="font-size:19px;margin:0 0 14px">${esc(text)}</p>
       <div class="row" style="justify-content:flex-end"><button class="btn red" data-a="no">${esc(noLabel)}</button><button class="btn green" data-a="yes">${esc(yesLabel)}</button></div></div></div>`);
@@ -999,6 +1030,7 @@ class UIManager {
       if (wasOpen) prev!.style.display = '';
       else this.resumeGame();
       if (ok) yes();
+      else no?.();
     };
     $('[data-a=yes]', p).addEventListener('click', () => done(true));
     $('[data-a=no]', p).addEventListener('click', () => done(false));

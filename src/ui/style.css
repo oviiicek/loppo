@@ -650,6 +650,32 @@ img.px {
 .bossbar .bar {
   height: 14px;
 }
+.eventbar {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: min(40vw, 380px);
+  transform: translateX(-50%);
+  display: none;
+  pointer-events: none;
+}
+.eventbar.on {
+  display: block;
+}
+.eventbar .name {
+  text-align: center;
+  font-size: 18px;
+  color: #9dff9a;
+  text-shadow: 2px 2px 0 #000;
+  margin-bottom: 2px;
+  white-space: nowrap;
+}
+.eventbar .bar {
+  height: 10px;
+}
+.eventbar .fill {
+  background: linear-gradient(#b8ffb0, #3fae5a 60%, #2a7a3e) !important;
+}
 .vignette {
   position: absolute;
   inset: 0;
@@ -1403,6 +1429,59 @@ img.px {
 }
 .rank {
   color: #ffe45c;
+}
+
+/* pets */
+.petgrid {
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+}
+.petcard img {
+  width: 48px;
+  height: 41px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: radial-gradient(circle at 50% 70%, rgba(255, 220, 160, 0.16), transparent 70%);
+}
+.petcard.locked {
+  opacity: 0.7;
+}
+.petcard.locked img,
+.petbig.locked img {
+  filter: brightness(0) drop-shadow(0 0 1px rgba(255, 255, 255, 0.35));
+  opacity: 0.6;
+}
+.petbig {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 2px;
+}
+.petbig img {
+  width: 112px;
+  height: 96px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: radial-gradient(ellipse at 50% 80%, rgba(255, 220, 160, 0.18), transparent 65%);
+}
+.petline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  text-align: left;
+  font-size: 16px;
+  line-height: 1.1;
+}
+.petline img {
+  width: 40px;
+  height: 34px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.petline .btn {
+  margin-left: auto;
 }
 
 /* lockpick */

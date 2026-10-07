@@ -383,7 +383,7 @@ export class Menus {
         <div class="hint">${esc(CLASS_BY_ID[sc.save.cls].name)} • úroveň ${sc.save.level} • patro ${sc.floor} • herní čas ${Math.floor(sc.save.playTime / 60)} min • <button class="linkbtn" data-a="diff">${diffTag(sc.save)} ✎</button></div>
         <button class="btn green" data-a="resume">Pokračovat</button>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button></div>
-        <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="ach">Úspěchy (${(sc.save.achievements ?? []).length}/${ACHIEVEMENTS.length})</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
+        <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="pets">🐾 Mazlíčci</button><button class="btn" style="flex:1" data-a="ach">Úspěchy ${(sc.save.achievements ?? []).length}/${ACHIEVEMENTS.length}</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button>${isStandalone() ? '' : `<button class="btn small blue" data-a="fs" data-fs="label">${fsButtonHTML('label')}</button>`}</div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Rozebírat: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button></div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
@@ -428,9 +428,9 @@ export class Menus {
         this.achievements();
       } else if (a === 'chron') {
         this.chronicle();
-      } else if (a === 'inv' || a === 'char' || a === 'spells') {
+      } else if (a === 'inv' || a === 'char' || a === 'spells' || a === 'pets') {
         this.ui.closeOverlay();
-        this.ui.openPanel(a === 'inv' ? 'inventory' : a === 'char' ? 'character' : 'spells');
+        this.ui.openPanel(a === 'inv' ? 'inventory' : a === 'char' ? 'character' : a === 'pets' ? 'pets' : 'spells');
       } else if (a === 'quit') {
         saveGame(sc.save);
         this.ui.closeOverlay(false);
