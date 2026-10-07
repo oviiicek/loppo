@@ -154,6 +154,8 @@ export class Panels {
     const body = $('.body', p);
     const s = this.save;
     const d = derive(s);
+    const better = s.inventory.map((it) => !!it && this.sc.loot.isUpgrade(it));
+    const upgrades = better.filter(Boolean).length;
     body.innerHTML = `
       <div class="col" style="width:min(260px,30%)">
         <div class="box equip">
@@ -170,9 +172,9 @@ export class Panels {
         </div>
       </div>
       <div class="col" style="flex:1;min-width:0">
-        <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv" data-idx="${i}`, '', undefined, !!it && this.sc.loot.isUpgrade(it))).join('')}</div></div>
+        <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv" data-idx="${i}`, '', undefined, better[i])).join('')}</div></div>
         <div class="box">${this.matsHtml()}</div>
-        <div class="row">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : '<button class="btn small" data-a="salvcommon">Rozebrat běžné předměty</button>'}<button class="btn small blue" data-a="sort">Seřadit</button><span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span></div>
+        <div class="row">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : '<button class="btn small" data-a="salvcommon">Rozebrat běžné předměty</button>'}<button class="btn small blue" data-a="sort">Seřadit</button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span></div>
       </div>
       <div class="col detail box scroll" style="width:min(300px,34%)"></div>`;
     const detail = $('.detail', body);
@@ -283,6 +285,19 @@ export class Panels {
       s.gold += g;
       if (n) sfx('coin');
       this.ui.toast(n ? `Prodáno ${n} předmětů za ${g} zlata` : 'Nic k prodeji', '#ffd76a');
+      rerender();
+    });
+    body.querySelector('[data-a=equipbest]')?.addEventListener('click', () => {
+      // equip one upgrade at a time – each swap changes what counts as better
+      let n = 0;
+      for (let guard = 0; guard < 14; guard++) {
+        const i = s.inventory.findIndex((it) => !!it && this.sc.loot.isUpgrade(it));
+        if (i < 0 || equipItem(s, i)) break;
+        n++;
+      }
+      if (n) this.afterEquip();
+      this.ui.toast(n ? `Nasazeno ${n} lepších předmětů` : 'Nic lepšího není', '#9dff9d');
+      this.sel = null;
       rerender();
     });
     body.querySelector('[data-a=sort]')?.addEventListener('click', () => {

@@ -135,7 +135,7 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
   - náramek.
 
   Obouruční zbraň zabere obě ruce.
-- Grafický inventář s 30 políčky, detailem předmětu a porovnáním s nasazenou výbavou. Předměty jde řadit, prodávat a rozebírat na materiály. Zelená šipka ▲ označuje předměty, které jsou lepší než nasazená výbava.
+- Grafický inventář s 30 políčky, detailem předmětu a porovnáním s nasazenou výbavou. Předměty jde řadit, prodávat a rozebírat na materiály. Zelená šipka ▲ označuje předměty, které jsou lepší než nasazená výbava, a tlačítko „Nasadit lepší“ je nasadí jedním klepnutím.
 - Obchodník:
   - náhodné zboží,
   - zpětný odkup omylem prodaných předmětů za stejnou cenu,

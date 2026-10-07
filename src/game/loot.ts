@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { Enemy } from './entities';
 import { D } from './fx';
-import { Item } from '../data/types';
-import { generateItem, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult } from '../data/items';
+import { Item, Slot } from '../data/types';
+import { generateItem, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded } from '../data/items';
 import { addToInventory, Materials, maxStat, derive, equipItem, SaveData } from '../systems/state';
 import { sfx, settings } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -297,6 +297,11 @@ export class Loot {
       const base = BASE_BY_ID[it.base];
       const main = s.equip.main ? BASE_BY_ID[s.equip.main.base] : null;
       if (base.attack && main?.attack && base.attack !== main.attack) return false;
+      // anything beats an empty slot
+      const e = s.equip;
+      if (base.cat === 'ring' && (!e.ring1 || !e.ring2)) return true;
+      if (['helmet', 'chest', 'pants', 'belt', 'boots', 'amulet', 'bracer'].includes(base.cat) && !e[base.cat as Slot]) return true;
+      if ((base.cat === 'shield' || base.cat === 'offhand') && !e.off && !isTwoHanded(e.main)) return true;
       const inv = s.inventory.slice();
       let idx = inv.findIndex((x) => x?.uid === it.uid);
       // an item still lying on the floor is tried from an extra virtual slot
