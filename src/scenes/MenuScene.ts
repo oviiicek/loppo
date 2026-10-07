@@ -3,7 +3,7 @@ import { generateDungeon } from '../systems/dungeon';
 import { WorldMap, TS } from '../game/map';
 import { D } from '../game/fx';
 import { ENEMY_BY_ID } from '../data/enemies';
-import { ACTOR_SCALE } from '../gfx/textures';
+import { ACTOR_SCALE, isPropTex } from '../gfx/textures';
 
 // Atmospheric background for the main menu: a real generated dungeon with
 // flickering torches and idle monsters, explored by a slowly drifting camera.
@@ -26,6 +26,7 @@ export class MenuScene extends Phaser.Scene {
     this.map.build(this);
     this.map.fog.setVisible(false);
     for (const o of d.objects) {
+      const before = this.children.list.length;
       const px = o.x * TS + 8,
         py = o.y * TS + 8;
       const bottom = (key: string) => this.add.image(px, o.y * TS + 16, key).setOrigin(0.5, 1).setDepth(D.entityBase + py);
@@ -74,6 +75,11 @@ export class MenuScene extends Phaser.Scene {
         case 'fountain':
           this.add.sprite(px, py + 8, 'fountain').setOrigin(0.5, 1).play('fountain_loop').setDepth(D.entityBase + py + 8);
           break;
+      }
+      // furniture textures have double resolution
+      for (const g of this.children.list.slice(before)) {
+        const im = g as Phaser.GameObjects.Image;
+        if (im.texture && isPropTex(im.texture.key)) im.setScale(im.scaleX * ACTOR_SCALE, im.scaleY * ACTOR_SCALE);
       }
     }
     // idle monsters

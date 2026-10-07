@@ -17,7 +17,7 @@ import { Item } from '../data/types';
 import { Element } from '../data/types';
 import { UI } from '../ui/ui';
 import { createAllAnims } from '../gfx/anims';
-import { THEMES, themeForFloor, ACTOR_SCALE } from '../gfx/textures';
+import { THEMES, themeForFloor, ACTOR_SCALE, isPropTex } from '../gfx/textures';
 import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
 
@@ -288,6 +288,7 @@ export class GameScene extends Phaser.Scene {
     for (const o of d.objects) {
       const before = this.children.list.length;
       this.placeObject(o);
+      this.halveProps(before);
       if (this.map.isHidden(o.x, o.y)) {
         const room = d.roomId[this.map.idx(o.x, o.y)];
         const added = this.children.list.slice(before);
@@ -306,6 +307,14 @@ export class GameScene extends Phaser.Scene {
     }
     for (const dr of d.lockedDoors) {
       this.map.solid[this.map.idx(dr.x, dr.y)] = 1;
+    }
+  }
+
+  // furniture textures have double resolution: show them at half scale
+  halveProps(from: number) {
+    for (const g of this.children.list.slice(from)) {
+      const im = g as Phaser.GameObjects.Image;
+      if (im.texture && isPropTex(im.texture.key)) im.setScale(im.scaleX * ACTOR_SCALE, im.scaleY * ACTOR_SCALE);
     }
   }
 
@@ -895,7 +904,7 @@ export class GameScene extends Phaser.Scene {
         other.used = true;
         const s = other.sprite!;
         this.fx.burst(s.x, s.y - 8, 0xb07dff, 20, 'puff');
-        this.tweens.add({ targets: s, alpha: 0, scale: 0.2, duration: 500, onComplete: () => s.destroy() });
+        this.tweens.add({ targets: s, alpha: 0, scale: 0.2 * ACTOR_SCALE, duration: 500, onComplete: () => s.destroy() });
       }
     }
     UI.toast('Ostatní truhly se rozplynuly…', '#c77dff');
@@ -950,14 +959,14 @@ export class GameScene extends Phaser.Scene {
       if (this.map.tileAt(x, y) !== T_FLOOR) continue;
       const px = x * TS + 8,
         py = y * TS + 8;
-      const s = this.add.image(px, y * TS + 16, 'chest_boss').setOrigin(0.5, 1).setDepth(D.entityBase + py).setAlpha(0);
+      const s = this.add.image(px, y * TS + 16, 'chest_boss').setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + py).setAlpha(0);
       this.tweens.add({ targets: s, alpha: 1, duration: 600, delay: 800 + (i + 1) * 200 });
       this.fx.burst(px, py, 0xb07dff, 16, 'puff');
       this.interactables.push({ kind: 'chest', x: px, y: py + 4, tx: x, ty: y, sprite: s, data: { tier: 'boss', bossChoice: true, locked: false } });
       this.addSparkle(s);
     }
     const ex = this.dungeon.exit;
-    const st = this.add.image(ex.x * TS + 8, ex.y * TS + 8, 'stairs').setDepth(D.floorDeco).setAlpha(0);
+    const st = this.add.image(ex.x * TS + 8, ex.y * TS + 8, 'stairs').setScale(ACTOR_SCALE).setDepth(D.floorDeco).setAlpha(0);
     this.tweens.add({ targets: st, alpha: 1, duration: 800, delay: 1200 });
     const it: Interactable = { kind: 'stairs', x: ex.x * TS + 8, y: ex.y * TS + 8, tx: ex.x, ty: ex.y, sprite: st, data: {} };
     this.interactables.push(it);

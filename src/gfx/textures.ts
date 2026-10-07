@@ -13,7 +13,11 @@ const canvases = new Map<string, HTMLCanvasElement>();
 // and drawn at half scale, so they match the double-detail tiles.
 export const ACTOR_SCALE = 0.5;
 const HI_RES = ['pl_', 'en_', 'al_', 'npc_', 'totem_', 'wp_'];
-const isHiRes = (key: string) => HI_RES.some((p) => key.startsWith(p));
+// dungeon furniture gets the same treatment (placed with ACTOR_SCALE by the scenes)
+const PROP_KEYS = new Set(['torch', 'bookshelf', 'crate', 'barrel', 'pot', 'table', 'chair', 'bones', 'skull', 'stairs', 'door', 'door_open', 'goldpile', 'anvil', 'fountain', 'fountain_used', 'spikes']);
+const PROP_PREFIX = ['banner_', 'shrine_', 'chest_'];
+export const isPropTex = (key: string) => PROP_KEYS.has(key) || PROP_PREFIX.some((p) => key.startsWith(p));
+const isHiRes = (key: string) => HI_RES.some((p) => key.startsWith(p)) || isPropTex(key);
 
 function epx2(src: HTMLCanvasElement, fw = src.width): HTMLCanvasElement {
   const w = src.width,
