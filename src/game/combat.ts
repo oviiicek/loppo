@@ -173,7 +173,7 @@ export class Combat {
     e.nameLabel?.destroy();
     // rewards
     const xpMult = 1 + p.d.xp / 100 + sc.shrineBuffs.reduce((a, b) => a + (b.xp ?? 0), 0) + (sc.mod?.xp ?? 0);
-    sc.gainXp(Math.round(e.xp * xpMult));
+    sc.gainXp(Math.round(e.xp * xpMult * sc.diff.xp));
     p.save.kills++;
     sc.loot.enemyDrops(e);
     const s = p.d.specials;
@@ -211,6 +211,8 @@ export class Combat {
     if (p.dead || amount <= 0 || sc.godMode) return;
     if (!isDot) p.combatPing();
     if (p.invulnT > 0) return;
+    // every hostile source (blows, arrows, spells, traps, poison) is scaled by the difficulty here
+    amount *= sc.diff.enemyDmg;
     const d = p.d;
     if (!isDot) {
       if (Math.random() * 100 < d.dodge) {

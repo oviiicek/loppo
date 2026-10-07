@@ -6,7 +6,9 @@ import { spellsForClass } from '../data/spells';
 import { BASE_BY_ID } from '../data/items';
 import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
-import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave } from '../systems/state';
+import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, listFallen } from '../systems/state';
+import { DIFFICULTIES, DEFAULT_DIFFICULTY, difficultyOf, difficultyLines } from '../data/difficulty';
+import { areaForFloor } from '../data/biomes';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
 import { fsButtonHTML, isStandalone } from './fullscreen';
 import { CHRONICLE_ORDER, CUTSCENE_BY_ID } from '../data/story';
@@ -25,6 +27,12 @@ function fxName() {
   return settings.lowFx ? 'Grafika: úsporná' : 'Grafika: plná';
 }
 
+/** coloured difficulty name with the hardcore skull */
+function diffTag(s: { difficulty?: number; hardcore?: boolean }) {
+  const d = difficultyOf(s);
+  return `<span style="color:${d.color}">${d.name}</span>${s.hardcore ? ' <span class="hctag">☠ Hardcore</span>' : ''}`;
+}
+
 export class Menus {
   ui: UIM;
   constructor(ui: UIM) {
@@ -37,7 +45,7 @@ export class Menus {
       <div class="torchglow" style="left:-10vw;top:10vh"></div><div class="torchglow" style="right:-10vw;top:10vh"></div>
       <h1>LOPPO</h1>
       <div class="subtitle">Nekonečný dungeon</div>
-      ${save ? `<button class="btn green" data-a="continue">Pokračovat</button><div class="saveinfo">${esc(CLASS_BY_ID[save.cls].name)} • úroveň ${save.level} • patro ${save.floor}</div>` : ''}
+      ${save ? `<button class="btn green" data-a="continue">Pokračovat</button><div class="saveinfo">${esc(CLASS_BY_ID[save.cls].name)} • úroveň ${save.level} • patro ${save.floor} • ${diffTag(save)}</div>` : ''}
       <button class="btn" data-a="new">Nová hra</button>
       <button class="btn" data-a="slots">Postavy</button>
       <button class="btn blue" data-a="help">Jak hrát</button>
@@ -82,11 +90,12 @@ export class Menus {
         ${slots
           .map((sv, i) =>
             sv
-              ? `<div class="box row" style="justify-content:space-between;flex-wrap:nowrap;${i === act ? 'border-color:#8a6a3a' : ''}"><div class="row" style="flex-wrap:nowrap"><img style="height:56px;image-rendering:pixelated" src="${iconURL('pl_' + sv.cls, 64)}"><div><div style="font-size:20px;color:#ffd76a">${esc(CLASS_BY_ID[sv.cls].name)} • úroveň ${sv.level}</div><div class="hint">Patro ${sv.floor} (nejhlouběji ${sv.maxFloor}) • ${Math.floor(sv.playTime / 60)} min • zabito ${sv.kills}</div></div></div>
+              ? `<div class="box row" style="justify-content:space-between;flex-wrap:nowrap;${i === act ? 'border-color:#8a6a3a' : ''}"><div class="row" style="flex-wrap:nowrap"><img style="height:56px;image-rendering:pixelated" src="${iconURL('pl_' + sv.cls, 64)}"><div><div style="font-size:20px;color:#ffd76a">${esc(CLASS_BY_ID[sv.cls].name)} • úroveň ${sv.level}</div><div class="hint">Patro ${sv.floor} (nejhlouběji ${sv.maxFloor}) • ${diffTag(sv)} • ${Math.floor(sv.playTime / 60)} min • zabito ${sv.kills}</div></div></div>
                  <div class="row" style="flex-wrap:nowrap"><button class="btn green" data-play="${i}">Hrát</button><button class="btn blue small" data-exp="${i}">Přenést</button><button class="btn red small" data-del="${i}">Smazat</button></div></div>`
               : `<div class="box row" style="justify-content:space-between"><span class="hint" style="font-size:18px">Slot ${i + 1} – volný</span><div class="row"><button class="btn" data-new="${i}">Nová postava</button><button class="btn blue small" data-imp="${i}">Vložit kód</button></div></div>`,
           )
           .join('')}
+        ${this.fallenHTML()}
       </div></div></div>`);
     this.ui.root.appendChild(p);
     $('.close', p).addEventListener('click', () => p.remove());
@@ -133,6 +142,18 @@ export class Menus {
         });
       }
     });
+  }
+
+  /** hardcore heroes who died, newest first */
+  fallenHTML() {
+    const list = listFallen();
+    if (!list.length) return '';
+    return `<div class="fallen"><h3>☠ Síň padlých</h3>${list
+      .map(
+        (f) =>
+          `<div class="row" style="flex-wrap:nowrap"><img class="px" src="${iconURL('pl_' + f.cls, 64)}"><div><div>${esc(CLASS_BY_ID[f.cls]?.name ?? f.cls)} • úroveň ${f.level} • padl v patře ${f.floor} (${esc(areaForFloor(f.floor).name)})</div><div class="hint">${diffTag({ difficulty: f.difficulty })} • nejhlouběji ${f.maxFloor} • zabito ${f.kills} • ${Math.floor(f.playTime / 60)} min • ${new Date(f.date).toLocaleDateString('cs-CZ')}</div></div></div>`,
+      )
+      .join('')}</div>`;
   }
 
   // export: show the transfer code with a copy button (clipboard may be refused, so the text stays selectable)
@@ -220,7 +241,8 @@ export class Menus {
         <p><b style="color:#ffd76a">Obchodník:</b> kromě nákupu a prodeje nabízí zpětný odkup prodaných věcí, tajemné zboží neznámé kvality, kovárnu, úložiště a změnu classy.</p>
         <p><b style="color:#ffd76a">Zlatý skřet:</b> občas se v patře skrývá zlatý skřet. Jakmile tě uvidí, uteče a za 18 sekund zmizí portálem. Když ho chytíš, vysype spoustu zlata a vzácný předmět.</p>
         <p><b style="color:#ffd76a">Úspěchy:</b> v menu pauzy najdeš ${ACHIEVEMENTS.length} úspěchů s odměnami (zlato, materiály, paklíče i body atributů).</p>
-        <p><b style="color:#ffd76a">Smrt:</b> přijdeš o 15 % zlata a část zkušeností a začneš patro znovu.</p>
+        <p><b style="color:#ffd76a">Obtížnost:</b> při zakládání postavy si vybereš Lehkou, Normální, Těžkou nebo Noční můru. Na vyšší obtížnosti mají nepřátelé víc zdraví a silnější útoky, ale dávají víc zkušeností, zlata a lepší kořist. Změnit ji jde v pauze.</p>
+        <p><b style="color:#ffd76a">Smrt:</b> přijdeš o část zlata (Lehká 5 %, Normální 15 %, Těžká 20 %, Noční můra 25 %) a zkušeností a začneš patro znovu. V režimu <b style="color:#ff6b6b">☠ Hardcore</b> máš jen jeden život – po smrti postava navždy zmizí.</p>
       </div></div></div>`);
     this.ui.root.appendChild(p);
     $('.close', p).addEventListener('click', () => p.remove());
@@ -258,13 +280,8 @@ export class Menus {
         <div style="display:flex;flex-wrap:wrap;gap:3px;margin:4px 0">${sp.map((x) => `<img title="${esc(x.name)} (úr. ${x.lvl})" style="width:30px;height:30px;border-radius:5px;${x.ult ? 'outline:2px solid #ffb347' : ''}" src="${spellIcon(x.icon, x.color, 60)}">`).join('')}</div></div>
         <button class="btn green" data-a="start" style="font-size:24px;width:100%;flex-shrink:0">Začít dobrodružství</button>`;
       $('[data-a=start]', detail).addEventListener('click', () => {
-        sfx('levelup');
-        const save = newCharacter(sel);
-        save.slot = activeSlot();
-        G.save = save;
-        saveGame(save);
-        m.remove();
-        this.ui.startGame();
+        sfx('ui');
+        this.difficultySelect(sel, m);
       });
     };
     m.querySelectorAll<HTMLElement>('.ccard').forEach((c) =>
@@ -282,11 +299,87 @@ export class Menus {
     render();
   }
 
+  /** second step of a new hero: the combat difficulty and hardcore */
+  difficultySelect(cls: ClassId, menu: HTMLElement) {
+    let dsel = DEFAULT_DIFFICULTY;
+    let hc = false;
+    const p = el(`<div class="overlay" style="z-index:85"><div class="panel diffpanel">
+      <div class="head"><h2>Obtížnost boje</h2><button class="close">✕</button></div>
+      <div class="body scroll">
+        <div class="diffgrid">${DIFFICULTIES.map(
+          (d, i) =>
+            `<div class="dcard ${i === dsel ? 'sel' : ''}" data-d="${i}" style="--dc:${d.color}"><div class="dn">${d.name}</div><div class="dd">${esc(d.desc)}</div><ul>${difficultyLines(d)
+              .map((l) => `<li>${esc(l)}</li>`)
+              .join('')}</ul></div>`,
+        ).join('')}</div>
+        <button class="hcbox" data-a="hc"><span class="tick"></span><span class="hctext"><b>☠ Hardcore</b><small>Jen jeden život: po smrti postava navždy zmizí a začínáš znovu od začátku.</small></span></button>
+        <div class="row diffgo"><span class="hint">Obtížnost jde později změnit v pauze (platí od dalšího patra), Hardcore ne.</span><button class="btn green" data-a="go">Do hlubin!</button></div>
+      </div></div></div>`);
+    this.ui.root.appendChild(p);
+    const close = () => p.remove();
+    $('.close', p).addEventListener('click', close);
+    p.querySelectorAll<HTMLElement>('.dcard').forEach((c) =>
+      c.addEventListener('click', () => {
+        sfx('ui');
+        dsel = +c.dataset.d!;
+        p.querySelectorAll('.dcard').forEach((x) => x.classList.toggle('sel', x === c));
+      }),
+    );
+    const hcBtn = $('[data-a=hc]', p);
+    hcBtn.addEventListener('click', () => {
+      sfx('ui');
+      hc = !hc;
+      hcBtn.classList.toggle('on', hc);
+    });
+    $('[data-a=go]', p).addEventListener('click', () => {
+      sfx('levelup');
+      const save = newCharacter(cls, { difficulty: dsel, hardcore: hc });
+      save.slot = activeSlot();
+      G.save = save;
+      saveGame(save);
+      p.remove();
+      menu.remove();
+      this.ui.startGame();
+    });
+  }
+
+  /** pause menu: another difficulty from the next floor on */
+  changeDifficulty(onDone: () => void) {
+    const sc = this.ui.scene!;
+    const s = sc.save;
+    const cur = s.difficulty ?? DEFAULT_DIFFICULTY;
+    const p = el(`<div class="overlay" style="z-index:75"><div class="panel diffpanel">
+      <div class="head"><h2>Obtížnost boje</h2><button class="close">✕</button></div>
+      <div class="body scroll">
+        <div class="diffgrid">${DIFFICULTIES.map(
+          (d, i) =>
+            `<div class="dcard ${i === cur ? 'sel' : ''}" data-d="${i}" style="--dc:${d.color}"><div class="dn">${d.name}</div><div class="dd">${esc(d.desc)}</div><ul>${difficultyLines(d)
+              .map((l) => `<li>${esc(l)}</li>`)
+              .join('')}</ul></div>`,
+        ).join('')}</div>
+        <div class="hint" style="margin-top:8px">Změna platí od dalšího patra (nebo po smrti).${s.hardcore ? ' Postava zůstává v režimu ☠ Hardcore.' : ''}</div>
+      </div></div></div>`);
+    this.ui.root.appendChild(p);
+    $('.close', p).addEventListener('click', () => p.remove());
+    p.querySelectorAll<HTMLElement>('.dcard').forEach((c) =>
+      c.addEventListener('click', () => {
+        const i = +c.dataset.d!;
+        sfx('ui');
+        p.remove();
+        if (i === cur) return;
+        s.difficulty = i;
+        saveGame(s);
+        this.ui.toast(`Obtížnost ${DIFFICULTIES[i].name} platí od dalšího patra`, DIFFICULTIES[i].color);
+        onDone();
+      }),
+    );
+  }
+
   pause() {
     const sc = this.ui.scene!;
     const p = el(`<div class="panel small"><div class="head"><h2>Pauza</h2><button class="close">✕</button></div>
       <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
-        <div class="hint">${esc(CLASS_BY_ID[sc.save.cls].name)} • úroveň ${sc.save.level} • patro ${sc.floor} • herní čas ${Math.floor(sc.save.playTime / 60)} min</div>
+        <div class="hint">${esc(CLASS_BY_ID[sc.save.cls].name)} • úroveň ${sc.save.level} • patro ${sc.floor} • herní čas ${Math.floor(sc.save.playTime / 60)} min • <button class="linkbtn" data-a="diff">${diffTag(sc.save)} ✎</button></div>
         <button class="btn green" data-a="resume">Pokračovat</button>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button></div>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="ach">Úspěchy (${(sc.save.achievements ?? []).length}/${ACHIEVEMENTS.length})</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
@@ -302,6 +395,7 @@ export class Menus {
       sfx('ui');
       const a = b.dataset.a;
       if (a === 'resume') this.ui.closeOverlay();
+      else if (a === 'diff') this.changeDifficulty(() => (b.innerHTML = diffTag(sc.save) + ' ✎'));
       else if (a === 'fs') this.ui.toggleFullscreen();
       else if (a === 'sound') {
         setMuted(!isMuted());
@@ -410,10 +504,30 @@ export class Menus {
       sc.respawn();
     });
     $('[data-a=menu]', p).addEventListener('click', () => {
-      const lost = Math.round(sc.save.gold * 0.15);
-      sc.save.gold -= lost;
-      sc.save.xp = Math.round(sc.save.xp * 0.7);
-      saveGame(sc.save);
+      sc.payForDeath();
+      this.ui.closeOverlay(false, true);
+      this.ui.showMainMenu();
+    });
+  }
+
+  /** a hardcore hero died: the save is already gone, only a new hero or the menu remain */
+  hardcoreDeath(floor: number) {
+    const sc = this.ui.scene!;
+    const s = sc.save;
+    const p = el(`<div class="panel small hcdeath"><div class="head"><h2>☠ Konec cesty</h2></div>
+      <div style="padding:14px 16px;text-align:center">
+        <img class="px" src="${iconURL('pl_' + s.cls, 96)}">
+        <p style="font-size:21px;margin:6px 0">Tvoje cesta skončila v patře ${floor} – ${esc(areaForFloor(floor).name)}.</p>
+        <p class="hint" style="margin:0 0 6px">Hardcore postava se nedá oživit. ${esc(CLASS_BY_ID[s.cls].name)} úrovně ${s.level} odchází do Síně padlých.</p>
+        <div class="hint">Nejhlouběji: patro ${s.maxFloor} • zabito ${s.kills} • ${Math.floor(s.playTime / 60)} min • ${diffTag(s)}</div>
+        <div class="row" style="justify-content:center;margin-top:12px"><button class="btn green" data-a="new">Nová postava</button><button class="btn" data-a="menu">Hlavní menu</button></div>
+      </div></div>`);
+    this.ui.showOverlay(p, undefined, true, true);
+    $('[data-a=new]', p).addEventListener('click', () => {
+      this.ui.closeOverlay(false, true);
+      this.ui.newHero(s.slot ?? activeSlot());
+    });
+    $('[data-a=menu]', p).addEventListener('click', () => {
       this.ui.closeOverlay(false, true);
       this.ui.showMainMenu();
     });

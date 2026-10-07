@@ -1,4 +1,5 @@
 import { ATTR_KEYS, AttrKey, ClassId, Item, Slot, StatKey, Stats } from '../data/types';
+import { DEFAULT_DIFFICULTY } from '../data/difficulty';
 import { CLASS_BY_ID } from '../data/classes';
 import { BASE_BY_ID, generateItem, itemStats, weaponDamage, isTwoHanded } from '../data/items';
 import { SPELL_BY_ID, spellsForClass, MAX_SPELL_RANK, BuffMods } from '../data/spells';
@@ -43,6 +44,12 @@ export interface SaveData {
   stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number };
   achievements?: string[];
   story?: StoryState;
+  /** combat difficulty (index into DIFFICULTIES, normal when missing) */
+  difficulty?: number;
+  /** a hardcore hero is erased when they die */
+  hardcore?: boolean;
+  /** set on a hardcore hero's death: the save must never be written again */
+  fallen?: boolean;
 }
 
 /** story progress of a character (older saves get it on first use) */
@@ -77,7 +84,7 @@ export function newCharacterAttrs(cls: ClassId): Record<AttrKey, number> {
   return attrs;
 }
 
-export function newCharacter(cls: ClassId): SaveData {
+export function newCharacter(cls: ClassId, opts: { difficulty?: number; hardcore?: boolean } = {}): SaveData {
   const def = CLASS_BY_ID[cls];
   const attrs = newCharacterAttrs(cls);
   const s: SaveData = {
@@ -101,6 +108,8 @@ export function newCharacter(cls: ClassId): SaveData {
     classChanges: 0,
     playTime: 0,
     story: newStory(),
+    difficulty: opts.difficulty ?? DEFAULT_DIFFICULTY,
+    hardcore: !!opts.hardcore,
   };
   s.equip.main = generateItem(1, { base: def.weapon, rarity: 0 });
   if (def.offhand) s.equip.off = generateItem(1, { base: def.offhand, rarity: 0 });
@@ -421,6 +430,8 @@ function migrateLegacy() {
 }
 
 export function saveGame(s: SaveData) {
+  // a fallen hardcore hero stays gone (autosaves after the death must not bring them back)
+  if (s.fallen) return;
   try {
     const slot = s.slot ?? activeSlot();
     s.slot = slot;
@@ -477,6 +488,41 @@ export function listSlots(): (SaveData | null)[] {
 export function deleteSave(slot = activeSlot()) {
   try {
     localStorage.removeItem(slotKey(slot));
+  } catch {
+    /* ignore */
+  }
+}
+
+// Hall of the fallen: hardcore heroes who died (newest first)
+export interface FallenHero {
+  cls: ClassId;
+  level: number;
+  floor: number;
+  maxFloor: number;
+  kills: number;
+  playTime: number;
+  difficulty: number;
+  date: number;
+}
+const FALLEN_KEY = 'loppo-fallen';
+
+export function listFallen(): FallenHero[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(FALLEN_KEY) ?? '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+/** a hardcore hero died: erase the save at once and remember the run */
+export function buryHero(s: SaveData, floor: number) {
+  s.fallen = true;
+  if (s.slot !== undefined) deleteSave(s.slot);
+  const list = listFallen();
+  list.unshift({ cls: s.cls, level: s.level, floor, maxFloor: s.maxFloor, kills: s.kills, playTime: Math.round(s.playTime), difficulty: s.difficulty ?? DEFAULT_DIFFICULTY, date: Date.now() });
+  try {
+    localStorage.setItem(FALLEN_KEY, JSON.stringify(list.slice(0, 12)));
   } catch {
     /* ignore */
   }

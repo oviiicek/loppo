@@ -74,6 +74,11 @@ const DIRS = [
   [0, -1],
 ];
 
+/** chance of a monster to be an elite champion (normal difficulty) */
+export function eliteChanceFor(floor: number) {
+  return Math.min(0.16, 0.05 + floor * 0.004);
+}
+
 export function generateDungeon(floor: number, seed: number, opts: { forceMerchant?: boolean } = {}): Dungeon {
   const r = new RNG(seed);
   const boss = isBossFloor(floor);
@@ -936,7 +941,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   // ------------------------------------------------------------ enemies
   const spawns: Spawn[] = [];
   const pool = ENEMIES.filter((e) => e.minFloor <= floor && e.weight > 0);
-  const eliteChance = Math.min(0.16, 0.05 + floor * 0.004);
+  const eliteChance = eliteChanceFor(floor);
   // every biome (50 floors) favours its own monsters; the dungeon also changes its crowd every 10 floors
   const BIOME_FAVOURITES: string[][][] = [
     [

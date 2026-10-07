@@ -5,7 +5,7 @@ import { iconURL, spellIcon } from '../gfx/textures';
 import { SPELL_BY_ID } from '../data/spells';
 import { Item } from '../data/types';
 import { itemIcon } from '../data/items';
-import { xpForLevel, game as G, saveGame } from '../systems/state';
+import { xpForLevel, game as G, saveGame, setActiveSlot } from '../systems/state';
 import { bus } from '../systems/events';
 import { sfx, unlockAudio, startMusic, settings } from '../systems/audio';
 import { Panels } from './panels';
@@ -227,7 +227,7 @@ class UIManager {
       <div class="vignette"></div>
       <div class="joyzone"><div class="joy"><span class="arr u"></span><span class="arr d"></span><span class="arr l"></span><span class="arr r"></span><div class="knob"></div></div></div>
       <div class="hud-status">
-        <div class="portrait"><img class="px" src="${iconURL('pl_' + s.cls, 64)}"></div>
+        <div class="portrait"><img class="px" src="${iconURL('pl_' + s.cls, 64)}">${s.hardcore ? '<span class="hcbadge" title="Hardcore">☠</span>' : ''}</div>
         <div class="bars">
           <div class="bar hp"><div class="fill"></div><div class="fill shieldfill" style="background:rgba(160,210,255,.55);transform:scaleX(0)"></div><div class="txt"></div></div>
           <div class="bar mp"><div class="fill"></div><div class="txt"></div></div>
@@ -949,7 +949,18 @@ class UIManager {
   }
 
   death(floor: number, lostGold: number) {
-    this.menus.death(floor, lostGold);
+    if (this.scene?.save.hardcore) this.menus.hardcoreDeath(floor);
+    else this.menus.death(floor, lostGold);
+  }
+
+  /** straight to the class choice of a new hero in a slot (after a hardcore death) */
+  newHero(slot: number) {
+    this.clearAll();
+    const sm = this.game.scene;
+    if (sm.isActive('Game') || sm.isPaused('Game')) sm.stop('Game');
+    if (!sm.isActive('Menu')) sm.start('Menu');
+    setActiveSlot(slot);
+    this.menus.classSelect();
   }
 }
 

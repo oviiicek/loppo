@@ -437,8 +437,8 @@ function storyIdFloor(id: string) {
 
 Object.assign(dev, {
   /** a character about as strong as a good player on this floor (level model of the balance sim, best of many drops) */
-  startGeared(cls: ClassId, floor: number, story = true, quality: 'good' | 'median' = 'good') {
-    const s = newCharacter(cls);
+  startGeared(cls: ClassId, floor: number, story = true, quality: 'good' | 'median' = 'good', difficulty = 1) {
+    const s = newCharacter(cls, { difficulty });
     let L = 1,
       xp = 0;
     for (let f = 1; f < floor; f++) {

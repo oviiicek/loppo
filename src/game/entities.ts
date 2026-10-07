@@ -190,10 +190,14 @@ export class Enemy extends Actor {
     this.homeY = y;
     const hs = enemyHpScale(floor),
       ds = enemyDmgScale(floor);
-    this.maxHp = Math.round(def.hp * hs * (elite ? 3.2 : 1));
+    // difficulty: tougher and quicker monsters (their damage is scaled where it hits the hero);
+    // the treasure goblin stays catchable on every difficulty
+    const dif = scene.diff;
+    const dhp = def.behavior === 'thief' ? 1 : dif?.enemyHp ?? 1;
+    this.maxHp = Math.round(def.hp * hs * (elite ? 3.2 : 1) * dhp);
     this.hp = this.maxHp;
     this.dmg = def.dmg * ds * (elite ? 1.5 : 1);
-    this.speed = def.speed * (0.9 + Math.random() * 0.2);
+    this.speed = def.speed * (0.9 + Math.random() * 0.2) * (def.behavior === 'thief' ? 1 : dif?.enemySpeed ?? 1);
     this.xp = Math.round(def.xp * enemyXpScale(floor) * (elite ? 4 : 1));
     this.armor = enemyArmor(def.armor ?? 0, floor);
     this.r = def.radius ?? 5;
@@ -223,10 +227,11 @@ export class Enemy extends Actor {
     // the first guardians are gentler – they are where new players learn to dodge
     const early = floor <= 10 ? 0.8 : floor <= 20 ? 0.9 : 1;
     const base = bossBaseStats(boss);
-    this.maxHp = Math.round(base.hp * 0.5 * enemyHpScale(floor) * tierMult * early);
+    const dif = this.scene.diff;
+    this.maxHp = Math.round(base.hp * 0.5 * enemyHpScale(floor) * tierMult * early * (dif?.enemyHp ?? 1));
     this.hp = this.maxHp;
     this.dmg = base.dmg * enemyDmgScale(floor) * Math.pow(1.06, tier) * early;
-    this.speed = boss.speed;
+    this.speed = boss.speed * (dif?.enemySpeed ?? 1);
     this.xp = Math.round(300 * enemyXpScale(floor) * (1 + tier));
     this.armor = bossArmor(floor);
     this.r = 10;
@@ -255,9 +260,10 @@ export class Enemy extends Actor {
     const base = storyBossBase(floor);
     this.phase = i;
     this.bossTier = 1 + i;
-    this.maxHp = this.hp = Math.round(base.hp * ph.hp);
+    const dif = this.scene.diff;
+    this.maxHp = this.hp = Math.round(base.hp * ph.hp * (dif?.enemyHp ?? 1));
     this.dmg = base.dmg * ph.dmg;
-    this.speed = ph.speed;
+    this.speed = ph.speed * (dif?.enemySpeed ?? 1);
     this.enraged = false;
     this.patternIdx = 0;
     this.patternT = 1.6;

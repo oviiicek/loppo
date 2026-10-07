@@ -98,6 +98,19 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
 
   Pod 50 % HP se boss rozzuří. Po jeho porážce se objeví 3 truhly a hráč smí otevřít jen jednu. Bossové se v dalších prostředích vracejí v „Prastaré“ verzi s více pomocníky. Každé 50. patro patří příběhovému strážci (viz Příběh).
 
+### Obtížnost
+- Při zakládání postavy (po výběru classy) se volí jedna ze 4 obtížností boje:
+
+  | Obtížnost | Zdraví nepřátel | Poškození nepřátel | Odměny | Smrt stojí |
+  |---|---|---|---|---|
+  | Lehká | −35 % | −40 % | běžné | 5 % zlata |
+  | Normální | běžné | běžné | běžné | 15 % zlata |
+  | Těžká | +35 % | +30 % | +25 % zkušeností a zlata, lepší kořist | 20 % zlata |
+  | Noční můra | +80 % | +60 % | +60 % zkušeností a zlata, mnohem lepší kořist | 25 % zlata |
+
+  Na vyšších obtížnostech jsou nepřátelé i trochu rychlejší a častěji elitní (na Lehké naopak méně). Platí to i pro strážce. Obtížnost jde změnit v pauze; změna platí od dalšího patra.
+- **☠ Hardcore:** volitelný režim s jediným životem. Po smrti se postava hned smaže a začínáš znovu s novou postavou. Padlí hrdinové se zapisují do Síně padlých (menu Postavy). Hardcore jde zapnout jen při zakládání postavy.
+
 ### Postava
 - 10 class:
   - Bojovník,
@@ -200,7 +213,7 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
 - Automatické ukládání do `localStorage`: při změně patra, každých 20 s a při odchodu z aplikace. K dispozici jsou 3 sloty pro různé postavy.
 - Přenos postavy mezi zařízeními nebo prohlížeči: v menu Postavy tlačítko Přenést vytvoří textový kód a Vložit kód ho na jiném zařízení načte do volného slotu.
 - Úložiště u obchodníka (42 míst) pro předměty, které nechceš nosit ani prodat.
-- Smrt znamená ztrátu 15 % zlata a části zkušeností. Patro se pak vygeneruje znovu.
+- Smrt znamená ztrátu části zlata a zkušeností (podle obtížnosti 5–25 % zlata). Patro se pak vygeneruje znovu. V režimu Hardcore postava po smrti navždy zmizí.
 - Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání, automatické rozebírání slabých předmětů a úspornou grafiku (bez dynamického osvětlení, pro slabší telefony).
 - Hlavní menu má živé pozadí, náhodně vygenerovaný dungeon s pochodněmi.
 - Tlačítko Zpět na Androidu otevře pauzu místo opuštění hry.

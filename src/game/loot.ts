@@ -43,13 +43,13 @@ export class Loot {
 
   get mf() {
     const sc = this.scene;
-    return sc.player.d.magicFind + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0), 0) + (sc.mod?.mf ?? 0);
+    return sc.player.d.magicFind + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0), 0) + (sc.mod?.mf ?? 0) + sc.diff.mf;
   }
 
   get goldMult() {
     const sc = this.scene;
     const p = sc.player;
-    return 1 + p.d.gold / 100 + (p.d.specials.has('goldRush') ? 0.6 : 0) + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0) / 100, 0) + (sc.mod?.gold ?? 0);
+    return (1 + p.d.gold / 100 + (p.d.specials.has('goldRush') ? 0.6 : 0) + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0) / 100, 0) + (sc.mod?.gold ?? 0)) * sc.diff.gold;
   }
 
   // "smart loot": some drops favour the weapon type / slots the player actually uses

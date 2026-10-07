@@ -27,6 +27,7 @@ import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, Clas
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
 import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, STASH_SIZE, storyBonusPct } from '../systems/state';
+import { difficultyOf } from '../data/difficulty';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -401,6 +402,7 @@ export class Panels {
       <div class="col" style="width:min(240px,28%)">
         <div class="box" style="text-align:center"><img class="px" style="height:96px;image-rendering:pixelated" src="${iconURL('pl_' + s.cls, 96)}">
           <div style="font-size:26px;color:#ffd76a">${cls.name}</div><div class="hint">Úroveň ${s.level} • Patro ${s.floor} (max ${s.maxFloor})</div>
+          <div style="font-size:17px;margin-top:2px">Obtížnost: <span style="color:${difficultyOf(s).color}">${difficultyOf(s).name}</span>${s.hardcore ? ' <span class="hctag">☠ Hardcore</span>' : ''}</div>
           <div class="hint" style="margin-top:6px">${esc(cls.desc)}</div>
           <div style="margin-top:6px;font-size:17px;color:#9dff9d">Pasivní: ${esc(cls.passive)}</div>
           <div class="hint" style="margin-top:6px">Zabito nepřátel: ${s.kills.toLocaleString('cs-CZ')}</div>

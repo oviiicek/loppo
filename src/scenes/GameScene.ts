@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { generateDungeon, Dungeon, DObject, T_FLOOR } from '../systems/dungeon';
+import { generateDungeon, Dungeon, DObject, T_FLOOR, eliteChanceFor } from '../systems/dungeon';
 import { WorldMap, TS } from '../game/map';
 import { FX, D } from '../game/fx';
 import { Player } from '../game/player';
@@ -10,7 +10,7 @@ import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
 import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END } from '../data/enemies';
 import { CHAPTERS, noteForFloor } from '../data/story';
-import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, storyOf } from '../systems/state';
+import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, storyOf, buryHero } from '../systems/state';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { spellsForClass, BuffMods } from '../data/spells';
 import { generateItem } from '../data/items';
@@ -21,6 +21,7 @@ import { createAllAnims } from '../gfx/anims';
 import { THEMES, themeForFloor, ACTOR_SCALE, isPropTex } from '../gfx/textures';
 import { hash } from '../gfx/pixel';
 import { areaForFloor } from '../data/biomes';
+import { Difficulty, difficultyOf } from '../data/difficulty';
 import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
 
@@ -116,6 +117,8 @@ export class GameScene extends Phaser.Scene {
   boss: Enemy | null = null;
   bossDefeated = false;
   stairsObj: Interactable | null = null;
+  /** combat difficulty of this floor (a change in the pause menu applies from the next floor) */
+  diff!: Difficulty;
   /** the stairs the hero came down (the start of the floor) */
   upStairs: { x: number; y: number } | null = null;
   /** the hero is walking the stairs: the world holds still and input is ignored */
@@ -141,6 +144,7 @@ export class GameScene extends Phaser.Scene {
   init(data: { save: SaveData }) {
     this.save = data.save;
     this.floor = this.save.floor;
+    this.diff = difficultyOf(this.save);
     this.enemies = [];
     this.allies = [];
     this.projectiles = [];
@@ -673,7 +677,11 @@ export class GameScene extends Phaser.Scene {
     for (const sp of spawns) {
       const def = ENEMY_BY_ID[sp.id];
       if (!def) continue;
-      const elite = sp.elite || (!!m?.eliteMult && Math.random() < 0.08 * (m.eliteMult - 1));
+      let elite = sp.elite || (!!m?.eliteMult && Math.random() < 0.08 * (m.eliteMult - 1));
+      // fewer champions on the easy difficulty, more on the hard ones
+      const ef = this.diff.elite;
+      if (elite && ef < 1 && Math.random() > ef) elite = false;
+      else if (!elite && ef > 1 && Math.random() < eliteChanceFor(this.floor) * (ef - 1)) elite = true;
       const ox = sp.x * TS + 8 + (Math.random() - 0.5) * 6,
         oy = sp.y * TS + 10 + (Math.random() - 0.5) * 6;
       const e = this.spawnEnemy(sp.id, ox, oy, elite, sp.room);
@@ -1265,19 +1273,29 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: p.sprite, angle: 90 * p.facing, alpha: 0.5, duration: 500 });
     p.weapon?.setVisible(false);
     p.offhand?.setVisible(false);
-    const lost = Math.round(this.save.gold * 0.15);
-    this.time.delayedCall(900, () => UI.death(this.floor, lost));
+    // a hardcore hero is gone at once (closing the game now must not save them)
+    if (this.save.hardcore) buryHero(this.save, this.floor);
+    this.time.delayedCall(900, () => UI.death(this.floor, this.deathGold()));
     this.deathAt = this.time.now;
   }
 
   deathAt = 0;
 
-  respawn() {
-    const lost = Math.round(this.save.gold * 0.15);
-    this.save.gold -= lost;
-    // lose part of current level progress
-    this.save.xp = Math.round(this.save.xp * 0.7);
+  /** gold a death costs on this difficulty */
+  deathGold() {
+    return Math.round(this.save.gold * this.diff.goldLoss);
+  }
+
+  /** the price of a death: part of the gold and of the progress to the next level */
+  payForDeath() {
+    this.save.gold -= this.deathGold();
+    this.save.xp = Math.round(this.save.xp * (1 - this.diff.xpLoss));
     saveGame(this.save);
+  }
+
+  respawn() {
+    if (this.save.hardcore) return;
+    this.payForDeath();
     this.scene.restart({ save: this.save });
   }
 
@@ -1433,7 +1451,7 @@ export class GameScene extends Phaser.Scene {
     // safety net: a dead player must always see the death screen
     if (p.dead && !UI.panel && this.deathAt && this.time.now - this.deathAt > 2500) {
       this.deathAt = this.time.now;
-      UI.death(this.floor, Math.round(this.save.gold * 0.15));
+      UI.death(this.floor, this.deathGold());
     }
     this.drawHpBars();
     // marker under the auto-attack target
