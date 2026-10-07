@@ -19,7 +19,7 @@ import { UI } from '../ui/ui';
 import { createAllAnims } from '../gfx/anims';
 import { THEMES, themeForFloor } from '../gfx/textures';
 import { bus } from '../systems/events';
-import { sfx } from '../systems/audio';
+import { sfx, settings } from '../systems/audio';
 
 export interface Interactable {
   kind: string;
@@ -1065,7 +1065,9 @@ export class GameScene extends Phaser.Scene {
       const sz = (tgt.r * tgt.baseScale * 2 + 10) / 256;
       this.targetMarker.setPosition(tgt.x, tgt.y + 2).setScale(sz, sz * 0.55).setAlpha(0.55 + Math.sin(this.time.now / 140) * 0.2);
     } else this.targetMarker.setAlpha(0);
-    this.updateLighting(dt);
+    // power-saving graphics skip the dynamic lighting (the most expensive render pass)
+    this.dark.setVisible(!settings.lowFx);
+    if (!settings.lowFx) this.updateLighting(dt);
 
     this.achT += dt;
     if (this.achT > 1) {

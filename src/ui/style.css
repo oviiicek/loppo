@@ -726,6 +726,11 @@ img.px {
   height: auto;
   max-height: 92vh;
 }
+/* small dialogs scroll their content instead of cutting off the bottom on short phones */
+.panel.small > :not(.head) {
+  min-height: 0;
+  overflow-y: auto;
+}
 .panel .head {
   display: flex;
   align-items: center;

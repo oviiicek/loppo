@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { settings } from '../systems/audio';
 
 export const D = {
   floorDeco: 2,
@@ -50,7 +51,7 @@ export class FX {
   }
 
   burst(x: number, y: number, color: number, n = 8, kind: 'spark' | 'puff' | 'pix' = 'spark') {
-    this.emitter(color, kind).explode(n, x, y);
+    this.emitter(color, kind).explode(settings.lowFx ? Math.ceil(n / 2) : n, x, y);
   }
 
   number(x: number, y: number, text: string, color: string, big = false) {

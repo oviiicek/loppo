@@ -174,7 +174,7 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
 - Přenos postavy mezi zařízeními nebo prohlížeči: v menu Postavy tlačítko Přenést vytvoří textový kód a Vložit kód ho na jiném zařízení načte do volného slotu.
 - Úložiště u obchodníka (42 míst) pro předměty, které nechceš nosit ani prodat.
 - Smrt znamená ztrátu 15 % zlata a části zkušeností. Patro se pak vygeneruje znovu.
-- Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání a automatické rozebírání slabých předmětů.
+- Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání, automatické rozebírání slabých předmětů a úspornou grafiku (bez dynamického osvětlení, pro slabší telefony).
 - Hlavní menu má živé pozadí, náhodně vygenerovaný dungeon s pochodněmi.
 - Tlačítko Zpět na Androidu otevře pauzu místo opuštění hry.
 

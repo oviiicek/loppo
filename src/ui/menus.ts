@@ -19,6 +19,10 @@ function salvageName() {
   return ['nic', 'běžné', 'běžné + neobvyklé'][settings.autoSalvage] ?? 'nic';
 }
 
+function fxName() {
+  return settings.lowFx ? 'Grafika: úsporná' : 'Grafika: plná';
+}
+
 export class Menus {
   ui: UIM;
   constructor(ui: UIM) {
@@ -280,12 +284,10 @@ export class Menus {
       <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
         <div class="hint">${esc(CLASS_BY_ID[sc.save.cls].name)} • úroveň ${sc.save.level} • patro ${sc.floor} • herní čas ${Math.floor(sc.save.playTime / 60)} min</div>
         <button class="btn green" data-a="resume">Pokračovat</button>
-        <button class="btn" data-a="inv">Inventář</button>
-        <button class="btn" data-a="char">Postava</button>
-        <button class="btn" data-a="spells">Kouzla</button>
+        <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button></div>
         <button class="btn" data-a="ach">Úspěchy (${(sc.save.achievements ?? []).length}/${ACHIEVEMENTS.length})</button>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button></div>
-        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Rozebírat: ${salvageName()}</button></div>
+        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Rozebírat: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button></div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
       </div></div>`);
     this.ui.showOverlay(p, () => {});
@@ -314,6 +316,10 @@ export class Menus {
         settings.autoSalvage = (settings.autoSalvage + 1) % 3;
         saveSettings();
         b.textContent = 'Rozebírat: ' + salvageName();
+      } else if (a === 'fx') {
+        settings.lowFx = !settings.lowFx;
+        saveSettings();
+        b.textContent = fxName();
       } else if (a === 'vibrate') {
         settings.vibrate = !settings.vibrate;
         saveSettings();
