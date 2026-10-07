@@ -30,17 +30,19 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
 
 ## Ovládání
 
-| Akce | Mobil | PC |
-| --- | --- | --- |
-| Pohyb | virtuální joystick vlevo dole | WASD / šipky |
-| Základní útok | automatický, když je nepřítel na dosah zbraně | automatický |
-| Kouzla 1–3 | malá kulatá tlačítka vpravo | 1, 2, 3 |
-| Ultimátní kouzlo | velké tlačítko | 4 |
-| Univerzální kouzlo | zelené tlačítko | Q |
-| Lektvar zdraví / many | červený / modrý lektvar | H / J |
-| Akce (obchod, schody, truhla, svatyně…) | zlaté tlačítko dole | E / mezerník |
-| Inventář / Postava / Kouzla | tlačítka nahoře a batoh | I / C / K |
-| Pauza | ☰ | Esc |
+| Akce | Mobil | PC | Ovladač (gamepad) |
+| --- | --- | --- | --- |
+| Pohyb | virtuální joystick vlevo dole | WASD / šipky | levá páčka |
+| Základní útok | automatický, když je nepřítel na dosah zbraně | automatický | automatický |
+| Kouzla 1–3 | malá kulatá tlačítka vpravo | 1, 2, 3 | X, Y, B |
+| Ultimátní kouzlo | velké tlačítko | 4 | RT |
+| Univerzální kouzlo | zelené tlačítko | Q | RB |
+| Lektvar zdraví / many | červený / modrý lektvar | H / J | LB / LT |
+| Akce (obchod, schody, truhla, svatyně…) | zlaté tlačítko dole | E / mezerník | A |
+| Inventář / Postava / Kouzla / Mapa | tlačítka nahoře, batoh a minimapa | I / C / K / M | křížový ovladač → / ↑ / ← / ↓ (inventář i Back) |
+| Pauza | ☰ | Esc | Start |
+
+Ovladač stačí připojit (USB nebo Bluetooth) a zmáčknout tlačítko. V menu, inventáři a dialozích se výběr posouvá křížovým ovladačem nebo levou páčkou, A potvrdí, B vrátí zpět, LB / RB přepínají záložky a pravá páčka posouvá dlouhé texty. A posouvá příběhové scény, B je přeskočí. Otázky typu „Prodat / Rozebrat cenný předmět?“ začínají na bezpečné odpovědi, takže dvojí stisk A nic nezničí. Když se hraje ovladačem, ukazují tlačítka kouzel a lektvarů jeho tlačítka (u ovladače PlayStation symboly ✕ ○ □ △) a ovladač při zásahu krátce zavibruje.
 
 ## Co hra obsahuje
 

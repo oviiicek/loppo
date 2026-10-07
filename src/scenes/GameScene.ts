@@ -1380,8 +1380,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // input
-    let mx = UI.joy[0],
-      my = UI.joy[1];
+    let mx = UI.joy[0] + UI.pad.move[0],
+      my = UI.joy[1] + UI.pad.move[1];
     const k = this.keys;
     if (k.A.isDown || k.LEFT.isDown) mx -= 1;
     if (k.D.isDown || k.RIGHT.isDown) mx += 1;

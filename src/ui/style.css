@@ -2141,6 +2141,82 @@ textarea.code {
   }
 }
 
+/* ------------------------------------------------------------ controller */
+/* the highlight that the D-pad moves through menus and panels */
+.pad .padfocus {
+  outline: 3px solid #ffd76a !important;
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 5px rgba(255, 215, 106, 0.22),
+    0 0 16px rgba(255, 215, 106, 0.6) !important;
+}
+/* slots sit in scrolling grids that would cut an outer ring off */
+.pad .slot.padfocus,
+.pad .lslot.padfocus {
+  outline-offset: -3px;
+}
+/* LB / RB at the ends of a tab bar (the shoulder buttons switch tabs) */
+.pad .tabs:has(.tab + .tab)::before,
+.pad .tabs:has(.tab + .tab)::after {
+  align-self: center;
+  padding: 1px 5px;
+  border: 1px solid #6b5432;
+  border-radius: 6px;
+  background: rgba(10, 8, 14, 0.85);
+  color: #ffe08a;
+  font-size: 12px;
+  line-height: 15px;
+  white-space: nowrap;
+}
+.pad .tabs:has(.tab + .tab)::before {
+  content: var(--pad-lb, 'LB');
+}
+.pad .tabs:has(.tab + .tab)::after {
+  content: var(--pad-rb, 'RB');
+}
+/* the touch stick is not needed while playing with a controller */
+.pad .joyzone .joy {
+  opacity: 0;
+}
+.pkey {
+  display: none;
+}
+.pad .pkey {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  transform: translateX(-50%);
+  padding: 0 4px;
+  border-radius: 6px;
+  background: rgba(10, 8, 14, 0.85);
+  font-size: 13px;
+  line-height: 15px;
+  color: #ffe08a;
+  text-shadow: 1px 1px 0 #000;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.pad .skill .key {
+  padding: 0 4px;
+  border-radius: 6px;
+  background: rgba(10, 8, 14, 0.75);
+  font-size: 15px;
+  line-height: 16px;
+  color: #ffe08a;
+}
+.action .pk {
+  display: inline-block;
+  min-width: 26px;
+  margin-right: 4px;
+  padding: 0 5px;
+  border-radius: 13px;
+  background: #3f8a4a;
+  color: #fff;
+  text-align: center;
+  text-shadow: 1px 1px 0 #000;
+}
+
 /* ------------------------------------------------------------ floor title card */
 .floorcard {
   position: absolute;

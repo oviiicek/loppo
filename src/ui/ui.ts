@@ -10,6 +10,7 @@ import { bus } from '../systems/events';
 import { sfx, unlockAudio, startMusic, settings } from '../systems/audio';
 import { Panels } from './panels';
 import { Menus } from './menus';
+import { Pad } from './gamepad';
 import { TS } from '../game/map';
 import { T_FLOOR, T_WALL } from '../systems/dungeon';
 import { playCutscene, CutsceneOpts } from './cutscene';
@@ -48,6 +49,8 @@ class UIManager {
   panel: HTMLElement | null = null;
   panels = new Panels(this);
   menus = new Menus(this);
+  /** controller support (movement, buttons, menu navigation) */
+  pad = new Pad(this);
   private tickT = 0;
   private mapT = 0;
   private bossRef: Enemy | null = null;
@@ -59,6 +62,7 @@ class UIManager {
   init(g: Phaser.Game) {
     this.game = g;
     this.root = document.getElementById('ui')!;
+    this.pad.start();
     bus.on('buffs', () => this.renderBuffs());
     bus.on('equip', () => this.refreshSkills());
     document.addEventListener(
@@ -291,6 +295,7 @@ class UIManager {
     });
     this.buildSkills();
     this.setupJoystick();
+    this.padHints();
   }
 
   buildSkills() {
@@ -355,6 +360,29 @@ class UIManager {
     });
     const portrait = $('.portrait img', this.hud) as HTMLImageElement;
     portrait.src = iconURL('pl_' + s.cls, 64);
+  }
+
+  /** the HUD names the controller buttons while a controller is in use (and the keys otherwise) */
+  padHints() {
+    if (!this.hud) return;
+    const on = this.pad.active;
+    const g = this.pad.glyphs;
+    const padKeys = [g.X, g.Y, g.B, g.RT, g.RB];
+    this.hud.querySelectorAll<HTMLElement>('.skill').forEach((b) => {
+      const i = +b.dataset.i!;
+      $('.key', b).textContent = on ? padKeys[i] : SKILL_KEYS[i];
+    });
+    const pk = (sel: string, txt: string) => {
+      const b = this.hud!.querySelector<HTMLElement>(sel);
+      if (!b) return;
+      let k = b.querySelector<HTMLElement>('.pkey');
+      if (!k) b.appendChild((k = el('<span class="pkey"></span>')));
+      k.textContent = txt;
+    };
+    pk('.potion.php', g.LB);
+    pk('.potion.pmp', g.LT);
+    pk('.potion.bag', g.BACK);
+    this.setAction(this.actionLabel);
   }
 
   setupJoystick() {
@@ -697,7 +725,7 @@ class UIManager {
     const a = $('.action', this.hud);
     this.actionLabel = label;
     if (label) {
-      a.textContent = label;
+      a.innerHTML = (this.pad.active ? `<b class="pk">${this.pad.glyphs.A}</b> ` : '') + esc(label);
       a.classList.add('on');
     } else a.classList.remove('on');
   }

@@ -329,8 +329,20 @@ export class Panels {
         sell();
         return;
       } else if (a === 'salvage' && sel.from === 'inv') {
-        this.salvage(sel.idx);
-        this.sel = null;
+        const it = s.inventory[sel.idx]!;
+        const salvage = () => {
+          if (s.inventory[sel.idx] !== it) return;
+          this.salvage(sel.idx);
+          this.sel = null;
+          rerender();
+        };
+        // the same as selling: one stray tap (or button press) does not destroy a valuable item
+        if (it.rarity >= 3) {
+          this.ui.confirm(`Rozebrat ${it.name}?`, `Rozebrání dá: ${this.salvageText(it)}. ${RARITIES[it.rarity].name} předmět se nedá vzít zpět.`, salvage, 'Rozebrat', 'Ponechat');
+          return;
+        }
+        salvage();
+        return;
       } else if (a === 'drop' && sel.from === 'inv') {
         const it = s.inventory[sel.idx]!;
         s.inventory[sel.idx] = null;

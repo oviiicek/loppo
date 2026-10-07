@@ -202,8 +202,12 @@ export function saveSettings() {
   }
 }
 
+/** set by the controller support: shakes the gamepad together with the phone */
+export const rumbleHook: { fn: ((ms: number) => void) | null } = { fn: null };
+
 export function vibrate(ms = 25) {
   if (!settings.vibrate) return;
+  rumbleHook.fn?.(ms);
   try {
     navigator.vibrate?.(ms);
   } catch {
