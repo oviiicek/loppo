@@ -115,6 +115,11 @@ export interface Item {
   affixes: Affix[];
   specials: string[]; // ids of special effects
   enchant?: Affix | null;
+  /** the property that was re-rolled at the anvil (only that one can be re-rolled again) and how often */
+  reroll?: number;
+  rerolls?: number;
+  /** locked by the player: bulk selling and salvaging leave it alone */
+  locked?: boolean;
   /** a piece of an item set: "setId:piece" */
   set?: string;
   /** gem sockets: a gem key ("ruby3") or null for an empty one */

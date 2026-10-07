@@ -24,6 +24,9 @@ import {
   generateSetItem,
   BaseType,
   itemColor,
+  rerollCost,
+  rerollOptions,
+  upgradeAffixMult,
 } from '../data/items';
 import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR } from '../data/sets';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
@@ -99,7 +102,8 @@ export class Panels {
   slotHtml(it: Item | null | undefined, extra = '', label = '', price?: number, better = false) {
     if (!it) return `<div class="slot ${extra}">${label ? `<span class="lbl">${esc(label)}</span>` : ''}</div>`;
     const socks = it.sockets?.length ? `<span class="socks">${it.sockets.map((g) => `<i${g ? ` style="background:${parseGem(g)?.def.color}"` : ''}></i>`).join('')}</span>` : '';
-    return `<div class="slot r${it.rarity}${it.set ? ' set' : ''} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}</div>`;
+    const lock = it.locked ? '<span class="lockmark">🔒</span>' : '';
+    return `<div class="slot r${it.rarity}${it.set ? ' set' : ''} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}${lock}</div>`;
   }
 
   matsHtml() {
@@ -151,6 +155,50 @@ export class Panels {
     if (base.cat === 'weapon1h') h += `<div class="hint">Jednoruční – do pravé i levé ruky (se štítem nebo dvě zbraně)</div>`;
     h += `<div class="hint" style="margin-top:4px">Prodejní cena: <span style="color:#ffd76a">${itemValue(it)}</span> zlata</div>`;
     return h;
+  }
+
+  /** the anvil's re-roll box: one property of an item can be swapped for one of two new ones */
+  rerollBoxHtml(it: Item) {
+    if (!it.affixes.length) return '';
+    const s = this.save;
+    const rc = rerollCost(it);
+    const can = s.gold >= rc.gold && s.mats.dust >= rc.dust;
+    const am = upgradeAffixMult(it);
+    return `<div class="box" style="margin-top:8px"><b style="color:#ffb347">Přebroušení vlastnosti</b>
+      <div class="hint">Vyber vlastnost: nabídnou se ti dvě nové, nebo si necháš původní. ${it.reroll !== undefined ? 'U tohoto předmětu jde měnit už jen vlastnost, kterou jsi zvolil poprvé.' : 'U každého předmětu jde měnit jen jedna vlastnost – ta, kterou zvolíš poprvé.'}</div>
+      <div class="rrlist">${it.affixes.map((a, i) => `<button class="btn small rr ${it.reroll === i ? 'gold' : ''}" data-rr="${i}" ${(it.reroll !== undefined && it.reroll !== i) || !can ? 'disabled' : ''}>${formatStat(a.key, scaledAffix(a.key, a.value, am))}</button>`).join('')}</div>
+      <div class="statline"><span>Cena</span><b>${rc.gold} zl. + ${rc.dust}× prach</b></div></div>`;
+  }
+
+  /** pays, rolls two new properties and lets the player pick (or keep the old one) */
+  rerollAffix(it: Item, i: number, after: () => void) {
+    const s = this.save;
+    const rc = rerollCost(it);
+    if (s.gold < rc.gold || s.mats.dust < rc.dust || (it.reroll !== undefined && it.reroll !== i) || !it.affixes[i]) return;
+    s.gold -= rc.gold;
+    s.mats.dust -= rc.dust;
+    it.reroll = i;
+    it.rerolls = (it.rerolls ?? 0) + 1;
+    const am = upgradeAffixMult(it);
+    const old = it.affixes[i];
+    const opts = [old, ...rerollOptions(it, i)];
+    const p = el(`<div class="panel small"><div class="head"><h2>Přebroušení</h2><button class="close">✕</button></div>
+      <div style="padding:10px"><div class="hint" style="margin-bottom:6px">${esc(it.name)} – vyber, co bude místo „${formatStat(old.key, scaledAffix(old.key, old.value, am))}“:</div>
+      <div class="gemlist">${opts.map((a, k) => `<button class="spcard gempick" data-opt="${k}"><div><div class="nm" style="color:${k ? '#9dff9d' : '#ddd'}">${formatStat(a.key, scaledAffix(a.key, a.value, am))}</div><div class="lv2">${k ? 'nová vlastnost' : 'ponechat původní'}</div></div></button>`).join('')}</div></div></div>`);
+    const close = this.ui.dialog(p);
+    const pick = (k: number) => {
+      it.affixes[i] = opts[k];
+      if (k) {
+        sfx('upgrade');
+        this.ui.toast(`Přebroušeno: ${formatStat(opts[k].key, scaledAffix(opts[k].key, opts[k].value, am))}`, '#ffb347');
+      }
+      this.sc.player.recalc();
+      close();
+      after();
+    };
+    // closing keeps the old property (the price is paid either way)
+    $('.close', p).addEventListener('click', () => pick(0));
+    p.querySelectorAll<HTMLElement>('[data-opt]').forEach((b) => b.addEventListener('click', () => pick(+b.dataset.opt!)));
   }
 
   /** a set piece: the set, which pieces are worn and the bonuses (lit up when active) */
@@ -470,7 +518,10 @@ export class Panels {
           const best = sc[0] === sc[1] || Math.max(...sc) <= 0.001 ? -1 : sc.indexOf(Math.max(...sc));
           eq = slots.map((sl, i) => `<button class="btn green${i === best ? ' best' : ''}" data-a="equip" data-t="${sl}">${EQUIP_TO[sl] ?? 'Nasadit'}${i === best ? ' ▲' : ''}</button>`).join('');
         } else eq = `<button class="btn green" data-a="equip" data-t="${slots[0]}">Nasadit</button>`;
-        const acts = `<div class="row eqrow">${eq}</div><div class="row subrow"><button class="btn gold small" data-a="sell">Prodat · ${itemValue(it)} zl.</button><button class="btn purple small" data-a="salvage">Rozebrat</button><button class="btn red small" data-a="drop">Zahodit</button></div>`;
+        // a locked item cannot be sold, salvaged or dropped (one by one or in bulk)
+        const acts = it.locked
+          ? `<div class="row eqrow">${eq}</div><div class="row subrow"><button class="btn small" data-a="lock">🔓 Odemknout</button><span class="hint">Zamčený – nejde prodat, rozebrat ani zahodit.</span></div>`
+          : `<div class="row eqrow">${eq}</div><div class="row subrow"><button class="btn gold small" data-a="sell">Prodat · ${itemValue(it)} zl.</button><button class="btn purple small" data-a="salvage">Rozebrat</button><button class="btn red small" data-a="drop">Zahodit</button><button class="btn small" data-a="lock" title="Zamknout">🔒</button></div>`;
         detail.innerHTML = this.itemDetailHtml(it, acts, true, true) + `<div class="hint" style="margin-top:6px">Rozebrání dá: ${this.salvageText(it)}${it.sockets?.some(Boolean) ? ' Drahokamy se při prodeji i rozebrání vrátí do váčku.' : ''}</div>`;
       } else {
         detail.innerHTML = this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn" data-a="unequip">Sundat do inventáře</button></div>`, false, true);
@@ -520,6 +571,16 @@ export class Panels {
         if (it) this.socketClick(it, +b.dataset.sock!, rerender);
         return;
       }
+      if (a === 'lock') {
+        const it = sel.from === 'inv' ? s.inventory[sel.idx] : null;
+        if (!it) return;
+        it.locked = !it.locked;
+        this.ui.toast(it.locked ? `🔒 ${it.name} je zamčený` : `🔓 ${it.name} je odemčený`, '#e9d27a');
+        rerender();
+        return;
+      }
+      // nothing leaves the bag while it is locked
+      if ((a === 'sell' || a === 'salvage' || a === 'drop') && sel.from === 'inv' && s.inventory[sel.idx]?.locked) return;
       if (a === 'equip') {
         if (sel.from !== 'inv') return;
         const err = equipItem(s, sel.idx, b.dataset.t as Slot | undefined);
@@ -579,7 +640,7 @@ export class Panels {
       let n = 0,
         g = 0;
       s.inventory.forEach((it, i) => {
-        if (it && it.rarity <= 1 && !this.sc.loot.isUpgrade(it)) {
+        if (it && !it.locked && it.rarity <= 1 && !this.sc.loot.isUpgrade(it)) {
           g += itemValue(it);
           returnGems(s, it);
           this.sold(it, itemValue(it));
@@ -617,7 +678,7 @@ export class Panels {
     body.querySelector('[data-a=salvcommon]')?.addEventListener('click', () => {
       let n = 0;
       s.inventory.forEach((it, i) => {
-        if (it && it.rarity === 0 && !this.sc.loot.isUpgrade(it)) {
+        if (it && !it.locked && it.rarity === 0 && !this.sc.loot.isUpgrade(it)) {
           this.salvage(i, true);
           n++;
         }
@@ -1177,7 +1238,8 @@ export class Panels {
         <div class="box" style="margin-top:8px"><b style="color:#d08aff">Očarování</b>
         <div class="statline"><span>Cena</span><b>${ec.gold} zl. + ${ec.dust}× prach</b></div>
         <div class="hint">${it.enchant ? 'Současné očarování bude nahrazeno náhodným novým.' : 'Přidá náhodné magické očarování.'}</div>
-        <button class="btn purple" data-a="en" ${canEn ? '' : 'disabled'}>Očarovat</button></div>`;
+        <button class="btn purple" data-a="en" ${canEn ? '' : 'disabled'}>Očarovat</button></div>` +
+        this.rerollBoxHtml(it);
       detail.querySelector('[data-a=up]')?.addEventListener('click', () => {
         const c = upgradeCost(it);
         if (s.gold < c.gold || s.mats.stone < c.stones || it.upgrade >= MAX_UPGRADE) return;
@@ -1195,6 +1257,12 @@ export class Panels {
         this.sc.player.recalc();
         this.forge(p);
       });
+      detail.querySelectorAll<HTMLElement>('[data-rr]').forEach((b) =>
+        b.addEventListener('click', () => {
+          sfx('ui');
+          this.rerollAffix(it, +b.dataset.rr!, () => this.forge(p));
+        }),
+      );
       detail.querySelector('[data-a=drill]')?.addEventListener('click', () => {
         const c = drillCost(it);
         if (s.gold < c.gold || s.mats.stone < c.stones || (it.sockets?.length ?? 0) >= maxSockets(BASE_BY_ID[it.base].cat)) return;

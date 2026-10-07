@@ -448,6 +448,30 @@ export function salvageResult(it: Item) {
 
 export const MAX_UPGRADE = 10;
 
+/** price of re-rolling a property at the anvil (rises with every re-roll of the item) */
+export function rerollCost(it: Item) {
+  const n = it.rerolls ?? 0;
+  return { gold: Math.round(90 * (1 + it.ilvl * 0.15) * (1 + it.rarity * 0.3) * (1 + n * 0.5)), dust: 1 + it.rarity + Math.floor(n / 2) };
+}
+
+/** two new properties that could replace property i (never one the item already has) */
+export function rerollOptions(it: Item, i: number, r: RNG = globalRng): Affix[] {
+  const base = BASE_BY_ID[it.base];
+  const taken = new Set(it.affixes.filter((_, k) => k !== i).map((a) => a.key));
+  const pool = AFFIXES.filter((a) => (a.cats === 'all' || a.cats.includes(base.cat)) && !taken.has(a.key));
+  const out: Affix[] = [];
+  const mult = RARITIES[it.rarity].mult;
+  for (let k = 0; k < 2 && pool.length; k++) {
+    const def = r.weighted(
+      pool.filter((p) => !out.some((o) => o.key === p.key)),
+      (p) => p.weight,
+    );
+    if (!def) break;
+    out.push({ key: def.key, value: affixValue(def, it.ilvl, mult, r) });
+  }
+  return out;
+}
+
 export function rollEnchant(it: Item, r: RNG = globalRng): Affix {
   const e = r.pick(ENCHANTS);
   const mult = RARITIES[it.rarity].mult;
