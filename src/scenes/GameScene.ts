@@ -894,6 +894,8 @@ export class GameScene extends Phaser.Scene {
     UI.showBoss(b);
     UI.banner(b.name, b.bossTier > 0 ? 'Prastarý strážce hlubin' : 'Strážce patra');
     this.fx.shake(0.006, 300);
+    // first boss ever: teach the one thing that matters
+    if (!this.save.stats?.bosses) this.time.delayedCall(1800, () => UI.hint('Červené kruhy ukazují, kam strážce udeří – včas z nich uhni!', 6000));
   }
 
   onBossKilled(b: Enemy) {
