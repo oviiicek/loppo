@@ -339,6 +339,8 @@ class UIManager {
     };
     zone.addEventListener('pointerup', end);
     zone.addEventListener('pointercancel', end);
+    // e.g. an overlay or the system took the touch away – never leave the stick stuck
+    zone.addEventListener('lostpointercapture', end);
   }
 
   layout() {
