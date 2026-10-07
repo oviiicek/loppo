@@ -12,6 +12,9 @@ import { Panels } from './panels';
 import { Menus } from './menus';
 import { TS } from '../game/map';
 import { T_FLOOR, T_WALL } from '../systems/dungeon';
+import { playCutscene, CutsceneOpts } from './cutscene';
+import { CUTSCENE_BY_ID, Shot } from '../data/story';
+import { storyOf } from '../systems/state';
 import { FS_HELP, autoFullscreen, fsActive, fsButtonHTML, fsSupported, isStandalone, onFullscreenChange, syncFsButtons, toggleFullscreen } from './fullscreen';
 
 export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
@@ -73,7 +76,7 @@ class UIManager {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         persist();
-        if (this.scene && !this.panel && !this.scene.player.dead) this.menus.pause();
+        if (this.scene && !this.panel && !this.cutsceneActive && !this.scene.player.dead) this.menus.pause();
       }
     });
     window.addEventListener('pagehide', persist);
@@ -81,7 +84,9 @@ class UIManager {
     try {
       history.pushState({ loppo: 1 }, '');
       window.addEventListener('popstate', () => {
-        if (this.scene && !this.panel && !this.scene.player.dead) this.menus.pause();
+        if (this.cutsceneActive) {
+          /* the cutscene has its own skip button */
+        } else if (this.scene && !this.panel && !this.scene.player.dead) this.menus.pause();
         else if (this.panel && this.scene) this.closeOverlay();
         try {
           history.pushState({ loppo: 1 }, '');
@@ -142,6 +147,7 @@ class UIManager {
   }
 
   clearAll() {
+    this.cutsceneActive = false;
     this.root.innerHTML = '';
     this.hud = null;
     this.panel = null;
@@ -150,6 +156,7 @@ class UIManager {
 
   attachGame(scene: GameScene) {
     this.scene = scene;
+    this.cutsceneActive = false;
     this.root.innerHTML = '';
     this.panel = null;
     this.panelLocked = false;
@@ -390,7 +397,7 @@ class UIManager {
     $('.lv', hud).textContent = `LV ${s.level}`;
     ($('.bar.xp .fill', hud) as HTMLElement).style.transform = `scaleX(${Math.min(1, s.xp / xpForLevel(s.level))})`;
     $('.gold', hud).textContent = s.gold.toLocaleString('cs-CZ');
-    $('.floorlbl', hud).textContent = `Patro ${sc.floor} · ${sc.theme.name}${sc.mod ? ' · ' + sc.mod.name : ''}`;
+    $('.floorlbl', hud).textContent = `Patro ${sc.floor} · ${sc.placeName}${sc.mod ? ' · ' + sc.mod.name : ''}`;
     // low hp vignette
     const vig = $('.vignette', hud);
     vig.classList.toggle('low', hpF < 0.3 && !p.dead);
@@ -661,6 +668,67 @@ class UIManager {
     (h as any)._t = setTimeout(() => h.classList.remove('on'), ms);
   }
 
+  // ---------------------------------------------------------------- story
+  cutsceneActive = false;
+
+  /** plays a story scene (by id or as shots) with the game paused; remembers it as seen */
+  async cutscene(idOrShots: string | Shot[], opts: CutsceneOpts = {}) {
+    const shots = typeof idOrShots === 'string' ? CUTSCENE_BY_ID[idOrShots]?.shots : idOrShots;
+    if (!shots?.length || this.cutsceneActive) return;
+    const sc = this.scene;
+    this.cutsceneActive = true;
+    if (sc) {
+      sc.paused = true;
+      this.game.scene.pause('Game');
+    }
+    this.joy = [0, 0];
+    try {
+      await playCutscene(this.root, shots, opts);
+    } finally {
+      this.cutsceneActive = false;
+      if (typeof idOrShots === 'string' && sc) {
+        const st = storyOf(sc.save);
+        if (!st.seen.includes(idOrShots)) st.seen.push(idOrShots);
+        saveGame(sc.save);
+      }
+      if (sc && this.scene === sc && !this.panel) this.resumeGame();
+    }
+  }
+
+  /** after the last guardian: the story is over, the endless depths wait below */
+  storyEnd() {
+    const sc = this.scene;
+    if (!sc) return;
+    const s = sc.save;
+    const p = el(`<div class="panel small storyend"><div class="head"><h2>Příběh je u konce</h2></div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+        <p class="hint" style="font-size:18px;margin:0">Pečeť je obnovena a Pán hlubin zmizel navždy. Loppo je v bezpečí.</p>
+        <div class="box" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;font-size:17px">
+          <span>Úroveň</span><b>${s.level}</b>
+          <span>Herní čas</span><b>${Math.floor(s.playTime / 3600)} h ${Math.floor((s.playTime % 3600) / 60)} min</b>
+          <span>Poražení nepřátelé</span><b>${s.kills.toLocaleString('cs-CZ')}</b>
+          <span>Poražení strážci</span><b>${s.stats?.bosses ?? 0}</b>
+        </div>
+        <p class="hint" style="margin:0">Pod dnem Propasti pokračuje Nekonečná hlubina – stále těžší patra a lepší kořist.</p>
+        <button class="btn green" data-a="go">Pokračovat do Nekonečné hlubiny</button>
+        <button class="btn" data-a="menu">Uložit a odejít do menu</button>
+      </div></div>`);
+    this.showOverlay(p, undefined, true, true);
+    p.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest('button');
+      if (!b) return;
+      sfx('ui');
+      if (b.dataset.a === 'go') {
+        this.closeOverlay(true, true);
+        this.toast('Truhly strážce a schody dolů čekají v aréně', '#ffd23a');
+      } else {
+        saveGame(s);
+        this.closeOverlay(false, true);
+        this.showMainMenu();
+      }
+    });
+  }
+
   /** a short message shown above everything, menus included */
   notice(text: string, ms = 6000) {
     let n = document.querySelector<HTMLElement>('.notice');
@@ -714,7 +782,9 @@ class UIManager {
     if (!this.hud) return;
     this.bossRef = b;
     const bb = $('.bossbar', this.hud);
-    $('.name', bb).textContent = b.name;
+    const stages = b.phaseCount > 1 ? ` · fáze ${b.phase + 1}/${b.phaseCount}` : '';
+    $('.name', bb).textContent = b.story ? `${b.name}, ${b.story.title}${stages}` : b.name;
+    bb.classList.toggle('story', !!b.story);
     bb.classList.add('on');
   }
 
@@ -735,7 +805,7 @@ class UIManager {
 
   resumeGame() {
     const sc = this.scene;
-    if (sc) {
+    if (sc && !this.cutsceneActive) {
       sc.paused = false;
       this.game.scene.resume('Game');
       saveGame(sc.save);

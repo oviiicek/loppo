@@ -3,6 +3,7 @@ import { CLASS_BY_ID } from '../data/classes';
 import { BASE_BY_ID, generateItem, itemStats, weaponDamage, isTwoHanded } from '../data/items';
 import { SPELL_BY_ID, spellsForClass, MAX_SPELL_RANK, BuffMods } from '../data/spells';
 import { bus } from './events';
+import { StoryState, newStory } from '../data/story';
 
 export const INVENTORY_SIZE = 30;
 export const STASH_SIZE = 42;
@@ -41,6 +42,18 @@ export interface SaveData {
   slot?: number;
   stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number };
   achievements?: string[];
+  story?: StoryState;
+}
+
+/** story progress of a character (older saves get it on first use) */
+export function storyOf(s: SaveData): StoryState {
+  return s.story ?? (s.story = newStory());
+}
+
+/** permanent bonus of the seal shards and Elara's blessing, in percent */
+export function storyBonusPct(s: SaveData) {
+  const st = s.story;
+  return st ? st.shards * 4 + (st.blessing ? 10 : 0) : 0;
 }
 
 export function bumpStat(s: SaveData, key: keyof NonNullable<SaveData['stats']>, by = 1) {
@@ -87,6 +100,7 @@ export function newCharacter(cls: ClassId): SaveData {
     merchantPity: 0,
     classChanges: 0,
     playTime: 0,
+    story: newStory(),
   };
   s.equip.main = generateItem(1, { base: def.weapon, rarity: 0 });
   if (def.offhand) s.equip.off = generateItem(1, { base: def.offhand, rarity: 0 });
@@ -245,7 +259,8 @@ export function derive(s: SaveData, buffs: BuffMods[] = []): Derived {
   if (attack === 'melee') attrMult += attrs.str * 0.025;
   else if (attack === 'ranged') attrMult += attrs.dex * 0.025;
   else attrMult += attrs.int * 0.03;
-  let dmgPct = g('dmgPct') + b('dmgPct');
+  const storyPct = storyBonusPct(s);
+  let dmgPct = g('dmgPct') + b('dmgPct') + storyPct;
   if (s.cls === 'ranger' && attack === 'ranged') dmgPct += 10;
   const mult = attrMult * (1 + dmgPct / 100);
   dmgMin = Math.max(1, Math.round(dmgMin * mult));
@@ -258,7 +273,7 @@ export function derive(s: SaveData, buffs: BuffMods[] = []): Derived {
   let armor = g('armor');
   armor *= 1 + b('armorPct') / 100 + (s.cls === 'warrior' ? 0.15 : 0);
 
-  const maxHp = Math.round((80 + attrs.vit * 12 + attrs.str * 2 + s.level * 6 + g('hp')) * (1 + g('hpPct') / 100));
+  const maxHp = Math.round((80 + attrs.vit * 12 + attrs.str * 2 + s.level * 6 + g('hp')) * (1 + (g('hpPct') + storyPct) / 100));
   const maxMp = Math.round(40 + attrs.ene * 8 + s.level * 3 + g('mp'));
 
   return {
@@ -281,7 +296,7 @@ export function derive(s: SaveData, buffs: BuffMods[] = []): Derived {
     manaOnHit: g('manaOnHit'),
     move: 72 * (1 + Math.min(80, g('move') + b('move')) / 100),
     cdr: Math.min(40, g('cdr')),
-    spellMult: (1 + attrs.int * 0.03) * (1 + (g('spellDmg') + b('spellDmg')) / 100),
+    spellMult: (1 + attrs.int * 0.03) * (1 + (g('spellDmg') + b('spellDmg') + storyPct) / 100),
     gold: g('gold'),
     magicFind: g('magicFind'),
     thorns: g('thorns'),

@@ -1,5 +1,6 @@
 import { RNG } from './rng';
 import { ENEMIES, EnemyDef, isBossFloor } from '../data/enemies';
+import { biomeForFloor } from '../data/biomes';
 
 export const T_VOID = 0;
 export const T_FLOOR = 1;
@@ -233,8 +234,10 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   let bossRoom: Room | null = null;
   if (boss) {
     // big arena placed first, at a random edge region
-    const bw = r.int(15, 19),
-      bh = r.int(12, 14);
+    // story guardians get a bigger arena
+    const story = floor % 50 === 0 && floor <= 250;
+    const bw = story ? r.int(19, 22) : r.int(15, 19),
+      bh = story ? r.int(15, 16) : r.int(12, 14);
     for (let t = 0; t < 200 && !bossRoom; t++) {
       const x = r.chance(0.5) ? r.int(3, 8) : W - bw - r.int(3, 8);
       const y = r.int(3, H - bh - 4);
@@ -934,15 +937,22 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   const spawns: Spawn[] = [];
   const pool = ENEMIES.filter((e) => e.minFloor <= floor && e.weight > 0);
   const eliteChance = Math.min(0.16, 0.05 + floor * 0.004);
-  // every theme (10 floors) favours its own monsters
-  const THEME_FAVOURITES: string[][] = [
-    ['skeleton', 'bat', 'slime', 'goblin', 'skelArcher'],
-    ['skeleton', 'skelArcher', 'ghost', 'zombie', 'darkMage', 'cultist'],
-    ['spider', 'slime', 'goblin', 'orc', 'bat'],
-    ['imp', 'cultist', 'orc', 'golem', 'darkMage'],
-    ['wraith', 'ghost', 'golem', 'skelArcher', 'zombie'],
+  // every biome (50 floors) favours its own monsters; the dungeon also changes its crowd every 10 floors
+  const BIOME_FAVOURITES: string[][][] = [
+    [
+      ['skeleton', 'bat', 'slime', 'goblin', 'skelArcher'],
+      ['skeleton', 'skelArcher', 'ghost', 'zombie', 'darkMage', 'cultist'],
+      ['goblin', 'orc', 'slime', 'spider', 'bat'],
+      ['cultist', 'darkMage', 'imp', 'zombie', 'ghost'],
+      ['skeleton', 'zombie', 'golem', 'wraith', 'darkMage'],
+    ],
+    [['spider', 'bat', 'slime', 'mushroom', 'troll', 'goblin', 'orc', 'golem']],
+    [['frostWolf', 'iceGolem', 'wraith', 'ghost', 'skeleton', 'skelArcher']],
+    [['hellhound', 'magmaGolem', 'imp', 'cultist', 'orc', 'darkMage']],
+    [['voidEye', 'shade', 'ghost', 'wraith', 'darkMage', 'cultist']],
   ];
-  const fav = THEME_FAVOURITES[Math.floor((floor - 1) / 10) % THEME_FAVOURITES.length];
+  const biome = BIOME_FAVOURITES[biomeForFloor(floor)];
+  const fav = biome[Math.floor(((floor - 1) % 50) / 10) % biome.length];
   const pickEnemy = (): EnemyDef => r.weighted(pool, (e) => e.weight * (floor - e.minFloor < 6 ? 1.3 : 1) * (fav.includes(e.id) ? 2.5 : 1));
   for (const rm of rooms) {
     if (['start', 'merchant', 'shrine', 'fountain', 'forge', 'boss', 'closet'].includes(rm.type)) continue;

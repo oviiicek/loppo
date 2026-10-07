@@ -91,7 +91,7 @@ export class Combat {
   }
 
   damageEnemy(e: Enemy, amount: number, o: HitOpts = {}) {
-    if (e.dead || amount <= 0) return 0;
+    if (e.dead || amount <= 0 || e.invuln) return 0;
     const sc = this.scene;
     const p = sc.player;
     const el = o.el ?? 'phys';
@@ -108,6 +108,17 @@ export class Combat {
     if (el === 'phys') dmg *= 1 - e.armor / (e.armor + 120);
     if (o.fromAlly && p.save.cls === 'necro') dmg *= 1.3;
     if (el === 'lightning' && p.save.cls === 'shaman') dmg *= 1.2;
+    // a story guardian loses at most ~6.5 % of a stage per second (with a 10 % burst reserve); damage beyond
+    // that is mostly absorbed, so even a very strong hero gets a real fight while weaker ones are unaffected
+    if (e.story) {
+      const now = sc.time.now / 1000;
+      const rate = e.maxHp * 0.065;
+      e.capBudget = Math.min(e.maxHp * 0.1, e.capBudget + (now - e.capT) * rate);
+      e.capT = now;
+      const free = Math.max(0, e.capBudget);
+      if (dmg > free) dmg = free + (dmg - free) * 0.05;
+      e.capBudget -= dmg;
+    }
     dmg = Math.max(1, dmg);
     e.hp -= dmg;
     e.hpBarT = 3;
@@ -137,7 +148,13 @@ export class Combat {
       if (o.isAttack && p.d.manaOnHit) p.mp = Math.min(p.d.maxMp, p.mp + p.d.manaOnHit);
       if (o.isAttack && !o.dot) this.onHitProcs(e, dmg);
     }
-    if (e.hp <= 0) this.killEnemy(e);
+    if (e.hp <= 0) {
+      // a story guardian with stages left changes instead of dying
+      if (e.story && e.phase < e.phaseCount - 1) {
+        e.hp = 1;
+        sc.storyNextPhase(e);
+      } else this.killEnemy(e);
+    }
     return dmg;
   }
 

@@ -9,6 +9,7 @@ import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave } from '../systems/state';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
 import { fsButtonHTML, isStandalone } from './fullscreen';
+import { CHRONICLE_ORDER, CUTSCENE_BY_ID } from '../data/story';
 
 type UIM = typeof UIType;
 
@@ -212,6 +213,7 @@ export class Menus {
         <p><b style="color:#ffd76a">Kořist:</b> 6 kvalit – běžná, neobvyklá, vzácná, epická, legendární a mýtická. Předměty můžeš nasadit, prodat, rozebrat, vylepšit (+1 až +10) a očarovat.</p>
         <p><b style="color:#ffd76a">Vybavení:</b> jednoruční zbraň + štít, dvě jednoruční zbraně, nebo obouruční zbraň. Dále helma, brnění, kalhoty, opasek, boty, 2 prsteny, náhrdelník a náramek.</p>
         <p><b style="color:#ffd76a">Dungeon:</b> každé patro je náhodně generované a postupně větší. Hledej tajné místnosti (praskliny ve zdech), trezory zamčené paklíčem a obchodníky. Každé 5. patro hlídá strážce – po jeho porážce si vybereš jednu ze tří truhel.</p>
+        <p><b style="color:#ffd76a">Příběh:</b> sestup až na 250. patro, na dno podsvětí. Každých 50 pater se změní prostředí (kobky, jeskyně, led, výheň, propast) a čeká tam příběhový strážce – na 100. a 200. patře bojuje ve více fázích. Na každém desátém patře leží stránka deníku. Přečtené scény najdeš v pauze v Kronice. Pod 250. patrem pokračuje Nekonečná hlubina.</p>
         <p><b style="color:#ffd76a">Prostředí:</b> každých 10 pater se dungeon promění – Kobky, Krypta, Jeskyně, Výheň a Ledové hlubiny, každé s vlastními nepřáteli.</p>
         <p><b style="color:#ffd76a">Modifikátory pater:</b> asi každé čtvrté patro má zvláštní vlastnost – Temnota, Zlatá horečka, Prokletí, Hordy, Šampioni nebo Poklady. Víc rizika = lepší odměny.</p>
         <p><b style="color:#ffd76a">Mapa:</b> klepni na minimapu (klávesa M) pro velkou mapu prozkoumaného patra. Pozor na bodcové pasti!</p>
@@ -287,7 +289,7 @@ export class Menus {
         <div class="hint">${esc(CLASS_BY_ID[sc.save.cls].name)} • úroveň ${sc.save.level} • patro ${sc.floor} • herní čas ${Math.floor(sc.save.playTime / 60)} min</div>
         <button class="btn green" data-a="resume">Pokračovat</button>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button></div>
-        <button class="btn" data-a="ach">Úspěchy (${(sc.save.achievements ?? []).length}/${ACHIEVEMENTS.length})</button>
+        <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="ach">Úspěchy (${(sc.save.achievements ?? []).length}/${ACHIEVEMENTS.length})</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button>${isStandalone() ? '' : `<button class="btn small blue" data-a="fs" data-fs="label">${fsButtonHTML('label')}</button>`}</div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Rozebírat: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button></div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
@@ -329,6 +331,8 @@ export class Menus {
         b.textContent = settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty';
       } else if (a === 'ach') {
         this.achievements();
+      } else if (a === 'chron') {
+        this.chronicle();
       } else if (a === 'inv' || a === 'char' || a === 'spells') {
         this.ui.closeOverlay();
         this.ui.openPanel(a === 'inv' ? 'inventory' : a === 'char' ? 'character' : 'spells');
@@ -337,6 +341,41 @@ export class Menus {
         this.ui.closeOverlay(false);
         this.ui.showMainMenu();
       }
+    });
+  }
+
+  /** the story so far: every scene and page seen can be played again */
+  chronicle() {
+    const sc = this.ui.scene!;
+    const st = sc.save.story ?? { seen: [], shards: 0, blessing: false, ended: false };
+    const seen = CHRONICLE_ORDER.filter((id) => st.seen.includes(id));
+    const p = el(`<div class="panel"><div class="head"><h2>Kronika</h2><button class="close">✕</button></div>
+      <div class="body scroll" style="display:block">
+        <div class="hint" style="margin-bottom:8px">Pečetní střepy: ${st.shards}/4${st.blessing ? ' • Elařino požehnání' : ''}${st.ended ? ' • Příběh dokončen' : ''} – klepnutím si scénu přehraješ znovu.</div>
+        ${
+          seen.length
+            ? seen
+                .map((id) => {
+                  const c = CUTSCENE_BY_ID[id];
+                  const page = id.startsWith('note');
+                  return `<button class="btn ${page ? '' : 'blue'} chron" data-id="${id}" style="display:block;width:100%;text-align:left;margin-bottom:6px;white-space:normal">${page ? '📜' : '🎬'} ${esc(c.name)}</button>`;
+                })
+                .join('')
+            : '<div class="hint">Zatím tu nic není.</div>'
+        }
+        <div class="hint" style="margin-top:6px">Další stránky deníku leží na každém desátém patře.</div>
+      </div></div>`);
+    this.ui.showOverlay(p, () => {});
+    $('.close', p).addEventListener('click', () => this.ui.closeOverlay());
+    p.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('.chron');
+      if (!b) return;
+      sfx('ui');
+      const c = CUTSCENE_BY_ID[b.dataset.id!];
+      // guardian dialogues happen in the dungeon; the chronicle shows them over their biome
+      const id = b.dataset.id!;
+      const biome = id.startsWith('boss50') ? 'kobky' : id.startsWith('boss100') ? 'caves' : id.startsWith('boss150') ? 'ice' : id.startsWith('boss200') ? 'forge' : id.startsWith('boss250') ? 'abyss' : undefined;
+      if (c) void this.ui.cutscene(c.shots, { scene: biome });
     });
   }
 

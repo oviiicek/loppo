@@ -348,3 +348,194 @@ Object.assign(dev, {
     return true;
   },
 });
+
+// Contact sheet of generated textures (visual checks in automated tests)
+Object.assign(dev, {
+  sheet(keys: string[], scale = 2, perRow = 8) {
+    const cs = keys.map((k) => [k, getCanvas(k)] as const).filter(([, c]) => !!c) as [string, HTMLCanvasElement][];
+    const cell = Math.max(...cs.map(([, c]) => Math.max(c.width, c.height))) * scale + 8;
+    const rows = Math.ceil(cs.length / perRow);
+    const out = document.createElement('canvas');
+    out.width = Math.min(perRow, cs.length) * cell;
+    out.height = rows * (cell + 12);
+    const x = out.getContext('2d')!;
+    x.fillStyle = '#2a2830';
+    x.fillRect(0, 0, out.width, out.height);
+    x.imageSmoothingEnabled = false;
+    cs.forEach(([k, c], i) => {
+      const cx = (i % perRow) * cell,
+        cy = Math.floor(i / perRow) * (cell + 12);
+      x.drawImage(c, cx + 4, cy + 4, c.width * scale, c.height * scale);
+      x.fillStyle = '#ccc';
+      x.font = '10px sans-serif';
+      x.fillText(k, cx + 4, cy + cell + 8);
+    });
+    return out.toDataURL();
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Story testing: jump to any floor with a fitting character and story progress
+// ---------------------------------------------------------------------------
+import { storyOf, xpForLevel as xpFor } from './systems/state';
+import { CHRONICLE_ORDER } from './data/story';
+import { enemyXpScale, bossForFloor } from './data/enemies';
+import { CLASS_BY_ID } from './data/classes';
+import type { Slot } from './data/types';
+
+function storyIdFloor(id: string) {
+  if (id === 'prolog') return 0;
+  const ch = id.match(/^ch(\d)$/);
+  if (ch) return (+ch[1] - 1) * 50 + 1;
+  const n = id.match(/\d+/);
+  return n ? +n[0] : 9999;
+}
+
+Object.assign(dev, {
+  /** a character about as strong as a good player on this floor (level model of the balance sim, best of many drops) */
+  startGeared(cls: ClassId, floor: number, story = true, quality: 'good' | 'median' = 'good') {
+    const s = newCharacter(cls);
+    let L = 1,
+      xp = 0;
+    for (let f = 1; f < floor; f++) {
+      xp += 0.7 * Math.min(110, 34 + 2 * f) * 15 * enemyXpScale(f) * 1.15;
+      if (f % 5 === 0) xp += 300 * enemyXpScale(f) * (1 + bossForFloor(f).tier);
+      while (xp >= xpFor(L)) {
+        xp -= xpFor(L);
+        L++;
+      }
+    }
+    s.level = L;
+    s.floor = floor;
+    s.maxFloor = floor;
+    const atk = BASE_BY_ID[CLASS_BY_ID[cls].weapon].attack;
+    const main = atk === 'melee' ? 'str' : atk === 'ranged' ? 'dex' : 'int';
+    const pts = (L - 1) * 3;
+    s.attrs[main] += Math.round(pts * 0.5);
+    s.attrs.vit += Math.round(pts * 0.35);
+    s.attrs[main === 'int' ? 'ene' : 'dex'] += Math.round(pts * 0.15);
+    s.spellPoints = L - 1;
+    s.gold = 5000 * floor;
+    s.mats = { hpPotion: 25, mpPotion: 20, lockpick: 10, stone: 20, dust: 20 };
+    const def = CLASS_BY_ID[cls];
+    const slots: [Slot, string | null][] = [
+      ['main', def.weapon], ['off', def.offhand ?? null], ['helmet', 'helmet'], ['chest', 'chest'], ['pants', 'pants'], ['belt', 'belt'],
+      ['boots', 'boots'], ['ring1', 'ring'], ['ring2', 'ring'], ['amulet', 'amulet'], ['bracer', 'bracer'],
+    ];
+    // 'good': best of 20 rare-or-better drops; 'median': best of 10 ordinary drops (mostly common to rare), less upgraded
+    const rar = () => {
+      const r = Math.random();
+      if (quality === 'median') return r < 0.3 ? 0 : r < 0.62 ? 1 : r < 0.86 ? 2 : r < 0.97 ? 3 : 4;
+      return r < 0.5 ? 2 : r < 0.85 ? 3 : r < 0.98 ? 4 : 5;
+    };
+    for (const [slot, base] of slots) {
+      if (!base) continue;
+      let best: any = null,
+        bestV = -1;
+      for (let k = 0; k < (quality === 'median' ? 10 : 20); k++) {
+        const it = generateItem(Math.max(1, floor - Math.floor(Math.random() * (quality === 'median' ? 12 : 8))), { base, rarity: rar() });
+        it.upgrade = quality === 'median' ? Math.min(6, Math.floor(floor / 15)) : Math.min(8, Math.floor(floor / 12));
+        s.equip[slot] = it;
+        const d = derive(s);
+        const crit = 1 + (d.crit / 100) * (d.critDmg / 100 - 1);
+        const v = ((d.dmgMin + d.dmgMax) / 2) * d.aps * crit + d.spellMult * 300 * crit + d.maxHp * (1 + d.armor / 300) * 0.04 * Math.sqrt(floor);
+        if (v > bestV) {
+          bestV = v;
+          best = it;
+        }
+      }
+      s.equip[slot] = best;
+    }
+    autoLoadout(s);
+    const st = storyOf(s);
+    if (story) {
+      st.seen = CHRONICLE_ORDER.filter((id) => storyIdFloor(id) < floor);
+      st.shards = Math.min(4, Math.floor((floor - 1) / 50));
+      st.blessing = floor > 200;
+    }
+    G.save = s;
+    saveGame(s);
+    UI.startGame();
+    return { level: L, hp: derive(s).maxHp };
+  },
+  toBoss() {
+    const sc = (window as any).__scene;
+    const b = sc?.boss;
+    if (!b) return null;
+    sc.player.x = b.x - 70;
+    sc.player.y = b.y;
+    return b.name;
+  },
+  /** damages the guardian by a share of its health through the normal damage path */
+  hitBoss(frac = 0.5) {
+    const sc = (window as any).__scene;
+    const b = sc?.boss;
+    if (!b || b.dead) return null;
+    // story guardians absorb bursts: take the share off directly and let a small hit finish a stage
+    if (b.story) {
+      b.hp -= b.maxHp * frac;
+      if (b.hp <= 0) {
+        b.hp = 1;
+        sc.combat.damageEnemy(b, b.maxHp * 0.01, { el: 'fire', noCrit: true });
+      }
+    } else sc.combat.damageEnemy(b, b.maxHp * frac, { el: 'fire', noCrit: true });
+    return { hp: Math.round(b.hp), max: b.maxHp, phase: b.phase, invuln: b.invuln, dead: b.dead };
+  },
+  bossInfo() {
+    const sc = (window as any).__scene;
+    const b = sc?.boss;
+    if (!b) return null;
+    return { name: b.name, hp: Math.round(b.hp), max: b.maxHp, phase: b.phase, phases: b.phaseCount, invuln: b.invuln, dead: b.dead, aggro: b.aggro, sprite: b.spriteKey, dmg: Math.round(b.dmg) };
+  },
+  cutsceneState() {
+    const c = document.querySelector('.cutscene');
+    if (!c) return null;
+    return { overlay: c.classList.contains('overlay'), name: c.querySelector('.cs-name')?.textContent, text: c.querySelector('.cs-text')?.textContent, title: c.querySelector('.cs-title.on b')?.textContent ?? null };
+  },
+  /** taps the cutscene (finishes the line or goes on) */
+  tapCutscene() {
+    const c = document.querySelector('.cutscene .cs-box') ?? document.querySelector('.cutscene');
+    c?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    c?.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    return !!c;
+  },
+  skipCutscene() {
+    const b = document.querySelector('.cs-skip');
+    b?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    b?.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    return !!b;
+  },
+});
+
+// Contact sheets of the story illustrations and portraits
+import { sceneCanvas, portraitURL, ART_W, ART_H } from './gfx/story';
+import type { SceneId, SpeakerId } from './data/story';
+Object.assign(dev, {
+  sceneSheet(scale = 2) {
+    const ids: SceneId[] = ['village', 'quake', 'hut', 'gate', 'kobky', 'caves', 'ice', 'forge', 'abyss', 'seal', 'dawn', 'black'];
+    const out = document.createElement('canvas');
+    out.width = ART_W * scale * 3 + 8;
+    out.height = ART_H * scale * 4 + 12;
+    const x = out.getContext('2d')!;
+    x.imageSmoothingEnabled = false;
+    ids.forEach((id, i) => x.drawImage(sceneCanvas(id), (i % 3) * (ART_W * scale + 4), Math.floor(i / 3) * (ART_H * scale + 4), ART_W * scale, ART_H * scale));
+    return out.toDataURL();
+  },
+  async portraitSheet(scale = 3) {
+    const ids: SpeakerId[] = ['ilda', 'elara', 'elaraDark', 'morgrim', 'spore', 'isolda', 'nyx', 'diary', 'smith'];
+    const out = document.createElement('canvas');
+    out.width = ids.length * (40 * scale + 6);
+    out.height = 40 * scale;
+    const x = out.getContext('2d')!;
+    x.fillStyle = '#1a1622';
+    x.fillRect(0, 0, out.width, out.height);
+    x.imageSmoothingEnabled = false;
+    for (let i = 0; i < ids.length; i++) {
+      const img = new Image();
+      img.src = portraitURL(ids[i]);
+      await img.decode();
+      x.drawImage(img, i * (40 * scale + 6), 0, 40 * scale, 40 * scale);
+    }
+    return out.toDataURL();
+  },
+});

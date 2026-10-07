@@ -21,7 +21,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'floor50', name: 'Na dně světa', desc: 'Dosáhni patra 50', reward: { gold: 20000, attr: 5 }, check: (s) => s.maxFloor >= 50 },
   { id: 'floor100', name: 'Nekonečno', desc: 'Dosáhni patra 100', reward: { gold: 100000, attr: 10 }, check: (s) => s.maxFloor >= 100 },
   { id: 'boss1', name: 'Zabiják strážců', desc: 'Poraz prvního strážce', reward: { gold: 400, dust: 2 }, check: (s) => (st(s).bosses ?? 0) >= 1 },
-  { id: 'boss10', name: 'Pán hlubin', desc: 'Poraz 10 strážců', reward: { gold: 15000, attr: 3 }, check: (s) => (st(s).bosses ?? 0) >= 10 },
+  { id: 'boss10', name: 'Lovec strážců', desc: 'Poraz 10 strážců', reward: { gold: 15000, attr: 3 }, check: (s) => (st(s).bosses ?? 0) >= 10 },
   { id: 'level10', name: 'Zkušený dobrodruh', desc: 'Dosáhni úrovně 10', reward: { gold: 500 }, check: (s) => s.level >= 10 },
   { id: 'level30', name: 'Veterán', desc: 'Dosáhni úrovně 30', reward: { gold: 5000, attr: 2 }, check: (s) => s.level >= 30 },
   { id: 'level80', name: 'Mistr všech kouzel', desc: 'Dosáhni úrovně 80', reward: { gold: 50000, attr: 5 }, check: (s) => s.level >= 80 },
@@ -38,6 +38,14 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'mythic', name: 'Mýtus', desc: 'Najdi mýtický předmět', reward: { gold: 3000, dust: 3 }, check: (s) => (st(s).bestRarity ?? 0) >= 5 },
   { id: 'rich', name: 'Boháč', desc: 'Měj u sebe 10 000 zlata', reward: { dust: 3 }, check: (s) => s.gold >= 10000 },
   { id: 'classchange', name: 'Nová cesta', desc: 'Změň classu u obchodníka', reward: { gold: 500 }, check: (s) => s.classChanges >= 1 },
+  // the story
+  { id: 'story1', name: 'Brána otevřena', desc: 'Poraz Morgrima, Strážce bran', reward: { gold: 15000, dust: 5, attr: 3 }, check: (s) => (s.story?.shards ?? 0) >= 1 },
+  { id: 'story2', name: 'Ticho v jeskyních', desc: 'Poraz Matku spor', reward: { gold: 60000, dust: 8, attr: 4 }, check: (s) => (s.story?.shards ?? 0) >= 2 },
+  { id: 'story3', name: 'Teplo pro královnu', desc: 'Vysvoboď Isoldu, Ledovou královnu', reward: { gold: 150000, dust: 10, attr: 5 }, check: (s) => (s.story?.shards ?? 0) >= 3 },
+  { id: 'story4', name: 'Návrat Elary', desc: 'Zachraň Elaru z moci hlubin', reward: { gold: 300000, dust: 12, attr: 6 }, check: (s) => !!s.story?.blessing },
+  { id: 'story5', name: 'Pečeť hlubin', desc: "Poraz Nyx'thara a dokonči příběh", reward: { gold: 1000000, dust: 20, attr: 10 }, check: (s) => !!s.story?.ended },
+  { id: 'pages', name: 'Kronikář', desc: 'Najdi všech 20 stránek a vzkazů', reward: { gold: 100000, attr: 4 }, check: (s) => (s.story?.seen ?? []).filter((x) => x.startsWith('note')).length >= 20 },
+  { id: 'floor250', name: 'Dno podsvětí', desc: 'Dosáhni patra 250', reward: { gold: 500000, attr: 8 }, check: (s) => s.maxFloor >= 250 },
 ];
 
 export function achievementReward(r: Achievement['reward']) {

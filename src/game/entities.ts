@@ -3,7 +3,7 @@ import type { GameScene } from '../scenes/GameScene';
 import { D, EL_COLOR } from './fx';
 import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
-import { EnemyDef, BossDef, enemyHpScale, enemyDmgScale, enemyXpScale } from '../data/enemies';
+import { EnemyDef, BossDef, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase } from '../data/enemies';
 import { Element } from '../data/types';
 
 let nextId = 1;
@@ -155,6 +155,13 @@ export class Enemy extends Actor {
   charging = 0;
   chargeDir: [number, number] = [0, 0];
   isMinion = false;
+  // story guardian: its definition, the current stage and whether it is between stages (untouchable)
+  story: StoryBossDef | null = null;
+  phase = 0;
+  invuln = false;
+  // damage budget of a story guardian (see Combat.damageEnemy)
+  capBudget = 0;
+  capT = 0;
   // boss state
   patternIdx = 0;
   patternT = 3;
@@ -186,7 +193,7 @@ export class Enemy extends Actor {
     this.dmg = def.dmg * ds * (elite ? 1.5 : 1);
     this.speed = def.speed * (0.9 + Math.random() * 0.2);
     this.xp = Math.round(def.xp * enemyXpScale(floor) * (elite ? 4 : 1));
-    this.armor = (def.armor ?? 0) * (1 + floor * 0.15);
+    this.armor = enemyArmor(def.armor ?? 0, floor);
     this.r = def.radius ?? 5;
     this.name = def.name;
     this.flying = def.behavior === 'erratic' || def.behavior === 'ghost';
@@ -208,15 +215,18 @@ export class Enemy extends Actor {
   makeBoss(boss: BossDef, tier: number, floor: number) {
     this.boss = boss;
     this.bossTier = tier;
-    const tierMult = Math.pow(2.2, tier);
+    // "ancient" guardians (second round of the boss cycle and later) are a bit tougher; the depth itself
+    // already scales them, so the tier bonus stays small
+    const tierMult = Math.pow(1.12, tier);
     // the first guardians are gentler – they are where new players learn to dodge
     const early = floor <= 10 ? 0.8 : floor <= 20 ? 0.9 : 1;
-    this.maxHp = Math.round(boss.hp * 0.5 * enemyHpScale(floor) * tierMult * early);
+    const base = bossBaseStats(boss);
+    this.maxHp = Math.round(base.hp * 0.5 * enemyHpScale(floor) * tierMult * early);
     this.hp = this.maxHp;
-    this.dmg = boss.dmg * enemyDmgScale(floor) * Math.pow(1.6, tier) * early;
+    this.dmg = base.dmg * enemyDmgScale(floor) * Math.pow(1.06, tier) * early;
     this.speed = boss.speed;
     this.xp = Math.round(300 * enemyXpScale(floor) * (1 + tier));
-    this.armor = 10 + floor * 1.5;
+    this.armor = bossArmor(floor);
     this.r = 10;
     this.name = (tier > 0 ? 'Prastarý ' : '') + boss.name;
     this.setScale(boss.scale);
@@ -224,6 +234,49 @@ export class Enemy extends Actor {
     this.baseTint = boss.tint ?? null;
     this.sprite.preFX?.addGlow(0xff3030, 3, 0, false, 0.1, 16);
     this.aggro = false;
+  }
+
+  makeStoryBoss(def: StoryBossDef, floor: number) {
+    this.story = def;
+    this.name = def.name;
+    this.xp = Math.round(300 * enemyXpScale(floor) * 4);
+    this.armor = bossArmor(floor);
+    this.r = 11;
+    this.aggro = false;
+    this.applyPhase(0, floor);
+  }
+
+  /** switches a story guardian to one of its stages (new look, attacks and a full health bar) */
+  applyPhase(i: number, floor: number) {
+    const def = this.story!;
+    const ph = def.phases[i];
+    const base = storyBossBase(floor);
+    this.phase = i;
+    this.bossTier = 1 + i;
+    this.maxHp = this.hp = Math.round(base.hp * ph.hp);
+    this.dmg = base.dmg * ph.dmg;
+    this.speed = ph.speed;
+    this.enraged = false;
+    this.patternIdx = 0;
+    this.patternT = 1.6;
+    this.capBudget = this.maxHp * 0.1;
+    this.capT = this.scene.time.now / 1000;
+    this.boss = { id: def.id, name: def.name, sprite: ph.sprite, scale: ph.scale, hp: ph.hp, dmg: ph.dmg, speed: ph.speed, patterns: ph.patterns, proj: ph.proj, el: ph.el, summon: ph.summon, tint: ph.tint };
+    if (this.spriteKey !== ph.sprite) {
+      this.spriteKey = ph.sprite;
+      this.sprite.setTexture(ph.sprite, 0);
+      this.sprite.play(ph.sprite + '_loop');
+    }
+    this.setScale(ph.scale);
+    this.baseTint = ph.tint ?? null;
+    if (ph.tint) this.sprite.setTint(ph.tint);
+    else this.sprite.clearTint();
+    this.sprite.preFX?.clear();
+    this.sprite.preFX?.addGlow(i === def.phases.length - 1 && def.phases.length > 1 ? 0xff40c0 : 0xff3030, 3, 0, false, 0.1, 16);
+  }
+
+  get phaseCount() {
+    return this.story ? this.story.phases.length : 1;
   }
 
   onDot(amount: number) {
@@ -490,6 +543,11 @@ export class Enemy extends Actor {
       if (target === sc.player) {
         sc.combat.damagePlayer(this.dmg, this);
         if (def.poison) sc.player.applyPoison(this.dmg * 0.3, 3);
+        if (def.el === 'ice') sc.player.chill(1.2);
+        if (def.el === 'fire') {
+          sc.player.st.burnT = Math.max(sc.player.st.burnT, 2.5);
+          sc.player.st.burnDps = Math.max(sc.player.st.burnDps, this.dmg * 0.15);
+        }
         if (this.eliteAffix === 'upíří') this.hp = Math.min(this.maxHp, this.hp + this.dmg * 0.5);
         if (this.eliteAffix === 'mrazivý') sc.player.chill(1.5);
       } else {

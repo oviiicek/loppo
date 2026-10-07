@@ -156,6 +156,18 @@ export class FX {
     this.scene.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });
   }
 
+  /** straight beam (chains, lasers) */
+  beam(x0: number, y0: number, x1: number, y1: number, color: number, width = 3, dur = 260) {
+    const g = this.scene.add.graphics().setDepth(D.bright).setBlendMode(Phaser.BlendModes.ADD);
+    g.lineStyle(width * 2, color, 0.35);
+    g.lineBetween(x0, y0, x1, y1);
+    g.lineStyle(width, color, 0.85);
+    g.lineBetween(x0, y0, x1, y1);
+    g.lineStyle(Math.max(1, width / 3), 0xffffff, 0.9);
+    g.lineBetween(x0, y0, x1, y1);
+    this.scene.tweens.add({ targets: g, alpha: 0, duration: dur, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
+  }
+
   shake(intensity = 0.004, dur = 120) {
     this.scene.cameras.main.shake(dur, intensity);
   }

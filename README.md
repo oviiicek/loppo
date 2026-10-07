@@ -1,6 +1,6 @@
 # Loppo – Nekonečný dungeon
 
-Mobilní akční dungeon RPG na šířku inspirované hrou *Dungeon Madness*. Hra obsahuje náhodně generovaná patra, 10 class, 211 kouzel, loot v 6 kvalitách, vylepšování a očarování vybavení, obchodníky, paklíče, tajné místnosti a bosse. Hraje se v prohlížeči (i v mobilu). Jde nainstalovat jako aplikace (PWA) nebo zabalit do Android/iOS aplikace přes Capacitor.
+Mobilní akční dungeon RPG na šířku inspirované hrou *Dungeon Madness*. Hra obsahuje příběh s cutscénami (250 pater, 5 prostředí, příběhoví bossové), náhodně generovaná patra, 10 class, 211 kouzel, loot v 6 kvalitách, vylepšování a očarování vybavení, obchodníky, paklíče, tajné místnosti a bosse. Hraje se v prohlížeči (i v mobilu). Jde nainstalovat jako aplikace (PWA) nebo zabalit do Android/iOS aplikace přes Capacitor.
 
 Celá grafika (postavy, nepřátelé, dlaždice, předměty, efekty i ikony kouzel) se generuje procedurálně v kódu jako pixel-art. Hra nepotřebuje žádné externí obrázky ani zvuky. Zvuky a hudba se syntetizují přes WebAudio.
 
@@ -44,6 +44,32 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
 
 ## Co hra obsahuje
 
+### Příběh
+Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky. Pečeť praská. Stará strážkyně Ilda posílá hrdinu dolů. Má obnovit zámky a najít její dceru Elaru, která sestoupila před rokem a nevrátila se.
+
+- **Cutscény:** ilustrované pixel-art scény s portréty postav a postupně psaným textem. Jdou přeskočit a všechny zhlédnuté se dají přehrát znovu v **Kronice** (pauza).
+  - prolog,
+  - úvod každé kapitoly,
+  - rozhovory se strážci,
+  - konec příběhu.
+- **250 pater, 5 prostředí po 50 patrech**, každé s vlastními zdmi, podlahou, světly, dekoracemi a nestvůrami:
+  - Zapomenuté kobky (cihly),
+  - Hladové jeskyně (balvany, svítící houby),
+  - Ledové hlubiny (sníh, rampouchy),
+  - Ohnivá výheň (čedič, láva),
+  - Propast (obsidián, runy).
+- **Příběhoví strážci** každých 50 pater, s vlastním vzhledem a útoky:
+  - 50: Morgrim, Strážce bran (řetěz, máchnutí sekerou),
+  - 100: Matka spor, **2 fáze** (jedovaté mraky, kořeny),
+  - 150: Isolda, Ledová královna (ledové vězení, déšť střepů),
+  - 200: Elara, Hlas hlubin, **3 fáze** (stínové sestry, stínová křídla),
+  - 250: Nyx'thar, Pán hlubin, **3 fáze** (ruce tmy, paprsky, jámy prázdnoty).
+
+  Ve stovkách a na konci se strážce po vyčerpání zdraví promění a dostane nový ukazatel zdraví.
+- **Pečetní střepy:** za každého z prvních čtyř strážců získáš střep, který dává trvale +4 % zdraví, poškození a síly kouzel. Za záchranu Elary navíc dostaneš požehnání +10 %.
+- **Stránky deníku:** na každém desátém patře leží stránka Elařina deníku nebo vzkaz (celkem 20).
+- **Nekonečná hlubina:** po skončení příběhu pokračují patra 251+ a obtížnost dál roste.
+
 ### Dungeon
 - Každé patro je náhodně generované a s hloubkou se zvětšuje (od cca 46×34 až po limit 130×96 polí).
 - Místnosti různých tvarů: obdélníky, L, kříže, kruhy, osmiúhelníky, jeskyně a sály se sloupy.
@@ -70,7 +96,7 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
   - teleport,
   - spirály.
 
-  Pod 50 % HP se boss rozzuří. Po jeho porážce se objeví 3 truhly a hráč smí otevřít jen jednu. Bossové se po 50. patře vracejí v „Prastaré“ silnější verzi.
+  Pod 50 % HP se boss rozzuří. Po jeho porážce se objeví 3 truhly a hráč smí otevřít jen jednu. Bossové se v dalších prostředích vracejí v „Prastaré“ verzi s více pomocníky. Každé 50. patro patří příběhovému strážci (viz Příběh).
 
 ### Postava
 - 10 class:
@@ -108,7 +134,7 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
 - Dvě jednoruční zbraně se střídají v útoku a dávají +15 % rychlosti útoku.
 - Kritické zásahy, úhyb, blok štítem, brnění, vysávání života, trny a elementální poškození (oheň, mráz, blesk, jed).
 - Stavy nepřátel: zpomalení, omráčení, zmrazení, hoření, otrava, krvácení, zranitelnost.
-- Nepřátelé (15 typů) s vlastním chováním: na blízko, střelci, kouzelníci, nájezdníci, vyvolávači, slizy, které se dělí, létající, přízraky procházející zdmi a mimikové. Elitní šampioni mají náhodné vlastnosti: rychlý, obrněný, upíří, výbušný nebo mrazivý.
+- Nepřátelé (23 typů, každé prostředí má své) s vlastním chováním: na blízko, střelci, kouzelníci, nájezdníci, vyvolávači, slizy, které se dělí, létající, přízraky procházející zdmi a mimikové. Elitní šampioni mají náhodné vlastnosti: rychlý, obrněný, upíří, výbušný nebo mrazivý.
 - Vyvolaní spojenci (kostlivci, golemové, vlci, medvěd, ent, elementál…) a totemy.
 
 ### Kořist a vybavení

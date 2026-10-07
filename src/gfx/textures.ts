@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { canvas, rect, px, tpl, outline, shade, hash, line, circle } from './pixel';
 import { CLASSES, ClassDef } from '../data/classes';
+import { biomeForFloor } from '../data/biomes';
 
 // ---------------------------------------------------------------------------
 // Registry helpers
@@ -14,8 +15,8 @@ const canvases = new Map<string, HTMLCanvasElement>();
 export const ACTOR_SCALE = 0.5;
 const HI_RES = ['pl_', 'en_', 'al_', 'npc_', 'totem_', 'wp_'];
 // dungeon furniture gets the same treatment (placed with ACTOR_SCALE by the scenes)
-const PROP_KEYS = new Set(['torch', 'bookshelf', 'crate', 'barrel', 'pot', 'table', 'chair', 'bones', 'skull', 'stairs', 'door', 'door_open', 'goldpile', 'anvil', 'fountain', 'fountain_used', 'spikes']);
-const PROP_PREFIX = ['banner_', 'shrine_', 'chest_'];
+const PROP_KEYS = new Set(['torch', 'bookshelf', 'crate', 'barrel', 'pot', 'table', 'chair', 'bones', 'skull', 'stairs', 'door', 'door_open', 'goldpile', 'anvil', 'fountain', 'fountain_used', 'spikes', 'page']);
+const PROP_PREFIX = ['banner_', 'shrine_', 'chest_', 'torch_', 'deco_'];
 export const isPropTex = (key: string) => PROP_KEYS.has(key) || PROP_PREFIX.some((p) => key.startsWith(p));
 const isHiRes = (key: string) => HI_RES.some((p) => key.startsWith(p)) || isPropTex(key);
 
@@ -130,80 +131,109 @@ export const TILE = {
   count: 26,
 };
 
-// Dungeon themes (biomes) – they change every 10 floors and end with a boss floor.
+// Dungeon biomes – each one spans 50 floors and ends with a story boss (the story ends on floor 250,
+// after that the endless depths cycle through them again).
+export type BiomeStyle = 'bricks' | 'cave' | 'ice' | 'lava' | 'abyss';
 export interface Theme {
-  name: string;
+  name: string; // short name (HUD)
+  title: string; // full name (chapter banners)
+  style: BiomeStyle;
   floor: string[];
   mortar: string;
   moss: string[];
   stone: { top: string; topHi: string; topLo: string; line: string; edge: string };
   brick: string[];
   brickMortar: string;
+  glow: string[]; // accent light colours (fungus, frost, magma, runes)
   torch: number;
   dark: number;
+  darkness: number;
+  propTint?: number; // crates, barrels and pots take on the biome's colour
 }
 
 export const THEMES: Theme[] = [
   {
     name: 'Kobky',
+    title: 'Zapomenuté kobky',
+    style: 'bricks',
     floor: ['#7a5434', '#74502f', '#7f5837', '#6f4c2e'],
     mortar: '#3a291d',
     moss: ['#3f5a24', '#4d6b2b', '#5d7f33'],
     stone: { top: '#55545e', topHi: '#64636e', topLo: '#47464f', line: '#24232b', edge: '#17161c' },
     brick: ['#5b5a66', '#55545f', '#62616e', '#4f4e59'],
     brickMortar: '#2a2930',
+    glow: ['#ffd23a', '#ff9a3a', '#fff0b0'],
     torch: 0xff9a3a,
     dark: 0x05040a,
-  },
-  {
-    name: 'Krypta',
-    floor: ['#4c5260', '#484e5b', '#515866', '#454a56'],
-    mortar: '#262a33',
-    moss: ['#3a4a5a', '#44586a', '#2f3d4a'],
-    stone: { top: '#3c4250', topHi: '#4d5466', topLo: '#2f3440', line: '#1c2028', edge: '#12141a' },
-    brick: ['#4a5163', '#454b5c', '#525a6e', '#40465a'],
-    brickMortar: '#20232c',
-    torch: 0x9ab8ff,
-    dark: 0x04050c,
+    darkness: 0.48,
   },
   {
     name: 'Jeskyně',
-    floor: ['#5a5a3a', '#545436', '#606040', '#4e4e32'],
-    mortar: '#2e2e1c',
-    moss: ['#3f6a24', '#4d7b2b', '#5d8f33'],
-    stone: { top: '#3e4a3a', topHi: '#4e5c49', topLo: '#323d2f', line: '#1e261c', edge: '#121810' },
-    brick: ['#4b5a46', '#46543f', '#53634d', '#404d3b'],
-    brickMortar: '#222a1f',
-    torch: 0xc8ff7a,
-    dark: 0x040805,
-  },
-  {
-    name: 'Výheň',
-    floor: ['#5a3028', '#552c24', '#62352c', '#4f2a22'],
-    mortar: '#2a1210',
-    moss: ['#ff6a1a', '#ff8a2a', '#c84a10'],
-    stone: { top: '#2e2a2c', topHi: '#3e3638', topLo: '#241f21', line: '#141012', edge: '#0c0809' },
-    brick: ['#3a3032', '#352b2d', '#42373a', '#302729'],
-    brickMortar: '#1a1213',
-    torch: 0xff5a1a,
-    dark: 0x0a0403,
+    title: 'Hladové jeskyně',
+    style: 'cave',
+    floor: ['#4d4238', '#483d34', '#53473d', '#4f4339'],
+    mortar: '#2a231d',
+    moss: ['#3d5a2a', '#4f6e33', '#2f4722'],
+    stone: { top: '#5d564e', topHi: '#6e665d', topLo: '#4b453f', line: '#282421', edge: '#141110' },
+    brick: ['#524b44', '#5a534b', '#4a443e', '#605850'],
+    brickMortar: '#211d1a',
+    glow: ['#4ff0d0', '#b0fff0', '#2a9a88'],
+    torch: 0x5ff5d8,
+    dark: 0x020705,
+    darkness: 0.52,
+    propTint: 0xc8c0b0,
   },
   {
     name: 'Ledové hlubiny',
-    floor: ['#7d97ab', '#7690a4', '#849fb3', '#718a9e'],
-    mortar: '#435869',
-    moss: ['#cfefff', '#b8e0ff', '#e8f8ff'],
-    stone: { top: '#5f7689', topHi: '#7b94a8', topLo: '#4f6272', line: '#33434f', edge: '#222c35' },
-    brick: ['#7089a0', '#6a8399', '#7891a8', '#637c92'],
-    brickMortar: '#3a4b5a',
-    torch: 0x8fe0ff,
-    dark: 0x03060a,
+    title: 'Ledové hlubiny',
+    style: 'ice',
+    floor: ['#a3c6da', '#9cc0d5', '#abcde0', '#95b9cf'],
+    mortar: '#5f86a0',
+    moss: ['#f2faff', '#dcf0fb', '#ffffff'],
+    stone: { top: '#dcebf4', topHi: '#f0f8fc', topLo: '#bcd4e3', line: '#5a7f99', edge: '#1d3448' },
+    brick: ['#80b3d3', '#77aacb', '#89bbd9', '#6da0c3'],
+    brickMortar: '#2c4d68',
+    glow: ['#e8f8ff', '#a8e0ff', '#6fc8ff'],
+    torch: 0x8fdcff,
+    dark: 0x02050a,
+    darkness: 0.42,
+    propTint: 0xc8e4ff,
+  },
+  {
+    name: 'Výheň',
+    title: 'Ohnivá výheň',
+    style: 'lava',
+    floor: ['#3d312d', '#382c29', '#433531', '#352a26'],
+    mortar: '#170e0c',
+    moss: ['#ff7a1a', '#ffb347', '#c84a10'],
+    stone: { top: '#2d2527', topHi: '#3b3032', topLo: '#231c1e', line: '#120c0d', edge: '#0a0607' },
+    brick: ['#33292b', '#3d3335', '#2c2426', '#382e30'],
+    brickMortar: '#150f10',
+    glow: ['#ff6a1a', '#ffb347', '#fff0a0'],
+    torch: 0xff6a2a,
+    dark: 0x0a0302,
+    darkness: 0.44,
+    propTint: 0xb89a90,
+  },
+  {
+    name: 'Propast',
+    title: 'Propast',
+    style: 'abyss',
+    floor: ['#2a2134', '#251d2f', '#2e2539', '#221a2b'],
+    mortar: '#110c17',
+    moss: ['#7a3aff', '#b07dff', '#4a1f9a'],
+    stone: { top: '#2e253b', topHi: '#3d3250', topLo: '#241c30', line: '#140f1c', edge: '#0a0710' },
+    brick: ['#30273d', '#382e47', '#2a2136', '#332a41'],
+    brickMortar: '#120d19',
+    glow: ['#c77dff', '#f0d0ff', '#8a4aff'],
+    torch: 0xb070ff,
+    dark: 0x050208,
+    darkness: 0.56,
+    propTint: 0xb8a8d8,
   },
 ];
 
-export function themeForFloor(floor: number) {
-  return Math.floor((Math.max(1, floor) - 1) / 10) % THEMES.length;
-}
+export const themeForFloor = biomeForFloor;
 
 // Tiles are drawn at 32x32 (double detail) and shown at half scale on the 16px world grid.
 export const TILE_RES = 32;
@@ -413,18 +443,589 @@ function drawRock(ctx: CanvasRenderingContext2D, ox: number, th: Theme) {
   rect(ctx, ox + 1, 30, 30, 1, shade(base, -0.2));
 }
 
+// ---------------------------------------------------------------------------
+// Biome tile painters (caves, ice, lava, abyss) – same tile layout as the brick dungeon
+// ---------------------------------------------------------------------------
+
+// hard-edged pixel ellipse (canvas ellipses would be anti-aliased)
+function pell(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, col: string) {
+  ctx.fillStyle = col;
+  for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++)
+    for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+      const dx = (x + 0.5 - cx) / rx,
+        dy = (y + 0.5 - cy) / ry;
+      if (dx * dx + dy * dy <= 1) ctx.fillRect(x, y, 1, 1);
+    }
+}
+
+// per-pixel grain on whatever is already painted (keeps each surface's own colour)
+function grainImg(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, seed: number, amt = 0.1, pDark = 0.14, pLight = 0.09) {
+  const img = ctx.getImageData(x, y, w, h);
+  const d = img.data;
+  for (let i = 0; i < w * h; i++) {
+    const n = hash(i % w, Math.floor(i / w), seed);
+    const k = n < pDark ? 1 - amt : n > 1 - pLight ? 1 + amt * 0.8 : 1;
+    if (k === 1) continue;
+    d[i * 4] = Math.min(255, d[i * 4] * k);
+    d[i * 4 + 1] = Math.min(255, d[i * 4 + 1] * k);
+    d[i * 4 + 2] = Math.min(255, d[i * 4 + 2] * k);
+  }
+  ctx.putImageData(img, x, y);
+}
+
+function pebble(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, col: string) {
+  pell(ctx, x, y + 0.6, r, r * 0.75, shade(col, -0.35));
+  pell(ctx, x, y, r, r * 0.75, col);
+  px(ctx, Math.round(x - r * 0.45), Math.round(y - r * 0.4), shade(col, 0.28));
+}
+
+function shroom(ctx: CanvasRenderingContext2D, x: number, y: number, big: boolean, glow: string[]) {
+  const h = big ? 3 : 2,
+    w = big ? 2 : 1;
+  rect(ctx, x, y - h + 1, 1, h, '#d8d2c2');
+  rect(ctx, x - w, y - h, w * 2 + 1, 1, glow[2]);
+  rect(ctx, x - w + 1, y - h - 1, Math.max(1, w * 2 - 1), 1, glow[0]);
+  px(ctx, x, y - h - 1, glow[1]);
+}
+
+// a lumpy boulder lit from the top left
+function boulder(ctx: CanvasRenderingContext2D, ox: number, cx: number, cy: number, rx: number, ry: number, col: string, seed: number) {
+  for (let y = Math.floor(cy - ry - 1); y <= Math.ceil(cy + ry + 1); y++)
+    for (let x = Math.floor(cx - rx - 1); x <= Math.ceil(cx + rx + 1); x++) {
+      if (x < 0 || y < 0 || x > 31 || y > 31) continue;
+      const nx = (x + 0.5 - cx) / rx,
+        ny = (y + 0.5 - cy) / ry;
+      const a = Math.atan2(ny, nx);
+      const wob = Math.sin(a * 3 + seed) * 0.08 + Math.sin(a * 5 + seed * 2) * 0.05 + (hash(x, y, seed) - 0.5) * 0.06;
+      const d = nx * nx + ny * ny;
+      if (d > 1 + wob) continue;
+      let c = shade(col, Math.max(-0.35, Math.min(0.3, -(nx * 0.55 + ny * 0.75) * 0.22)));
+      if (d > 0.82 + wob) c = shade(c, ny > 0.2 || nx > 0.3 ? -0.3 : 0.12);
+      px(ctx, ox + x, y, c);
+    }
+}
+
+function caveFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const S = TILE_RES;
+  const base = th.floor[v % th.floor.length];
+  rect(ctx, ox, 0, S, S, base);
+  mottle(ctx, ox, 0, S, S, base, v * 11 + 3, 0.1);
+  const n = 5 + Math.floor(hash(v, 2, 90) * 5);
+  for (let k = 0; k < n; k++) {
+    const x = ox + 3 + hash(v, k, 91) * 26,
+      y = 3 + hash(k, v, 92) * 26;
+    const r = 0.9 + hash(k, k + v, 93) * 1.4;
+    pebble(ctx, x, y, r, shade(base, hash(v + k, 3, 94) > 0.5 ? 0.2 : -0.16));
+  }
+  grainImg(ctx, ox, 0, S, S, v * 7 + 1, 0.13);
+  if (v === 3) {
+    const c = shade(base, -0.5);
+    crack(ctx, ox, [[5, 6], [10, 11], [9, 17], [14, 22], [13, 27]], c);
+    crack(ctx, ox, [[10, 11], [16, 13], [19, 12]], c);
+  }
+  if (v === 4) {
+    const c = shade(base, 0.14);
+    pell(ctx, ox + 16, 17, 9, 6, shade(c, -0.35));
+    pell(ctx, ox + 16, 16, 8.5, 5.5, c);
+    rect(ctx, ox + 11, 12, 8, 1, shade(c, 0.18));
+    crack(ctx, ox, [[14, 14], [17, 17], [16, 20]], shade(c, -0.3));
+  }
+  if (v === 5) {
+    pell(ctx, ox + 15, 18, 8, 4, '#1c262d');
+    pell(ctx, ox + 15, 18, 7, 3.2, '#26353e');
+    line(ctx, ox + 11, 17, ox + 15, 16, '#61808f');
+    px(ctx, ox + 19, 19, '#3d5562');
+  }
+  if (v === 6) moss(ctx, ox, 14, 15, 5, 61, th.moss);
+  if (v === 7) {
+    moss(ctx, ox, 15, 20, 4, 71, th.moss);
+    shroom(ctx, ox + 11, 21, false, th.glow);
+    shroom(ctx, ox + 16, 19, true, th.glow);
+    shroom(ctx, ox + 20, 22, false, th.glow);
+  }
+}
+
+function caveTop(ctx: CanvasRenderingContext2D, ox: number, mask: number, th: Theme) {
+  const S = TILE_RES;
+  const st = th.stone;
+  rect(ctx, ox, 0, S, S, st.edge);
+  const n = hash(mask, 3, 95);
+  const c1 = n > 0.5 ? st.topHi : st.top;
+  if (mask === 0 && n < 0.45) {
+    boulder(ctx, ox, 10, 10, 9.5, 8.5, c1, 1 + mask);
+    boulder(ctx, ox, 23, 11, 8.5, 9.5, st.top, 2 + mask);
+    boulder(ctx, ox, 16, 24, 13.5, 7.5, st.topLo, 3 + mask);
+  } else {
+    boulder(ctx, ox, 16, 16, 15, 14.5, c1, 4 + mask);
+    if (n > 0.7) boulder(ctx, ox, 24, 24, 6, 5, st.topLo, 7 + mask);
+  }
+  grainImg(ctx, ox, 0, S, S, 200 + mask, 0.12);
+  if (hash(mask, 11, 96) > 0.5) crack(ctx, ox, [[9, 7], [12, 12], [11, 16]], shade(st.top, -0.4));
+  for (let k = 0; k < 6; k++) {
+    const x = 4 + Math.floor(hash(k, mask, 97) * 24),
+      y = 3 + Math.floor(hash(mask, k, 98) * 8);
+    px(ctx, ox + x, y, th.moss[k % th.moss.length]);
+  }
+  // jagged dark rims where the rock drops to the floor
+  const rim = (horizontal: boolean, at: number) => {
+    for (let i = 0; i < S; i++) {
+      const depth = 2 + (hash(i >> 1, at, 99) > 0.6 ? 1 : 0);
+      if (horizontal) rect(ctx, ox + i, at === 0 ? 0 : S - depth, 1, depth, st.edge);
+      else rect(ctx, ox + (at === 0 ? 0 : S - depth), i, depth, 1, st.edge);
+    }
+  };
+  if (mask & 1) rim(true, 0);
+  if (mask & 2) rim(false, 1);
+  if (mask & 4) rim(false, 0);
+}
+
+function caveFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) {
+  const S = TILE_RES;
+  const st = th.stone;
+  rect(ctx, ox, 0, S, S, th.brickMortar);
+  // the rock face: rough chunks of rock stacked in two staggered rows, lit from above
+  const shift = Math.floor(hash(mask, 1, 97) * 6);
+  const rows = [
+    { cy: 11.5, ry: 5.2, xs: [-2 + shift, 9 + shift, 20 + shift, 31 + shift] },
+    { cy: 23.5, ry: 6, xs: [3 - shift, 14 - shift + 2, 26 - shift + 2] },
+  ];
+  rows.forEach((row, ri) =>
+    row.xs.forEach((cx, k) => {
+      const c = th.brick[Math.floor(hash(mask + ri, k, 98) * th.brick.length)];
+      const rx = 6 + hash(k, mask + ri, 99) * 2.5;
+      boulder(ctx, ox, cx, row.cy + (hash(ri, k + mask, 100) - 0.5) * 1.5, rx, row.ry, c, k * 7 + ri * 3 + mask);
+    }),
+  );
+  grainImg(ctx, ox, 6, S, S - 8, 300 + mask, 0.12);
+  if (hash(mask, 4, 101) > 0.5) crack(ctx, ox, [[18, 9], [20, 13], [19, 16]], shade(th.brick[0], -0.45));
+  // lip of the boulders above, lit from above (back to 5 px at the tile edges so neighbours line up)
+  for (let i = 0; i < S; i++) {
+    const fade = Math.min(1, Math.min(i, S - 1 - i) / 5);
+    const j = Math.round(fade * (hash(i >> 1, mask, 96) * 3 - 1));
+    const lh = 5 + j;
+    rect(ctx, ox + i, 0, 1, lh, st.topHi);
+    px(ctx, ox + i, 0, shade(st.topHi, 0.22));
+    px(ctx, ox + i, lh - 1, shade(st.topHi, -0.3));
+    px(ctx, ox + i, lh, st.edge);
+  }
+  // little stalactites under the lip
+  for (let d = 0; d < 2; d++) {
+    if (hash(mask, d, 104) < 0.45) continue;
+    const dx = 5 + Math.floor(hash(d, mask, 105) * 22),
+      len = 3 + Math.floor(hash(mask + d, 7, 106) * 4);
+    for (let i = 0; i < len; i++) rect(ctx, ox + dx - (i < len - 2 ? 1 : 0), 6 + i, i < len - 2 ? 2 : 1, 1, i === 0 ? st.topHi : st.topLo);
+  }
+  // moss and glowing fungus in the cracks
+  for (let i = 0; i < 6; i++) px(ctx, ox + 2 + Math.floor(hash(i, mask, 111) * 28), 6 + Math.floor(hash(mask, i, 112) * 3), th.moss[i % th.moss.length]);
+  if (hash(mask, 13, 107) > 0.55) {
+    const gx = 6 + Math.floor(hash(mask, 3, 108) * 20);
+    for (let i = 0; i < 5; i++) px(ctx, ox + gx + Math.floor(hash(i, mask, 109) * 4), 24 + Math.floor(hash(mask, i, 110) * 4), th.glow[i % 2]);
+  }
+  rect(ctx, ox, S - 2, S, 2, shade(th.brickMortar, -0.45));
+  if (mask & 1) rect(ctx, ox + S - 2, 0, 2, S, st.edge);
+  if (mask & 2) rect(ctx, ox, 0, 2, S, st.edge);
+  if (cracked) {
+    const c = shade(th.brickMortar, -0.5);
+    crack(ctx, ox, [[10, 6], [15, 12], [14, 18], [18, 25]], c);
+    crack(ctx, ox, [[15, 12], [21, 15], [24, 13]], c);
+  }
+}
+
+function iceFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const S = TILE_RES;
+  const base = th.floor[v % th.floor.length];
+  rect(ctx, ox, 0, S, S, base);
+  mottle(ctx, ox, 0, S, S, base, v * 13 + 7, 0.05);
+  // sheen streaks
+  for (let k = 0; k < 2; k++) {
+    const y0 = 4 + Math.floor(hash(v, k, 120) * 22);
+    line(ctx, ox + 2, y0 + 4, ox + 9, y0, shade(base, 0.22));
+  }
+  // cracks with a light edge and a dark shadow
+  const cracks = v === 3 ? 3 : v % 2 === 0 ? 1 : 0;
+  for (let k = 0; k < cracks; k++) {
+    const pts: number[][] = [];
+    let x = 2 + hash(v, k, 121) * 8,
+      y = 2 + hash(k, v, 122) * 28;
+    for (let i = 0; i < 5; i++) {
+      pts.push([Math.round(x), Math.round(y)]);
+      x += 4 + hash(i, k + v, 123) * 4;
+      y += (hash(k, i + v, 124) - 0.5) * 9;
+    }
+    crack(ctx, ox, pts.map(([a, b]) => [a, b + 1]), shade(base, -0.3));
+    crack(ctx, ox, pts, '#eef9ff');
+  }
+  // sparkles
+  for (let k = 0; k < 3; k++) {
+    const x = 3 + Math.floor(hash(v, k, 125) * 26),
+      y = 3 + Math.floor(hash(k, v, 126) * 26);
+    px(ctx, ox + x, y, '#ffffff');
+    if (k === 0) {
+      px(ctx, ox + x - 1, y, '#dff4ff');
+      px(ctx, ox + x + 1, y, '#dff4ff');
+      px(ctx, ox + x, y - 1, '#dff4ff');
+      px(ctx, ox + x, y + 1, '#dff4ff');
+    }
+  }
+  if (v === 5) {
+    // snow drift
+    for (const [cx, cy, rx, ry] of [[9, 24, 8, 4], [15, 27, 9, 3.5], [5, 18, 4, 3]]) pell(ctx, ox + cx, cy, rx, ry, '#e2f1fa');
+    for (const [cx, cy, rx, ry] of [[9, 23, 6.5, 3], [15, 26, 7.5, 2.5]]) pell(ctx, ox + cx, cy, rx, ry, '#f6fcff');
+  }
+  if (v === 6) {
+    // frost flower
+    for (let a = 0; a < 6; a++) {
+      const ang = (a / 6) * Math.PI * 2;
+      line(ctx, ox + 16, 16, ox + Math.round(16 + Math.cos(ang) * 6), Math.round(16 + Math.sin(ang) * 6), '#eaf7ff');
+    }
+    px(ctx, ox + 16, 16, '#ffffff');
+  }
+  if (v === 7) {
+    // blue crystal shards poking out of the ice
+    poly(ctx, [ox + 12, 22, ox + 14, 13, ox + 16, 22], '#6fc8ff');
+    poly(ctx, [ox + 16, 23, ox + 19, 16, ox + 21, 23], '#8fd8ff');
+    line(ctx, ox + 14, 14, ox + 14, 21, '#e8f8ff');
+  }
+  grainImg(ctx, ox, 0, S, S, v * 5 + 9, 0.05, 0.1, 0.06);
+}
+
+function iceTop(ctx: CanvasRenderingContext2D, ox: number, mask: number, th: Theme) {
+  const S = TILE_RES;
+  const st = th.stone;
+  const ice = th.brick[Math.floor(hash(mask, 2, 130) * th.brick.length)];
+  rect(ctx, ox, 0, S, S, st.edge);
+  rect(ctx, ox + 1, 1, 30, 30, ice);
+  rect(ctx, ox + 1, 29, 30, 2, shade(ice, -0.3));
+  // snow cap with a soft, bumpy lower edge
+  for (let x = 1; x < 31; x++) {
+    const bot = 22 + Math.round(Math.sin(x * 0.55 + mask) * 1.6 + hash(x >> 1, mask, 131) * 2);
+    rect(ctx, ox + x, 1, 1, bot, st.top);
+    rect(ctx, ox + x, 1, 1, 3, st.topHi);
+    rect(ctx, ox + x, bot - 1, 1, 2, st.topLo);
+  }
+  mottle(ctx, ox + 1, 1, 30, 20, st.top, mask * 7 + 3, 0.05);
+  for (let k = 0; k < 5; k++) px(ctx, ox + 3 + Math.floor(hash(k, mask, 132) * 26), 3 + Math.floor(hash(mask, k, 133) * 16), '#ffffff');
+  if (mask & 1) rect(ctx, ox, 0, S, 2, st.edge);
+  if (mask & 2) rect(ctx, ox + S - 2, 0, 2, S, st.edge);
+  if (mask & 4) rect(ctx, ox, 0, 2, S, st.edge);
+}
+
+function iceFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) {
+  const S = TILE_RES;
+  const st = th.stone;
+  rect(ctx, ox, 0, S, S, th.brickMortar);
+  // columns of clear blue ice, lighter at the top
+  let x = 0,
+    k = 0;
+  while (x < S) {
+    const w = 5 + Math.floor(hash(k, mask, 134) * 5);
+    const c = th.brick[Math.floor(hash(mask, k, 135) * th.brick.length)];
+    const x1 = Math.min(S, x + w);
+    for (let y = 6; y < S - 2; y++) {
+      const t = (y - 6) / (S - 8);
+      rect(ctx, ox + x, y, x1 - x, 1, shade(c, 0.18 - t * 0.38));
+    }
+    const hx = x + Math.max(1, Math.floor((x1 - x) / 3));
+    if (hx < x1) rect(ctx, ox + hx, 8, 1, S - 14, shade(c, 0.35));
+    if (x1 - 1 > x) rect(ctx, ox + x1 - 1, 6, 1, S - 8, shade(c, -0.3));
+    if (hash(k, mask, 136) > 0.5) px(ctx, ox + x + 2, 14 + Math.floor(hash(mask, k, 137) * 10), '#e8f8ff');
+    x = x1 + 1;
+    k++;
+  }
+  // snow lip with icicles hanging from it
+  for (let i = 0; i < S; i++) {
+    const fade = Math.min(1, Math.min(i, S - 1 - i) / 5);
+    const lh = 5 + Math.round(fade * (hash(i >> 1, mask, 138) * 2));
+    rect(ctx, ox + i, 0, 1, lh, st.top);
+    px(ctx, ox + i, 0, st.topHi);
+    px(ctx, ox + i, lh - 1, st.topLo);
+  }
+  for (let d = 0; d < 4; d++) {
+    if (hash(mask, d, 139) < 0.35) continue;
+    const dx = 2 + Math.floor(hash(d, mask, 140) * 27),
+      len = 3 + Math.floor(hash(mask + d, 9, 141) * 6);
+    for (let i = 0; i < len; i++) {
+      const wd = i < len * 0.45 ? 2 : 1;
+      rect(ctx, ox + dx, 5 + i, wd, 1, i < 2 ? '#f4fbff' : '#bfe6fb');
+    }
+  }
+  // frost at the foot
+  for (let i = 0; i < 10; i++) px(ctx, ox + Math.floor(hash(i, mask, 142) * 32), S - 4 + Math.floor(hash(mask, i, 143) * 2), '#dff2fb');
+  rect(ctx, ox, S - 2, S, 2, shade(th.brickMortar, -0.4));
+  if (mask & 1) rect(ctx, ox + S - 2, 0, 2, S, st.edge);
+  if (mask & 2) rect(ctx, ox, 0, 2, S, st.edge);
+  if (cracked) {
+    const c = '#18324a';
+    crack(ctx, ox, [[10, 7], [15, 12], [14, 18], [18, 25]], c);
+    crack(ctx, ox, [[15, 12], [21, 15], [24, 13]], c);
+  }
+}
+
+function lavaFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const S = TILE_RES;
+  const base = th.floor[v % th.floor.length];
+  // basalt hexagons on a 32 px period, so the pattern runs seamlessly across tiles
+  const centers = [
+    [8, 8],
+    [24, 8],
+    [0, 24],
+    [16, 24],
+    [32, 24],
+    [8, 40],
+    [24, 40],
+    [8, -8],
+    [24, -8],
+    [-8, 8],
+    [40, 8],
+  ];
+  const glowSeam = v === 3 || v === 5 || v === 7;
+  for (let y = 0; y < S; y++)
+    for (let x = 0; x < S; x++) {
+      let b1 = 1e9,
+        b2 = 1e9,
+        bi = 0;
+      centers.forEach(([cx, cy], i) => {
+        const d = (x + 0.5 - cx) ** 2 + ((y + 0.5 - cy) * 1.15) ** 2;
+        if (d < b1) {
+          b2 = b1;
+          b1 = d;
+          bi = i;
+        } else if (d < b2) b2 = d;
+      });
+      const seam = Math.sqrt(b2) - Math.sqrt(b1) < 1.6;
+      const [cx, cy] = centers[bi];
+      const cellShade = (hash(((cx + 32) % 32) + v * 3, ((cy + 32) % 32) + 7, 150) - 0.5) * 0.16;
+      let c = shade(base, cellShade - ((x - cx) + (y - cy)) * 0.006);
+      if (seam) c = glowSeam && hash(x >> 2, y >> 2, v + 151) > 0.35 ? th.glow[0] : th.mortar;
+      px(ctx, ox + x, y, c);
+    }
+  grainImg(ctx, ox, 0, S, S, v * 9 + 4, 0.14);
+  if (glowSeam) {
+    // hot cores inside the glowing seams
+    const img = ctx.getImageData(ox, 0, S, S);
+    const d = img.data;
+    const g0 = parseInt(th.glow[0].slice(1), 16);
+    for (let i = 0; i < S * S; i++) {
+      const r = d[i * 4],
+        gg = d[i * 4 + 1],
+        b = d[i * 4 + 2];
+      if (((r << 16) | (gg << 8) | b) === g0 && hash(i, v, 152) > 0.6) {
+        d[i * 4] = 255;
+        d[i * 4 + 1] = 200;
+        d[i * 4 + 2] = 90;
+      }
+    }
+    ctx.putImageData(img, ox, 0);
+  }
+  if (v === 5) {
+    for (let k = 0; k < 18; k++) px(ctx, ox + 6 + Math.floor(hash(k, 5, 153) * 20), 8 + Math.floor(hash(5, k, 154) * 16), k % 3 ? '#5a4c46' : '#6e5f58');
+  }
+  for (let k = 0; k < 3; k++) if (hash(v, k, 155) > 0.5) px(ctx, ox + 3 + Math.floor(hash(k, v, 156) * 26), 3 + Math.floor(hash(v + k, 1, 157) * 26), th.glow[1]);
+}
+
+function lavaTop(ctx: CanvasRenderingContext2D, ox: number, mask: number, th: Theme) {
+  const S = TILE_RES;
+  const st = th.stone;
+  rect(ctx, ox, 0, S, S, st.edge);
+  const c = hash(mask, 1, 160) > 0.5 ? st.topHi : st.top;
+  rect(ctx, ox + 1, 1, 30, 30, c);
+  mottle(ctx, ox + 1, 1, 30, 30, c, mask + 40, 0.08);
+  rect(ctx, ox + 1, 1, 30, 2, shade(c, 0.18));
+  rect(ctx, ox + 1, 3, 2, 26, shade(c, 0.08));
+  rect(ctx, ox + 1, 29, 30, 2, shade(c, -0.3));
+  rect(ctx, ox + 29, 3, 2, 26, shade(c, -0.2));
+  grainImg(ctx, ox + 1, 1, 30, 30, 400 + mask, 0.15);
+  // a glowing magma seam across the rock
+  let x = 3 + Math.floor(hash(mask, 3, 161) * 6),
+    y = 4 + Math.floor(hash(mask, 4, 162) * 8);
+  for (let i = 0; i < 14; i++) {
+    px(ctx, ox + x, y, i % 4 === 1 ? th.glow[1] : th.glow[0]);
+    x += hash(i, mask, 163) > 0.3 ? 2 : 1;
+    y += hash(mask, i, 164) > 0.5 ? 1 : 0;
+    if (x > 28 || y > 28) break;
+  }
+  if (mask & 1) rect(ctx, ox, 0, S, 2, st.edge);
+  if (mask & 2) rect(ctx, ox + S - 2, 0, 2, S, st.edge);
+  if (mask & 4) rect(ctx, ox, 0, 2, S, st.edge);
+}
+
+function lavaFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) {
+  const S = TILE_RES;
+  const st = th.stone;
+  rect(ctx, ox, 0, S, S, th.brickMortar);
+  // basalt columns
+  for (let col = 0; col < 5; col++) {
+    const x0 = col * 6 + (col > 0 ? 1 : 0) + Math.floor(mask / 2) % 2,
+      w = 5;
+    if (x0 >= S) break;
+    const c = th.brick[Math.floor(hash(col, mask, 165) * th.brick.length)];
+    const top = 6 + Math.floor(hash(mask, col, 166) * 3);
+    rect(ctx, ox + x0, top, w, S - 2 - top, c);
+    rect(ctx, ox + x0, top, 1, S - 2 - top, shade(c, 0.16));
+    rect(ctx, ox + x0 + w - 1, top, 1, S - 2 - top, shade(c, -0.3));
+    rect(ctx, ox + x0, top, w, 1, shade(c, 0.28));
+    if (hash(col, mask, 167) > 0.5) rect(ctx, ox + x0 + 1, top + 8 + Math.floor(hash(mask, col, 168) * 10), w - 2, 1, shade(c, -0.4));
+  }
+  grainImg(ctx, ox, 6, S, S - 8, 500 + mask, 0.14);
+  // dark rock lip
+  rect(ctx, ox, 0, S, 5, st.topHi);
+  rect(ctx, ox, 0, S, 1, shade(st.topHi, 0.2));
+  rect(ctx, ox, 4, S, 1, shade(st.topHi, -0.3));
+  rect(ctx, ox, 5, S, 1, st.edge);
+  // heat glow at the foot of the wall
+  const glow = parseInt(th.glow[0].slice(1), 16);
+  for (let y = S - 7; y < S - 2; y++) {
+    const a = ((y - (S - 7)) / 5) * 0.55;
+    ctx.fillStyle = `rgba(${(glow >> 16) & 255},${(glow >> 8) & 255},${glow & 255},${a})`;
+    ctx.fillRect(ox, y, S, 1);
+  }
+  for (let i = 0; i < 4; i++) px(ctx, ox + Math.floor(hash(i, mask, 169) * 32), S - 4 - Math.floor(hash(mask, i, 170) * 6), th.glow[1]);
+  // dripping magma on some walls
+  if (hash(mask, 9, 171) > 0.55) {
+    const dx = 6 + Math.floor(hash(mask, 2, 172) * 20);
+    rect(ctx, ox + dx, 6, 1, 8 + Math.floor(hash(mask, 5, 173) * 10), th.glow[0]);
+    px(ctx, ox + dx, 7, th.glow[2]);
+  }
+  rect(ctx, ox, S - 2, S, 2, shade(th.brickMortar, -0.4));
+  if (mask & 1) rect(ctx, ox + S - 2, 0, 2, S, st.edge);
+  if (mask & 2) rect(ctx, ox, 0, 2, S, st.edge);
+  if (cracked) {
+    const c = '#050303';
+    crack(ctx, ox, [[10, 7], [15, 12], [14, 18], [18, 25]], c);
+    crack(ctx, ox, [[15, 12], [21, 15], [24, 13]], c);
+    px(ctx, ox + 15, 12, th.glow[0]);
+  }
+}
+
+// small glowing rune (one of a few glyphs)
+function rune(ctx: CanvasRenderingContext2D, x: number, y: number, kind: number, col: string, core: string) {
+  const G = [
+    [[0, 0], [0, 6], [0, 3], [3, 0], [0, 3], [3, 6]],
+    [[0, 0], [4, 0], [2, 0], [2, 6], [0, 6], [4, 6]],
+    [[2, 0], [0, 3], [2, 6], [4, 3], [2, 0]],
+    [[0, 6], [2, 0], [4, 6], [1, 3], [3, 3]],
+  ][kind % 4];
+  for (let i = 0; i < G.length - 1; i += kind % 4 === 2 ? 1 : 2) line(ctx, x + G[i][0], y + G[i][1], x + G[i + 1][0], y + G[i + 1][1], col);
+  px(ctx, x + 2, y + 3, core);
+}
+
+function abyssFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const S = TILE_RES;
+  const base = th.floor[v % th.floor.length];
+  rect(ctx, ox, 0, S, S, th.mortar);
+  const slab = (x: number, y: number, w: number, h: number, c: string, seed: number) => {
+    stoneBlock(ctx, ox + x, y, w, h, c, seed, th.mortar, 0.05);
+    mottle(ctx, ox + x, y, w, h, c, seed + 5, 0.06);
+  };
+  if (v === 4) {
+    slab(1, 1, 14, 30, base, 31);
+    slab(16, 1, 15, 30, shade(base, 0.04), 32);
+  } else slab(1, 1, 30, 30, base, v * 7 + 33);
+  grainImg(ctx, ox, 0, S, S, v * 3 + 11, 0.1);
+  if (v === 3 || v === 6) {
+    const pts = v === 3 ? [[4, 9], [10, 13], [14, 12], [19, 18], [26, 21]] : [[16, 3], [14, 10], [17, 16], [15, 23], [18, 29]];
+    crack(ctx, ox, pts.map(([a, b]) => [a, b + 1]), th.glow[2]);
+    crack(ctx, ox, pts, th.glow[0]);
+    px(ctx, ox + pts[2][0], pts[2][1], th.glow[1]);
+  }
+  if (v === 7) rune(ctx, ox + 14, 12, v + 1, th.glow[0], th.glow[1]);
+  if (v === 5) {
+    // faint circle of a ward
+    for (let a = 0; a < 24; a++) {
+      const ang = (a / 24) * Math.PI * 2;
+      if (a % 3 === 0) continue;
+      px(ctx, ox + Math.round(16 + Math.cos(ang) * 9), Math.round(16 + Math.sin(ang) * 6), th.glow[2]);
+    }
+  }
+  for (let k = 0; k < 4; k++) px(ctx, ox + 2 + Math.floor(hash(k, v, 180) * 28), 2 + Math.floor(hash(v, k, 181) * 28), hash(k, v + 2, 182) > 0.5 ? th.glow[2] : '#5a4a70');
+}
+
+function abyssTop(ctx: CanvasRenderingContext2D, ox: number, mask: number, th: Theme) {
+  const S = TILE_RES;
+  const st = th.stone;
+  drawWallTop(ctx, ox, mask, { ...th, style: 'bricks' });
+  // glassy obsidian: a diagonal sheen and violet glints along the bevel
+  const n = hash(mask, 3, 183);
+  for (let i = 0; i < 9; i++) px(ctx, ox + 5 + i, 4 + Math.floor(i * 0.6), shade(st.topHi, 0.12));
+  line(ctx, ox + 2, 2, ox + 12, 2, th.glow[2]);
+  line(ctx, ox + 2, 2, ox + 2, 9, th.glow[2]);
+  if (n > 0.55) {
+    // a small cluster of violet crystals growing out of the rock
+    const cx = 16 + Math.floor(hash(mask, 5, 184) * 8),
+      cy = 18 + Math.floor(hash(mask, 6, 185) * 6);
+    poly(ctx, [ox + cx - 3, cy + 3, ox + cx - 2, cy - 4, ox + cx, cy + 3], th.glow[2]);
+    poly(ctx, [ox + cx - 1, cy + 3, ox + cx + 1, cy - 7, ox + cx + 3, cy + 3], th.glow[0]);
+    line(ctx, ox + cx + 1, cy - 6, ox + cx + 1, cy + 1, th.glow[1]);
+    poly(ctx, [ox + cx + 2, cy + 3, ox + cx + 4, cy - 2, ox + cx + 5, cy + 3], th.glow[2]);
+  }
+}
+
+function abyssFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) {
+  const S = TILE_RES;
+  const st = th.stone;
+  drawWallFront(ctx, ox, mask, false, { ...th, style: 'bricks' });
+  // carved runes glowing in some blocks, a seam of violet light in others
+  const r = hash(mask, 5, 185);
+  if (r > 0.45) rune(ctx, ox + 12 + Math.floor(hash(mask, 6, 186) * 8), 9, mask, th.glow[0], th.glow[1]);
+  else if (r > 0.2) {
+    const sx = 6 + Math.floor(hash(mask, 7, 187) * 20);
+    rect(ctx, ox + sx, 7, 1, 21, th.glow[2]);
+    px(ctx, ox + sx, 12, th.glow[0]);
+    px(ctx, ox + sx, 20, th.glow[0]);
+  }
+  rect(ctx, ox, 0, S, 1, shade(st.topHi, 0.15));
+  if (cracked) {
+    const c = '#08050c';
+    crack(ctx, ox, [[10, 6], [15, 12], [14, 18], [18, 25]], c);
+    crack(ctx, ox, [[15, 12], [21, 15], [24, 13]], c);
+    px(ctx, ox + 15, 12, th.glow[0]);
+  }
+}
+
+function biomeRock(ctx: CanvasRenderingContext2D, ox: number, th: Theme) {
+  const S = TILE_RES;
+  const st = th.stone;
+  const base = shade(st.topLo, th.style === 'ice' ? -0.55 : -0.4);
+  rect(ctx, ox, 0, S, S, shade(base, -0.25));
+  if (th.style === 'cave') {
+    boulder(ctx, ox, 16, 16, 15, 14.5, base, 77);
+    grainImg(ctx, ox, 0, S, S, 701, 0.1);
+  } else {
+    rect(ctx, ox + 1, 1, 30, 30, base);
+    mottle(ctx, ox + 1, 1, 30, 30, base, 77, 0.08);
+    rect(ctx, ox + 1, 1, 30, 1, shade(base, 0.12));
+    rect(ctx, ox + 1, 30, 30, 1, shade(base, -0.2));
+  }
+  if (th.style === 'lava') px(ctx, ox + 21, 9, shade(th.glow[0], -0.4));
+  if (th.style === 'abyss') {
+    px(ctx, ox + 9, 11, '#4a3a66');
+    px(ctx, ox + 23, 21, '#4a3a66');
+  }
+}
+
+type FloorPainter = (ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) => void;
+type FrontPainter = (ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) => void;
+const BIOME_PAINTERS: Record<BiomeStyle, { floor: FloorPainter; top: FloorPainter; front: FrontPainter; rock: (ctx: CanvasRenderingContext2D, ox: number, th: Theme) => void }> = {
+  bricks: { floor: drawFloor, top: drawWallTop, front: drawWallFront, rock: drawRock },
+  cave: { floor: caveFloor, top: caveTop, front: caveFront, rock: biomeRock },
+  ice: { floor: iceFloor, top: iceTop, front: iceFront, rock: biomeRock },
+  lava: { floor: lavaFloor, top: lavaTop, front: lavaFront, rock: biomeRock },
+  abyss: { floor: abyssFloor, top: abyssTop, front: abyssFront, rock: biomeRock },
+};
+
 function buildTileset() {
   const S = TILE_RES;
   THEMES.forEach((th, ti) => {
     const [c, ctx] = canvas(S * TILE.count, S);
-    for (let v = 0; v < 8; v++) drawFloor(ctx, S * (1 + v), v, th);
-    for (let m = 0; m < 8; m++) drawWallTop(ctx, S * (TILE.top + m), m, th);
-    for (let m = 0; m < 4; m++) drawWallFront(ctx, S * (TILE.front + m), m, false, th);
-    drawWallFront(ctx, S * TILE.frontCrack, 0, true, th);
-    drawWallFront(ctx, S * (TILE.frontCrack + 1), 0, true, th);
-    drawFloor(ctx, S * 23, 0, th);
+    const P = BIOME_PAINTERS[th.style];
+    for (let v = 0; v < 8; v++) P.floor(ctx, S * (1 + v), v, th);
+    for (let m = 0; m < 8; m++) P.top(ctx, S * (TILE.top + m), m, th);
+    for (let m = 0; m < 4; m++) P.front(ctx, S * (TILE.front + m), m, false, th);
+    P.front(ctx, S * TILE.frontCrack, 0, true, th);
+    P.front(ctx, S * (TILE.frontCrack + 1), 0, true, th);
+    P.floor(ctx, S * 23, 0, th);
     rect(ctx, S * TILE.fog, 0, S, S, '#07060a');
-    drawRock(ctx, S * TILE.rock, th);
+    P.rock(ctx, S * TILE.rock, th);
     addCanvas('tiles_' + ti, c);
     if (ti === 0) addCanvas('tiles', c);
   });
@@ -975,6 +1576,234 @@ function buildEnemies() {
     px(ctx, 6, 5, '#c77dff');
     px(ctx, 9, 5, '#c77dff');
   });
+  // ---- monsters of the deeper biomes
+  creatureStrip('en_mushroom', 16, 17, 2, (ctx, f) => {
+    const b = f === 0 ? 0 : 1;
+    rect(ctx, 5, 14, 2, 3 - b, '#b8a888');
+    rect(ctx, 9, 14, 2, 2 + b, '#b8a888');
+    ell(ctx, 8, 11, 3.6, 4, '#e8dcc0');
+    ell(ctx, 7, 10, 1.6, 2.4, '#f6eedc');
+    px(ctx, 6, 10, '#1a1420');
+    px(ctx, 10, 10, '#1a1420');
+    rect(ctx, 7, 12, 3, 1, '#7a5a4a');
+    ell(ctx, 8, 6 + b * 0.5, 7.5, 4.2, '#3a7a6e');
+    ell(ctx, 8, 5 + b * 0.5, 6.5, 3.2, '#4a8f82');
+    rect(ctx, 2, 8 + b, 12, 1, '#d8c8a8');
+    px(ctx, 5, 4 + b, '#4ff0d0');
+    px(ctx, 10, 5 + b, '#4ff0d0');
+    px(ctx, 8, 3 + b, '#b0fff0');
+    px(ctx, 12, 6 + b, '#4ff0d0');
+  });
+  humanoidStrip('en_troll', 'orc', 'armor', { s: '#7a8a8f', j: '#56656a', d: '#5f6e73', e: '#ffde3b', y: '#f5f0e0', u: '#5a4a3a', c: '#6b5a44', v: '#4a3e2e', w: '#8a765a', a: '#8a8a7a', l: '#3b2a1a', p: '#5a4a32', q: '#3e3222', b: '#2a2018', g: '#7a8a8f' });
+  creatureStrip('en_iceGolem', 19, 19, 2, (ctx, f) => {
+    golem('#a8d8f0', '#7ab0d0', '#e0f4ff', '#3bd0ff')(ctx, f);
+    poly(ctx, [6, 1, 7, -2, 8, 1], '#e0f4ff');
+    poly(ctx, [11, 1, 12, -3, 13, 1], '#e0f4ff');
+    line(ctx, 5, 7, 7, 12, '#e8f8ff');
+  });
+  creatureStrip('en_frostWolf', 17, 13, 2, (ctx, f) => {
+    quad('#e8f4ff', '#9ab8d0', '#3bd0ff')(ctx, f);
+    px(ctx, 6, 4, '#ffffff');
+    px(ctx, 9, 4, '#ffffff');
+  });
+  creatureStrip('en_hellhound', 17, 13, 2, (ctx, f) => {
+    quad('#4a2a24', '#2a1410', '#ffb33b')(ctx, f);
+    const o = f === 0 ? 0 : 1;
+    for (let i = 0; i < 5; i++) px(ctx, 5 + i * 2, 3 - (i % 2) - o, i % 2 ? '#ffb33b' : '#ff6a1a');
+    px(ctx, 1, 3 - o, '#ff6a1a');
+  });
+  creatureStrip('en_magmaGolem', 19, 19, 2, (ctx, f) => {
+    golem('#4a3430', '#2e1e1a', '#6a4a42', '#ffde3b')(ctx, f);
+    line(ctx, 6, 7, 9, 12, '#ff6a1a');
+    line(ctx, 9, 12, 12, 9, '#ff6a1a');
+    line(ctx, 8, 2, 10, 4, '#ff9a3a');
+    px(ctx, 9, 12, '#ffd060');
+  });
+  creatureStrip('en_voidEye', 16, 16, 2, (ctx, f) => {
+    const o = f === 0 ? 0 : 1;
+    for (let i = 0; i < 3; i++) {
+      const x = 5 + i * 3;
+      line(ctx, x, 11, x + (i - 1) - o, 15, '#5a2a8a');
+      px(ctx, x + (i - 1) - o, 15, '#8a4aff');
+    }
+    ell(ctx, 8, 7, 5.8, 5.8, '#2a1a3a');
+    ell(ctx, 8, 7, 5, 5, '#e8dcf0');
+    line(ctx, 4, 5, 6, 6, '#c86a8a');
+    line(ctx, 12, 9, 10, 8, '#c86a8a');
+    ell(ctx, 8 + o * 0.5, 7, 2.8, 2.8, '#8a3aff');
+    ell(ctx, 8 + o * 0.5, 7, 1.3, 1.6, '#12081c');
+    px(ctx, 7, 6, '#f6e6ff');
+  });
+  creatureStrip('en_shade', 16, 16, 2, ghost('#3a2a5a', '#1a1030', '#ff4dff'));
+
+  // ---- story guardians (bigger, more detailed sprites)
+  creatureStrip('en_morgrim', 30, 32, 2, (ctx, f) => {
+    const b = f === 0 ? 0 : 1;
+    const rust = '#7a4a2a',
+      rustD = '#5a3418',
+      rustL = '#a86a3a',
+      iron = '#4a4048';
+    // legs and boots
+    rect(ctx, 9, 23, 5, 7 - b, iron);
+    rect(ctx, 16, 23, 5, 6 + b, iron);
+    rect(ctx, 8, 29 - b, 7, 3, '#2a2228');
+    rect(ctx, 15, 28 + b, 7, 3, '#2a2228');
+    // chain skirt
+    rect(ctx, 8, 21, 14, 3, '#6a6a76');
+    for (let x = 8; x < 22; x += 2) px(ctx, x, 23, '#3a3a44');
+    // breastplate
+    rect(ctx, 7, 11 + b, 16, 11, rust);
+    rect(ctx, 8, 12 + b, 14, 2, rustL);
+    rect(ctx, 14, 12 + b, 2, 9, rustD);
+    px(ctx, 9, 15 + b, '#d8c8a8');
+    px(ctx, 20, 15 + b, '#d8c8a8');
+    rect(ctx, 7, 20 + b, 16, 2, '#3a2a1e');
+    // pauldrons and arms
+    ell(ctx, 6, 12 + b, 4, 3, rustL);
+    ell(ctx, 24, 12 + b, 4, 3, rustL);
+    rect(ctx, 3, 13 + b, 4, 8, rustD);
+    rect(ctx, 23, 13 + b, 4, 8, rustD);
+    // chains on the wrists
+    for (let i = 0; i < 4; i++) px(ctx, 2 + (i % 2), 21 + i + b, '#9a9aa6');
+    // the great axe
+    line(ctx, 26, 4 + b * 2, 26, 26, '#5a3a22');
+    poly(ctx, [26, 4 + b * 2, 30, 1 + b * 2, 30, 13 + b * 2, 26, 10 + b * 2], '#9aa0a8');
+    line(ctx, 30, 2 + b * 2, 30, 12 + b * 2, '#e0e4ea');
+    // horned helm with a glowing slit
+    poly(ctx, [9, 4 + b, 5, -1 + b, 8, 6 + b], '#d8c8a8');
+    poly(ctx, [21, 4 + b, 25, -1 + b, 22, 6 + b], '#d8c8a8');
+    ell(ctx, 15, 6 + b, 6, 6, rust);
+    rect(ctx, 10, 6 + b, 11, 5, rust);
+    rect(ctx, 11, 3 + b, 8, 1, rustL);
+    rect(ctx, 11, 7 + b, 9, 2, '#0a0606');
+    rect(ctx, 14, 7 + b, 2, 4, '#0a0606');
+    px(ctx, 12, 7 + b, '#ff8a2a');
+    px(ctx, 18, 7 + b, '#ff8a2a');
+  });
+  creatureStrip('en_sporeMother', 34, 30, 2, (ctx, f) => {
+    const b = f === 0 ? 0 : 1;
+    // root legs
+    for (const [x, d] of [[9, -3], [13, -1], [21, 1], [25, 3]]) line(ctx, x, 22, x + d + (b ? 1 : 0), 29, '#8a7a5a');
+    // bulbous body with a face
+    ell(ctx, 17, 20, 9, 7, '#e0d4b8');
+    ell(ctx, 15, 19, 5, 4, '#f0e6cc');
+    ell(ctx, 13, 19, 1.6, 2, '#12201a');
+    ell(ctx, 21, 19, 1.6, 2, '#12201a');
+    px(ctx, 13, 19, '#b0fff0');
+    px(ctx, 21, 19, '#b0fff0');
+    rect(ctx, 15, 23, 5, 1, '#5a4a3a');
+    // the great cap
+    ell(ctx, 17, 10 + b * 0.5, 16, 8.5, '#3a7a6e');
+    ell(ctx, 17, 8.5 + b * 0.5, 14, 6.5, '#4a8f82');
+    rect(ctx, 2, 13 + b, 30, 2, '#d8c8a8');
+    for (let x = 3; x < 31; x += 2) px(ctx, x, 14 + b, '#a8987a');
+    for (const [x, y, r] of [[8, 8, 1.8], [17, 4, 2.2], [26, 8, 1.8], [12, 11, 1.2], [22, 11, 1.2]]) {
+      ell(ctx, x, y + b * 0.5, r, r * 0.8, '#4ff0d0');
+      px(ctx, Math.round(x - 0.5), Math.round(y - 0.5 + b * 0.5), '#d8fff6');
+    }
+    // little mushrooms sprouting from the cap
+    for (const [x, y] of [[4, 9], [30, 9]]) {
+      rect(ctx, x, y + b, 1, 2, '#d8d2c2');
+      rect(ctx, x - 1, y - 1 + b, 3, 1, '#2a9a88');
+    }
+  });
+  creatureStrip('en_isolda', 22, 34, 2, (ctx, f) => {
+    const b = f === 0 ? 0 : 1;
+    // long dress
+    poly(ctx, [7, 14, 15, 14, 19, 32, 3, 32], '#6aa8d8');
+    poly(ctx, [9, 14, 12, 14, 12, 32, 7, 32], '#8ac2e6');
+    rect(ctx, 3, 31, 16, 2, '#e8f8ff');
+    for (let x = 4; x < 19; x += 3) px(ctx, x + b, 30, '#cfeefe');
+    rect(ctx, 7, 14, 8, 2, '#e8f8ff');
+    // ice staff
+    line(ctx, 19, 6, 19, 31, '#cfeefe');
+    poly(ctx, [19, 1 - b, 21, 5, 19, 8, 17, 5], '#6fc8ff');
+    px(ctx, 19, 4, '#ffffff');
+    rect(ctx, 16, 15, 3, 2, '#d4ecf8');
+    // flowing white hair, pale face and neck, ice crown
+    poly(ctx, [5, 7, 11, 2, 17, 7, 17, 18 + b, 14, 12, 8, 12, 5, 18 - b], '#eef8ff');
+    rect(ctx, 9, 10, 5, 5, '#c4e0f2');
+    rect(ctx, 8, 13, 7, 1, '#e8f8ff');
+    ell(ctx, 11, 8, 3.5, 4, '#d4ecf8');
+    px(ctx, 10, 8, '#3a8ad8');
+    px(ctx, 12, 8, '#3a8ad8');
+    px(ctx, 10, 10, '#bfe6fb');
+    for (const [x, h] of [[8, 3], [11, 5], [14, 3]]) poly(ctx, [x - 1, 4, x, 4 - h, x + 1, 4], '#a8e0ff');
+  });
+  const elara = (wings: boolean) => (ctx: CanvasRenderingContext2D, f: number) => {
+    const b = f === 0 ? 0 : 1;
+    const ox = wings ? 6 : 0;
+    if (wings) {
+      // great wings of shadow
+      poly(ctx, [ox + 6, 10, 0, 2 + b * 2, 1, 14, 3, 12, 2, 20, 5, 17, ox + 6, 18], '#1a0c26');
+      poly(ctx, [ox + 12, 10, 30, 2 + b * 2, 29, 14, 27, 12, 28, 20, 25, 17, ox + 12, 18], '#1a0c26');
+      line(ctx, ox + 6, 10, 1, 3 + b * 2, '#8a3aff');
+      line(ctx, ox + 12, 10, 29, 3 + b * 2, '#8a3aff');
+    }
+    // robe
+    poly(ctx, [ox + 5, 12, ox + 13, 12, ox + 16, 27, ox + 2, 27], '#24122e');
+    line(ctx, ox + 9, 13, ox + 9, 27, '#8a3aff');
+    rect(ctx, ox + 2, 26, 14, 1, '#8a3aff');
+    // dark orb in her hand
+    ell(ctx, ox + 15, 15 - b, 2.2, 2.2, '#c77dff');
+    px(ctx, ox + 15, 14 - b, '#f6e6ff');
+    // hair and face
+    poly(ctx, [ox + 4, 6, ox + 9, 1, ox + 14, 6, ox + 14, 16 + b, ox + 12, 10, ox + 6, 10, ox + 4, 16 - b], '#3a2a4a');
+    ell(ctx, ox + 9, 7, 3.2, 3.8, '#d8c4d4');
+    px(ctx, ox + 8, 7, '#e080ff');
+    px(ctx, ox + 10, 7, '#e080ff');
+    rect(ctx, ox + 6, 3, 7, 1, '#5a3a6a');
+    px(ctx, ox + 9, 3, '#c77dff');
+  };
+  creatureStrip('en_elaraDark', 18, 28, 2, elara(false));
+  creatureStrip('en_elaraWings', 30, 28, 2, elara(true));
+  creatureStrip('en_nyxShadow', 24, 32, 2, (ctx, f) => {
+    const b = f === 0 ? 0 : 1;
+    // smoky lower body
+    for (const [x, d] of [[7, -2], [10, 0], [14, 1], [17, 3]]) line(ctx, x, 20, x + d + b, 31, '#2a1438');
+    poly(ctx, [5, 12, 19, 12, 17, 24, 7, 24], '#14081e');
+    // shoulders, long arms with claws
+    ell(ctx, 6, 12, 3.5, 2.5, '#1e0e2a');
+    ell(ctx, 18, 12, 3.5, 2.5, '#1e0e2a');
+    poly(ctx, [3, 13, 5, 13, 3, 24 - b, 1, 24 - b], '#14081e');
+    poly(ctx, [19, 13, 21, 13, 23, 24 + b, 21, 24 + b], '#14081e');
+    for (const x of [0, 2]) line(ctx, x + 1, 24 - b, x, 27 - b, '#c77dff');
+    for (const x of [21, 23]) line(ctx, x, 24 + b, x + 1, 27 + b, '#c77dff');
+    // horned head with burning eyes
+    poly(ctx, [8, 5, 4, 0, 9, 3], '#24142e');
+    poly(ctx, [16, 5, 20, 0, 15, 3], '#24142e');
+    ell(ctx, 12, 7, 4.5, 5, '#14081e');
+    px(ctx, 10, 7, '#ff4dff');
+    px(ctx, 14, 7, '#ff4dff');
+    line(ctx, 5, 13, 19, 13, '#5a2a8a');
+  });
+  creatureStrip('en_nyxTrue', 36, 32, 2, (ctx, f) => {
+    const b = f === 0 ? 0 : 1;
+    // tentacles all around
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + b * 0.15;
+      const x1 = 18 + Math.cos(a) * 17,
+        y1 = 16 + Math.sin(a) * 15;
+      line(ctx, 18, 16, Math.round(x1), Math.round(y1), '#3a1448');
+      line(ctx, 18, 17, Math.round(x1), Math.round(y1) + 1, '#2a0e36');
+      px(ctx, Math.round(x1), Math.round(y1), '#8a3aff');
+    }
+    // flesh around the eye and smaller eyes
+    ell(ctx, 18, 16, 12, 10, '#2a0a2a');
+    for (const [x, y] of [[8, 8], [28, 9], [9, 24], [27, 24]]) {
+      ell(ctx, x, y, 2, 1.6, '#e8dcf0');
+      px(ctx, x, y, '#8a3aff');
+    }
+    // the great eye
+    ell(ctx, 18, 16, 9.5, 7.5, '#e8dcf0');
+    line(ctx, 10, 13, 13, 15, '#c86a8a');
+    line(ctx, 26, 19, 23, 17, '#c86a8a');
+    ell(ctx, 18 + b * 0.6, 16, 5, 5, '#c77dff');
+    ell(ctx, 18 + b * 0.6, 16, 3, 3, '#8a3aff');
+    rect(ctx, 18 + b, 11, 1, 10, '#05020a');
+    px(ctx, 16, 14, '#ffffff');
+  });
+
   // totems
   for (const [k, col] of [
     ['heal', '#52ff8f'],
@@ -1427,6 +2256,237 @@ function buildObjects() {
       ell(ctx, fl[0], fl[1] + 1.5, 0.8, 1.2, '#fff7d0');
     },
     false,
+  );
+  // wall lights of the other biomes (same size and frame count as the torch)
+  creatureStrip(
+    'torch_cave',
+    10,
+    16,
+    3,
+    (ctx, f) => {
+      const hi = ['#b0fff0', '#e0fffa', '#8ff5e0'][f];
+      rect(ctx, 2, 11, 6, 3, '#4a443e');
+      rect(ctx, 2, 11, 6, 1, '#6e665d');
+      poly(ctx, [2, 12, 3, 5, 5, 12], '#2a9a88');
+      poly(ctx, [4, 12, 5.5, 2, 7, 12], '#4ff0d0');
+      poly(ctx, [6, 12, 7.5, 6, 9, 12], '#2a9a88');
+      line(ctx, 5, 4, 5, 10, hi);
+      px(ctx, 3, 7, hi);
+      px(ctx, 7, 8, f === 1 ? '#ffffff' : hi);
+    },
+    false,
+  );
+  creatureStrip(
+    'torch_ice',
+    10,
+    16,
+    3,
+    (ctx, f) => {
+      rect(ctx, 4, 8, 2, 6, '#3e4a5a');
+      rect(ctx, 3, 7, 4, 2, '#9ab8d0');
+      rect(ctx, 3, 13, 4, 1, '#9ab8d0');
+      const fl = [
+        [5, 4, 2.5, 3.5],
+        [4.6, 3.6, 2.2, 4],
+        [5.3, 4.2, 2.6, 3.2],
+      ][f];
+      ell(ctx, fl[0], fl[1], fl[2], fl[3], '#3aa8ff');
+      ell(ctx, fl[0], fl[1] + 1, fl[2] * 0.6, fl[3] * 0.6, '#8fdcff');
+      ell(ctx, fl[0], fl[1] + 1.5, 0.8, 1.2, '#f0fbff');
+    },
+    false,
+  );
+  creatureStrip(
+    'torch_lava',
+    10,
+    16,
+    3,
+    (ctx, f) => {
+      // iron fire basket
+      rect(ctx, 1, 9, 8, 4, '#3a3133');
+      rect(ctx, 1, 9, 8, 1, '#5a4c4e');
+      rect(ctx, 4, 13, 2, 3, '#2a2224');
+      px(ctx, 3, 11, '#ff7a1a');
+      px(ctx, 6, 11, '#ff7a1a');
+      const fl = [
+        [5, 5, 3.6, 4.4],
+        [4.6, 4.4, 3.2, 5],
+        [5.4, 5.2, 3.8, 4],
+      ][f];
+      ell(ctx, fl[0], fl[1], fl[2], fl[3], '#ff4a10');
+      ell(ctx, fl[0], fl[1] + 1, fl[2] * 0.65, fl[3] * 0.65, '#ffa83a');
+      ell(ctx, fl[0], fl[1] + 2, 1, 1.4, '#fff0a0');
+    },
+    false,
+  );
+  creatureStrip(
+    'torch_abyss',
+    10,
+    16,
+    3,
+    (ctx, f) => {
+      rect(ctx, 4, 8, 2, 6, '#241c30');
+      rect(ctx, 3, 7, 4, 2, '#5a4a70');
+      rect(ctx, 3, 13, 4, 1, '#5a4a70');
+      const fl = [
+        [5, 4, 2.5, 3.5],
+        [4.6, 3.6, 2.2, 4],
+        [5.3, 4.2, 2.6, 3.2],
+      ][f];
+      ell(ctx, fl[0], fl[1], fl[2], fl[3], '#8a3aff');
+      ell(ctx, fl[0], fl[1] + 1, fl[2] * 0.6, fl[3] * 0.6, '#c77dff');
+      ell(ctx, fl[0], fl[1] + 1.5, 0.8, 1.2, '#f6e6ff');
+    },
+    false,
+  );
+  // wall decorations of the other biomes (instead of banners and bookshelves)
+  addCanvas(
+    'deco_wall_cave',
+    iconCanvasSized(12, 18, (c) => {
+      for (const [x, len, col] of [
+        [2, 12, '#4f6e33'],
+        [5, 16, '#3d5a2a'],
+        [8, 10, '#4f6e33'],
+        [10, 14, '#6b4a2b'],
+      ] as [number, number, string][]) {
+        for (let y = 0; y < len; y++) px(c, x + (y % 5 === 4 ? 1 : 0), y, col);
+        px(c, x + 1, len - 1, col);
+      }
+      px(c, 5, 8, '#4ff0d0');
+      px(c, 9, 5, '#4ff0d0');
+    }),
+  );
+  addCanvas(
+    'deco_wall_ice',
+    iconCanvasSized(14, 14, (c) => {
+      rect(c, 0, 0, 14, 2, '#eef8ff');
+      for (const [x, len] of [
+        [1, 7],
+        [4, 12],
+        [7, 9],
+        [10, 13],
+        [12, 6],
+      ]) {
+        for (let y = 2; y < len; y++) rect(c, x, y, y < len * 0.55 ? 2 : 1, 1, y < 4 ? '#f6fcff' : '#a8d8f0');
+      }
+    }),
+  );
+  addCanvas(
+    'deco_wall_lava',
+    iconCanvasSized(10, 18, (c) => {
+      for (const x of [2, 7]) {
+        for (let y = 0; y < 16; y += 3) {
+          rect(c, x - 1, y, 3, 2, '#5a4c4e');
+          px(c, x, y + 2, '#3a3133');
+        }
+      }
+      rect(c, 1, 15, 8, 2, '#3a3133');
+      px(c, 4, 16, '#ff7a1a');
+    }),
+  );
+  addCanvas(
+    'deco_wall_abyss',
+    iconCanvasSized(12, 16, (c) => {
+      rect(c, 0, 0, 12, 16, '#241c30');
+      rect(c, 1, 1, 10, 14, '#30273d');
+      ell(c, 6, 7, 4, 2.6, '#c77dff');
+      ell(c, 6, 7, 2.6, 1.8, '#1a0f28');
+      ell(c, 6, 7, 1, 1.4, '#f0d0ff');
+      line(c, 2, 12, 9, 12, '#8a4aff');
+    }),
+  );
+  // floor decorations of the other biomes
+  addCanvas(
+    'deco_cave_a',
+    iconCanvasSized(13, 10, (c) => {
+      const caps: [number, number, number][] = [
+        [3, 6, 2],
+        [7, 4, 3],
+        [10, 7, 2],
+      ];
+      for (const [x, y, w] of caps) {
+        rect(c, x, y, 1, 9 - y, '#d8d2c2');
+        rect(c, x - w, y, w * 2 + 1, 1, '#2a9a88');
+        rect(c, x - w + 1, y - 1, w * 2 - 1, 1, '#4ff0d0');
+        px(c, x, y - 1, '#c8fff4');
+      }
+    }),
+  );
+  addCanvas(
+    'deco_cave_b',
+    iconCanvasSized(10, 15, (c) => {
+      poly(c, [0, 15, 4, 0, 9, 15], '#5d564e');
+      poly(c, [2, 15, 4, 3, 5, 15], '#6e665d');
+      poly(c, [6, 15, 8, 8, 10, 15], '#4b453f');
+      px(c, 4, 1, '#7d756b');
+    }),
+  );
+  addCanvas(
+    'deco_ice_a',
+    iconCanvasSized(12, 14, (c) => {
+      poly(c, [1, 14, 3, 5, 5, 14], '#6fc8ff');
+      poly(c, [4, 14, 6.5, 0, 9, 14], '#8fd8ff');
+      poly(c, [8, 14, 10, 6, 12, 14], '#6fc8ff');
+      line(c, 6, 2, 6, 12, '#e8f8ff');
+      line(c, 3, 7, 3, 12, '#c8ecff');
+    }),
+  );
+  addCanvas(
+    'deco_ice_b',
+    iconCanvasSized(14, 7, (c) => {
+      ell(c, 7, 4.5, 7, 2.6, '#cfe6f3');
+      ell(c, 6, 3.5, 5, 2, '#eef8ff');
+      px(c, 4, 2, '#ffffff');
+    }),
+  );
+  addCanvas(
+    'deco_lava_a',
+    iconCanvasSized(12, 9, (c) => {
+      ell(c, 6, 5, 6, 4, '#2d2527');
+      ell(c, 5, 4, 4, 2.6, '#3b3032');
+      line(c, 2, 6, 5, 4, '#ff6a1a');
+      line(c, 5, 4, 9, 6, '#ff6a1a');
+      px(c, 5, 4, '#ffd060');
+    }),
+  );
+  addCanvas(
+    'deco_lava_b',
+    iconCanvasSized(8, 11, (c) => {
+      rect(c, 1, 2, 6, 9, '#3d3335');
+      rect(c, 1, 2, 2, 9, '#4f4446');
+      rect(c, 0, 0, 8, 3, '#2d2527');
+      px(c, 3, 6, '#ff6a1a');
+    }),
+  );
+  addCanvas(
+    'deco_abyss_a',
+    iconCanvasSized(10, 14, (c) => {
+      poly(c, [0, 14, 2, 6, 4, 14], '#8a4aff');
+      poly(c, [3, 14, 5, 0, 7, 14], '#c77dff');
+      poly(c, [6, 14, 8, 5, 10, 14], '#8a4aff');
+      line(c, 5, 2, 5, 11, '#f0d0ff');
+    }),
+  );
+  addCanvas(
+    'deco_abyss_b',
+    iconCanvasSized(10, 16, (c) => {
+      rect(c, 1, 4, 8, 12, '#30273d');
+      rect(c, 1, 4, 2, 12, '#3d3250');
+      poly(c, [1, 4, 4, 0, 6, 3, 9, 1, 9, 4], '#2a2136');
+      line(c, 4, 7, 6, 7, '#c77dff');
+      line(c, 5, 7, 5, 12, '#c77dff');
+      px(c, 5, 9, '#f0d0ff');
+    }),
+  );
+  // a page of Elara's diary lying on the floor
+  addCanvas(
+    'page',
+    iconCanvasSized(11, 12, (c) => {
+      poly(c, [1, 1, 9, 0, 10, 10, 2, 11], '#efe2c0');
+      poly(c, [1, 1, 3, 1, 4, 11, 2, 11], '#d8c8a0');
+      for (let i = 0; i < 4; i++) line(c, 4, 3 + i * 2, 8, 2 + i * 2, '#8a7050');
+      px(c, 8, 9, '#b02a3a');
+    }),
   );
   // banner 12x16
   for (const [name, col, dk] of [

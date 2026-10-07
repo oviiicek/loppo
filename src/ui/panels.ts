@@ -26,7 +26,7 @@ import {
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, STASH_SIZE } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, STASH_SIZE, storyBonusPct } from '../systems/state';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -404,6 +404,7 @@ export class Panels {
           <div class="hint" style="margin-top:6px">${esc(cls.desc)}</div>
           <div style="margin-top:6px;font-size:17px;color:#9dff9d">Pasivní: ${esc(cls.passive)}</div>
           <div class="hint" style="margin-top:6px">Zabito nepřátel: ${s.kills.toLocaleString('cs-CZ')}</div>
+          ${s.story && (s.story.shards || s.story.blessing) ? `<div style="margin-top:6px;font-size:17px;color:#9fe6ff">Pečetní střepy: ${s.story.shards}/4${s.story.blessing ? ' • Elařino požehnání' : ''}<br><span class="hint">+${storyBonusPct(s)} % zdraví, poškození a síly kouzel</span></div>` : ''}
         </div>
       </div>
       <div class="col scroll" style="flex:1.2">
