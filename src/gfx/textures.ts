@@ -738,6 +738,16 @@ function buildEnemies() {
 
   // humanoid enemies
   humanoidStrip('en_goblin', 'goblin', 'armor', { s: '#7fbf4a', d: '#5a8f32', e: '#ff3b3b', u: '#6b4a2b', c: '#7a5a3a', v: '#5a3f27', w: '#9a7a4a', a: '#a0a0a0', l: '#3b2a1a', p: '#5a4a32', q: '#3e3222', b: '#2e2216', g: '#7fbf4a' });
+  // treasure goblin: golden skin, purple rags and a sack of coins on its back
+  humanoidStrip('en_thief', 'goblin', 'armor', { s: '#ffd23a', d: '#c8961a', e: '#ff3b3b', u: '#5a2a6a', c: '#6a2f7a', v: '#45204f', w: '#8a4a9a', a: '#ffe45c', l: '#3b2a1a', p: '#4a2a5a', q: '#33203e', b: '#2e2216', g: '#ffd23a' }, (ctx, ox, f) => {
+    const y = 8 + (f === 1 || f === 3 || f === 5 ? 1 : 0);
+    rect(ctx, ox, y + 1, 5, 5, OUT);
+    rect(ctx, ox + 1, y, 3, 1, OUT);
+    rect(ctx, ox + 1, y + 2, 3, 3, '#9a6a32');
+    px(ctx, ox + 2, y + 1, '#6a4020');
+    px(ctx, ox + 1, y + 2, '#c08a44');
+    px(ctx, ox + 2, y + 3, '#ffe45c');
+  });
   humanoidStrip('en_orc', 'orc', 'armor', { s: '#5f8f3a', j: '#3f6a24', d: '#4a7a2c', e: '#ffde3b', y: '#f5f0e0', u: '#6b6f78', c: '#5a4030', v: '#3e2b20', w: '#7a5a42', a: '#9aa3ad', l: '#2e2216', p: '#4a3a2a', q: '#33281c', b: '#222', g: '#5f8f3a' });
   humanoidStrip('en_zombie', 'zombie', 'armor', { s: '#8fa88a', d: '#6a8064', e: '#ffde3b', h: '#3a3226', u: '#4a5a6a', c: '#5a6a7a', v: '#3e4a56', w: '#6a7a8a', a: '#5a6a7a', l: '#3b2a1a', p: '#3a3a4a', q: '#2a2a36', b: '#222', g: '#8fa88a' });
   humanoidStrip('en_cultist', 'hood', 'robe', { h: '#8a1c1c', j: '#5a1010', i: '#b02a2a', s: '#d9a07a', d: '#4a1a1a', e: '#ffcf3b', c: '#7a1818', v: '#4f0f0f', w: '#a02424', u: '#7a1818', a: '#e9b949', l: '#2a1a1a', b: '#1a1010', g: '#d9a07a' });

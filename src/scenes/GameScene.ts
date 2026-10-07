@@ -3,7 +3,7 @@ import { generateDungeon, Dungeon, DObject, T_FLOOR } from '../systems/dungeon';
 import { WorldMap, TS } from '../game/map';
 import { FX, D } from '../game/fx';
 import { Player } from '../game/player';
-import { Enemy, Ally, Projectile, ProjOpts, Actor } from '../game/entities';
+import { Enemy, Ally, Projectile, ProjOpts, Actor, THIEF_ESCAPE } from '../game/entities';
 import { Combat } from '../game/combat';
 import { Spells } from '../game/spells';
 import { Loot } from '../game/loot';
@@ -1110,10 +1110,21 @@ export class GameScene extends Phaser.Scene {
     const v = this.cameras.main.worldView;
     for (const e of this.enemies) {
       if (e.dead || e.boss) continue;
-      if (e.hp >= e.maxHp && !e.elite) continue;
+      const thief = e.def.behavior === 'thief' && e.spotted;
+      if (e.hp >= e.maxHp && !e.elite && !thief) continue;
       if (e.x < v.x - 20 || e.x > v.right + 20 || e.y < v.y - 20 || e.y > v.bottom + 20) continue;
-      if (!this.map.explored[this.map.idx(Math.floor(e.x / TS), Math.floor(e.y / TS))]) continue;
-      const w = e.elite ? 18 : 12;
+      if (!thief && !this.map.explored[this.map.idx(Math.floor(e.x / TS), Math.floor(e.y / TS))]) continue;
+      if (thief) {
+        // time left before the goblin escapes through its portal
+        const tw = 18;
+        const tx = Math.round(e.x - tw / 2),
+          ty = Math.round(e.y - 20 * e.baseScale - 6);
+        g.fillStyle(0x000000, 0.75);
+        g.fillRect(tx - 1, ty - 1, tw + 2, 3);
+        g.fillStyle(e.escapeT < 5 ? 0xff5050 : 0xffd23a, 1);
+        g.fillRect(tx, ty, Math.max(0, Math.round((tw * e.escapeT) / THIEF_ESCAPE)), 1);
+      }
+      const w = e.elite || thief ? 18 : 12;
       const x = Math.round(e.x - w / 2),
         y = Math.round(e.y - 20 * e.baseScale - 2);
       g.fillStyle(0x000000, 0.75);

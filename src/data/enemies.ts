@@ -41,7 +41,7 @@ export const ENEMIES: EnemyDef[] = [
   { id: 'wraith', name: 'Ledový přízrak', sprite: 'en_wraith', hp: 50, dmg: 10, speed: 46, xp: 26, behavior: 'caster', range: 120, atkCd: 1.8, proj: 'ice', el: 'ice', minFloor: 20, weight: 4 },
   { id: 'mimic', name: 'Mimik', sprite: 'en_mimic', hp: 120, dmg: 14, speed: 62, xp: 50, behavior: 'mimic', range: 18, atkCd: 1.0, minFloor: 2, weight: 0, armor: 10 },
   // rare treasure goblin: never attacks, flees and escapes through a portal unless caught in time
-  { id: 'thief', name: 'Zlatý skřet', sprite: 'en_goblin', hp: 60, dmg: 0, speed: 56, xp: 60, behavior: 'thief', range: 0, atkCd: 99, minFloor: 2, weight: 0, scale: 1.1 },
+  { id: 'thief', name: 'Zlatý skřet', sprite: 'en_thief', hp: 60, dmg: 0, speed: 56, xp: 60, behavior: 'thief', range: 0, atkCd: 99, minFloor: 2, weight: 0, scale: 1.1 },
 ];
 
 export const ENEMY_BY_ID: Record<string, EnemyDef> = Object.fromEntries(ENEMIES.map((e) => [e.id, e]));

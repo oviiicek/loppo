@@ -7,6 +7,9 @@ import { Element } from '../data/types';
 
 let nextId = 1;
 
+// seconds a spotted treasure goblin stays before escaping
+export const THIEF_ESCAPE = 18;
+
 export interface Status {
   slowT: number;
   slowMult: number;
@@ -197,11 +200,7 @@ export class Enemy extends Actor {
     }
     this.setScale(sc);
     if (def.behavior === 'mimic') this.aggro = true;
-    if (def.behavior === 'thief') {
-      this.baseTint = 0xffd23a;
-      this.sprite.setTint(this.baseTint);
-      this.sprite.preFX?.addGlow(0xffd23a, 3, 0, false, 0.1, 8);
-    }
+    if (def.behavior === 'thief') this.sprite.preFX?.addGlow(0xffd23a, 3, 0, false, 0.1, 8);
   }
 
   makeBoss(boss: BossDef, tier: number, floor: number) {
@@ -270,7 +269,7 @@ export class Enemy extends Actor {
       if (this.aggro || (dist < 120 && sc.map.los(this.x, this.y, p.x, p.y))) {
         this.spotted = true;
         this.aggro = true;
-        this.escapeT = 18;
+        this.escapeT = THIEF_ESCAPE;
         sc.onThiefSpotted(this);
       } else {
         this.wander(dt);
