@@ -8,9 +8,14 @@ export class BootScene extends Phaser.Scene {
     super('Boot');
   }
   create() {
+    // let the browser paint the loading screen before the (blocking) texture generation starts
+    this.time.delayedCall(60, () => this.boot());
+  }
+  boot() {
     buildAllTextures(this);
     createAllAnims(this);
     if (location.search.includes('gallery')) {
+      document.querySelector('.loading')?.remove();
       this.scene.start('Gallery');
       return;
     }

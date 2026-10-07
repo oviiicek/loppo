@@ -101,6 +101,43 @@ img.px {
   }
 }
 
+/* shown by index.html until the main menu replaces the #ui contents */
+.loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--bg);
+  color: var(--dim);
+  font-size: 22px;
+}
+.loading b {
+  color: var(--gold);
+  font-size: 54px;
+  font-weight: 400;
+  letter-spacing: 4px;
+  text-shadow: 0 3px 0 #000;
+}
+.loading i {
+  display: block;
+  width: 180px;
+  height: 6px;
+  border: 1px solid var(--line);
+  background: linear-gradient(90deg, transparent 0 30%, var(--gold) 30% 60%, transparent 60%) 0 0 / 200% 100% #000;
+  animation: loadbar 1.1s linear infinite;
+}
+@keyframes loadbar {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
 /* ------------------------------------------------------------ HUD */
 .hud-status {
   position: absolute;
