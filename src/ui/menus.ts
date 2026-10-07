@@ -149,7 +149,9 @@ export class Menus {
         <p><b style="color:#ffd76a">Prostředí:</b> každých 10 pater se dungeon promění – Kobky, Krypta, Jeskyně, Výheň a Ledové hlubiny, každé s vlastními nepřáteli.</p>
         <p><b style="color:#ffd76a">Modifikátory pater:</b> asi každé čtvrté patro má zvláštní vlastnost – Temnota, Zlatá horečka, Prokletí, Hordy, Šampioni nebo Poklady. Víc rizika = lepší odměny.</p>
         <p><b style="color:#ffd76a">Mapa:</b> klepni na minimapu (klávesa M) pro velkou mapu prozkoumaného patra. Pozor na bodcové pasti!</p>
-        <p><b style="color:#ffd76a">Úspěchy:</b> v menu pauzy najdeš 25 úspěchů s odměnami (zlato, materiály i body atributů).</p>
+        <p><b style="color:#ffd76a">Obchodník:</b> kromě nákupu a prodeje nabízí zpětný odkup prodaných věcí, tajemné zboží neznámé kvality, kovárnu, úložiště a změnu classy.</p>
+        <p><b style="color:#ffd76a">Zlatý skřet:</b> občas se v patře skrývá zlatý skřet. Jakmile tě uvidí, uteče a za 18 sekund zmizí portálem. Když ho chytíš, vysype spoustu zlata a vzácný předmět.</p>
+        <p><b style="color:#ffd76a">Úspěchy:</b> v menu pauzy najdeš ${ACHIEVEMENTS.length} úspěchů s odměnami (zlato, materiály, paklíče i body atributů).</p>
         <p><b style="color:#ffd76a">Smrt:</b> přijdeš o 15 % zlata a část zkušeností a začneš patro znovu.</p>
       </div></div></div>`);
     this.ui.root.appendChild(p);

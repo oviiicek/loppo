@@ -135,7 +135,11 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
   - náramek.
 
   Obouruční zbraň zabere obě ruce.
-- Grafický inventář s 30 políčky, detailem předmětu a porovnáním s nasazenou výbavou. Předměty jde řadit, prodávat a rozebírat na materiály.
+- Grafický inventář s 30 políčky, detailem předmětu a porovnáním s nasazenou výbavou. Předměty jde řadit, prodávat a rozebírat na materiály. Zelená šipka ▲ označuje předměty, které jsou lepší než nasazená výbava.
+- Obchodník:
+  - náhodné zboží,
+  - zpětný odkup omylem prodaných předmětů za stejnou cenu,
+  - „tajemné zboží“ (zbraň tvého stylu, zbroj, šperk nebo cokoliv) neznámé kvality s velkou šancí na vzácný až mýtický předmět.
 - Kovárna:
   - vylepšení +1 až +10 (šance na úspěch klesá s úrovní),
   - očarování, které přidá nebo přehodí magický efekt.
@@ -160,7 +164,8 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
 - Mlha války s přímou viditelností: neprozkoumané části patra jsou černé.
 - Velká mapa po klepnutí na minimapu (klávesa M).
 - Rozbitné bedny, sudy a hliněné nádoby s drobnou kořistí. Bodcové pasti v chodbách a místnostech.
-- 25 úspěchů s odměnami (zlato, materiály, body atributů).
+- Zlatý skřet: vzácný zloděj, který před hráčem utíká a po 18 sekundách zmizí portálem. Když ho chytíš, vysype hromadu zlata a vzácný předmět. Při Zlaté horečce se objevuje častěji.
+- 27 úspěchů s odměnami (zlato, materiály, paklíče, body atributů).
 - Barva kovu u zbraní a zbroje odpovídá materiálu předmětu (rezavý, železný, ocelový, runový, mithrilový, dračí, démonický, hvězdný). Vidět je to v inventáři i na zbrani v ruce postavy.
 
 ### Ostatní
