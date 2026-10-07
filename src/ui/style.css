@@ -1187,6 +1187,11 @@ img.px {
   margin: 5px;
   padding: 12px 18px;
 }
+/* buttons inside panels shown over the menu (class select) size to their column */
+.menu .panel .btn {
+  min-width: 0;
+  margin: 0;
+}
 .menu .sprites {
   position: absolute;
   bottom: 6vh;
@@ -1230,7 +1235,7 @@ img.px {
 
 .classgrid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 .ccard {
@@ -1240,6 +1245,12 @@ img.px {
   padding: 4px;
   text-align: center;
   cursor: pointer;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.detail .btn {
+  max-width: 100%;
+  white-space: normal;
 }
 .ccard.sel {
   border-color: var(--gold2);
@@ -1474,4 +1485,11 @@ textarea.code {
 /* anything even smaller can still scroll the equipment column */
 .col:has(> .box.equip) {
   overflow-y: auto;
+}
+
+/* very narrow landscape screens: fewer class columns */
+@media (max-width: 700px) {
+  .classgrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
