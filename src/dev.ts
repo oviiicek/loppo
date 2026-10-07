@@ -205,8 +205,9 @@ function botTick() {
   // potions
   if (p.hp < p.d.maxHp * 0.4) sc.usePotion('hpPotion');
   if (p.mp < p.d.maxMp * 0.15) sc.usePotion('mpPotion');
-  // target
-  const enemies = sc.enemies.filter((e) => !e.dead && !(e.def.behavior === 'mimic' && !e.aggro));
+  // target (enemies the bot could not path to are skipped for a while, e.g. inside an unopened secret room)
+  const ign: Map<number, number> = ((botState as any).ignore ??= new Map());
+  const enemies = sc.enemies.filter((e) => !e.dead && !(e.def.behavior === 'mimic' && !e.aggro) && !((ign.get(e.id) ?? 0) > now));
   let target: any = null;
   let bd = 1e9;
   for (const e of enemies) {
@@ -254,6 +255,7 @@ function botTick() {
   if (botState.pathT <= 0 || !botState.path.length) {
     botState.pathT = 0.5;
     botState.path = bfsPath(sc, ptx, pty, Math.floor(gx / TS), Math.floor(gy / TS));
+    if (!botState.path.length && target && !goStairs && bd > 40) ign.set(target.id, now + 15000);
   }
   while (botState.path.length && botState.path[0] === pty * sc.map.w + ptx) botState.path.shift();
   let dir: [number, number] = [gx - p.x, gy - p.y];
