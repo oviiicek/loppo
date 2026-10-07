@@ -124,6 +124,9 @@ export class Combat {
     }
     dmg = Math.max(1, dmg);
     e.hp -= dmg;
+    // one blow cannot carry a guardian past a phase mark: every phase gets played out
+    const mark = e.nextPhaseHp;
+    if (mark !== null && e.hp < mark) e.hp = Math.max(1, mark - 0.5);
     // the hardest single hit of the hero (statistics)
     if (!o.fromAlly && !o.dot && dmg > (p.save.stats?.maxHit ?? 0)) maxStat(p.save, 'maxHit', Math.round(dmg));
     e.hpBarT = 3;
@@ -294,7 +297,7 @@ export class Combat {
       amount: Math.round(dmg),
       el,
       // without a monster object: a trap, the guardian in the fight, a champion's shot (named "X (trait)") or a monster's
-      kind: foe ? (foe.boss || foe.story ? 'boss' : foe.elite ? 'elite' : 'monster') : cause === 'Bodcová past' ? 'trap' : boss && (!cause || cause === boss.name) ? 'boss' : cause?.includes('(') ? 'elite' : cause ? 'monster' : 'other',
+      kind: foe ? (foe.boss || foe.story ? 'boss' : foe.elite ? 'elite' : 'monster') : cause === 'Bodcová past' ? 'trap' : boss && (!cause || cause.startsWith(boss.name)) ? 'boss' : cause?.includes('(') ? 'elite' : cause ? 'monster' : 'other',
     };
     p.hp -= dmg;
     if (!isDot) {

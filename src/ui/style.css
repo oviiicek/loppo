@@ -757,6 +757,40 @@ img.px {
 .bossbar .bar {
   height: 14px;
 }
+/* marks where the guardian's next phases begin */
+.bossbar .bar .tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #ffe8b0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+.bossbar .bar .tick.past {
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: none;
+}
+.bossbar.flash .bar {
+  animation: bossflash 0.7s ease-out;
+}
+@keyframes bossflash {
+  0% {
+    box-shadow: 0 0 0 1px #000, 0 0 16px 5px #ff5a3a;
+  }
+  100% {
+    box-shadow: 0 0 0 1px #000;
+  }
+}
+.bossbar.last .name {
+  color: #ff4a3a;
+  animation: bosslast 0.7s ease-in-out infinite alternate;
+}
+@keyframes bosslast {
+  to {
+    color: #ffb090;
+  }
+}
 .eventbar {
   position: absolute;
   left: 50%;

@@ -536,7 +536,7 @@ Object.assign(dev, {
     const sc = (window as any).__scene;
     const b = sc?.boss;
     if (!b) return null;
-    return { name: b.name, hp: Math.round(b.hp), max: b.maxHp, phase: b.phase, phases: b.phaseCount, invuln: b.invuln, dead: b.dead, aggro: b.aggro, sprite: b.spriteKey, dmg: Math.round(b.dmg) };
+    return { name: b.name, hp: Math.round(b.hp), max: b.maxHp, phase: b.phase, phases: b.phaseCount, invuln: b.invuln, dead: b.dead, aggro: b.aggro, sprite: b.spriteKey, dmg: Math.round(b.dmg), bphase: b.bphase, arena: b.arena, lastStand: b.lastStand, patterns: b.patterns.join(',') };
   },
   cutsceneState() {
     const c = document.querySelector('.cutscene');

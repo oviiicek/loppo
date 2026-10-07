@@ -3090,6 +3090,37 @@ function buildProjectiles() {
     ctx2.arc(128, 128, 128, 0, Math.PI * 2);
     ctx2.fill();
     addCanvas('disc', c2);
+    // a spider web (slowing hazard of the spider queen)
+    const [c3, ctx3] = canvas(128, 128);
+    ctx3.strokeStyle = 'rgba(240,240,255,0.9)';
+    ctx3.lineWidth = 2;
+    const spokes = 12;
+    for (let i = 0; i < spokes; i++) {
+      const a = (i / spokes) * Math.PI * 2 + 0.13;
+      ctx3.beginPath();
+      ctx3.moveTo(64, 64);
+      ctx3.lineTo(64 + Math.cos(a) * 62, 64 + Math.sin(a) * 62);
+      ctx3.stroke();
+    }
+    ctx3.lineWidth = 1.5;
+    for (let k = 1; k <= 5; k++) {
+      const rr = k * 11.5;
+      ctx3.beginPath();
+      for (let i = 0; i <= spokes; i++) {
+        const a0 = ((i - 1) / spokes) * Math.PI * 2 + 0.13,
+          a1 = (i / spokes) * Math.PI * 2 + 0.13;
+        const x1 = 64 + Math.cos(a1) * rr,
+          y1 = 64 + Math.sin(a1) * rr;
+        if (i === 0) ctx3.moveTo(x1, y1);
+        else {
+          // the threads sag a little towards the centre between the spokes
+          const am = (a0 + a1) / 2;
+          ctx3.quadraticCurveTo(64 + Math.cos(am) * rr * 0.86, 64 + Math.sin(am) * rr * 0.86, x1, y1);
+        }
+      }
+      ctx3.stroke();
+    }
+    addCanvas('webzone', c3);
   }
   // pillar of light 16x48
   {

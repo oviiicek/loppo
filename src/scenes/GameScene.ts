@@ -156,7 +156,7 @@ export class GameScene extends Phaser.Scene {
   playTimeT = 0;
   floorKills = 0;
   /** lingering danger zones (spore clouds, void pools) left by story guardians */
-  hazards: { x: number; y: number; r: number; dps: number; el: Element; t: number; tick: number; img: Phaser.GameObjects.Image; src?: string }[] = [];
+  hazards: { x: number; y: number; r: number; dps: number; el: Element; t: number; tick: number; img: Phaser.GameObjects.Image; src?: string; slow?: boolean; a?: number }[] = [];
   /** the pet travelling with the hero */
   pet: PetFollower | null = null;
   /** the last blow the hero took (who, how hard, what kind of source) for the death screen */
@@ -1573,10 +1573,17 @@ export class GameScene extends Phaser.Scene {
     saveGame(this.save);
   }
 
-  addHazard(x: number, y: number, r: number, dps: number, el: Element, dur: number, color: number, src?: string) {
+  addHazard(x: number, y: number, r: number, dps: number, el: Element, dur: number, color: number, src?: string, slow = false) {
+    if (slow) {
+      // a web: drawn plainly (not glowing) so it reads on any floor
+      const img = this.add.image(x, y, 'webzone').setTint(color).setAlpha(0).setScale((r * 2) / 128).setDepth(D.floorDeco + 3).setAngle(Math.random() * 360);
+      this.tweens.add({ targets: img, alpha: 0.8, duration: 200 });
+      this.hazards.push({ x, y, r, dps, el, t: dur, tick: 0.25, img, src, slow, a: 0.8 });
+      return;
+    }
     const img = this.add.image(x, y, 'disc').setTint(color).setAlpha(0.32).setScale((r * 2) / 256).setDepth(D.floorDeco + 3).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: img, alpha: 0.18, yoyo: true, repeat: -1, duration: 500 });
-    this.hazards.push({ x, y, r, dps, el, t: dur, tick: 0.25, img, src });
+    this.hazards.push({ x, y, r, dps, el, t: dur, tick: 0.25, img, src, slow });
   }
 
   updateHazards(dt: number) {
@@ -1584,9 +1591,11 @@ export class GameScene extends Phaser.Scene {
     const p = this.player;
     for (const h of this.hazards) {
       h.t -= dt;
-      if (h.t < 0.6) h.img.setAlpha(Math.max(0, h.t / 0.6) * 0.3);
+      if (h.t < 0.6) h.img.setAlpha(Math.max(0, h.t / 0.6) * (h.a ?? 0.3));
       if (h.t <= 0 || p.dead) continue;
       if (Math.hypot(p.x - h.x, p.y - h.y) < h.r) {
+        // webs hold the hero back
+        if (h.slow) p.chill(0.3);
         h.tick -= dt;
         if (h.tick <= 0) {
           h.tick = 0.5;
@@ -1613,7 +1622,7 @@ export class GameScene extends Phaser.Scene {
     this.bossDefeated = true;
     bumpStat(this.save, 'bosses');
     UI.hideBoss();
-    UI.banner('Strážce poražen!', `${b.name} padl`);
+    UI.banner('Strážce poražen!', `${b.name} padl${b.boss?.fem ? 'a' : ''}`);
     this.fx.shake(0.012, 500);
     this.spawnBossRewards();
   }
@@ -1988,7 +1997,12 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** 0..1: how far a guardian's darkness has closed in around the hero */
+  arenaDark = 0;
+
   updateLighting(dt: number) {
+    const want = this.boss && !this.boss.dead && this.boss.arena === 'darkness' ? 1 : 0;
+    this.arenaDark += (want - this.arenaDark) * Math.min(1, dt * 1.2);
     const cam = this.cameras.main;
     const v = cam.worldView;
     // DynamicTexture sizes are forced even – compare against even sizes or it resizes every frame
@@ -2002,18 +2016,19 @@ export class GameScene extends Phaser.Scene {
       oy = Math.floor(v.y) - 2;
     rt.setPosition(ox, oy);
     rt.clear();
-    rt.fill(this.theme.dark, this.darkness);
+    rt.fill(this.theme.dark, Math.min(0.95, this.darkness + this.arenaDark * 0.4));
     const L = this.lightImg;
+    const shrink = 1 - this.arenaDark * 0.55;
     const t = this.time.now / 1000;
     const p = this.player;
     const inView = (x: number, y: number, r: number) => x > -r && y > -r && x < w + r && y < h + r;
     // all lights are drawn into one capture which is then erased from the darkness in a single pass
     rt.beginDraw();
     L.setAlpha(0.65);
-    L.setScale((210 * 2) / 128);
+    L.setScale((210 * 2 * shrink) / 128);
     rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
     L.setAlpha(1);
-    L.setScale((135 * 2) / 128);
+    L.setScale((135 * 2 * shrink) / 128);
     rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
     for (const l of this.lamps) {
       const x = l.x - ox,
@@ -2021,7 +2036,7 @@ export class GameScene extends Phaser.Scene {
       if (!inView(x, y, l.r)) continue;
       if (this.map.isHidden(Math.floor(l.x / TS), Math.floor(l.y / TS))) continue;
       const fl = l.flicker ? 1 + Math.sin(t * 9 + l.flicker) * 0.04 + Math.sin(t * 23 + l.flicker * 3) * 0.03 : 1;
-      L.setScale((l.r * 2 * fl) / 128);
+      L.setScale((l.r * 2 * fl * shrink) / 128);
       rt.batchDraw(L, x, y);
       if (l.glow) l.glow.setAlpha(0.18 + (fl - 1) * 1.5);
     }

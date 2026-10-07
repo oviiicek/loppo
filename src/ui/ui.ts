@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { BOSS_PHASE_HP, BOSS_PHASES } from '../data/bossphases';
 import type { GameScene, MerchantStock } from '../scenes/GameScene';
 import type { Enemy } from '../game/entities';
 import { iconURL, spellIcon } from '../gfx/textures';
@@ -920,9 +921,31 @@ class UIManager {
     bb.style.top = `${top}px`;
     bb.style.width = `${Math.min(420, right - left)}px`;
     const stages = b.phaseCount > 1 ? ` · fáze ${b.phase + 1}/${b.phaseCount}` : '';
-    $('.name', bb).textContent = b.story ? `${b.name}, ${b.story.title}${stages}` : b.name;
+    $('.name', bb).textContent = b.story ? `${b.name}, ${b.story.title}${stages}` : `${b.name} · fáze ${b.bphase + 1}/${BOSS_PHASES}`;
     bb.classList.toggle('story', !!b.story);
+    bb.classList.toggle('last', b.lastStand);
+    // marks on the health bar where the next phases begin
+    const bar = $('.bar', bb);
+    bar.querySelectorAll('.tick').forEach((t) => t.remove());
+    if (b.phased)
+      BOSS_PHASE_HP.forEach((f, i) => {
+        const t = document.createElement('i');
+        t.className = 'tick' + (i < b.bphase ? ' past' : '');
+        t.style.left = `${f * 100}%`;
+        bar.appendChild(t);
+      });
     bb.classList.add('on');
+  }
+
+  /** a guardian entered its next phase: the bar flashes and the change is announced */
+  bossPhase(b: Enemy, line: string) {
+    if (!this.hud) return;
+    this.showBoss(b);
+    const bb = $('.bossbar', this.hud);
+    bb.classList.remove('flash');
+    void bb.offsetWidth;
+    bb.classList.add('flash');
+    this.banner(b.name, line);
   }
 
   /** the kill streak counter at the top (from three kills on); n = 0 hides it */

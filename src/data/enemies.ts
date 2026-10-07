@@ -78,7 +78,13 @@ export type BossPattern =
   | 'darkNova'
   | 'hands'
   | 'lasers'
-  | 'voidZones';
+  | 'voidZones'
+  // learned in the later phases of a fight
+  | 'spikes'
+  | 'cross'
+  | 'nova'
+  | 'web'
+  | 'drain';
 
 export interface BossDef {
   id: string;
@@ -93,12 +99,14 @@ export interface BossDef {
   el: Element;
   summon: string;
   tint?: number;
+  /** feminine name (for the words around it) */
+  fem?: boolean;
 }
 
 export const BOSSES: BossDef[] = [
   { id: 'skelKing', name: 'Kostěný král', sprite: 'en_skelKing', scale: 2.2, hp: 700, dmg: 12, speed: 40, patterns: ['summon', 'slam', 'charge', 'radial'], proj: 'bone', el: 'phys', summon: 'skeleton' },
   { id: 'slimeKing', name: 'Obří sliz', sprite: 'en_slime', scale: 3.2, hp: 900, dmg: 13, speed: 36, patterns: ['slam', 'radial', 'summon', 'charge'], proj: 'poison', el: 'poison', summon: 'slime', tint: 0x9dff7a },
-  { id: 'spiderQueen', name: 'Pavoučí královna', sprite: 'en_spider', scale: 2.8, hp: 1000, dmg: 14, speed: 56, patterns: ['volley', 'summon', 'charge', 'spiral'], proj: 'poison', el: 'poison', summon: 'spider', tint: 0xd070ff },
+  { id: 'spiderQueen', name: 'Pavoučí královna', sprite: 'en_spider', scale: 2.8, hp: 1000, dmg: 14, speed: 56, patterns: ['volley', 'summon', 'charge', 'spiral'], proj: 'poison', el: 'poison', summon: 'spider', tint: 0xd070ff, fem: true },
   { id: 'orcLord', name: 'Ork válečník Grukh', sprite: 'en_orc', scale: 2.3, hp: 1200, dmg: 18, speed: 48, patterns: ['charge', 'slam', 'summon', 'radial'], proj: 'axe', el: 'phys', summon: 'goblin', tint: 0xffb0b0 },
   { id: 'lich', name: 'Lich', sprite: 'en_lich', scale: 2.2, hp: 1100, dmg: 16, speed: 40, patterns: ['spiral', 'teleport', 'summon', 'meteors', 'volley'], proj: 'shadow', el: 'shadow', summon: 'skeleton' },
   { id: 'fireDemon', name: 'Démon plamenů', sprite: 'en_demon', scale: 2.4, hp: 1400, dmg: 20, speed: 46, patterns: ['meteors', 'breath', 'radial', 'charge'], proj: 'fire', el: 'fire', summon: 'imp' },

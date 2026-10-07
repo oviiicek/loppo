@@ -3,7 +3,8 @@ import type { GameScene } from '../scenes/GameScene';
 import { D, EL_COLOR } from './fx';
 import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
-import { EnemyDef, BossDef, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase } from '../data/enemies';
+import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase } from '../data/enemies';
+import { ArenaKind, BOSS_PHASE_HP } from '../data/bossphases';
 import { Element } from '../data/types';
 
 /** champion traits: what they do is in Enemy.affixTick (and a few in combat); each glows its own colour */
@@ -183,6 +184,15 @@ export class Enemy extends Actor {
   patternIdx = 0;
   patternT = 3;
   enraged = false;
+  /** the attacks in the guardian's rotation (it learns more in its second phase) */
+  patterns: BossPattern[] = [];
+  /** how many of the 70/40/10 % phase marks the guardian has passed */
+  bphase = 0;
+  /** what the arena does from the third phase on */
+  arena: ArenaKind | null = null;
+  arenaT = 0;
+  /** the last 10 %: faster, angrier */
+  lastStand = false;
   name: string;
   hitFlash = 0;
   nameLabel: Phaser.GameObjects.Text | null = null;
@@ -256,6 +266,7 @@ export class Enemy extends Actor {
     this.xp = Math.round(300 * enemyXpScale(floor) * (1 + tier));
     this.armor = bossArmor(floor);
     this.r = 10;
+    this.patterns = [...boss.patterns];
     this.name = (tier > 0 ? 'Prastarý ' : '') + boss.name;
     this.setScale(boss.scale);
     if (boss.tint) this.sprite.setTint(boss.tint);
@@ -288,6 +299,10 @@ export class Enemy extends Actor {
     this.enraged = false;
     this.patternIdx = 0;
     this.patternT = 1.6;
+    this.patterns = [...ph.patterns];
+    this.bphase = 0;
+    this.arena = null;
+    this.lastStand = false;
     this.capBudget = this.maxHp * 0.1;
     this.capT = this.scene.time.now / 1000;
     this.boss = { id: def.id, name: def.name, sprite: ph.sprite, scale: ph.scale, hp: ph.hp, dmg: ph.dmg, speed: ph.speed, patterns: ph.patterns, proj: ph.proj, el: ph.el, summon: ph.summon, tint: ph.tint };
@@ -306,6 +321,17 @@ export class Enemy extends Actor {
 
   get phaseCount() {
     return this.story ? this.story.phases.length : 1;
+  }
+
+  /** guardians go through the 70/40/10 % phases (story guardians in their last stage) */
+  get phased() {
+    return !!this.boss && (!this.story || this.phase === this.phaseCount - 1);
+  }
+
+  /** health where the next phase begins, or null when all of them are behind */
+  get nextPhaseHp(): number | null {
+    if (!this.phased || this.bphase >= BOSS_PHASE_HP.length) return null;
+    return this.maxHp * BOSS_PHASE_HP[this.bphase];
   }
 
   onDot(amount: number) {
