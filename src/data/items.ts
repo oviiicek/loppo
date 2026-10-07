@@ -1,6 +1,7 @@
 import { AttackKind, Affix, Item, ItemCategory, Slot, StatKey, Stats } from './types';
 import { RNG, rng as globalRng } from '../systems/rng';
 import { rollSockets, socketStats } from './gems';
+import { SETS, SET_BY_ID, SET_COLOR } from './sets';
 
 // ---------------------------------------------------------------------------
 // Rarities
@@ -353,6 +354,23 @@ export function generateItem(ilvl: number, opts: { rarity?: number; base?: strin
   const sockets = rollSockets(base.cat, rarity, () => r.next());
   if (sockets) item.sockets = sockets;
   return item;
+}
+
+/** a piece of an item set: legendary strength, a fixed name, no random special effects (the set gives them) */
+export function generateSetItem(ilvl: number, setId?: string, piece?: number, r: RNG = globalRng): Item {
+  const def = setId ? SET_BY_ID[setId] : r.pick(SETS);
+  const pi = piece ?? r.int(0, def.pieces.length - 1);
+  const p = def.pieces[pi];
+  const it = generateItem(ilvl, { base: p.base, rarity: 4, r });
+  it.specials = [];
+  it.name = p.name;
+  it.set = `${def.id}:${pi}`;
+  return it;
+}
+
+/** colour of an item's name and frame (set pieces have their own) */
+export function itemColor(it: Item) {
+  return it.set ? SET_COLOR : RARITIES[it.rarity].color;
 }
 
 // Upgrade multiplier: +10 % base values per upgrade level, +4 % affixes

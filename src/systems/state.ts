@@ -6,6 +6,7 @@ import { SPELL_BY_ID, spellsForClass, MAX_SPELL_RANK, BuffMods } from '../data/s
 import { bus } from './events';
 import { StoryState, newStory } from '../data/story';
 import { PetState, newPetState, PET_BY_ID, petLevel } from '../data/pets';
+import { addSetBonuses } from '../data/sets';
 
 export const INVENTORY_SIZE = 30;
 export const STASH_SIZE = 42;
@@ -259,6 +260,8 @@ export function gearStats(s: SaveData): { stats: Stats; specials: Set<string> } 
   }
   const cdef = CLASS_BY_ID[s.cls];
   for (const [k, v] of Object.entries(cdef.passiveStats)) add(k as StatKey, v as number);
+  // pieces of item sets worn together
+  addSetBonuses(s.equip, add, specials);
   // the pet that travels with the hero
   const pet = s.pets?.active ? PET_BY_ID[s.pets.active] : null;
   if (pet) for (const [k, v] of Object.entries(pet.stats(petLevel(s.pets!, pet.id)))) add(k as StatKey, v as number);

@@ -115,6 +115,8 @@ export interface Item {
   affixes: Affix[];
   specials: string[]; // ids of special effects
   enchant?: Affix | null;
+  /** a piece of an item set: "setId:piece" */
+  set?: string;
   /** gem sockets: a gem key ("ruby3") or null for an empty one */
   sockets?: (string | null)[];
   // rolled base values

@@ -22,7 +22,9 @@ import {
   scaledAffix,
   generateItem,
   BaseType,
+  itemColor,
 } from '../data/items';
+import { setOf, equippedSetCounts } from '../data/sets';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
@@ -96,7 +98,7 @@ export class Panels {
   slotHtml(it: Item | null | undefined, extra = '', label = '', price?: number, better = false) {
     if (!it) return `<div class="slot ${extra}">${label ? `<span class="lbl">${esc(label)}</span>` : ''}</div>`;
     const socks = it.sockets?.length ? `<span class="socks">${it.sockets.map((g) => `<i${g ? ` style="background:${parseGem(g)?.def.color}"` : ''}></i>`).join('')}</span>` : '';
-    return `<div class="slot r${it.rarity} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}</div>`;
+    return `<div class="slot r${it.rarity}${it.set ? ' set' : ''} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}</div>`;
   }
 
   matsHtml() {
@@ -115,7 +117,7 @@ export class Panels {
   itemHeadHtml(it: Item) {
     const base = BASE_BY_ID[it.base];
     const rar = RARITIES[it.rarity];
-    return `<div class="ihead"><div class="iicon r${it.rarity}"><img src="${iconURL(itemIcon(it), 48)}"></div><div class="iname"><h3 style="color:${rar.color}">${it.upgrade ? '+' + it.upgrade + ' ' : ''}${esc(it.name)}</h3><div class="sub">${rar.name} • ${CATEGORY_NAMES[base.cat]} • úroveň ${it.ilvl}</div></div></div>`;
+    return `<div class="ihead"><div class="iicon r${it.rarity}${it.set ? ' set' : ''}"><img src="${iconURL(itemIcon(it), 48)}"></div><div class="iname"><h3 style="color:${itemColor(it)}">${it.upgrade ? '+' + it.upgrade + ' ' : ''}${esc(it.name)}</h3><div class="sub">${it.set ? 'Předmět sady' : rar.name} • ${CATEGORY_NAMES[base.cat]} • úroveň ${it.ilvl}</div></div></div>`;
   }
 
   /** everything an item does */
@@ -143,10 +145,31 @@ export class Panels {
         h += g && e ? `<div class="aff" style="color:${parseGem(g)?.def.color}">◆ ${gemName(g)}: ${formatStat(e.key, e.value)}</div>` : `<div class="aff" style="color:#9a94a8">◇ Volný soket</div>`;
       }
     }
+    h += this.setHtml(it);
     if (base.cat === 'weapon2h') h += `<div class="hint">Obouruční – zabírá obě ruce</div>`;
     if (base.cat === 'weapon1h') h += `<div class="hint">Jednoruční – do pravé i levé ruky (se štítem nebo dvě zbraně)</div>`;
     h += `<div class="hint" style="margin-top:4px">Prodejní cena: <span style="color:#ffd76a">${itemValue(it)}</span> zlata</div>`;
     return h;
+  }
+
+  /** a set piece: the set, which pieces are worn and the bonuses (lit up when active) */
+  setHtml(it: Item) {
+    const so = setOf(it);
+    if (!so) return '';
+    const n = equippedSetCounts(this.save.equip)[so.def.id] ?? 0;
+    const worn = new Set(
+      Object.values(this.save.equip)
+        .map((x) => setOf(x))
+        .filter((x) => x?.def.id === so.def.id)
+        .map((x) => x!.piece),
+    );
+    let h = `<div class="setbox"><div class="setname">${esc(so.def.name)} <span>(${n}/${so.def.pieces.length})</span></div>`;
+    h += so.def.pieces.map((p, i) => `<div class="setpiece ${worn.has(i) ? 'on' : ''}">${worn.has(i) ? '✓' : '·'} ${esc(p.name)}</div>`).join('');
+    for (const b of so.def.bonuses) {
+      const parts = [...Object.entries(b.stats ?? {}).map(([k, v]) => formatStat(k as any, v as number)), ...(b.specials ?? []).map((sp) => '★ ' + esc(SPECIAL_BY_ID[sp]?.desc ?? sp))];
+      h += `<div class="setbonus ${n >= b.n ? 'on' : ''}">(${b.n}) ${parts.join(', ')}</div>`;
+    }
+    return h + '</div>';
   }
 
   /** the detail column: the name, the actions right under it, then the comparison and the item's text */
@@ -380,7 +403,7 @@ export class Panels {
       const blocked = sl === 'off' && isTwoHanded(s.equip.main);
       const { rows, err } = this.slotDelta(it, sl);
       const curHtml = cur
-        ? `<img src="${iconURL(itemIcon(cur), 32)}"><span style="color:${RARITIES[cur.rarity].color}">${cur.upgrade ? '+' + cur.upgrade + ' ' : ''}${esc(cur.name)}</span>`
+        ? `<img src="${iconURL(itemIcon(cur), 32)}"><span style="color:${itemColor(cur)}">${cur.upgrade ? '+' + cur.upgrade + ' ' : ''}${esc(cur.name)}</span>`
         : `<span class="hint">${blocked ? 'zabraná obouruční zbraní' : 'nic nenasazeno'}</span>`;
       const chips = err
         ? `<span class="chip down">${esc(err)}</span>`
@@ -1036,7 +1059,7 @@ export class Panels {
           s.gold -= price;
           stock.items.splice(i, 1);
           sfx('coin');
-          this.ui.toast(`Koupeno: ${it.name}`, RARITIES[it.rarity].color);
+          this.ui.toast(`Koupeno: ${it.name}`, itemColor(it));
           refresh();
         });
       }),
@@ -1060,7 +1083,7 @@ export class Panels {
           s.gold -= bb.price;
           stock.buyback!.splice(i, 1);
           sfx('coin');
-          this.ui.toast(`Vráceno do inventáře: ${bb.it.name}`, RARITIES[bb.it.rarity].color);
+          this.ui.toast(`Vráceno do inventáře: ${bb.it.name}`, itemColor(bb.it));
           refresh();
         });
       }),
@@ -1079,7 +1102,7 @@ export class Panels {
         s.gold -= price;
         maxStat(s, 'bestRarity', it.rarity);
         sfx(it.rarity >= 4 ? 'levelup' : it.rarity >= 3 ? 'chest' : 'coin');
-        this.ui.toast(`${RARITIES[it.rarity].name}: ${it.name}`, RARITIES[it.rarity].color, it);
+        this.ui.toast(`${it.set ? 'Předmět sady' : RARITIES[it.rarity].name}: ${it.name}`, itemColor(it), it);
         refresh();
         // show what came out of the bag
         const det = $('.detail', $('.body', p));

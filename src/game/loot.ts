@@ -3,7 +3,8 @@ import type { GameScene } from '../scenes/GameScene';
 import { Enemy } from './entities';
 import { D } from './fx';
 import { Item, Slot } from '../data/types';
-import { generateItem, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded } from '../data/items';
+import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded } from '../data/items';
+import { SET_MIN_FLOOR } from '../data/sets';
 import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData, addGem } from '../systems/state';
 import { gemIcon, gemName, parseGem, randomGem } from '../data/gems';
 import { sfx, settings } from '../systems/audio';
@@ -74,7 +75,10 @@ export class Loot {
   }
 
   item(ilvl: number, rarityBonus = 0) {
-    return generateItem(ilvl, { magicFind: this.mf, rarityBonus, filter: this.bias() });
+    const it = generateItem(ilvl, { magicFind: this.mf, rarityBonus, filter: this.bias() });
+    // from floor 10 on, some legendary finds are pieces of an item set
+    if (it.rarity >= 4 && this.scene.floor >= SET_MIN_FLOOR && Math.random() < 0.3) return generateSetItem(ilvl);
+    return it;
   }
 
   goldAmount(mult = 1) {
@@ -90,6 +94,7 @@ export class Loot {
     if (e.boss) {
       const n = 3 + e.bossTier;
       for (let i = 0; i < n; i++) this.dropItem(this.item(f + 1, 2), x, y);
+      if (f >= SET_MIN_FLOOR && Math.random() < 0.12) this.dropItem(generateSetItem(f + 1), x, y);
       for (let i = 0; i < 2; i++) this.dropRandomGem(x, y, 1);
       for (let i = 0; i < 6; i++) this.dropGold(this.goldAmount(4), x, y);
       this.dropMat('stone', 2 + Math.floor(f / 10), x, y);
@@ -196,7 +201,7 @@ export class Loot {
     const sc = this.scene;
     const s = sc.add.image(x, y, itemIcon(it)).setScale(0.55).setDepth(D.entityBase + y - 2);
     const [tx, ty] = this.popTo(s, x, y);
-    const col = RARITIES[it.rarity].color;
+    const col = itemColor(it);
     const g: Ground = { kind: 'item', item: it, amount: 1, x: tx, y: ty, sprite: s, ready: sc.time.now + 450, dead: false };
     if (it.rarity >= 1) {
       g.beam = sc.add.image(tx, ty + 2, 'beam').setOrigin(0.5, 1).setTint(Phaser.Display.Color.HexStringToColor(col).color).setAlpha(it.rarity >= 3 ? 0.7 : 0.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow).setScale(it.rarity >= 4 ? 1.2 : 0.8, it.rarity >= 3 ? 1 : 0.6);
@@ -314,7 +319,7 @@ export class Loot {
       maxStat(p.save, 'bestRarity', g.item.rarity);
       bumpStat(p.save, 'items');
       sc.ui.newItems++;
-      sc.ui.loot(g.item.name + (this.isUpgrade(g.item) ? '  ▲' : ''), RARITIES[g.item.rarity].color, iconURL(itemIcon(g.item), 32));
+      sc.ui.loot(g.item.name + (this.isUpgrade(g.item) ? '  ▲' : ''), itemColor(g.item), iconURL(itemIcon(g.item), 32));
     }
     g.dead = true;
     g.sprite.destroy();

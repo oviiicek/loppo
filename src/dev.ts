@@ -620,3 +620,17 @@ Object.assign(dev, {
     return s.gems;
   },
 });
+
+// Item sets on demand (tests and screenshots)
+import { generateSetItem } from './data/items';
+Object.assign(dev, {
+  /** every piece of a set into the bag */
+  giveSet(id = 'five', ilvl = 20) {
+    const s = (window as any).__scene.save;
+    for (let i = 0; i < 4; i++) {
+      const at = s.inventory.findIndex((x: unknown) => !x);
+      if (at >= 0) s.inventory[at] = generateSetItem(ilvl, id, i);
+    }
+    return true;
+  },
+});
