@@ -159,6 +159,12 @@ export class Enemy extends Actor {
   nameLabel: Phaser.GameObjects.Text | null = null;
   homeX: number;
   homeY: number;
+  baseTint: number | null = null;
+  // treasure goblin: seconds left before it escapes, side-step timer when cornered
+  escapeT = 0;
+  spotted = false;
+  dodgeT = 0;
+  sparkT = 0;
 
   constructor(scene: GameScene, def: EnemyDef, x: number, y: number, floor: number, elite: boolean, roomId: number) {
     super(scene, x, y, def.sprite);
@@ -190,6 +196,11 @@ export class Enemy extends Actor {
     }
     this.setScale(sc);
     if (def.behavior === 'mimic') this.aggro = true;
+    if (def.behavior === 'thief') {
+      this.baseTint = 0xffd23a;
+      this.sprite.setTint(this.baseTint);
+      this.sprite.preFX?.addGlow(0xffd23a, 3, 0, false, 0.1, 8);
+    }
   }
 
   makeBoss(boss: BossDef, tier: number, floor: number) {
@@ -206,6 +217,7 @@ export class Enemy extends Actor {
     this.name = (tier > 0 ? 'Prastarý ' : '') + boss.name;
     this.setScale(boss.scale);
     if (boss.tint) this.sprite.setTint(boss.tint);
+    this.baseTint = boss.tint ?? null;
     this.sprite.preFX?.addGlow(0xff3030, 3, 0, false, 0.1, 8);
     this.aggro = false;
   }
@@ -221,7 +233,7 @@ export class Enemy extends Actor {
     if (this.hitFlash > 0) {
       this.hitFlash -= dt;
       if (this.hitFlash <= 0) {
-        if (this.boss?.tint) this.sprite.setTint(this.boss.tint);
+        if (this.baseTint !== null) this.sprite.setTint(this.baseTint);
         else this.sprite.clearTint();
       }
     }
@@ -245,8 +257,62 @@ export class Enemy extends Actor {
     this.ai(dt);
   }
 
+  // Treasure goblin: waits until it notices the player, then runs away and escapes after a while.
+  thiefAI(dt: number) {
+    const sc = this.scene;
+    const p = sc.player;
+    const dx = this.x - p.x,
+      dy = this.y - p.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    if (!this.spotted) {
+      // noticed the player, got hit, or was alerted by its room mates
+      if (this.aggro || (dist < 120 && sc.map.los(this.x, this.y, p.x, p.y))) {
+        this.spotted = true;
+        this.aggro = true;
+        this.escapeT = 15;
+        sc.onThiefSpotted(this);
+      } else {
+        this.wander(dt);
+        return;
+      }
+    }
+    this.escapeT -= dt;
+    if (this.escapeT <= 0) {
+      sc.thiefEscapes(this);
+      return;
+    }
+    this.sparkT -= dt;
+    if (this.sparkT <= 0) {
+      this.sparkT = 0.12;
+      sc.fx.burst(this.x, this.y - 6, 0xffd23a, 1);
+    }
+    const spd = this.speed * this.speedMult;
+    let dir: [number, number] = [dx / dist, dy / dist];
+    if (dist > 190) {
+      // far enough away: catch its breath
+      this.wander(dt);
+      return;
+    }
+    if (this.dodgeT > 0) {
+      this.dodgeT -= dt;
+      dir = this.wanderDir;
+    }
+    const moved = this.stepToward(dir[0], dir[1], spd, dt);
+    this.homeX = this.x;
+    this.homeY = this.y;
+    if (!moved) {
+      // cornered: dart sideways for a moment
+      const side = Math.random() < 0.5 ? 1 : -1;
+      this.wanderDir = [-dir[1] * side, dir[0] * side];
+      this.dodgeT = 0.45;
+    }
+    this.facing = dir[0] >= 0 ? 1 : -1;
+    this.syncSprite(true);
+  }
+
   ai(dt: number) {
     const sc = this.scene;
+    if (this.def.behavior === 'thief') return this.thiefAI(dt);
     const target = sc.pickEnemyTarget(this);
     const tx = target.x,
       ty = target.y;

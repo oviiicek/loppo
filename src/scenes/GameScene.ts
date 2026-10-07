@@ -507,6 +507,7 @@ export class GameScene extends Phaser.Scene {
       if (m?.enemyHp) e.maxHp = e.hp = Math.round(e.maxHp * m.enemyHp);
       if (m?.enemyDmg) e.dmg *= m.enemyDmg;
     }
+    this.spawnThief();
     const br = this.dungeon.bossRoom;
     if (br) {
       const { def, tier } = bossForFloor(this.floor);
@@ -514,6 +515,34 @@ export class GameScene extends Phaser.Scene {
       e.makeBoss(def, tier, this.floor);
       this.boss = e;
     }
+  }
+
+  // a treasure goblin hides on some floors (much more often during a gold rush)
+  spawnThief() {
+    if (this.floor < 2 || isBossFloor(this.floor)) return;
+    const forced = (window as any).__forceThief; // dev testing hook
+    if (!forced && Math.random() > (this.mod?.id === 'gold' ? 0.6 : 0.14)) return;
+    const st = this.dungeon.start;
+    const rooms = this.dungeon.rooms.filter((r) => r.type === 'normal' && Math.hypot(r.cx - st.x, r.cy - st.y) > (forced ? 4 : 18));
+    const r = rooms[Math.floor(Math.random() * rooms.length)];
+    if (!r) return;
+    this.spawnEnemy('thief', r.cx * TS + 8, r.cy * TS + 10, false, r.id);
+  }
+
+  onThiefSpotted(_e: Enemy) {
+    sfx('coin');
+    UI.toast('Zlatý skřet! Chyť ho, než uteče!', '#ffd23a');
+  }
+
+  thiefEscapes(e: Enemy) {
+    if (e.dead) return;
+    e.dead = true;
+    this.fx.burst(e.x, e.y - 6, 0xb07dff, 24, 'puff');
+    this.fx.burst(e.x, e.y - 6, 0xffd23a, 12);
+    this.tweens.add({ targets: e.sprite, alpha: 0, scaleX: 0, duration: 300, onComplete: () => e.destroyVisuals() });
+    this.tweens.add({ targets: e.shadow, alpha: 0, duration: 300 });
+    sfx('stairs');
+    UI.toast('Zlatý skřet utekl portálem…', '#c8a8ff');
   }
 
   spawnEnemy(id: string, x: number, y: number, elite: boolean, room: number, spriteOverride?: string): Enemy {

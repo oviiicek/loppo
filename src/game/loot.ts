@@ -93,6 +93,14 @@ export class Loot {
       this.dropMat('hpPotion', 2, x, y);
       return;
     }
+    if (e.def.behavior === 'thief') {
+      for (let i = 0; i < 9; i++) this.dropGold(this.goldAmount(3), x, y);
+      this.dropItem(this.item(f + 1, 2), x, y);
+      if (Math.random() < 0.5) this.dropItem(this.item(f + 1, 1), x, y);
+      this.dropMat('dust', 1 + Math.floor(f / 15), x, y);
+      if (Math.random() < 0.5) this.dropMat('lockpick', 1, x, y);
+      return;
+    }
     if (e.elite) {
       this.dropItem(this.item(f, 1), x, y);
       if (Math.random() < 0.35) this.dropItem(this.item(f), x, y);

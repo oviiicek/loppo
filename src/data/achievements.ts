@@ -29,6 +29,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'chest200', name: 'Zlatokop', desc: 'Otevři 200 truhel', reward: { gold: 8000, dust: 5 }, check: (s) => (st(s).chests ?? 0) >= 200 },
   { id: 'secret1', name: 'Bystré oko', desc: 'Najdi tajnou místnost', reward: { gold: 300, lockpick: 1 }, check: (s) => (st(s).secrets ?? 0) >= 1 },
   { id: 'secret20', name: 'Průzkumník', desc: 'Najdi 20 tajných místností', reward: { gold: 6000, dust: 4 }, check: (s) => (st(s).secrets ?? 0) >= 20 },
+  { id: 'thief1', name: 'Lapka', desc: 'Chyť zlatého skřeta', reward: { gold: 1000, lockpick: 2 }, check: (s) => (st(s).thieves ?? 0) >= 1 },
+  { id: 'thief10', name: 'Postrach skřetů', desc: 'Chyť 10 zlatých skřetů', reward: { gold: 12000, dust: 5 }, check: (s) => (st(s).thieves ?? 0) >= 10 },
   { id: 'lock10', name: 'Zloděj', desc: 'Odemkni 10 zámků paklíčem', reward: { gold: 800, lockpick: 3 }, check: (s) => (st(s).locks ?? 0) >= 10 },
   { id: 'upgrade5', name: 'Kovář', desc: 'Vylepši předmět na +5', reward: { gold: 1000, stone: 3 }, check: (s) => (st(s).maxUpgrade ?? 0) >= 5 },
   { id: 'upgrade10', name: 'Mistr kovář', desc: 'Vylepši předmět na +10', reward: { gold: 10000, attr: 2 }, check: (s) => (st(s).maxUpgrade ?? 0) >= 10 },

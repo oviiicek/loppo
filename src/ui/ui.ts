@@ -493,11 +493,14 @@ class UIManager {
       if (e.dead) continue;
       const tx = Math.floor(e.x / TS),
         ty = Math.floor(e.y / TS);
-      if (!m.explored[m.idx(tx, ty)]) continue;
-      if (Math.hypot(e.x - p.x, e.y - p.y) > 200 && !e.boss) continue;
+      // a spotted treasure goblin stays on the map even when it runs into the unknown
+      const thief = e.def.behavior === 'thief' && e.spotted;
+      if (!m.explored[m.idx(tx, ty)] && !thief) continue;
+      if (Math.hypot(e.x - p.x, e.y - p.y) > 200 && !e.boss && !thief) continue;
       const [mx, my] = toMini(e.x, e.y);
-      ctx.fillStyle = e.boss ? '#ff3030' : e.elite ? '#ffa020' : '#e04040';
-      ctx.fillRect(mx - (e.boss ? 3 : 1.5), my - (e.boss ? 3 : 1.5), e.boss ? 6 : 3, e.boss ? 6 : 3);
+      const big = e.boss || thief;
+      ctx.fillStyle = e.boss ? '#ff3030' : thief ? '#ffd23a' : e.elite ? '#ffa020' : '#e04040';
+      ctx.fillRect(mx - (big ? 3 : 1.5), my - (big ? 3 : 1.5), big ? 6 : 3, big ? 6 : 3);
     }
     // player arrow
     const [px, py] = toMini(p.x, p.y);

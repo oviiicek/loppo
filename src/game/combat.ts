@@ -2,6 +2,7 @@ import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy } from './entities';
 import { EL_COLOR } from './fx';
 import { Element } from '../data/types';
+import { bumpStat } from '../systems/state';
 import { sfx, vibrate } from '../systems/audio';
 import { bus } from '../systems/events';
 
@@ -180,6 +181,10 @@ export class Combat {
       }
     }
     if (e.boss) sc.onBossKilled(e);
+    if (e.def.behavior === 'thief') {
+      bumpStat(p.save, 'thieves');
+      sc.ui.toast('Zlatý skřet chycen!', '#ffd23a');
+    }
     bus.emit('kill', e);
   }
 

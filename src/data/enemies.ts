@@ -1,6 +1,6 @@
 import { Element } from './types';
 
-export type Behavior = 'melee' | 'ranged' | 'caster' | 'charger' | 'erratic' | 'summoner' | 'splitter' | 'mimic' | 'ghost';
+export type Behavior = 'melee' | 'ranged' | 'caster' | 'charger' | 'erratic' | 'summoner' | 'splitter' | 'mimic' | 'ghost' | 'thief';
 
 export interface EnemyDef {
   id: string;
@@ -40,6 +40,8 @@ export const ENEMIES: EnemyDef[] = [
   { id: 'golem', name: 'Kamenný golem', sprite: 'en_golem', hp: 180, dmg: 18, speed: 26, xp: 40, behavior: 'melee', range: 22, atkCd: 2.0, minFloor: 18, weight: 3, armor: 25, scale: 1.3, radius: 9 },
   { id: 'wraith', name: 'Ledový přízrak', sprite: 'en_wraith', hp: 50, dmg: 10, speed: 46, xp: 26, behavior: 'caster', range: 120, atkCd: 1.8, proj: 'ice', el: 'ice', minFloor: 20, weight: 4 },
   { id: 'mimic', name: 'Mimik', sprite: 'en_mimic', hp: 120, dmg: 14, speed: 62, xp: 50, behavior: 'mimic', range: 18, atkCd: 1.0, minFloor: 2, weight: 0, armor: 10 },
+  // rare treasure goblin: never attacks, flees and escapes through a portal unless caught in time
+  { id: 'thief', name: 'Zlatý skřet', sprite: 'en_goblin', hp: 90, dmg: 0, speed: 60, xp: 60, behavior: 'thief', range: 0, atkCd: 99, minFloor: 2, weight: 0, scale: 1.1 },
 ];
 
 export const ENEMY_BY_ID: Record<string, EnemyDef> = Object.fromEntries(ENEMIES.map((e) => [e.id, e]));
