@@ -501,6 +501,7 @@ export class Menus {
         ['⭐', 'Úroveň', String(s.level)],
         ['⚔️', 'Poražených nepřátel', n(s.kills)],
         ['👑', 'Z toho šampionů', n(st.elites)],
+        ['🔥', 'Nejdelší série zabití', n(st.streak)],
         ['☠️', 'Poražených strážců', n(st.bosses)],
         ['💰', 'Sebraného zlata', n(st.goldEarned)],
         ['🎒', 'Sebraných předmětů', n(st.items)],

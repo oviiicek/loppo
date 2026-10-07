@@ -305,6 +305,58 @@ img.px {
   text-shadow: 1px 1px 0 #000;
   pointer-events: none;
 }
+/* kill streak counter at the top (placed by UI.streak) */
+.streak {
+  position: absolute;
+  display: none;
+  min-width: 96px;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+.streak.on {
+  display: block;
+}
+.streak b {
+  display: inline-block;
+  color: #ffb347;
+  font-size: 30px;
+  line-height: 1;
+  text-shadow:
+    2px 2px 0 #000,
+    0 0 12px rgba(255, 140, 40, 0.65);
+}
+.streak b.pop {
+  animation: streakpop 0.25s ease-out;
+}
+@keyframes streakpop {
+  from {
+    transform: scale(1.45);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.streak span {
+  display: block;
+  color: #ffd9a8;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 0 #000;
+}
+.streak.end span {
+  color: #9dff9a;
+  font-size: 17px;
+}
+.streak i {
+  display: block;
+  height: 3px;
+  margin-top: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ff8a2a, #ffd76a);
+  transform-origin: left;
+}
+
 /* the optional task of the floor, under the floor name */
 .floorlbl .bounty {
   display: none;

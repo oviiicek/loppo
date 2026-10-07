@@ -56,6 +56,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'bounty10', name: 'Spolehlivý', desc: 'Splň 10 úkolů patra', reward: { gold: 3000, stone: 3 }, check: (s) => (st(s).bounties ?? 0) >= 10 },
   { id: 'bounty50', name: 'Žoldák hlubin', desc: 'Splň 50 úkolů patra', reward: { gold: 40000, attr: 3 }, check: (s) => (st(s).bounties ?? 0) >= 50 },
   { id: 'elite100', name: 'Přemožitel šampionů', desc: 'Poraz 100 elitních šampionů', reward: { gold: 15000, dust: 6 }, check: (s) => (st(s).elites ?? 0) >= 100 },
+  { id: 'streak25', name: 'Masakr', desc: 'Udělej sérii 25 zabití', reward: { gold: 5000, dust: 3 }, check: (s) => (st(s).streak ?? 0) >= 25 },
+  { id: 'streak60', name: 'Smršť zkázy', desc: 'Udělej sérii 60 zabití', reward: { gold: 40000, attr: 3 }, check: (s) => (st(s).streak ?? 0) >= 60 },
   { id: 'gem1', name: 'Klenotník', desc: 'Vsaď první drahokam do soketu', reward: { gold: 500, stone: 2 }, check: (s) => (st(s).gemsSet ?? 0) >= 1 },
   { id: 'gem4', name: 'Dokonalý lesk', desc: 'Získej dokonalý drahokam', reward: { gold: 8000, dust: 4 }, check: (s) => (st(s).bestGem ?? 0) >= 4 },
   { id: 'gem5', name: 'Královský klenot', desc: 'Získej královský drahokam', reward: { gold: 60000, attr: 3 }, check: (s) => (st(s).bestGem ?? 0) >= 5 },

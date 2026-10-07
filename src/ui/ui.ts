@@ -251,6 +251,7 @@ class UIManager {
       </div>
       <div class="bossbar"><div class="name"></div><div class="bar hp"><div class="fill"></div></div></div>
       <div class="eventbar"><div class="name"></div><div class="bar ev"><div class="fill"></div></div></div>
+      <div class="streak"><b></b><span>série zabití</span><i></i></div>
       <div class="toasts"></div>
       <div class="lootfeed"></div>
       <div class="banner"><h1></h1><p></p></div>
@@ -912,6 +913,48 @@ class UIManager {
     $('.name', bb).textContent = b.story ? `${b.name}, ${b.story.title}${stages}` : b.name;
     bb.classList.toggle('story', !!b.story);
     bb.classList.add('on');
+  }
+
+  /** the kill streak counter at the top (from three kills on); n = 0 hides it */
+  streak(n: number, frac: number) {
+    if (!this.hud) return;
+    const st = $('.streak', this.hud);
+    if (n < 3) {
+      if (!st.classList.contains('end')) st.classList.remove('on');
+      return;
+    }
+    if (!st.classList.contains('on') || st.classList.contains('end')) {
+      clearTimeout((st as any)._t);
+      st.classList.remove('end');
+      const { left, right, top } = this.topSlot(170);
+      const busy = $('.bossbar', this.hud).classList.contains('on') || $('.eventbar', this.hud).classList.contains('on');
+      st.style.left = `${(left + right) / 2}px`;
+      st.style.top = `${top + (busy ? 42 : 0)}px`;
+      st.classList.add('on');
+      $('span', st).textContent = 'série zabití';
+    }
+    const b = $('b', st);
+    const txt = `×${n}`;
+    if (b.textContent !== txt) {
+      b.textContent = txt;
+      b.classList.remove('pop');
+      void b.offsetWidth;
+      b.classList.add('pop');
+    }
+    ($('i', st) as HTMLElement).style.transform = `scaleX(${frac})`;
+  }
+
+  /** the streak ended with a bonus: shown for a moment where the counter was */
+  streakEnd(n: number, xp: number) {
+    if (!this.hud) return;
+    const st = $('.streak', this.hud);
+    if (!st.classList.contains('on')) this.streak(n, 0);
+    st.classList.add('on', 'end');
+    $('b', st).textContent = `×${n}`;
+    $('span', st).textContent = `+${xp.toLocaleString('cs-CZ')} zkušeností`;
+    ($('i', st) as HTMLElement).style.transform = 'scaleX(0)';
+    clearTimeout((st as any)._t);
+    (st as any)._t = setTimeout(() => st.classList.remove('on', 'end'), 1800);
   }
 
   /** the optional task of the floor, under the minimap */

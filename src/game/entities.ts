@@ -6,6 +6,21 @@ import { TS } from './map';
 import { EnemyDef, BossDef, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase } from '../data/enemies';
 import { Element } from '../data/types';
 
+/** champion traits: what they do is in Enemy.affixTick (and a few in combat); each glows its own colour */
+export const ELITE_AFFIXES: Record<string, { glow: number; desc: string }> = {
+  rychlý: { glow: 0xffe45c, desc: 'rychle se pohybuje a útočí' },
+  obrněný: { glow: 0x9aa8b8, desc: 'má silné brnění' },
+  upíří: { glow: 0xff3b5a, desc: 'léčí se z úderů' },
+  výbušný: { glow: 0xff7a2a, desc: 'po smrti vybuchne' },
+  mrazivý: { glow: 0x7fd8ff, desc: 'zpomaluje údery' },
+  ohnivý: { glow: 0xff4a10, desc: 'nechává za sebou hořící zem' },
+  elektrický: { glow: 0xfff27a, desc: 'metá blesky' },
+  léčitel: { glow: 0x52ff8f, desc: 'léčí nestvůry kolem sebe' },
+  teleportér: { glow: 0xb07dff, desc: 'přeskakuje k hrdinovi' },
+  vyvolávač: { glow: 0x7bd88f, desc: 'povolává pomocníky' },
+};
+const AFFIX_IDS = Object.keys(ELITE_AFFIXES);
+
 let nextId = 1;
 
 // seconds a spotted treasure goblin stays before escaping
@@ -180,6 +195,10 @@ export class Enemy extends Actor {
   spotted = false;
   dodgeT = 0;
   sparkT = 0;
+  /** champion trait timer (fire trail, lightning, healing, blinking, summoning) */
+  affT = 1.5 + Math.random() * 2;
+  /** the champion that summoned this one (summoners keep at most a few) */
+  summoner: Enemy | null = null;
 
   constructor(scene: GameScene, def: EnemyDef, x: number, y: number, floor: number, elite: boolean, roomId: number) {
     super(scene, x, y, def.sprite);
@@ -207,11 +226,13 @@ export class Enemy extends Actor {
     let sc = def.scale ?? 1;
     if (elite) {
       sc *= 1.25;
-      this.eliteAffix = ['rychlý', 'obrněný', 'upíří', 'výbušný', 'mrazivý'][Math.floor(Math.random() * 5)];
+      // the new traits only show up from floor 4 on (the first floors stay simple)
+      const pool = floor < 4 ? AFFIX_IDS.slice(0, 5) : AFFIX_IDS;
+      this.eliteAffix = pool[Math.floor(Math.random() * pool.length)];
       if (this.eliteAffix === 'rychlý') this.speed *= 1.45;
       if (this.eliteAffix === 'obrněný') this.armor = this.armor * 2 + 20;
       this.name = `${def.name} (${this.eliteAffix})`;
-      this.sprite.preFX?.addGlow(0xffb020, 2, 0, false, 0.1, 12);
+      this.sprite.preFX?.addGlow(ELITE_AFFIXES[this.eliteAffix].glow, 2, 0, false, 0.1, 12);
     }
     this.setScale(sc);
     if (def.behavior === 'mimic') this.aggro = true;
@@ -319,7 +340,81 @@ export class Enemy extends Actor {
       this.scene.bossAI.update(this, dt);
       return;
     }
+    if (this.eliteAffix && this.aggro) this.affixTick(dt);
+    if (this.dead) return;
     this.ai(dt);
+  }
+
+  /** what a champion's trait does while it fights */
+  private affixTick(dt: number) {
+    const sc = this.scene;
+    const p = sc.player;
+    if (p.dead) return;
+    this.affT -= dt;
+    if (this.affT > 0) return;
+    const d = Math.hypot(p.x - this.x, p.y - this.y);
+    switch (this.eliteAffix) {
+      case 'ohnivý':
+        // burning ground along its path
+        this.affT = 0.75;
+        sc.addHazard(this.x, this.y + 1, 9, this.dmg * 0.45, 'fire', 3.2, 0xff5a1a);
+        break;
+      case 'elektrický': {
+        this.affT = 2.4;
+        if (d < 150 && sc.map.canSee(this.x, this.y, p.x, p.y)) {
+          const a = Math.atan2(p.y - 4 - (this.y - 6), p.x - this.x);
+          for (const da of [-0.32, 0, 0.32]) sc.spawnEnemyProjectile(this.x, this.y - 6, a + da, 'pr_bolt', this.dmg * 0.55, 'lightning', 80);
+          sc.fx.burst(this.x, this.y - 8, 0xfff27a, 6);
+        }
+        break;
+      }
+      case 'léčitel': {
+        this.affT = 3;
+        let healed = false;
+        for (const o of sc.enemiesNear(this.x, this.y, 80)) {
+          if (o.dead || o.hp >= o.maxHp || o.boss) continue;
+          o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.08);
+          sc.fx.burst(o.x, o.y - 8, 0x52ff8f, 4);
+          healed = true;
+        }
+        if (healed) sc.fx.ring(this.x, this.y - 4, 80, 0x52ff8f, 500);
+        break;
+      }
+      case 'teleportér': {
+        this.affT = 4 + Math.random() * 2;
+        if (d > 50 && d < 220) {
+          const spot = sc.map.randomFloorNear(p.x, p.y, 34);
+          if (spot && Math.hypot(spot[0] - p.x, spot[1] - p.y) > 16) {
+            sc.fx.burst(this.x, this.y - 6, 0xb07dff, 12, 'puff');
+            this.x = spot[0];
+            this.y = spot[1];
+            sc.fx.burst(this.x, this.y - 6, 0xb07dff, 12, 'puff');
+            sc.fx.ring(this.x, this.y - 4, 22, 0xb07dff, 350);
+          }
+        }
+        break;
+      }
+      case 'vyvolávač': {
+        this.affT = 6;
+        const mine = sc.enemies.filter((e) => !e.dead && e.summoner === this).length;
+        for (let i = 0; i < Math.min(2, 6 - mine); i++) {
+          const s = sc.map.randomFloorNear(this.x, this.y, 26);
+          if (!s) continue;
+          const m = sc.spawnEnemy(this.def.id, s[0], s[1], false, this.roomId);
+          m.isMinion = true;
+          m.summoner = this;
+          m.setScale((this.def.scale ?? 1) * 0.75);
+          m.maxHp = m.hp = Math.round(m.maxHp * 0.4);
+          m.xp = Math.round(m.xp * 0.3);
+          m.aggro = true;
+          sc.fx.burst(s[0], s[1] - 6, 0x7bd88f, 10, 'puff');
+          sc.fx.ring(s[0], s[1], 16, 0x7bd88f, 400);
+        }
+        break;
+      }
+      default:
+        this.affT = 99;
+    }
   }
 
   // Treasure goblin: waits until it notices the player, then runs away and escapes after a while.

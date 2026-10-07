@@ -10,7 +10,7 @@ import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
 import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END } from '../data/enemies';
 import { CHAPTERS, noteForFloor } from '../data/story';
-import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, storyOf, buryHero, petsOf } from '../systems/state';
+import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf } from '../systems/state';
 import { PetFollower } from '../game/pet';
 import { Weather } from '../game/weather';
 import { PET_BY_ID, PetId, petTitle, cagePetFor, cageChance, petLevel } from '../data/pets';
@@ -27,6 +27,9 @@ import { areaForFloor } from '../data/biomes';
 import { Difficulty, difficultyOf } from '../data/difficulty';
 import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
+
+/** seconds between kills that keep a kill streak going */
+const STREAK_WINDOW = 2.6;
 
 /** news about the pet to show once the hero is on the next floor ("Mína reached level 3") */
 let pendingPetNews: string | null = null;
@@ -795,6 +798,19 @@ export class GameScene extends Phaser.Scene {
     return a;
   }
 
+  /** the streak ran out: five kills or more pay a bonus share of their experience */
+  endStreak() {
+    const { n, xp } = this.streak;
+    this.streak = { n: 0, t: 0, xp: 0 };
+    UI.streak(0, 0);
+    if (n < 5 || this.player.dead) return;
+    const bonus = Math.max(1, Math.round(xp * Math.min(0.8, n * 0.03)));
+    maxStat(this.save, 'streak', n);
+    UI.streakEnd(n, bonus);
+    this.gainXp(bonus);
+    sfx('coin');
+  }
+
   // ---------------------------------------------------------------- floor task
   /** every regular floor below the first gets one optional task fitting what the floor holds */
   rollBounty() {
@@ -855,9 +871,16 @@ export class GameScene extends Phaser.Scene {
     bus.emit('stats');
   }
 
-  /** a monster died (the floor task counts kills and champions) */
-  onKill(e: Enemy) {
+  /** kills in quick succession: their count, the time left to keep it going, the experience they gave */
+  streak = { n: 0, t: 0, xp: 0 };
+
+  /** a monster died (the floor task counts kills and champions; quick kills build a streak) */
+  onKill(e: Enemy, xp = 0) {
     this.floorKills++;
+    const st = this.streak;
+    st.n = st.t > 0 ? st.n + 1 : 1;
+    st.t = STREAK_WINDOW;
+    st.xp += xp;
     this.bountyStep('kill');
     if (e.elite) {
       this.bountyStep('elite');
@@ -1814,6 +1837,11 @@ export class GameScene extends Phaser.Scene {
     if (this.allies.some((a) => a.dead)) this.allies = this.allies.filter((a) => !a.dead);
     if (this.pet && !p.dead) this.pet.update(dt);
     if (this.cursed && !p.dead) this.updateCursed(dt);
+    if (this.streak.t > 0) {
+      this.streak.t -= dt;
+      if (this.streak.t <= 0) this.endStreak();
+      else UI.streak(this.streak.n, this.streak.t / STREAK_WINDOW);
+    }
     for (const pr of this.projectiles) pr.update(dt);
     if (this.projectiles.some((pr) => pr.dead)) this.projectiles = this.projectiles.filter((pr) => !pr.dead);
     this.spells.update(dt);
