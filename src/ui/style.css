@@ -1318,3 +1318,13 @@ img.px {
     display: none;
   }
 }
+
+/* older iOS Safari without aspect-ratio support */
+@supports not (aspect-ratio: 1) {
+  .slot {
+    height: 54px;
+  }
+  .equip .slot {
+    height: 54px;
+  }
+}
