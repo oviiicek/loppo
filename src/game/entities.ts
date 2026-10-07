@@ -207,9 +207,11 @@ export class Enemy extends Actor {
     this.boss = boss;
     this.bossTier = tier;
     const tierMult = Math.pow(2.2, tier);
-    this.maxHp = Math.round(boss.hp * 0.5 * enemyHpScale(floor) * tierMult);
+    // the first guardians are gentler – they are where new players learn to dodge
+    const early = floor <= 10 ? 0.8 : floor <= 20 ? 0.9 : 1;
+    this.maxHp = Math.round(boss.hp * 0.5 * enemyHpScale(floor) * tierMult * early);
     this.hp = this.maxHp;
-    this.dmg = boss.dmg * enemyDmgScale(floor) * Math.pow(1.6, tier);
+    this.dmg = boss.dmg * enemyDmgScale(floor) * Math.pow(1.6, tier) * early;
     this.speed = boss.speed;
     this.xp = Math.round(300 * enemyXpScale(floor) * (1 + tier));
     this.armor = 10 + floor * 1.5;
