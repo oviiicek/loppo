@@ -533,12 +533,31 @@ export class Menus {
     );
   }
 
+  /** who dealt the last blow, how hard, and a tip fitting it */
+  recapHtml() {
+    const h = this.ui.scene?.lastHit;
+    if (!h) return '';
+    const el: Record<string, string> = { fire: 'ohněm', ice: 'mrazem', lightning: 'bleskem', poison: 'jedem', holy: 'svatým světlem', shadow: 'stínem' };
+    const tip =
+      h.kind === 'boss'
+        ? 'Červené kruhy ukazují, kam strážce udeří – včas z nich uhni a lektvar si nech na chvíli po jeho velkém útoku.'
+        : h.kind === 'elite'
+          ? 'Šampioni vydrží víc a bijí víc. Bojuj s nimi s plným zdravím a nenech je obklopit ostatními nestvůrami.'
+          : h.kind === 'trap'
+            ? 'Bodcové pasti se vysouvají v pravidelném rytmu – přeběhni je, když jsou zatažené.'
+            : h.el === 'fire' || h.el === 'poison'
+              ? 'Z hořící nebo jedovaté země co nejdřív vystup – zraňuje, dokud v ní stojíš.'
+              : 'Vylepši výbavu u kovadliny, vsaď drahokamy do soketů, nebo si v pauze zvol nižší obtížnost.';
+    return `<div class="recap"><div>Poslední úder: <b>${esc(h.who)}</b> – ${h.amount.toLocaleString('cs-CZ')} poškození${el[h.el] ? ' ' + el[h.el] : ''}</div><div class="hint">💡 ${tip}</div></div>`;
+  }
+
   death(floor: number, lostGold: number) {
     const sc = this.ui.scene!;
     const p = el(`<div class="panel small" style="border-color:#8a2a2a"><div class="head" style="background:linear-gradient(#3a1414,#1a0a0a)"><h2 style="color:#ff6b6b">Padl jsi</h2></div>
       <div style="padding:16px;text-align:center">
         <p style="font-size:20px">Tvoje cesta skončila v patře ${floor}.</p>
         <p class="hint">Přijdeš o ${lostGold} zlata a část zkušeností do další úrovně. Předměty i úroveň ti zůstanou.</p>
+        ${this.recapHtml()}
         <div class="row" style="justify-content:center;margin-top:10px"><button class="btn green" data-a="retry">Zkusit patro znovu</button><button class="btn" data-a="menu">Hlavní menu</button></div>
       </div></div>`);
     this.ui.showOverlay(p, undefined, true, true);
@@ -564,6 +583,7 @@ export class Menus {
         <p style="font-size:21px;margin:6px 0">Tvoje cesta skončila v patře ${floor} – ${esc(areaForFloor(floor).name)}.</p>
         <p class="hint" style="margin:0 0 6px">Hardcore postava se nedá oživit. ${esc(CLASS_BY_ID[s.cls].name)} úrovně ${s.level} odchází do Síně padlých.</p>
         <div class="hint">Nejhlouběji: patro ${s.maxFloor} • zabito ${s.kills} • ${Math.floor(s.playTime / 60)} min • ${diffTag(s)}</div>
+        ${this.recapHtml()}
         <div class="row" style="justify-content:center;margin-top:12px"><button class="btn green" data-a="new">Nová postava</button><button class="btn" data-a="menu">Hlavní menu</button></div>
       </div></div>`);
     this.ui.showOverlay(p, undefined, true, true);

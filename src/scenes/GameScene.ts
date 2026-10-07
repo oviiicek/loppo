@@ -153,9 +153,11 @@ export class GameScene extends Phaser.Scene {
   playTimeT = 0;
   floorKills = 0;
   /** lingering danger zones (spore clouds, void pools) left by story guardians */
-  hazards: { x: number; y: number; r: number; dps: number; el: Element; t: number; tick: number; img: Phaser.GameObjects.Image }[] = [];
+  hazards: { x: number; y: number; r: number; dps: number; el: Element; t: number; tick: number; img: Phaser.GameObjects.Image; src?: string }[] = [];
   /** the pet travelling with the hero */
   pet: PetFollower | null = null;
+  /** the last blow the hero took (who, how hard, what kind of source) for the death screen */
+  lastHit: { who: string; amount: number; el: Element; kind: string } | null = null;
   /** the optional task of this floor */
   bounty: Bounty | null = null;
   /** dust, spores, snow, embers or wisps of the biome */
@@ -198,6 +200,7 @@ export class GameScene extends Phaser.Scene {
     this.mod = null;
     this.hazards = [];
     this.pet = null;
+    this.lastHit = null;
     this.cursed = null;
     this.bounty = null;
   }
@@ -664,6 +667,7 @@ export class GameScene extends Phaser.Scene {
       }
       if (!tr.hit && !p.dead && Math.abs(p.x - tr.x) < 8 && Math.abs(p.y - tr.y) < 8) {
         tr.hit = true;
+        this.combat.cause = 'Bodcová past';
         this.combat.damagePlayer(7 * enemyDmgScale(this.floor), null);
         this.fx.burst(tr.x, tr.y, 0xcfd6dc, 6, 'pix');
       }
@@ -1172,8 +1176,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- projectiles
-  spawnEnemyProjectile(x: number, y: number, angle: number, sprite: string, dmg: number, el: Element, speed: number) {
-    this.projectiles.push(new Projectile(this, { x, y, angle, speed, sprite, dmg, el, owner: 'enemy', range: 260 }));
+  spawnEnemyProjectile(x: number, y: number, angle: number, sprite: string, dmg: number, el: Element, speed: number, srcName?: string) {
+    this.projectiles.push(new Projectile(this, { x, y, angle, speed, sprite, dmg, el, owner: 'enemy', range: 260, srcName }));
   }
 
   spawnAllyProjectile(x: number, y: number, angle: number, sprite: string, dmg: number, el: Element) {
@@ -1564,10 +1568,10 @@ export class GameScene extends Phaser.Scene {
     saveGame(this.save);
   }
 
-  addHazard(x: number, y: number, r: number, dps: number, el: Element, dur: number, color: number) {
+  addHazard(x: number, y: number, r: number, dps: number, el: Element, dur: number, color: number, src?: string) {
     const img = this.add.image(x, y, 'disc').setTint(color).setAlpha(0.32).setScale((r * 2) / 256).setDepth(D.floorDeco + 3).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: img, alpha: 0.18, yoyo: true, repeat: -1, duration: 500 });
-    this.hazards.push({ x, y, r, dps, el, t: dur, tick: 0.25, img });
+    this.hazards.push({ x, y, r, dps, el, t: dur, tick: 0.25, img, src });
   }
 
   updateHazards(dt: number) {
@@ -1581,6 +1585,7 @@ export class GameScene extends Phaser.Scene {
         h.tick -= dt;
         if (h.tick <= 0) {
           h.tick = 0.5;
+          this.combat.cause = h.src ?? null;
           this.combat.damagePlayer(h.dps * 0.5, null, h.el, true);
         }
       }

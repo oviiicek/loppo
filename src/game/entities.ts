@@ -357,13 +357,13 @@ export class Enemy extends Actor {
       case 'ohnivý':
         // burning ground along its path
         this.affT = 0.75;
-        sc.addHazard(this.x, this.y + 1, 9, this.dmg * 0.45, 'fire', 3.2, 0xff5a1a);
+        sc.addHazard(this.x, this.y + 1, 9, this.dmg * 0.45, 'fire', 3.2, 0xff5a1a, this.name);
         break;
       case 'elektrický': {
         this.affT = 2.4;
         if (d < 150 && sc.map.canSee(this.x, this.y, p.x, p.y)) {
           const a = Math.atan2(p.y - 4 - (this.y - 6), p.x - this.x);
-          for (const da of [-0.32, 0, 0.32]) sc.spawnEnemyProjectile(this.x, this.y - 6, a + da, 'pr_bolt', this.dmg * 0.55, 'lightning', 80);
+          for (const da of [-0.32, 0, 0.32]) sc.spawnEnemyProjectile(this.x, this.y - 6, a + da, 'pr_bolt', this.dmg * 0.55, 'lightning', 80, this.name);
           sc.fx.burst(this.x, this.y - 8, 0xfff27a, 6);
         }
         break;
@@ -638,7 +638,7 @@ export class Enemy extends Actor {
     const def = this.def;
     if (def.behavior === 'ranged' || def.behavior === 'caster' || def.behavior === 'summoner') {
       const a = Math.atan2(dy, dx);
-      sc.spawnEnemyProjectile(this.x, this.y - 6, a, def.proj ?? 'arrow', this.dmg, def.el ?? 'phys', 130);
+      sc.spawnEnemyProjectile(this.x, this.y - 6, a, def.proj ?? 'arrow', this.dmg, def.el ?? 'phys', 130, this.name);
       return;
     }
     if (dist <= def.range + this.r + target.r + 6) {
@@ -879,6 +879,8 @@ export interface ProjOpts {
   fromAlly?: boolean;
   isAttack?: boolean;
   onHitFx?: boolean;
+  /** who shot it (a monster's projectile; named on the death screen) */
+  srcName?: string;
 }
 
 export class Projectile {
@@ -994,6 +996,7 @@ export class Projectile {
     } else {
       const p = sc.player;
       if (Math.abs(p.x - this.x) < 6 && Math.abs(p.y - 6 - this.y) < 9) {
+        sc.combat.cause = this.o.srcName ?? null;
         sc.combat.damagePlayer(this.o.dmg, null, this.o.el);
         if (this.o.el === 'ice') p.chill(1.2);
         if (this.o.el === 'poison') p.applyPoison(this.o.dmg * 0.3, 3);

@@ -1538,6 +1538,20 @@ img.px {
   color: #ffe45c;
 }
 
+/* death screen: the last blow and a tip */
+.recap {
+  margin: 8px 0 2px;
+  padding: 6px 8px;
+  border: 1px solid #5a2a2a;
+  border-radius: 8px;
+  background: rgba(40, 10, 10, 0.5);
+  font-size: 17px;
+  text-align: left;
+}
+.recap b {
+  color: #ff9a8a;
+}
+
 /* gems and sockets */
 .matbtn {
   display: inline-flex;

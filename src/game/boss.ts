@@ -89,7 +89,7 @@ export class BossAI {
 
   shoot(b: Enemy, angle: number, speed = 110, dmgMult = 0.7) {
     const def = b.boss!;
-    this.scene.spawnEnemyProjectile(b.x, b.y - 10 * b.baseScale * 0.5, angle, def.proj, b.dmg * dmgMult, def.el, speed);
+    this.scene.spawnEnemyProjectile(b.x, b.y - 10 * b.baseScale * 0.5, angle, def.proj, b.dmg * dmgMult, def.el, speed, b.name);
   }
 
   run(b: Enemy, pat: string) {

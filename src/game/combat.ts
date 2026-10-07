@@ -6,6 +6,9 @@ import { bumpStat, maxStat } from '../systems/state';
 import { sfx, vibrate } from '../systems/audio';
 import { bus } from '../systems/events';
 
+/** what to call a hit without a monster behind it (on the death screen) */
+const EL_CAUSE: Record<string, string> = { phys: 'neznámý úder', fire: 'oheň', ice: 'mráz', lightning: 'blesk', poison: 'jed', holy: 'svaté světlo', shadow: 'stín' };
+
 export interface HitOpts {
   el?: Element;
   spell?: boolean;
@@ -188,7 +191,10 @@ export class Combat {
       sc.fx.telegraph(e.x, e.y, 34, 500);
       sc.time.delayedCall(500, () => {
         sc.fx.disc(e.x, e.y, 34, 0xff7a2a);
-        if (Math.hypot(p.x - e.x, p.y - e.y) < 34) this.damagePlayer(e.dmg * 1.5, null, 'fire');
+        if (Math.hypot(p.x - e.x, p.y - e.y) < 34) {
+          this.cause = `${e.name} – výbuch`;
+          this.damagePlayer(e.dmg * 1.5, null, 'fire');
+        }
       });
     }
     if (e.def.behavior === 'splitter' && !e.isMinion && e.baseScale >= 0.9 && !e.boss) {
@@ -209,9 +215,14 @@ export class Combat {
     bus.emit('kill', e);
   }
 
+  /** set by a hit without a monster as its source (a trap, a projectile, a burning floor) just before it lands */
+  cause: string | null = null;
+
   damagePlayer(amount: number, src: Actor | null, el: Element = 'phys', isDot = false) {
     const sc = this.scene;
     const p = sc.player;
+    const cause = this.cause;
+    this.cause = null;
     if (p.dead || amount <= 0 || sc.godMode) return;
     if (!isDot) p.combatPing();
     if (p.invulnT > 0) return;
@@ -259,6 +270,16 @@ export class Combat {
       dmg -= fromMana;
     }
     if (dmg <= 0) return;
+    // remembered for the death screen
+    const boss = sc.boss && !sc.boss.dead && sc.boss.aggro ? sc.boss : null;
+    const foe = src instanceof Enemy ? src : null;
+    sc.lastHit = {
+      who: foe ? foe.name : cause ?? (boss ? boss.name : EL_CAUSE[el] ?? EL_CAUSE.phys),
+      amount: Math.round(dmg),
+      el,
+      // without a monster object: a trap, the guardian in the fight, a champion's shot (named "X (trait)") or a monster's
+      kind: foe ? (foe.boss || foe.story ? 'boss' : foe.elite ? 'elite' : 'monster') : cause === 'Bodcová past' ? 'trap' : boss && (!cause || cause === boss.name) ? 'boss' : cause?.includes('(') ? 'elite' : cause ? 'monster' : 'other',
+    };
     p.hp -= dmg;
     if (!isDot) {
       sfx('hurt');
