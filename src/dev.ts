@@ -139,7 +139,8 @@ function itemScore(it: any) {
 
 function botTick() {
   const sc: GameScene | undefined = (window as any).__scene;
-  if (!sc || !sc.player || !sc.sys.isActive()) return;
+  // (the death screen pauses the scene, so a dead player is handled before the active check)
+  if (!sc || !sc.player || (!sc.sys.isActive() && !sc.player.dead)) return;
   const s = sc.save;
   const p = sc.player;
   const now = performance.now();
