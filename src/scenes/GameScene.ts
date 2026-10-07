@@ -117,6 +117,7 @@ export class GameScene extends Phaser.Scene {
     this.merchantStocks = new Map();
     this.currentAction = null;
     this.floorKills = 0;
+    this.deathAt = 0;
   }
 
   create() {
@@ -232,7 +233,14 @@ export class GameScene extends Phaser.Scene {
     const d = this.dungeon;
     for (const o of d.objects) this.placeObject(o);
     // secret walls are interactables
-    for (const s of d.secretWalls) this.interactables.push({ kind: 'secret', x: s.x * TS + 8, y: s.y * TS + 14, tx: s.x, ty: s.y, data: {} });
+    for (const s of d.secretWalls) {
+      this.interactables.push({ kind: 'secret', x: s.x * TS + 8, y: s.y * TS + 14, tx: s.x, ty: s.y, data: {} });
+      // walls seen from above get a faint crack as the only hint (front faces use a cracked tile)
+      if (this.map.tileAt(s.x, s.y + 1) !== T_FLOOR) {
+        const crack = this.add.image(s.x * TS + 8, s.y * TS + 8, 'wallcrack').setDepth(D.wallDeco - 1).setAlpha(0.75);
+        this.interactables[this.interactables.length - 1].data.crack = crack;
+      }
+    }
     for (const dr of d.lockedDoors) {
       this.map.solid[this.map.idx(dr.x, dr.y)] = 1;
     }
@@ -710,6 +718,7 @@ export class GameScene extends Phaser.Scene {
 
   revealSecret(it: Interactable) {
     it.used = true;
+    it.data.crack?.destroy();
     bumpStat(this.save, 'secrets');
     this.map.openTile(it.tx, it.ty);
     sfx('door');
@@ -859,7 +868,10 @@ export class GameScene extends Phaser.Scene {
     p.offhand?.setVisible(false);
     const lost = Math.round(this.save.gold * 0.15);
     this.time.delayedCall(900, () => UI.death(this.floor, lost));
+    this.deathAt = this.time.now;
   }
+
+  deathAt = 0;
 
   respawn() {
     const lost = Math.round(this.save.gold * 0.15);
@@ -950,6 +962,11 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // safety net: a dead player must always see the death screen
+    if (p.dead && !UI.panel && this.deathAt && this.time.now - this.deathAt > 2500) {
+      this.deathAt = this.time.now;
+      UI.death(this.floor, Math.round(this.save.gold * 0.15));
+    }
     this.drawHpBars();
     // marker under the auto-attack target
     const tgt = p.target;

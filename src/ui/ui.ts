@@ -144,6 +144,7 @@ class UIManager {
     this.scene = scene;
     this.root.innerHTML = '';
     this.panel = null;
+    this.panelLocked = false;
     this.buildHud();
     this.refreshSkills();
     this.renderBuffs();
@@ -668,8 +669,12 @@ class UIManager {
     }
   }
 
-  showOverlay(content: HTMLElement, onClose?: () => void, pause = true) {
-    this.closeOverlay(false);
+  // a locked overlay (death screen) can only be closed by its own buttons
+  private panelLocked = false;
+
+  showOverlay(content: HTMLElement, onClose?: () => void, pause = true, locked = false) {
+    this.closeOverlay(false, true);
+    this.panelLocked = locked;
     const ov = el('<div class="overlay"></div>');
     ov.appendChild(content);
     ov.addEventListener('pointerdown', (e) => {
@@ -684,8 +689,10 @@ class UIManager {
     return ov;
   }
 
-  closeOverlay(resume = true) {
+  closeOverlay(resume = true, force = false) {
     if (this.panel) {
+      if (this.panelLocked && !force) return;
+      this.panelLocked = false;
       this.panel.remove();
       this.panel = null;
       if (resume) this.resumeGame();

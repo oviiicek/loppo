@@ -292,9 +292,9 @@ export class Menus {
         <p class="hint">Přijdeš o ${lostGold} zlata a část zkušeností do další úrovně. Předměty i úroveň ti zůstanou.</p>
         <div class="row" style="justify-content:center;margin-top:10px"><button class="btn green" data-a="retry">Zkusit patro znovu</button><button class="btn" data-a="menu">Hlavní menu</button></div>
       </div></div>`);
-    this.ui.showOverlay(p, undefined);
+    this.ui.showOverlay(p, undefined, true, true);
     $('[data-a=retry]', p).addEventListener('click', () => {
-      this.ui.closeOverlay(false);
+      this.ui.closeOverlay(false, true);
       this.ui.game.scene.resume('Game');
       sc.respawn();
     });
@@ -303,7 +303,7 @@ export class Menus {
       sc.save.gold -= lost;
       sc.save.xp = Math.round(sc.save.xp * 0.7);
       saveGame(sc.save);
-      this.ui.closeOverlay(false);
+      this.ui.closeOverlay(false, true);
       this.ui.showMainMenu();
     });
   }

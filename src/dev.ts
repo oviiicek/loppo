@@ -155,7 +155,7 @@ function botTick() {
     if (now - (botState as any).deadSince > 1500) {
       (botState as any).deadSince = 0;
       botState.deaths++;
-      UI.closeOverlay(false);
+      UI.closeOverlay(false, true);
       sc.game.scene.resume('Game');
       sc.respawn();
     }
