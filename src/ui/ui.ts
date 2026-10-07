@@ -293,7 +293,7 @@ class UIManager {
     const R = 50;
     const home = () => {
       const h = window.innerHeight;
-      const sc = Math.max(0.7, Math.min(1, h / 520)) * (settings.uiScale || 1);
+      const sc = Math.max(0.7, Math.min(1.7, Math.min(h / 520, window.innerWidth / 950))) * (settings.uiScale || 1);
       cx = 30 + 68 * sc + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-l')) || 0);
       cy = zone.clientHeight - 30 - 68 * sc;
       joy.style.left = cx + 'px';
@@ -347,7 +347,10 @@ class UIManager {
     if (!this.hud) return;
     const h = window.innerHeight,
       w = window.innerWidth;
-    const sc = Math.max(0.72, Math.min(1, Math.min(h / 520, w / 950))) * (settings.uiScale || 1);
+    // big screens (tablets, desktop) get a proportionally bigger HUD, like the reference
+    const k = Math.max(1, Math.min(1.7, Math.min(h / 520, w / 950)));
+    this.hud.style.setProperty('--hud-k', String(k));
+    const sc = Math.max(0.72, Math.min(1.7, Math.min(h / 520, w / 950))) * (settings.uiScale || 1);
     const sk = $('.skills', this.hud);
     sk.style.transform = `scale(${sc})`;
     sk.style.transformOrigin = 'bottom right';

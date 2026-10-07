@@ -1585,3 +1585,31 @@ textarea.code {
 .joy {
   filter: drop-shadow(0 4px 8px #000a);
 }
+
+/* HUD grows on big screens (--hud-k is set by the layout code, 1 on phones) */
+.hud-status {
+  transform: scale(var(--hud-k, 1));
+  transform-origin: top left;
+}
+.minimap {
+  transform: scale(var(--hud-k, 1));
+  transform-origin: top right;
+}
+.topbtns {
+  transform: scale(var(--hud-k, 1));
+  transform-origin: top right;
+  right: calc(10px + 134px * var(--hud-k, 1) + var(--safe-r));
+}
+.floorlbl {
+  transform: scale(var(--hud-k, 1));
+  transform-origin: top right;
+  top: calc(8px + 128px * var(--hud-k, 1));
+}
+@media (max-height: 460px) {
+  .topbtns {
+    right: calc(112px + var(--safe-r));
+  }
+  .floorlbl {
+    top: 106px;
+  }
+}

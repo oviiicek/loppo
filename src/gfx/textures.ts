@@ -145,7 +145,7 @@ export const THEMES: Theme[] = [
     floor: ['#7a5434', '#74502f', '#7f5837', '#6f4c2e'],
     mortar: '#3a291d',
     moss: ['#3f5a24', '#4d6b2b', '#5d7f33'],
-    stone: { top: '#5a5963', topHi: '#6c6b76', topLo: '#4a4952', line: '#24232b', edge: '#17161c' },
+    stone: { top: '#55545e', topHi: '#64636e', topLo: '#47464f', line: '#24232b', edge: '#17161c' },
     brick: ['#5b5a66', '#55545f', '#62616e', '#4f4e59'],
     brickMortar: '#2a2930',
     torch: 0xff9a3a,
