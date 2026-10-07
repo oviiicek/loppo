@@ -3017,6 +3017,26 @@ function buildProjectiles() {
     rect(ctx2, 0, 0, 2, 2, '#ffffff');
     addCanvas('pix', c2);
   }
+  // ambient motes (dust, spores, wisps) and a snowflake
+  {
+    const [c, ctx] = canvas(5, 5);
+    rect(ctx, 1, 1, 3, 3, 'rgba(255,255,255,0.55)');
+    rect(ctx, 2, 0, 1, 5, 'rgba(255,255,255,0.55)');
+    rect(ctx, 0, 2, 5, 1, 'rgba(255,255,255,0.55)');
+    rect(ctx, 2, 2, 1, 1, '#ffffff');
+    addCanvas('mote', c);
+    const [f, fx] = canvas(5, 5);
+    rect(fx, 2, 0, 1, 5, '#ffffff');
+    rect(fx, 0, 2, 5, 1, '#ffffff');
+    for (const [x, y] of [
+      [1, 1],
+      [3, 1],
+      [1, 3],
+      [3, 3],
+    ])
+      rect(fx, x, y, 1, 1, 'rgba(255,255,255,0.6)');
+    addCanvas('flake', f);
+  }
   // smoke puff
   {
     const [c, ctx] = canvas(10, 10);

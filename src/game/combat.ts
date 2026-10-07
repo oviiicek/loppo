@@ -175,6 +175,7 @@ export class Combat {
     const xpMult = 1 + p.d.xp / 100 + sc.shrineBuffs.reduce((a, b) => a + (b.xp ?? 0), 0) + (sc.mod?.xp ?? 0);
     sc.gainXp(Math.round(e.xp * xpMult * sc.diff.xp));
     p.save.kills++;
+    sc.onKill(e);
     sc.loot.enemyDrops(e);
     const s = p.d.specials;
     if (s.has('explodeOnKill')) sc.spells.explosion(e.x, e.y, 36, p.weaponHit() * 0.6, 'fire', {});

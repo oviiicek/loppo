@@ -37,6 +37,11 @@ export class WorldMap {
     return r >= 0 && this.hiddenRooms.has(r);
   }
 
+  /** floor the hero can walk on and see (secret rooms not found yet are rock) */
+  isFloorVisible(x: number, y: number) {
+    return this.openFloor(x, y);
+  }
+
   // floor the player can currently see as floor (hidden secret rooms count as rock)
   private openFloor(x: number, y: number) {
     return this.tileAt(x, y) === T_FLOOR && !this.isHidden(x, y);

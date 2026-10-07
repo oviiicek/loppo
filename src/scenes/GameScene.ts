@@ -12,6 +12,7 @@ import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloo
 import { CHAPTERS, noteForFloor } from '../data/story';
 import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, storyOf, buryHero, petsOf } from '../systems/state';
 import { PetFollower } from '../game/pet';
+import { Weather } from '../game/weather';
 import { PET_BY_ID, PetId, petTitle, cagePetFor, cageChance, petLevel } from '../data/pets';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { spellsForClass, BuffMods } from '../data/spells';
@@ -29,6 +30,15 @@ import { sfx, settings } from '../systems/audio';
 
 /** news about the pet to show once the hero is on the next floor ("Mína reached level 3") */
 let pendingPetNews: string | null = null;
+
+/** the optional task of a floor (shown under the minimap): kill monsters, champions, open chests… */
+export interface Bounty {
+  kind: 'kill' | 'elite' | 'chest' | 'break' | 'explore';
+  text: string;
+  goal: number;
+  have: number;
+  done: boolean;
+}
 
 export interface Interactable {
   kind: string;
@@ -143,6 +153,12 @@ export class GameScene extends Phaser.Scene {
   hazards: { x: number; y: number; r: number; dps: number; el: Element; t: number; tick: number; img: Phaser.GameObjects.Image }[] = [];
   /** the pet travelling with the hero */
   pet: PetFollower | null = null;
+  /** the optional task of this floor */
+  bounty: Bounty | null = null;
+  /** dust, spores, snow, embers or wisps of the biome */
+  weather: Weather | null = null;
+  /** floor tiles outside secret rooms (for the exploring task) */
+  private floorTiles = 0;
   /** a cursed chest challenge in progress */
   cursed: { it: Interactable; t: number; total: number; waveT: number; spawned: Enemy[] } | null = null;
 
@@ -180,6 +196,7 @@ export class GameScene extends Phaser.Scene {
     this.hazards = [];
     this.pet = null;
     this.cursed = null;
+    this.bounty = null;
   }
 
   create() {
@@ -222,6 +239,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnEnemies();
     this.placePetCage();
     this.placeCursedChest();
+    this.rollBounty();
     // the pet comes down the stairs right after the hero (shown in arrive)
     this.spawnPet(ux, uy + 4, false);
 
@@ -238,6 +256,7 @@ export class GameScene extends Phaser.Scene {
     this.dark = this.add.renderTexture(0, 0, 64, 64).setOrigin(0).setDepth(D.dark);
     this.lightImg = this.make.image({ key: 'light', add: false }).setOrigin(0.5);
     this.hpBars = this.add.graphics().setDepth(D.bright + 5);
+    this.weather = new Weather(this, this.theme.style);
     this.targetMarker = this.add.image(0, 0, 'ring').setTint(0xff4040).setAlpha(0).setDepth(D.floorDeco + 2).setBlendMode(Phaser.BlendModes.ADD);
 
     // input
@@ -261,6 +280,7 @@ export class GameScene extends Phaser.Scene {
     this.map.revealAround(this.player.x, this.player.y, 8);
     this.updateGlowVisibility();
     UI.attachGame(this);
+    UI.bounty(this.bounty);
     save.floor = this.floor;
     save.maxFloor = Math.max(save.maxFloor, this.floor);
     saveGame(save);
@@ -773,6 +793,75 @@ export class GameScene extends Phaser.Scene {
     const a = new Ally(this, kind, x, y, hp, dmg, life);
     this.allies.push(a);
     return a;
+  }
+
+  // ---------------------------------------------------------------- floor task
+  /** every regular floor below the first gets one optional task fitting what the floor holds */
+  rollBounty() {
+    this.bounty = null;
+    if (this.floor < 2 || isBossFloor(this.floor)) return;
+    const d = this.dungeon;
+    const elites = d.spawns.filter((sp) => sp.elite).length;
+    const chests = this.interactables.filter((it) => it.kind === 'chest' && !it.data.locked && !this.map.isHidden(it.tx, it.ty)).length;
+    const breakables = this.interactables.filter((it) => it.kind === 'breakable' && !this.map.isHidden(it.tx, it.ty)).length;
+    this.floorTiles = 0;
+    for (let y = 0; y < d.h; y++) for (let x = 0; x < d.w; x++) if (this.map.isFloorVisible(x, y)) this.floorTiles++;
+    const opts: [Bounty['kind'], number, string][] = [];
+    const n = Phaser.Math.Clamp(Math.round(d.spawns.length * 0.55), 12, 60);
+    opts.push(['kill', n, `Poraz ${n} nestvůr`]);
+    if (elites >= 2) {
+      const k = Math.min(3, elites);
+      opts.push(['elite', k, `Poraz ${k} ${k < 5 ? 'šampiony' : 'šampionů'}`]);
+    }
+    if (chests >= 2) {
+      const k = Math.min(3, chests);
+      opts.push(['chest', k, `Otevři ${k} truhly`]);
+    }
+    if (breakables >= 6) {
+      const k = Math.min(10, Math.round(breakables * 0.6));
+      opts.push(['break', k, `Rozbij ${k} ${k < 5 ? 'bedny a nádoby' : 'beden a nádob'}`]);
+    }
+    if (this.floorTiles > 200) opts.push(['explore', 75, 'Prozkoumej 75 % patra']);
+    const forced = (window as any).__forceBounty as string | undefined; // dev testing hook
+    const pick = opts.find((o) => o[0] === forced) ?? opts[Math.floor(Math.random() * opts.length)];
+    this.bounty = { kind: pick[0], goal: pick[1], text: pick[2], have: 0, done: false };
+  }
+
+  /** progress of the floor task (kills, chests, broken things; exploring is measured in update) */
+  bountyStep(kind: Bounty['kind'], by = 1) {
+    const b = this.bounty;
+    if (!b || b.done || b.kind !== kind) return;
+    b.have = Math.min(b.goal, kind === 'explore' ? by : b.have + by);
+    if (b.have >= b.goal) this.completeBounty();
+    else UI.bounty(b);
+  }
+
+  /** the task is done: the reward falls at the hero's feet */
+  completeBounty() {
+    const b = this.bounty!;
+    b.done = true;
+    const p = this.player;
+    const f = this.floor;
+    sfx('levelup');
+    this.fx.ring(p.x, p.y - 6, 36, 0xffd23a, 600);
+    this.loot.dropItem(this.loot.item(f + 1, Math.random() < 0.2 ? 2 : 1), p.x, p.y);
+    for (let i = 0; i < 3; i++) this.loot.dropGold(this.loot.goldAmount(2), p.x, p.y);
+    this.loot.dropMat(Math.random() < 0.5 ? 'stone' : 'dust', 1 + Math.floor(f / 25), p.x, p.y);
+    if (Math.random() < 0.3) this.loot.dropMat('lockpick', 1, p.x, p.y);
+    bumpStat(this.save, 'bounties');
+    UI.bounty(b);
+    UI.toast(`✔ Úkol splněn: ${b.text}! Odměna padla k tvým nohám.`, '#ffd76a');
+    bus.emit('stats');
+  }
+
+  /** a monster died (the floor task counts kills and champions) */
+  onKill(e: Enemy) {
+    this.floorKills++;
+    this.bountyStep('kill');
+    if (e.elite) {
+      this.bountyStep('elite');
+      bumpStat(this.save, 'elites');
+    }
   }
 
   // ---------------------------------------------------------------- cursed chest
@@ -1307,6 +1396,7 @@ export class GameScene extends Phaser.Scene {
     if (it.used) return;
     it.used = true;
     bumpStat(this.save, 'chests');
+    this.bountyStep('chest');
     const tier = it.data.tier ?? 'wood';
     (it.sprite as Phaser.GameObjects.Image).setTexture('chest_' + tier + '_open');
     sfx('chest');
@@ -1316,6 +1406,7 @@ export class GameScene extends Phaser.Scene {
 
   breakObject(it: Interactable) {
     it.used = true;
+    this.bountyStep('break');
     const s = it.sprite!;
     const col = it.data.what === 'pot' ? 0x9a5a32 : 0x8a5a2b;
     this.fx.burst(s.x, s.y - 6, col, 10, 'pix');
@@ -1651,6 +1742,7 @@ export class GameScene extends Phaser.Scene {
     if (this.paused) return;
     const dt = Math.min(0.05, dms / 1000);
     const p = this.player;
+    this.weather?.update();
     if (this.cinematic) {
       // walking the stairs: the world holds still, the hero is moved by tweens, the light follows
       p.scriptedTick(dt, this.cinematicMove);
@@ -1700,7 +1792,15 @@ export class GameScene extends Phaser.Scene {
         const room = this.dungeon.rooms.find((r) => r.id === rid);
         if (room) changed = this.map.revealRoom(room.cells) || changed;
       }
-      if (changed) this.updateGlowVisibility();
+      if (changed) {
+        this.updateGlowVisibility();
+        if (this.bounty?.kind === 'explore' && !this.bounty.done && this.floorTiles) {
+          let seen = 0;
+          const d = this.dungeon;
+          for (let i = 0; i < d.w * d.h; i++) if (this.map.explored[i] && d.grid[i] === T_FLOOR) seen++;
+          this.bountyStep('explore', Math.floor((seen / this.floorTiles) * 100));
+        }
+      }
     }
 
     for (const e of this.enemies) e.update(dt);

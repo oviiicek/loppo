@@ -11,6 +11,7 @@ import { sfx, unlockAudio, startMusic, settings } from '../systems/audio';
 import { Panels } from './panels';
 import { Menus } from './menus';
 import { Pad } from './gamepad';
+import type { Bounty } from '../scenes/GameScene';
 import { TS } from '../game/map';
 import { T_FLOOR, T_WALL } from '../systems/dungeon';
 import { playCutscene, CutsceneOpts } from './cutscene';
@@ -241,7 +242,7 @@ class UIManager {
         </div>
       </div>
       <div class="minimap"><canvas width="124" height="124"></canvas></div>
-      <div class="floorlbl"></div>
+      <div class="floorlbl"><div class="fl"></div><div class="bounty"></div></div>
       <div class="topbtns">
         ${fsSupported() && !isStandalone() ? `<div class="rbtn fs" data-a="fs" data-fs="icon" title="Celá obrazovka (F)">${fsButtonHTML('icon')}</div>` : ''}
         <div class="rbtn" data-a="spells" title="Kouzla (K)">✦<span class="badge sp"></span></div>
@@ -481,7 +482,7 @@ class UIManager {
     $('.lv', hud).textContent = `LV ${s.level}`;
     ($('.bar.xp .fill', hud) as HTMLElement).style.transform = `scaleX(${Math.min(1, s.xp / xpForLevel(s.level))})`;
     $('.gold', hud).textContent = s.gold.toLocaleString('cs-CZ');
-    $('.floorlbl', hud).textContent = `Patro ${sc.floor} · ${sc.placeName}${sc.mod ? ' · ' + sc.mod.name : ''}`;
+    $('.floorlbl .fl', hud).textContent = `Patro ${sc.floor} · ${sc.placeName}${sc.mod ? ' · ' + sc.mod.name : ''}`;
     // low hp vignette
     const vig = $('.vignette', hud);
     vig.classList.toggle('low', hpF < 0.3 && !p.dead);
@@ -911,6 +912,22 @@ class UIManager {
     $('.name', bb).textContent = b.story ? `${b.name}, ${b.story.title}${stages}` : b.name;
     bb.classList.toggle('story', !!b.story);
     bb.classList.add('on');
+  }
+
+  /** the optional task of the floor, under the minimap */
+  bounty(b: Bounty | null) {
+    if (!this.hud) return;
+    const el2 = $('.floorlbl .bounty', this.hud);
+    el2.classList.toggle('on', !!b);
+    if (!b) return;
+    const frac = Math.min(1, b.have / b.goal);
+    const count = b.kind === 'explore' ? `${b.have} %` : `${b.have}/${b.goal}`;
+    el2.classList.toggle('done', b.done);
+    el2.innerHTML = `<div class="bt">${b.done ? '✔ Úkol splněn' : '✦ Úkol patra'}<span>${b.done ? '' : count}</span></div><div class="bx">${esc(b.text)}</div><div class="bb"><i style="width:${Math.round(frac * 100)}%"></i></div>`;
+    if (b.done) {
+      clearTimeout((el2 as any)._t);
+      (el2 as any)._t = setTimeout(() => el2.classList.add('faded'), 6000);
+    } else el2.classList.remove('faded');
   }
 
   /** progress of a floor event (the cursed chest) at the top of the screen */
