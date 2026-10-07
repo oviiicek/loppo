@@ -261,7 +261,7 @@ export class Loot {
       p.save.mats[g.mat!] += g.amount;
       sfx('pickup');
       sc.ui.toast(`+${g.amount} ${MAT_INFO[g.mat!].name}`, MAT_INFO[g.mat!].color);
-    } else if (g.item && g.item.rarity < settings.autoSalvage) {
+    } else if (g.item && g.item.rarity < settings.autoSalvage && !this.isUpgrade(g.item)) {
       // auto-salvage weak items straight into materials
       const r = salvageResult(g.item);
       p.save.gold += r.gold;
@@ -293,11 +293,17 @@ export class Loot {
   isUpgrade(it: Item) {
     try {
       const s = this.scene.save;
-      const idx = s.inventory.findIndex((x) => x?.uid === it.uid);
-      if (idx < 0) return false;
+      // weapons only count when they keep the current fighting style (melee / ranged / magic)
+      const base = BASE_BY_ID[it.base];
+      const main = s.equip.main ? BASE_BY_ID[s.equip.main.base] : null;
+      if (base.attack && main?.attack && base.attack !== main.attack) return false;
+      const inv = s.inventory.slice();
+      let idx = inv.findIndex((x) => x?.uid === it.uid);
+      // an item still lying on the floor is tried from an extra virtual slot
+      if (idx < 0) idx = inv.push(it) - 1;
       const before = derive(s);
       // equipItem only rearranges equip/inventory, so shallow copies of those are enough
-      const clone: SaveData = { ...s, equip: { ...s.equip }, inventory: s.inventory.slice() };
+      const clone: SaveData = { ...s, equip: { ...s.equip }, inventory: inv };
       bus.muted = true;
       const err = equipItem(clone, idx);
       bus.muted = false;
