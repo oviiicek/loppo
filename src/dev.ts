@@ -325,8 +325,8 @@ Object.assign(dev, {
     x.imageSmoothingEnabled = false;
     const hero = getCanvas('pl_warrior')!;
     const s = Math.floor(size / 26);
-    // hero frame 0 (16x20)
-    x.drawImage(hero, 0, 0, 16, 20, size / 2 - 8 * s - s * 2, size / 2 - 10 * s + s, 16 * s, 20 * s);
+    // hero frame 0 (drawn at 32x40, shown at 16x20)
+    x.drawImage(hero, 0, 0, 32, 40, size / 2 - 8 * s - s * 2, size / 2 - 10 * s + s, 16 * s, 20 * s);
     const sword = getCanvas('wp_sword')!;
     x.save();
     x.translate(size / 2 + 6 * s, size / 2 + 2 * s);
@@ -374,13 +374,57 @@ Object.assign(dev, {
   },
 });
 
+// Weapon in hand / put away and idle fidgets on demand (screenshots)
+Object.assign(dev, {
+  arm(on = true) {
+    const p = (window as any).__scene.player;
+    p.armed = on;
+    p.armT = on ? 1 : 0;
+    p.calmT = on ? 0 : 99;
+    p.sheatheAfter = on ? 9999 : 7;
+    return true;
+  },
+  heroAnim(name: string) {
+    const p = (window as any).__scene.player;
+    p.idleT = 0;
+    p.fidgetAt = 9999;
+    p.sprite.play(p.spriteKey + '_' + name);
+    return true;
+  },
+});
+
+// Contact sheet of the hero animation strips: one row per class, every frame
+Object.assign(dev, {
+  heroSheet(scale = 3, first = 0, count = 99) {
+    const strips = CLASSES.map((cl) => getCanvas('pl_' + cl.id)!).filter(Boolean);
+    const fw = 32,
+      fh = 40;
+    const n = Math.min(count, strips[0].width / fw - first);
+    const out = document.createElement('canvas');
+    out.width = n * (fw * scale + 4) + 4;
+    out.height = strips.length * (fh * scale + 4) + 4;
+    const x = out.getContext('2d')!;
+    x.fillStyle = '#3a3640';
+    x.fillRect(0, 0, out.width, out.height);
+    x.imageSmoothingEnabled = false;
+    strips.forEach((c, r) => {
+      for (let i = 0; i < n; i++) {
+        x.fillStyle = (i + r) % 2 ? '#34303a' : '#403c46';
+        x.fillRect(4 + i * (fw * scale + 4), 4 + r * (fh * scale + 4), fw * scale, fh * scale);
+        x.drawImage(c, (first + i) * fw, 0, fw, fh, 4 + i * (fw * scale + 4), 4 + r * (fh * scale + 4), fw * scale, fh * scale);
+      }
+    });
+    return out.toDataURL();
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Story testing: jump to any floor with a fitting character and story progress
 // ---------------------------------------------------------------------------
 import { storyOf, xpForLevel as xpFor } from './systems/state';
 import { CHRONICLE_ORDER } from './data/story';
 import { enemyXpScale, bossForFloor } from './data/enemies';
-import { CLASS_BY_ID } from './data/classes';
+import { CLASS_BY_ID, CLASSES } from './data/classes';
 import type { Slot } from './data/types';
 
 function storyIdFloor(id: string) {

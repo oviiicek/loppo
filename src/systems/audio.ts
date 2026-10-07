@@ -169,6 +169,18 @@ export function sfx(name: string) {
       tone('square', 600, 1200, 0.2, 0.08);
       noise(0.1, 0.15, 3000, 0, 'highpass');
       break;
+    case 'step':
+      noise(0.07, 0.12, 380);
+      break;
+    case 'unsheathe':
+      // steel sliding out of the scabbard with a short ring
+      noise(0.16, 0.07, 5200, 0, 'highpass');
+      tone('triangle', 1700, 2500, 0.14, 0.03, 0.03);
+      break;
+    case 'sheathe':
+      noise(0.15, 0.06, 2600, 0, 'bandpass');
+      tone('square', 300, 200, 0.05, 0.035, 0.13);
+      break;
   }
 }
 

@@ -8,6 +8,7 @@ import { BASE_BY_ID, itemTier } from '../data/items';
 import { bus } from '../systems/events';
 import { sfx } from '../systems/audio';
 import { ACTOR_SCALE } from '../gfx/textures';
+import { HERO_FRAMES, heroHand, heroHandB } from '../gfx/heroes';
 
 export interface Buff {
   id: string;
@@ -19,6 +20,55 @@ export interface Buff {
 }
 
 const MAGIC_COLORS: Record<string, string> = { staff: 'pr_magic', wand: 'pr_magic' };
+
+/** where a put-away weapon sits (offset from the feet anchor and rotation when facing right; mirrored for the left) */
+interface Sheath {
+  dx: number;
+  dy: number;
+  rot: number;
+  ox?: number;
+  oy?: number;
+  /** depth relative to the hero sprite (behind it) */
+  depth?: number;
+  /** hidden when put away (knuckles, orbs) */
+  alpha?: number;
+}
+const PI = Math.PI;
+const SHEATH: Record<string, Sheath> = {
+  // blades hang hilt-up on the back, hafted weapons and staves head-up
+  sword: { dx: -5, dy: -14, rot: PI + 0.3 },
+  greatsword: { dx: -5, dy: -16, rot: PI + 0.42 },
+  axe: { dx: -3, dy: -2, rot: -0.35 },
+  greataxe: { dx: -2, dy: 0, rot: -0.4 },
+  hammer: { dx: -2, dy: -1, rot: -0.35 },
+  mace: { dx: -3, dy: -2, rot: -0.35 },
+  spear: { dx: -2, dy: 1, rot: -0.3 },
+  staff: { dx: -3, dy: 0, rot: -0.25 },
+  bow: { dx: -5, dy: -8, rot: -0.5, ox: 0.5, oy: 0.5 },
+  crossbow: { dx: -4, dy: -8, rot: -0.8, ox: 0.5, oy: 0.5 },
+  // short weapons at the belt (the shield hangs on the back under the weapon)
+  dagger: { dx: -2, dy: -5, rot: PI + 0.7 },
+  wand: { dx: -3, dy: -1, rot: -0.5 },
+  knuckle: { dx: 5, dy: -2, rot: 0.5, alpha: 0 },
+  shield: { dx: -6, dy: -8, rot: 0.1, ox: 0.5, oy: 0.5, depth: -0.7 },
+  orb: { dx: -5, dy: -8, rot: 0, ox: 0.5, oy: 0.5, alpha: 0 },
+};
+// the second weapon of a pair crosses the first one
+const SHEATH_OFF: Record<string, Sheath> = {
+  dagger: { dx: -1, dy: -5, rot: PI + 0.4, depth: -0.5 },
+  axe: { dx: -5, dy: -2, rot: 0.45, depth: -0.5 },
+  knuckle: { dx: -5, dy: -2, rot: -0.5, alpha: 0 },
+};
+const FIDGETS = ['_scratch', '_look', '_stretch'];
+
+interface Placement {
+  x: number;
+  y: number;
+  rot: number;
+  ox: number;
+  oy: number;
+  depth: number;
+}
 
 export class Player extends Actor {
   save: SaveData;
@@ -48,6 +98,18 @@ export class Player extends Actor {
   vampTick = 0;
   hurtT = 0;
   moving = false;
+  // weapon in hand in combat, put away 5–10 s after it; idle blinks and fidgets
+  armed = false;
+  /** 0 = put away .. 1 = in hand */
+  armT = 0;
+  calmT = 99;
+  sheatheAfter = 7;
+  idleT = 0;
+  fidgetAt = 5;
+  blinkAt = 2;
+  lastFidget = '';
+  threatT = 0;
+  private animDt = 0;
 
   constructor(scene: GameScene, x: number, y: number, save: SaveData) {
     super(scene, x, y, 'pl_' + save.cls);
@@ -220,6 +282,8 @@ export class Player extends Actor {
     if (sc.map.collides(this.x, this.y, this.r)) this.unstick();
     this.autoAttack(dt);
     this.specialsTick(dt);
+    this.combatTick(dt);
+    this.animDt = dt;
     this.syncSprite(this.moving);
     this.updateWeaponSprites(dt);
     if (this.shieldFx) {
@@ -227,6 +291,102 @@ export class Player extends Actor {
       this.shieldFx.setAlpha(this.shield > 0 ? 0.35 + Math.sin(sc.time.now / 150) * 0.08 : this.invulnT > 0 ? 0.5 : 0);
       this.shieldFx.setTint(this.invulnT > 0 ? 0xfff2a8 : 0x7fb2ff);
     }
+  }
+
+  /** something happened in a fight: draw the weapon (it is put away again after 5–10 calm seconds) */
+  combatPing() {
+    this.calmT = 0;
+    this.idleT = 0;
+    if (this.armed) return;
+    this.armed = true;
+    this.sheatheAfter = 5 + Math.random() * 5;
+    if (this.weapon || this.offhand) sfx('unsheathe');
+  }
+
+  private threatNear(r: number) {
+    for (const e of this.scene.enemies) {
+      if (e.dead || !e.aggro) continue;
+      const dx = e.x - this.x,
+        dy = e.y - this.y;
+      if (dx * dx + dy * dy < r * r) return true;
+    }
+    return false;
+  }
+
+  private combatTick(dt: number) {
+    this.threatT -= dt;
+    if (this.threatT <= 0) {
+      this.threatT = 0.2;
+      // a target in reach or a monster closing in: the weapon comes out before it arrives
+      if (this.target || this.threatNear(110)) this.combatPing();
+    }
+    this.calmT += dt;
+    if (this.armed && this.calmT > this.sheatheAfter && this.swinging <= 0) {
+      this.armed = false;
+      if (this.weapon || this.offhand) sfx('sheathe');
+    }
+    this.stepArm(dt);
+  }
+
+  /** the weapon travels to the hand (quick) or back (a bit slower) */
+  private stepArm(dt: number) {
+    if (!this.weapon && !this.offhand) this.armT = this.armed ? 1 : 0;
+    else this.armT = Phaser.Math.Clamp(this.armT + (this.armed ? dt / 0.24 : -dt / 0.42), 0, 1);
+  }
+
+  /** the hero is moved by a scene script (walking the stairs): only animate and keep the weapons in place */
+  scriptedTick(dt: number, moving: boolean) {
+    this.animDt = dt;
+    this.stepArm(dt);
+    this.syncSprite(moving);
+    this.updateWeaponSprites(dt);
+  }
+
+  /** current frame of the hero strip */
+  private frameIndex(): number {
+    const n = this.sprite.frame?.name as unknown;
+    return typeof n === 'number' ? n : parseInt(String(n), 10) || 0;
+  }
+
+  protected chooseAnim(moving: boolean) {
+    const k = this.spriteKey;
+    const s = this.sprite;
+    const cur = s.anims.currentAnim?.key ?? '';
+    const dt = this.animDt;
+    const armedPose = this.armT >= 0.5;
+    this.blinkAt -= dt;
+    let want: string;
+    if (moving) {
+      this.idleT = 0;
+      this.blinkAt = Math.max(this.blinkAt, 0.8);
+      want = armedPose ? '_walkA' : '_walk';
+    } else if (this.armT > 0 && this.armT < 1) {
+      // reaching over the shoulder for the weapon (or putting it back)
+      s.anims.stop();
+      s.setFrame(HERO_FRAMES.reach + (this.armT > 0.22 && this.armT < 0.82 ? 1 : 0));
+      return;
+    } else {
+      // standing: breathe, blink now and then; without a weapon in hand also scratch the head, look around, stretch
+      const running = s.anims.isPlaying && s.anims.currentAnim?.repeat === 0;
+      if (running && (armedPose ? cur === k + '_blinkA' : cur !== k + '_blinkA' && cur.startsWith(k + '_'))) return;
+      want = armedPose ? '_idleA' : '_idle';
+      if (armedPose) this.idleT = 0;
+      else this.idleT += dt;
+      if (!armedPose && this.idleT > this.fidgetAt) {
+        this.idleT = 0;
+        this.fidgetAt = 6 + Math.random() * 7;
+        let f = FIDGETS[Math.floor(Math.random() * FIDGETS.length)];
+        if (f === this.lastFidget) f = FIDGETS[(FIDGETS.indexOf(f) + 1) % FIDGETS.length];
+        this.lastFidget = f;
+        want = f;
+        this.blinkAt = Math.max(this.blinkAt, 1.5);
+      } else if (this.blinkAt <= 0) {
+        this.blinkAt = 2.2 + Math.random() * 3.5;
+        want = armedPose ? '_blinkA' : '_blink';
+      }
+    }
+    want = k + want;
+    if (cur !== want || !s.anims.isPlaying) s.play(want, true);
   }
 
   specialsTick(dt: number) {
@@ -294,6 +454,9 @@ export class Player extends Actor {
     this.facing = dx >= 0 ? 1 : -1;
     if (this.atkT > 0) return;
     this.atkT = 1 / this.d.aps;
+    // attacking always happens with the weapon in hand
+    this.combatPing();
+    this.armT = 1;
     const double = this.d.specials.has('doubleStrike') && Math.random() < 0.15;
     this.performAttack(t);
     if (double) sc.time.delayedCall(120, () => !this.dead && this.target && !this.target.dead && this.performAttack(this.target));
@@ -360,84 +523,108 @@ export class Player extends Actor {
 
   updateWeaponSprites(dt: number) {
     const f = this.facing;
-    const bob = this.moving ? Math.sin(this.scene.time.now / 70) * 0.8 : 0;
     const depth = this.sprite.depth;
     const kind = this.d.attack;
     if (this.swinging > 0) this.swinging -= dt;
     const swingP = this.swinging > 0 ? 1 - this.swinging / 0.18 : 1;
     const baseKey = this.save.equip.main?.base ?? '';
     const arc = (this.d.arc * Math.PI) / 180;
-    const hx = this.x + 5 * f,
-      hy = this.y - 4 + bob;
+    // the hands follow the animation frame (the combat stance while the weapon travels to or from the back)
+    const fr = this.armT >= 1 ? this.frameIndex() : HERO_FRAMES.idleA;
+    const [fhx, fhy] = heroHand(fr);
+    const [bhx, bhy] = heroHandB(fr);
+    const rest = heroHand(HERO_FRAMES.idleA)[1];
+    const ax = this.sprite.x,
+      ay = this.sprite.y;
+    const hx = ax + fhx * ACTOR_SCALE * f,
+      hy = ay + fhy * ACTOR_SCALE;
+    const bob = (fhy - rest) * ACTOR_SCALE;
+    // 0 = on the back / at the belt .. 1 = in hand
+    const w = Phaser.Math.Clamp((this.armT - 0.2) / 0.62, 0, 1);
+    const e = w * w * (3 - 2 * w);
     if (this.weapon) {
-      let rot: number;
+      const p: Placement = { x: hx, y: hy + 2, rot: 0, ox: 0.5, oy: 0.85, depth: depth + (f > 0 ? 0.5 : -0.5) + (this.swinging > 0 ? 1 : 0) };
       if (kind === 'ranged') {
         const a = this.target ? this.aim : f > 0 ? 0 : Math.PI;
-        rot = a;
-        this.weapon.setOrigin(0.3, 0.5);
-        this.weapon.setPosition(this.x + Math.cos(a) * 4, this.y - 6 + Math.sin(a) * 3 + bob);
+        p.rot = baseKey === 'crossbow' ? a + Math.PI / 2 : a;
+        p.ox = 0.3;
+        p.oy = 0.5;
+        p.x = this.x + Math.cos(a) * 4;
+        p.y = this.y - 6 + Math.sin(a) * 3 + bob;
         this.weapon.setScale((this.swinging > 0 ? 0.85 + 0.15 * swingP : 1) * ACTOR_SCALE, ACTOR_SCALE);
         this.weapon.setFlipX(false);
-        if (baseKey === 'crossbow') rot = a + Math.PI / 2;
       } else if (kind === 'magic') {
         const a = this.target ? this.aim : -Math.PI / 2 + 0.3 * f;
-        rot = this.swinging > 0 ? a + Math.PI / 2 : 0.25 * f;
-        this.weapon.setOrigin(0.5, 0.85);
-        this.weapon.setPosition(hx, hy + 2);
+        p.rot = this.swinging > 0 ? a + Math.PI / 2 : 0.25 * f;
       } else {
         // melee
-        this.weapon.setOrigin(0.5, 0.85);
         if (this.swinging > 0 && this.swingHand === 0) {
           const start = this.aim - arc / 2,
             end = this.aim + arc / 2;
           const a = f > 0 ? start + (end - start) * swingP : end - (end - start) * swingP;
-          rot = a + Math.PI / 2;
-          this.weapon.setPosition(this.x + Math.cos(this.aim) * 2, this.y - 5 + Math.sin(this.aim) * 2);
-        } else {
-          rot = 0.5 * f;
-          this.weapon.setPosition(hx, hy + 2);
-        }
+          p.rot = a + Math.PI / 2;
+          p.x = this.x + Math.cos(this.aim) * 2;
+          p.y = this.y - 5 + Math.sin(this.aim) * 2;
+        } else p.rot = 0.5 * f;
         if (baseKey === 'spear' && this.swinging > 0 && this.swingHand === 0) {
-          rot = this.aim + Math.PI / 2;
+          p.rot = this.aim + Math.PI / 2;
           const thrust = Math.sin(swingP * Math.PI) * 10;
-          this.weapon.setPosition(this.x + Math.cos(this.aim) * (2 + thrust), this.y - 5 + Math.sin(this.aim) * (2 + thrust));
+          p.x = this.x + Math.cos(this.aim) * (2 + thrust);
+          p.y = this.y - 5 + Math.sin(this.aim) * (2 + thrust);
         }
       }
-      this.weapon.setRotation(rot);
-      this.weapon.setDepth(depth + (f > 0 ? 0.5 : -0.5) + (this.swinging > 0 ? 1 : 0));
+      this.place(this.weapon, p, SHEATH[baseKey], e, -0.6);
     }
     if (this.offhand) {
       const offBase = this.save.equip.off!.base;
-      const ox = this.x - 5 * f,
-        oy = this.y - 4 + bob;
+      const ox = ax + bhx * ACTOR_SCALE * f,
+        oy = ay + bhy * ACTOR_SCALE;
+      const p: Placement = { x: ox, y: oy, rot: 0, ox: 0.5, oy: 0.5, depth: depth + 0.6 };
       if (offBase === 'shield') {
-        this.offhand.setPosition(ox, oy);
-        this.offhand.setRotation(0);
-        this.offhand.setDepth(depth + (f > 0 ? 0.6 : 0.6));
         this.offhand.setScale(0.8 * ACTOR_SCALE);
       } else if (offBase === 'orb') {
-        this.offhand.setPosition(ox, oy - 4 + Math.sin(this.scene.time.now / 300) * 1.5);
-        this.offhand.setDepth(depth + 0.6);
+        p.y = oy - 4 + Math.sin(this.scene.time.now / 300) * 1.5;
       } else {
         // second weapon
-        let rot = -0.5 * f;
-        let px2 = ox,
-          py2 = oy + 2;
+        p.oy = 0.85;
+        p.rot = -0.5 * f;
+        p.y = oy + 2;
         if (this.swinging > 0 && this.swingHand === 1) {
           const start = this.aim + arc / 2,
             end = this.aim - arc / 2;
-          const a = start + (end - start) * swingP;
-          rot = a + Math.PI / 2;
-          px2 = this.x + Math.cos(this.aim) * 2;
-          py2 = this.y - 5 + Math.sin(this.aim) * 2;
+          p.rot = start + (end - start) * swingP + Math.PI / 2;
+          p.x = this.x + Math.cos(this.aim) * 2;
+          p.y = this.y - 5 + Math.sin(this.aim) * 2;
         }
-        this.offhand.setPosition(px2, py2);
-        this.offhand.setRotation(rot);
-        this.offhand.setDepth(depth + (f > 0 ? -0.6 : 0.6) + (this.swinging > 0 && this.swingHand === 1 ? 2 : 0));
+        p.depth = depth + (f > 0 ? -0.6 : 0.6) + (this.swinging > 0 && this.swingHand === 1 ? 2 : 0);
       }
+      const pair = offBase === baseKey ? SHEATH_OFF[offBase] : undefined;
+      this.place(this.offhand, p, pair ?? SHEATH[offBase], e, -0.5);
     }
-    this.weapon?.setAlpha(this.sprite.alpha);
-    this.offhand?.setAlpha(this.sprite.alpha);
+  }
+
+  /** puts a weapon sprite between its place on the back (e = 0) and its place in the hand (e = 1) */
+  private place(img: Phaser.GameObjects.Image, held: Placement, sh: Sheath | undefined, e: number, behind: number) {
+    let { x, y, rot, ox, oy, depth } = held;
+    let alpha = 1;
+    if (sh && e < 1) {
+      const f = this.facing;
+      const sx = this.sprite.x + sh.dx * f,
+        sy = this.sprite.y - 3 + sh.dy;
+      const srot = sh.rot * f;
+      x = sx + (x - sx) * e;
+      y = sy + (y - sy) * e;
+      rot = srot + Phaser.Math.Angle.Wrap(rot - srot) * e;
+      ox = (sh.ox ?? 0.5) + (ox - (sh.ox ?? 0.5)) * e;
+      oy = (sh.oy ?? 0.85) + (oy - (sh.oy ?? 0.85)) * e;
+      if (e < 0.5) depth = this.sprite.depth + (sh.depth ?? behind);
+      alpha = (sh.alpha ?? 1) + (1 - (sh.alpha ?? 1)) * e;
+    }
+    img.setOrigin(ox, oy);
+    img.setPosition(x, y);
+    img.setRotation(rot);
+    img.setDepth(depth);
+    img.setAlpha(alpha * this.sprite.alpha);
   }
 
   // safety: if something pushed the player into a wall, move to the nearest free spot

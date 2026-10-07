@@ -209,6 +209,7 @@ export class Combat {
     const sc = this.scene;
     const p = sc.player;
     if (p.dead || amount <= 0 || sc.godMode) return;
+    if (!isDot) p.combatPing();
     if (p.invulnT > 0) return;
     const d = p.d;
     if (!isDot) {

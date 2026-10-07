@@ -123,6 +123,8 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   - rychlost útoku.
 - Body kouzel zvyšují stupeň kouzla (až 10/10): +15 % síly a −2 % přebíjení za stupeň.
 - Classu lze změnit u obchodníka za zlato. Body z kouzel staré classy se vrátí jako volné. Atributy jde u obchodníka také přerozdělit.
+- Každá classa má vlastní detailní postavičku (kreslenou ve dvojnásobném rozlišení). Když stojí, dýchá a mrká a občas se podrbe na hlavě, rozhlédne nebo protáhne.
+- Mimo boj nosí postava zbraň na zádech nebo u opasku (štít na zádech, kastety a magická koule se schovají). Jakmile se přiblíží nepřítel, zbraň tasí, a 5–10 s po skončení boje ji zase zasune.
 
 ### Boj
 - Automatický útok podle zbraně:
@@ -172,14 +174,13 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
 - Chytrý loot: část zbraní padá podle typu útoku postavy a přednost mají prázdné sloty.
 
 ### Prostředí a průzkum
-- 5 prostředí, která se střídají po 10 patrech, každé s vlastní paletou a typickými nepřáteli:
-  - Kobky,
-  - Krypta,
-  - Jeskyně,
-  - Výheň,
-  - Ledové hlubiny.
-
-  Každé končí strážcem.
+- Každé z 5 prostředí (po 50 patrech) se dělí na pět oblastí po 10 patrech a každá má své jméno:
+  - Kobky: Vstupní síně, Strážnice, Vězení, Katakomby, Brána hlubin,
+  - Jeskyně: Kapající chodby, Houbový les, Podzemní řeka, Pavoučí doupata, Srdce jeskyní,
+  - Ledové hlubiny: Zamrzlé vodopády, Krystalové síně, Ledová pustina, Hrobka zimy, Isoldin trůn,
+  - Výheň: Popelavé pláně, Lávové řeky, Kovárny Pětice, Řetězové mosty, Srdce výhně,
+  - Propast: Okraj prázdnoty, Plovoucí ostrovy, Šepot tmy, Hlubina snů, Dno světa.
+- Přechod do dalšího patra: postava dojde ke schodům a sejde po nich do tmy. Na černé obrazovce se objeví číslo patra, jméno oblasti a co na patře čeká (strážce, modifikátor, obchodník). Na novém patře postava sejde ze schodů, které vedou z patra nad ním. Klepnutím se dá karta zkrátit.
 - Asi čtvrtina pater má náhodný modifikátor. Vyšší riziko přináší lepší odměnu:
   - Temnota,
   - Zlatá horečka,

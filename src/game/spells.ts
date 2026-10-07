@@ -102,6 +102,7 @@ export class Spells {
     }
     p.mp -= cost;
     p.cds[slot] = this.cooldown(sp);
+    p.combatPing();
     this.execute(sp);
     if (p.d.specials.has('spellEcho') && Math.random() < 0.1) {
       this.scene.time.delayedCall(350, () => {

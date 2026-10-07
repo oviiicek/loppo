@@ -20,6 +20,7 @@ import { UI } from '../ui/ui';
 import { createAllAnims } from '../gfx/anims';
 import { THEMES, themeForFloor, ACTOR_SCALE, isPropTex } from '../gfx/textures';
 import { hash } from '../gfx/pixel';
+import { areaForFloor } from '../data/biomes';
 import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
 
@@ -115,6 +116,12 @@ export class GameScene extends Phaser.Scene {
   boss: Enemy | null = null;
   bossDefeated = false;
   stairsObj: Interactable | null = null;
+  /** the stairs the hero came down (the start of the floor) */
+  upStairs: { x: number; y: number } | null = null;
+  /** the hero is walking the stairs: the world holds still and input is ignored */
+  cinematic = false;
+  cinematicMove = false;
+  descending = false;
   paused = false;
   zoom = 3;
   darkness = 0.48;
@@ -145,6 +152,10 @@ export class GameScene extends Phaser.Scene {
     this.boss = null;
     this.bossDefeated = false;
     this.stairsObj = null;
+    this.upStairs = null;
+    this.cinematic = true;
+    this.cinematicMove = false;
+    this.descending = false;
     this.paused = false;
     this.merchantStocks = new Map();
     this.currentAction = null;
@@ -174,8 +185,13 @@ export class GameScene extends Phaser.Scene {
     this.bossAI = new BossAI(this);
     this.createAnims();
 
+    // the hero arrives down the stairs from the floor above and steps off them (see arrive)
     const s = this.dungeon.start;
-    this.player = new Player(this, s.x * TS + 8, s.y * TS + 10, save);
+    const ux = s.x * TS + 8,
+      uy = s.y * TS + 8;
+    this.add.image(ux, uy, 'stairs_up').setScale(ACTOR_SCALE).setDepth(D.floorDeco);
+    this.upStairs = { x: ux, y: uy };
+    this.player = new Player(this, ux, uy, save);
     // ~25 % of regular floors get a random modifier
     const forced = (window as any).__forceMod as string | undefined; // dev testing hook
     this.mod = forced
@@ -186,6 +202,7 @@ export class GameScene extends Phaser.Scene {
     this.darkness = this.theme.darkness;
     if (this.mod?.darkness) this.darkness = this.mod.darkness;
     this.placeObjects();
+    this.lamps.push({ x: ux, y: uy, r: 56, flicker: 0 });
     this.placeStoryPage();
     this.spawnEnemies();
 
@@ -243,10 +260,6 @@ export class GameScene extends Phaser.Scene {
       const ci = Math.min(CHAPTERS.length - 1, Math.floor((this.floor - 1) / 50));
       if (ci > 0 && !st.seen.includes('ch' + (ci + 1))) queue.push('ch' + (ci + 1));
     }
-    for (const id of queue) {
-      await UI.cutscene(id);
-      if (!this.sys.isActive() && !this.sys.isPaused()) return;
-    }
     const story = storyBossForFloor(this.floor);
     const sub =
       story && !st.seen.includes(story.outro)
@@ -255,15 +268,69 @@ export class GameScene extends Phaser.Scene {
           ? 'Patro strážce – připrav se!'
           : this.mod
             ? `${this.mod.name}: ${this.mod.desc}`
-            : this.floor % 50 === 1
-              ? this.floor > STORY_END
-                ? `Nekonečná hlubina · ${this.theme.title}`
-                : `Vstupuješ: ${this.theme.title}`
-              : this.dungeon.hasMerchant
-                ? 'Někde zde čeká obchodník…'
-                : this.theme.name;
-    UI.banner(this.floorTitle(), sub);
+            : this.dungeon.hasMerchant
+              ? 'Někde zde čeká obchodník…'
+              : '';
+    // came down the stairs: the title card is already up; story scenes play over it
+    const cardUp = UI.floorCardUp(this.floor);
+    // a new area or a guardian deserves a longer look at the card (a tap shortens it)
+    const hold = this.floor % 10 === 1 || isBossFloor(this.floor) || sub ? 2600 : 1900;
+    if (cardUp) {
+      UI.floorCardSub(sub);
+      await UI.holdFloorCard(queue.length ? 1900 : hold);
+    }
+    for (const id of queue) {
+      await UI.cutscene(id);
+      if (!this.sys.isActive() && !this.sys.isPaused()) return;
+    }
+    if (!cardUp) {
+      UI.floorCard(this.floorCardInfo(), sub);
+      await UI.holdFloorCard(hold);
+    }
+    if (!this.sys.isActive() && !this.sys.isPaused()) return;
+    UI.hideFloorCard();
+    this.arrive();
     if (this.floor === 1 && save.kills === 0 && save.level === 1) this.tutorial();
+  }
+
+  /** title card of a floor: its number, the name of its ten-floor area and the biome */
+  floorCardInfo(floor = this.floor) {
+    const th = THEMES[themeForFloor(floor)];
+    const a = areaForFloor(floor);
+    const range = a.to === Infinity ? `hloubka ${floor - STORY_END}` : `patra ${a.from}–${a.to}`;
+    return { floor, name: a.name, region: `${th.title} · ${range}`, color: th.glow[0] };
+  }
+
+  /** the hero walks off the stairs onto the floor, then the floor is theirs */
+  arrive() {
+    const p = this.player;
+    const u = this.upStairs;
+    const done = () => {
+      this.cinematic = false;
+      this.cinematicMove = false;
+    };
+    if (!u || p.dead) return done();
+    // first free spot next to the stairs, below them if possible
+    let tx = u.x,
+      ty = u.y + 15;
+    for (const [dx, dy] of [
+      [0, 1],
+      [1, 0],
+      [-1, 0],
+      [0, -1],
+    ]) {
+      const x = u.x + dx * 15,
+        y = u.y + 2 + dy * 15;
+      if (!this.map.collides(x, y, p.r + 1) && !this.map.collides((u.x + x) / 2, (u.y + y) / 2, p.r)) {
+        tx = x;
+        ty = y;
+        break;
+      }
+    }
+    if (this.map.collides(tx, ty, p.r)) return done();
+    if (Math.abs(tx - p.x) > 1) p.facing = tx > p.x ? 1 : -1;
+    this.cinematicMove = true;
+    this.tweens.add({ targets: p, x: tx, y: ty, duration: 620, ease: 'Sine.easeOut', onComplete: done });
   }
 
   tutorial() {
@@ -279,10 +346,6 @@ export class GameScene extends Phaser.Scene {
 
   get theme() {
     return THEMES[themeForFloor(this.floor)];
-  }
-
-  floorTitle() {
-    return `Patro ${this.floor}`;
   }
 
   /** biome name for the HUD (the endless depths below the story say so) */
@@ -325,7 +388,8 @@ export class GameScene extends Phaser.Scene {
     let pos: [number, number] | null = null;
     for (let k = 0; k < 30 && !pos; k++) {
       const p = this.map.randomFloorNear(st.x * TS + 8, st.y * TS + 8, 44);
-      if (p && Math.hypot(p[0] - (st.x * TS + 8), p[1] - (st.y * TS + 8)) > 18) pos = p;
+      // clear of the stairs and the spot where the hero steps off them
+      if (p && Math.hypot(p[0] - (st.x * TS + 8), p[1] - (st.y * TS + 8)) > 30) pos = p;
     }
     pos ??= [st.x * TS + 8 + TS * 2, st.y * TS + 8];
     const [x, y] = pos;
@@ -802,7 +866,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   castSlot(i: number) {
-    if (this.paused || this.player.dead) return;
+    if (this.paused || this.player.dead || this.cinematic) return;
     this.spells.tryCast(i);
   }
 
@@ -847,7 +911,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   doAction() {
-    if (this.paused || this.player.dead) return;
+    if (this.paused || this.player.dead || this.cinematic) return;
     const it = this.currentAction;
     if (it) this.interact(it);
   }
@@ -1217,13 +1281,65 @@ export class GameScene extends Phaser.Scene {
     this.scene.restart({ save: this.save });
   }
 
+  /** walk onto the stairs and down into the dark; the title card of the next floor covers the loading */
   nextFloor() {
-    sfx('stairs');
+    if (this.descending) return;
+    this.descending = true;
+    this.cinematic = true;
     this.save.floor = this.floor + 1;
     this.save.maxFloor = Math.max(this.save.maxFloor, this.save.floor);
     saveGame(this.save);
-    this.cameras.main.fadeOut(400, 0, 0, 0);
-    this.time.delayedCall(420, () => this.scene.restart({ save: this.save }));
+    this.currentAction = null;
+    UI.setAction(null);
+    UI.joy = [0, 0];
+    const p = this.player;
+    p.target = null;
+    p.armed = false;
+    p.invulnT = 99;
+    this.targetMarker.setAlpha(0);
+    const st = this.stairsObj;
+    const sx = st ? st.x : p.x,
+      sy = st ? st.y : p.y;
+    const top = sy - 6;
+    const walk = Phaser.Math.Clamp(Math.hypot(sx - p.x, top - p.y) / 40, 0.15, 0.7) * 1000;
+    if (Math.abs(sx - p.x) > 1) p.facing = sx > p.x ? 1 : -1;
+    this.cinematicMove = true;
+    this.tweens.add({
+      targets: p,
+      x: sx,
+      y: top,
+      duration: walk,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        // step by step down the stairs, fading into the dark below
+        sfx('stairs');
+        [0, 230, 460].forEach((d) => this.time.delayedCall(d, () => sfx('step')));
+        const fall = { k: 0 };
+        this.tweens.add({ targets: p, y: sy + 7, duration: 820, ease: 'Sine.easeIn' });
+        this.tweens.add({
+          targets: fall,
+          k: 1,
+          duration: 820,
+          ease: 'Sine.easeIn',
+          onUpdate: () => {
+            const c = Math.round(255 - fall.k * 215);
+            const tint = (c << 16) | (c << 8) | c;
+            const a = 1 - Math.max(0, fall.k - 0.5) / 0.5;
+            p.sprite.setTint(tint).setAlpha(a);
+            p.weapon?.setTint(tint);
+            p.offhand?.setTint(tint);
+            p.shadow.setAlpha(1 - fall.k);
+          },
+        });
+        const cam = this.cameras.main;
+        cam.zoomTo(this.zoom * 1.2, 1000, 'Sine.easeInOut');
+        this.time.delayedCall(380, () => cam.fadeOut(520, 0, 0, 0));
+        this.time.delayedCall(940, () => {
+          UI.floorCard(this.floorCardInfo(this.floor + 1), '', true);
+          this.scene.restart({ save: this.save });
+        });
+      },
+    });
   }
 
   // ---------------------------------------------------------------- main loop
@@ -1231,6 +1347,14 @@ export class GameScene extends Phaser.Scene {
     if (this.paused) return;
     const dt = Math.min(0.05, dms / 1000);
     const p = this.player;
+    if (this.cinematic) {
+      // walking the stairs: the world holds still, the hero is moved by tweens, the light follows
+      p.scriptedTick(dt, this.cinematicMove);
+      this.dark.setVisible(!settings.lowFx);
+      if (!settings.lowFx) this.updateLighting(dt);
+      UI.tick(dt);
+      return;
+    }
     this.playTimeT += dt;
     if (this.playTimeT >= 1) {
       this.save.playTime += this.playTimeT;

@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { canvas, rect, px, tpl, outline, shade, hash, line, circle } from './pixel';
-import { CLASSES, ClassDef } from '../data/classes';
+import { CLASSES } from '../data/classes';
 import { biomeForFloor } from '../data/biomes';
+import { buildHeroStrip, HERO_W, HERO_H, HERO_FRAMES } from './heroes';
 
 // ---------------------------------------------------------------------------
 // Registry helpers
@@ -15,7 +16,7 @@ const canvases = new Map<string, HTMLCanvasElement>();
 export const ACTOR_SCALE = 0.5;
 const HI_RES = ['pl_', 'en_', 'al_', 'npc_', 'totem_', 'wp_'];
 // dungeon furniture gets the same treatment (placed with ACTOR_SCALE by the scenes)
-const PROP_KEYS = new Set(['torch', 'bookshelf', 'crate', 'barrel', 'pot', 'table', 'chair', 'bones', 'skull', 'stairs', 'door', 'door_open', 'goldpile', 'anvil', 'fountain', 'fountain_used', 'spikes', 'page']);
+const PROP_KEYS = new Set(['torch', 'bookshelf', 'crate', 'barrel', 'pot', 'table', 'chair', 'bones', 'skull', 'stairs', 'stairs_up', 'door', 'door_open', 'goldpile', 'anvil', 'fountain', 'fountain_used', 'spikes', 'page']);
 const PROP_PREFIX = ['banner_', 'shrine_', 'chest_', 'torch_', 'deco_'];
 export const isPropTex = (key: string) => PROP_KEYS.has(key) || PROP_PREFIX.some((p) => key.startsWith(p));
 const isHiRes = (key: string) => HI_RES.some((p) => key.startsWith(p)) || isPropTex(key);
@@ -64,8 +65,8 @@ function addCanvas(key: string, c: HTMLCanvasElement, native = true) {
   SCENE.textures.addCanvas(key, c);
 }
 
-function addStrip(key: string, c: HTMLCanvasElement, fw: number, fh: number, n: number) {
-  if (isHiRes(key)) {
+function addStrip(key: string, c: HTMLCanvasElement, fw: number, fh: number, n: number, upscale = true) {
+  if (upscale && isHiRes(key)) {
     c = epx2(c, fw);
     fw *= 2;
     fh *= 2;
@@ -1251,29 +1252,8 @@ function humanoidStrip(key: string, head: string, body: 'armor' | 'robe', pal: R
 }
 
 function buildClassSprites() {
-  for (const cl of CLASSES) {
-    let head: string = cl.head;
-    if (cl.id === 'assassin') head = 'hoodMask';
-    humanoidStrip('pl_' + cl.id, head, cl.body, cl.pal, (ctx, ox, f) => classExtras(cl, ctx, ox, f));
-  }
-}
-
-function classExtras(cl: ClassDef, ctx: CanvasRenderingContext2D, ox: number, f: number) {
-  const bob = f % 2 === 1 ? 1 : 0;
-  if (cl.id === 'warrior') {
-    // teal scarf
-    rect(ctx, ox + 4, 9 + bob, 8, 1, '#2a9d8f');
-    px(ctx, ox + 3, 10 + bob, '#2a9d8f');
-    px(ctx, ox + 3, 11 + bob, '#1f776c');
-  }
-  if (cl.id === 'mage') {
-    px(ctx, ox + 7, 11 + bob, '#f2c94c');
-    px(ctx, ox + 10, 16, '#f2c94c');
-  }
-  if (cl.id === 'necro') {
-    px(ctx, ox + 7, 10 + bob, '#cfc9b8');
-    px(ctx, ox + 8, 10 + bob, '#cfc9b8');
-  }
+  // heroes are drawn natively at double detail (no smoothing upscale needed)
+  for (const cl of CLASSES) addStrip('pl_' + cl.id, buildHeroStrip(cl), HERO_W, HERO_H, HERO_FRAMES.count, false);
 }
 
 // ---------------------------------------------------------------------------
@@ -2017,6 +1997,54 @@ const WEAPON_DRAW: Record<string, [number, number, Drawer]> = {
   ],
 };
 
+/** a stairwell seen from above: a stone rim, steps narrowing into the depth (down) or rising to the light (up) */
+function stairwell(up: boolean): HTMLCanvasElement {
+  const [c, x] = canvas(32, 32);
+  // stone rim with joints
+  rect(x, 0, 0, 32, 32, '#4c4a58');
+  rect(x, 0, 0, 32, 1, '#6e6c7c');
+  rect(x, 0, 31, 32, 1, '#2a2832');
+  for (const [jx, jy, w, h] of [
+    [9, 0, 1, 2],
+    [22, 0, 1, 2],
+    [0, 11, 2, 1],
+    [30, 19, 2, 1],
+    [13, 30, 1, 2],
+    [25, 30, 1, 2],
+  ])
+    rect(x, jx, jy, w, h, '#34323e');
+  // the well
+  rect(x, 2, 2, 28, 28, '#0d0b10');
+  const steps = 6;
+  for (let i = 0; i < steps; i++) {
+    const y = 3 + i * 4;
+    // how far from the light: down = deeper with every step, up = the top step is nearest the floor above
+    const t = up ? ((steps - 1 - i) / (steps - 1)) * 0.15 + (i / (steps - 1)) * 0.55 : i / (steps - 1);
+    const inset = up ? 3 : 3 + i;
+    const w = 32 - inset * 2;
+    const k = -t * (up ? 1 : 0.8);
+    // side walls of the well beside the step
+    rect(x, 2, y, inset - 2, 4, shade('#24222c', k));
+    rect(x, 32 - inset, y, inset - 2, 4, shade('#1a1820', k));
+    rect(x, inset, y, w, 1, shade('#c4c2ce', k));
+    rect(x, inset, y + 1, w, 2, shade('#8e8c9a', k));
+    rect(x, inset, y + 3, w, 1, shade('#4e4c5a', k));
+    // worn middle of the steps
+    rect(x, 13, y + 1, 6, 1, shade('#a2a0ae', k));
+  }
+  if (up) {
+    // daylight falling in at the top
+    rect(x, 3, 2, 26, 1, '#fff0c0');
+    rect(x, 5, 3, 22, 1, 'rgba(255,232,170,0.55)');
+    rect(x, 8, 4, 16, 1, 'rgba(255,232,170,0.25)');
+  } else {
+    // the dark below
+    rect(x, 9, 27, 14, 3, '#050407');
+    rect(x, 10, 26, 12, 1, 'rgba(0,0,0,0.6)');
+  }
+  return c;
+}
+
 function buildWeapons() {
   for (const [k, [w, h, d]] of Object.entries(WEAPON_DRAW)) {
     const [c, ctx] = canvas(w, h);
@@ -2630,19 +2658,9 @@ function buildObjects() {
     line(ctx, 6, 9, 5, 13, '#22212a');
     addCanvas('wallcrack', c);
   }
-  // stairs down 16x16
-  addCanvas(
-    'stairs',
-    iconCanvasSized(16, 16, (c) => {
-      rect(c, 0, 0, 16, 16, '#2a2930');
-      for (let i = 0; i < 5; i++) {
-        const y = i * 3;
-        rect(c, i, y, 16 - i * 2, 3, shade('#7a7886', -i * 0.16));
-        rect(c, i, y, 16 - i * 2, 1, shade('#9a98a6', -i * 0.16));
-      }
-      rect(c, 5, 14, 6, 2, '#0a090c');
-    }, false),
-  );
+  // stairwells (drawn natively at 32x32): down into the dark, and the way back up with light from above
+  addCanvas('stairs', stairwell(false), false);
+  addCanvas('stairs_up', stairwell(true), false);
   // locked door 16x16 and open
   addCanvas(
     'door',

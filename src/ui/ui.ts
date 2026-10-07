@@ -148,6 +148,7 @@ class UIManager {
 
   clearAll() {
     this.cutsceneActive = false;
+    this.fcard = null;
     this.root.innerHTML = '';
     this.hud = null;
     this.panel = null;
@@ -164,6 +165,59 @@ class UIManager {
     this.refreshSkills();
     this.renderBuffs();
     this.layout();
+    // the title card of the floor stays up while the new floor is being set up
+    if (this.fcard) this.root.appendChild(this.fcard.el);
+  }
+
+  // ---------------------------------------------------------------- floor title card
+  private fcard: { el: HTMLElement; shown: number; floor: number; skip: boolean } | null = null;
+
+  /** black full-screen card with the floor number and the name of its area (covers the walk down and the loading) */
+  floorCard(c: { floor: number; name: string; region: string; color: string }, sub = '', instant = false) {
+    this.fcard?.el.remove();
+    const el = document.createElement('div');
+    // over an already black screen it must cover the new floor at once
+    el.className = 'floorcard' + (instant ? ' now' : '');
+    el.style.setProperty('--fc', c.color);
+    el.innerHTML = `<div class="fc-in"><div class="fc-floor">Patro ${c.floor}</div><div class="fc-rule"><i></i></div><div class="fc-name"></div><div class="fc-region"></div><div class="fc-sub"></div></div>`;
+    $('.fc-name', el).textContent = c.name;
+    $('.fc-region', el).textContent = c.region;
+    const fc = { el, shown: performance.now(), floor: c.floor, skip: false };
+    // a tap shortens it
+    el.addEventListener('pointerdown', () => (fc.skip = true));
+    this.root.appendChild(el);
+    this.fcard = fc;
+    if (sub) this.floorCardSub(sub);
+  }
+
+  floorCardUp(floor: number) {
+    return this.fcard?.floor === floor;
+  }
+
+  /** the line about what waits on the floor (known once the floor exists) */
+  floorCardSub(text: string) {
+    if (!this.fcard || !text) return;
+    const s = $('.fc-sub', this.fcard.el);
+    s.textContent = text;
+    s.classList.add('on');
+  }
+
+  /** resolves once the card has been up for `minMs` (or was tapped) */
+  async holdFloorCard(minMs: number) {
+    const fc = this.fcard;
+    while (fc && this.fcard === fc) {
+      const t = performance.now() - fc.shown;
+      if (t >= minMs || (fc.skip && t > 700)) return;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  hideFloorCard() {
+    const fc = this.fcard;
+    if (!fc) return;
+    this.fcard = null;
+    fc.el.classList.add('out');
+    setTimeout(() => fc.el.remove(), 800);
   }
 
   // ---------------------------------------------------------------- HUD

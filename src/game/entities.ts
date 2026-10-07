@@ -115,12 +115,14 @@ export abstract class Actor {
     this.shadow.setPosition(Math.round(this.x), Math.round(this.y + 3));
     this.sprite.setDepth(D.entityBase + this.y + (this.flying ? 20 : 0));
     this.sprite.setFlipX(this.facing < 0);
-    if (this.animated === 'humanoid') {
-      const want = moving ? this.spriteKey + '_walk' : this.spriteKey + '_idle';
-      if (this.sprite.anims.currentAnim?.key !== want) this.sprite.play(want, true);
-    }
+    if (this.animated === 'humanoid') this.chooseAnim(moving);
     void kx;
     void ky;
+  }
+
+  protected chooseAnim(moving: boolean) {
+    const want = moving ? this.spriteKey + '_walk' : this.spriteKey + '_idle';
+    if (this.sprite.anims.currentAnim?.key !== want) this.sprite.play(want, true);
   }
 
   destroyVisuals() {
