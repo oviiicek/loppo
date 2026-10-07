@@ -66,7 +66,7 @@ export interface FloorMod {
 }
 
 export const FLOOR_MODS: FloorMod[] = [
-  { id: 'dark', name: 'Temnota', desc: 'Je tu větší tma, ale kořist je lepší', darkness: 0.9, mf: 40 },
+  { id: 'dark', name: 'Temnota', desc: 'Je tu větší tma, ale kořist je lepší', darkness: 0.85, mf: 40 },
   { id: 'gold', name: 'Zlatá horečka', desc: 'Nepřátelé a truhly dávají dvojnásobek zlata', gold: 1 },
   { id: 'curse', name: 'Prokletí', desc: 'Silnější nepřátelé, víc zkušeností a lepší kořist', enemyHp: 1.2, enemyDmg: 1.25, xp: 0.4, mf: 40 },
   { id: 'horde', name: 'Hordy', desc: 'Mnohem víc nepřátel a víc zkušeností', extraEnemies: 0.4, xp: 0.2 },
@@ -115,7 +115,8 @@ export class GameScene extends Phaser.Scene {
   stairsObj: Interactable | null = null;
   paused = false;
   zoom = 3;
-  darkness = 0.74;
+  darkness = 0.56;
+  revealedRooms = new Set<number>();
   mod: FloorMod | null = null;
   merchantStocks = new Map<Interactable, MerchantStock>();
   currentAction: Interactable | null = null;
@@ -145,7 +146,8 @@ export class GameScene extends Phaser.Scene {
     this.currentAction = null;
     this.floorKills = 0;
     this.deathAt = 0;
-    this.darkness = 0.74;
+    this.darkness = 0.56;
+    this.revealedRooms = new Set<number>();
     this.mod = null;
   }
 
@@ -182,7 +184,8 @@ export class GameScene extends Phaser.Scene {
 
     // camera
     const cam = this.cameras.main;
-    cam.setBounds(-200, -200, this.map.w * TS + 400, this.map.h * TS + 400);
+    // stay inside the map (everything beyond is rock anyway, no black border)
+    cam.setBounds(0, 0, this.map.w * TS, this.map.h * TS);
     cam.setZoom(this.zoom);
     cam.startFollow(this.player.sprite, true, 0.15, 0.15);
     cam.setRoundPixels(true);
@@ -255,7 +258,9 @@ export class GameScene extends Phaser.Scene {
   computeZoom() {
     const h = this.scale.height,
       w = this.scale.width;
-    this.zoom = Math.max(2, Math.min(Math.floor(h / 215), Math.floor(w / 380)));
+    const z = Math.max(2, Math.min(Math.floor(h / 215), Math.floor(w / 380)));
+    // tiles are drawn at double resolution, so only even zoom levels map them to whole pixels
+    this.zoom = z - (z % 2);
   }
 
   onResize() {
@@ -274,14 +279,27 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- world objects
+  // visuals of objects inside not yet discovered secret rooms
+  hiddenObjs = new Map<number, Phaser.GameObjects.GameObject[]>();
+
   placeObjects() {
     const d = this.dungeon;
-    for (const o of d.objects) this.placeObject(o);
+    this.hiddenObjs = new Map();
+    for (const o of d.objects) {
+      const before = this.children.list.length;
+      this.placeObject(o);
+      if (this.map.isHidden(o.x, o.y)) {
+        const room = d.roomId[this.map.idx(o.x, o.y)];
+        const added = this.children.list.slice(before);
+        for (const g of added) (g as unknown as Phaser.GameObjects.Components.Visible).setVisible?.(false);
+        this.hiddenObjs.set(room, [...(this.hiddenObjs.get(room) ?? []), ...added]);
+      }
+    }
     // secret walls are interactables
     for (const s of d.secretWalls) {
       this.interactables.push({ kind: 'secret', x: s.x * TS + 8, y: s.y * TS + 14, tx: s.x, ty: s.y, data: {} });
       // walls seen from above get a faint crack as the only hint (front faces use a cracked tile)
-      if (this.map.tileAt(s.x, s.y + 1) !== T_FLOOR) {
+      if (this.map.tileAt(s.x, s.y + 1) !== T_FLOOR || this.map.isHidden(s.x, s.y + 1)) {
         const crack = this.add.image(s.x * TS + 8, s.y * TS + 8, 'wallcrack').setDepth(D.wallDeco - 1).setAlpha(0.75);
         this.interactables[this.interactables.length - 1].data.crack = crack;
       }
@@ -301,7 +319,10 @@ export class GameScene extends Phaser.Scene {
         s.anims.setProgress(Math.random());
         const glow = this.add.image(px, o.y * TS + 6, 'glow').setTint(this.theme.torch).setAlpha(0.22).setScale(1.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
         this.trackGlow(glow, o.x, o.y + 1);
-        this.lamps.push({ x: px, y: o.y * TS + 12, r: 66, flicker: Math.random() * 10, glow });
+        // warm pool of light on the floor below the torch
+        const pool = this.add.image(px, o.y * TS + 26, 'glow').setTint(this.theme.torch).setAlpha(0.16).setScale(3.2, 2.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.floorDeco + 1);
+        this.trackGlow(pool, o.x, o.y + 1);
+        this.lamps.push({ x: px, y: o.y * TS + 12, r: 92, flicker: Math.random() * 10, glow });
         break;
       }
       case 'banner':
@@ -464,7 +485,7 @@ export class GameScene extends Phaser.Scene {
       delay: 700,
       loop: true,
       callback: () => {
-        if (!s.active || s.texture.key.endsWith('_open')) return;
+        if (!s.active || !s.visible || s.texture.key.endsWith('_open')) return;
         this.fx.burst(s.x + (Math.random() - 0.5) * 12, s.y - 8 - Math.random() * 6, 0xffe45c, 1, 'pix');
       },
     });
@@ -812,6 +833,21 @@ export class GameScene extends Phaser.Scene {
     it.data.crack?.destroy();
     bumpStat(this.save, 'secrets');
     this.map.openTile(it.tx, it.ty);
+    // the room behind the crack appears
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const x = it.tx + dx,
+        y = it.ty + dy;
+      if (!this.map.isHidden(x, y)) continue;
+      const id = this.dungeon.roomId[this.map.idx(x, y)];
+      const room = this.dungeon.rooms.find((r) => r.id === id);
+      if (!room) continue;
+      this.map.unhideRoom(id, room.cells);
+      for (const g of this.hiddenObjs.get(id) ?? []) (g as unknown as Phaser.GameObjects.Components.Visible).setVisible?.(true);
+      this.hiddenObjs.delete(id);
+      this.revealedRooms.add(id);
+      this.map.revealRoom(room.cells);
+      this.updateGlowVisibility();
+    }
     sfx('door');
     this.fx.burst(it.x, it.y - 6, 0x9a99a6, 24, 'puff');
     this.fx.shake(0.004, 200);
@@ -1021,7 +1057,15 @@ export class GameScene extends Phaser.Scene {
     this.revealT -= dt;
     if (this.revealT <= 0) {
       this.revealT = 0.2;
-      if (this.map.revealAround(p.x, p.y, 8)) this.updateGlowVisibility();
+      let changed = this.map.revealAround(p.x, p.y, 10);
+      // stepping into a room lights up all of it (walls included)
+      const rid = this.dungeon.roomId[this.map.idx(Math.floor(p.x / TS), Math.floor(p.y / TS))];
+      if (rid >= 0 && !this.revealedRooms.has(rid)) {
+        this.revealedRooms.add(rid);
+        const room = this.dungeon.rooms.find((r) => r.id === rid);
+        if (room) changed = this.map.revealRoom(room.cells) || changed;
+      }
+      if (changed) this.updateGlowVisibility();
     }
 
     for (const e of this.enemies) e.update(dt);
@@ -1171,16 +1215,17 @@ export class GameScene extends Phaser.Scene {
     const inView = (x: number, y: number, r: number) => x > -r && y > -r && x < w + r && y < h + r;
     // all lights are drawn into one capture which is then erased from the darkness in a single pass
     rt.beginDraw();
-    L.setAlpha(0.6);
-    L.setScale((160 * 2) / 128);
+    L.setAlpha(0.65);
+    L.setScale((210 * 2) / 128);
     rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
     L.setAlpha(1);
-    L.setScale((108 * 2) / 128);
+    L.setScale((135 * 2) / 128);
     rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
     for (const l of this.lamps) {
       const x = l.x - ox,
         y = l.y - oy;
       if (!inView(x, y, l.r)) continue;
+      if (this.map.isHidden(Math.floor(l.x / TS), Math.floor(l.y / TS))) continue;
       const fl = l.flicker ? 1 + Math.sin(t * 9 + l.flicker) * 0.04 + Math.sin(t * 23 + l.flicker * 3) * 0.03 : 1;
       L.setScale((l.r * 2 * fl) / 128);
       rt.batchDraw(L, x, y);

@@ -73,7 +73,8 @@ export const TILE = {
   front: 17, // + mask (0..3)
   frontCrack: 21,
   fog: 24,
-  count: 25,
+  rock: 25, // solid mass far from any room
+  count: 26,
 };
 
 // Dungeon themes (biomes) – they change every 10 floors and end with a boss floor.
@@ -92,10 +93,10 @@ export interface Theme {
 export const THEMES: Theme[] = [
   {
     name: 'Kobky',
-    floor: ['#6e5038', '#6a4c35', '#735439', '#684a33'],
+    floor: ['#7a5434', '#74502f', '#7f5837', '#6f4c2e'],
     mortar: '#3a291d',
     moss: ['#3f5a24', '#4d6b2b', '#5d7f33'],
-    stone: { top: '#4a4955', topHi: '#5d5c6a', topLo: '#3a3943', line: '#24232b', edge: '#17161c' },
+    stone: { top: '#5a5963', topHi: '#6c6b76', topLo: '#4a4952', line: '#24232b', edge: '#17161c' },
     brick: ['#5b5a66', '#55545f', '#62616e', '#4f4e59'],
     brickMortar: '#2a2930',
     torch: 0xff9a3a,
@@ -151,127 +152,226 @@ export function themeForFloor(floor: number) {
   return Math.floor((Math.max(1, floor) - 1) / 10) % THEMES.length;
 }
 
-function drawFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
-  const base = th.floor;
-  const mortar = th.mortar;
-  rect(ctx, ox, 0, 16, 16, mortar);
-  // 4 slabs with offset pattern
-  const slabs = v % 2 === 0 ? [[0, 0, 8, 8], [8, 0, 8, 8], [0, 8, 8, 8], [8, 8, 8, 8]] : [[0, 0, 10, 7], [10, 0, 6, 7], [0, 7, 6, 9], [6, 7, 10, 9]];
-  slabs.forEach(([x, y, w, h], i) => {
-    const col = base[(v + i) % base.length];
-    rect(ctx, ox + x, y, w - 1, h - 1, col);
-    // highlight top-left edge, shade bottom-right
-    rect(ctx, ox + x, y, w - 1, 1, shade(col, 0.12));
-    rect(ctx, ox + x, y, 1, h - 1, shade(col, 0.07));
-    rect(ctx, ox + x, y + h - 2, w - 1, 1, shade(col, -0.12));
-    // speckle
-    for (let k = 0; k < 6; k++) {
-      const sx = x + Math.floor(hash(v, i * 13 + k, 7) * (w - 2)),
-        sy = y + Math.floor(hash(v, i * 17 + k, 9) * (h - 2));
-      px(ctx, ox + sx, sy, shade(col, hash(sx, sy, v) > 0.5 ? 0.08 : -0.1));
-    }
-  });
-  // cracks
-  if (v === 3 || v === 6) {
-    line(ctx, ox + 3, 4, ox + 7, 9, shade(mortar, 0.05));
-    line(ctx, ox + 7, 9, ox + 6, 13, shade(mortar, 0.05));
+// Tiles are drawn at 32x32 (double detail) and shown at half scale on the 16px world grid.
+export const TILE_RES = 32;
+
+// speckled stone surface with a bevel (light top/left, dark bottom/right)
+function stoneBlock(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, col: string, seed: number, gap: string, noise = 0.07) {
+  rect(ctx, x, y, w, h, col);
+  for (let k = 0; k < (w * h) / 9; k++) {
+    const sx = x + Math.floor(hash(seed, k, 1) * w),
+      sy = y + Math.floor(hash(k, seed, 2) * h);
+    px(ctx, sx, sy, shade(col, hash(sx + seed, sy, 3) > 0.5 ? noise : -noise * 1.2));
   }
-  // moss / embers / frost depending on the theme
-  if (v === 5 || v === 7) {
-    const mc = th.moss;
-    for (let k = 0; k < 14; k++) {
-      const sx = Math.floor(hash(v, k, 3) * 7) + (v === 5 ? 1 : 8),
-        sy = Math.floor(hash(k, v, 5) * 6) + (v === 5 ? 8 : 1);
-      px(ctx, ox + sx, sy, mc[k % 3]);
+  rect(ctx, x, y, w, 1, shade(col, 0.16));
+  rect(ctx, x, y + 1, 1, h - 2, shade(col, 0.09));
+  rect(ctx, x, y + h - 1, w, 1, shade(col, -0.22));
+  rect(ctx, x + w - 1, y + 1, 1, h - 1, shade(col, -0.14));
+  // chipped corners let the mortar show through
+  px(ctx, x, y, gap);
+  px(ctx, x + w - 1, y, gap);
+  px(ctx, x, y + h - 1, gap);
+  px(ctx, x + w - 1, y + h - 1, gap);
+}
+
+function crack(ctx: CanvasRenderingContext2D, ox: number, pts: number[][], col: string) {
+  for (let i = 0; i < pts.length - 1; i++) line(ctx, ox + pts[i][0], pts[i][1], ox + pts[i + 1][0], pts[i + 1][1], col);
+}
+
+function moss(ctx: CanvasRenderingContext2D, ox: number, cx: number, cy: number, r: number, seed: number, cols: string[]) {
+  for (let k = 0; k < r * r * 2.2; k++) {
+    const a = hash(seed, k, 11) * Math.PI * 2,
+      d = Math.sqrt(hash(k, seed, 12)) * r;
+    const x = Math.round(cx + Math.cos(a) * d),
+      y = Math.round(cy + Math.sin(a) * d * 0.8);
+    if (x < 1 || y < 1 || x > 30 || y > 30) continue;
+    px(ctx, ox + x, y, cols[Math.floor(hash(x, y, seed) * cols.length)]);
+  }
+}
+
+// irregular darker/lighter blotches so large surfaces don't look flat
+function mottle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, col: string, seed: number, amt = 0.08) {
+  for (let k = 0; k < Math.max(2, Math.round((w * h) / 160)); k++) {
+    const cx = x + hash(seed, k, 31) * w,
+      cy = y + hash(k, seed, 32) * h;
+    const r = 2 + hash(seed + k, 3, 33) * 4;
+    const c = shade(col, hash(k, seed, 34) > 0.45 ? -amt : amt * 0.7);
+    for (let yy = Math.floor(cy - r); yy <= cy + r; yy++)
+      for (let xx = Math.floor(cx - r); xx <= cx + r; xx++) {
+        if (xx < x + 1 || yy < y + 1 || xx > x + w - 2 || yy > y + h - 2) continue;
+        if ((xx - cx) ** 2 + ((yy - cy) * 1.3) ** 2 > r * r * (0.6 + hash(xx, yy, seed) * 0.5)) continue;
+        px(ctx, xx, yy, c);
+      }
+  }
+}
+
+function drawFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const S = TILE_RES;
+  const mortar = th.mortar;
+  const col = (i: number) => th.floor[(v + i) % th.floor.length];
+  rect(ctx, ox, 0, S, S, mortar);
+  const slab = (x: number, y: number, w: number, h: number, c: string, seed: number) => {
+    stoneBlock(ctx, ox + x, y, w, h, c, seed, mortar, 0.06);
+    mottle(ctx, ox + x, y, w, h, c, seed + 5, 0.07);
+    // second highlight row for a chunkier bevel
+    rect(ctx, ox + x + 1, y + 1, w - 2, 1, shade(c, 0.08));
+    rect(ctx, ox + x + 1, y + h - 2, w - 2, 1, shade(c, -0.1));
+  };
+  // one large flagstone per tile, sometimes split in two
+  if (v === 4) {
+    slab(1, 1, 30, 14, col(0), v * 7 + 1);
+    slab(1, 16, 30, 15, col(1), v * 7 + 2);
+  } else if (v === 6) {
+    slab(1, 1, 13, 30, col(0), v * 7 + 1);
+    slab(15, 1, 16, 30, col(2), v * 7 + 2);
+    crack(ctx, ox, [[18, 4], [21, 10], [20, 15], [24, 21]], shade(mortar, -0.15));
+  } else {
+    slab(1, 1, 30, 30, col(0), v * 7 + 3);
+  }
+  if (v === 3) {
+    const c = shade(mortar, -0.12);
+    crack(ctx, ox, [[6, 5], [11, 12], [10, 18], [15, 24], [14, 28]], c);
+    crack(ctx, ox, [[11, 12], [17, 14]], c);
+  }
+  // moss creeping along the joints (embers / frost in other biomes)
+  const joint = (x0: number, y0: number, x1: number, y1: number, seed: number) => {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= n; i++) {
+      if (hash(i, seed, 41) < 0.35) continue;
+      const x = Math.round(x0 + ((x1 - x0) * i) / n),
+        y = Math.round(y0 + ((y1 - y0) * i) / n);
+      const spread = hash(seed, i, 42) > 0.6 ? 2 : 1;
+      for (let d = -spread; d <= spread; d++) {
+        const xx = x0 === x1 ? x + d : x,
+          yy = x0 === x1 ? y : y + d;
+        if (xx < 0 || yy < 0 || xx > 31 || yy > 31) continue;
+        px(ctx, ox + xx, yy, th.moss[Math.floor(hash(xx, yy, seed) * th.moss.length)]);
+      }
+    }
+  };
+  if (v === 5) {
+    joint(0, 31, 18, 31, 51);
+    joint(0, 14, 0, 31, 52);
+    moss(ctx, ox, 4, 27, 3, 53, th.moss);
+  }
+  if (v === 7) {
+    joint(12, 0, 31, 0, 71);
+    joint(31, 0, 31, 12, 72);
+    for (let k = 0; k < 4; k++) {
+      const x = 8 + Math.floor(hash(k, 7, 4) * 16),
+        y = 12 + Math.floor(hash(7, k, 5) * 14);
+      rect(ctx, ox + x, y, 2, 2, shade(mortar, 0.25));
+      px(ctx, ox + x, y, shade(mortar, 0.45));
     }
   }
 }
 
+// Top face of a stone cube: one big bevelled block (sometimes two) – the dungeon is built from them.
 function drawWallTop(ctx: CanvasRenderingContext2D, ox: number, mask: number, th: Theme) {
   const STONE = th.stone;
+  const S = TILE_RES;
   // mask bits: 1 = floor north, 2 = floor east, 4 = floor west
-  rect(ctx, ox, 0, 16, 16, STONE.top);
-  // big blocks
-  const blocks = [
-    [0, 0, 8, 6],
-    [8, 0, 8, 6],
-    [0, 6, 5, 5],
-    [5, 6, 11, 5],
-    [0, 11, 10, 5],
-    [10, 11, 6, 5],
-  ];
-  for (const [x, y, w, h] of blocks) {
-    const n = hash(x + ox, y, mask);
-    const col = n > 0.66 ? STONE.topHi : n < 0.33 ? STONE.topLo : STONE.top;
-    rect(ctx, ox + x, y, w, h, col);
-    rect(ctx, ox + x, y, w, 1, shade(col, 0.1));
-    rect(ctx, ox + x, y + h - 1, w, 1, STONE.line);
-    rect(ctx, ox + x + w - 1, y, 1, h, STONE.line);
-  }
+  rect(ctx, ox, 0, S, S, STONE.edge);
+  const cube = (x: number, y: number, w: number, h: number, c: string, seed: number) => {
+    rect(ctx, ox + x, y, w, h, c);
+    mottle(ctx, ox + x, y, w, h, c, seed, 0.06);
+    // thick bevel: bright top/left rim, dark bottom/right rim
+    rect(ctx, ox + x, y, w, 2, shade(c, 0.22));
+    rect(ctx, ox + x, y + 2, 2, h - 2, shade(c, 0.12));
+    rect(ctx, ox + x, y + h - 2, w, 2, shade(c, -0.28));
+    rect(ctx, ox + x + w - 2, y + 2, 2, h - 4, shade(c, -0.18));
+    px(ctx, ox + x, y, STONE.edge);
+    px(ctx, ox + x + w - 1, y, STONE.edge);
+    px(ctx, ox + x, y + h - 1, STONE.edge);
+    px(ctx, ox + x + w - 1, y + h - 1, STONE.edge);
+    if (hash(seed, 9, 61) > 0.6) crack(ctx, ox, [[x + 6, y + 4], [x + 10, y + 9], [x + 9, y + 13]], shade(c, -0.25));
+  };
+  const n = hash(mask, 7, 62);
+  const c1 = n > 0.5 ? STONE.topHi : STONE.top;
+  const c2 = n > 0.5 ? STONE.top : STONE.topHi;
+  if (mask === 0 && n < 0.35) {
+    cube(1, 1, 30, 14, c1, 1);
+    cube(1, 16, 30, 15, c2, 2);
+  } else cube(1, 1, 30, 30, c1, 3 + mask);
+  // where the wall drops down to a floor its rim is in deep shadow
   if (mask & 1) {
-    rect(ctx, ox, 0, 16, 2, STONE.edge);
-    rect(ctx, ox, 2, 16, 1, shade(STONE.topHi, 0.15));
+    rect(ctx, ox, 0, S, 2, STONE.edge);
   }
   if (mask & 2) {
-    rect(ctx, ox + 14, 0, 2, 16, STONE.edge);
-    rect(ctx, ox + 13, 0, 1, 16, shade(STONE.topLo, -0.1));
+    rect(ctx, ox + S - 2, 0, 2, S, STONE.edge);
   }
   if (mask & 4) {
-    rect(ctx, ox, 0, 2, 16, STONE.edge);
-    rect(ctx, ox + 2, 0, 1, 16, shade(STONE.topHi, 0.1));
+    rect(ctx, ox, 0, 2, S, STONE.edge);
   }
 }
 
+// Front face of a stone cube seen from the south: light lip, two courses of big dark blocks, shadowed foot.
 function drawWallFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) {
   const STONE = th.stone;
   const brick = th.brick;
   const mortar = th.brickMortar;
-  rect(ctx, ox, 0, 16, 16, mortar);
-  // top cap
-  rect(ctx, ox, 0, 16, 3, STONE.topHi);
-  rect(ctx, ox, 0, 16, 1, shade(STONE.topHi, 0.2));
-  rect(ctx, ox, 3, 16, 1, STONE.edge);
-  // brick rows
-  const rows = [
-    [4, 4],
-    [8, 4],
-    [12, 3],
-  ];
-  rows.forEach(([y, h], ri) => {
-    const off = ri % 2 === 0 ? 0 : -4;
-    for (let x = off; x < 16; x += 8) {
-      const col = brick[Math.floor(hash(x + ox * 3, y, mask + ri) * brick.length)];
-      const bx = Math.max(0, x),
-        bw = Math.min(16, x + 7) - bx;
-      if (bw <= 0) continue;
-      rect(ctx, ox + bx, y, bw, h - 1, col);
-      rect(ctx, ox + bx, y, bw, 1, shade(col, 0.12));
-      if (hash(x, y, 77 + ox) > 0.7) px(ctx, ox + bx + 2, y + 1, shade(col, -0.15));
-    }
-  });
-  // bottom shadow
-  rect(ctx, ox, 15, 16, 1, shade(mortar, -0.35));
-  if (mask & 1) rect(ctx, ox + 15, 0, 1, 16, STONE.edge);
-  if (mask & 2) rect(ctx, ox, 0, 1, 16, STONE.edge);
+  const S = TILE_RES;
+  rect(ctx, ox, 0, S, S, mortar);
+  // lip of the top face catching the light
+  rect(ctx, ox, 0, S, 5, STONE.topHi);
+  rect(ctx, ox, 0, S, 1, shade(STONE.topHi, 0.3));
+  rect(ctx, ox, 4, S, 1, shade(STONE.topHi, -0.25));
+  rect(ctx, ox, 5, S, 1, STONE.edge);
+  // two courses of large blocks
+  const course = (y: number, h: number, split: number, ri: number) => {
+    const xs = split > 0 ? [0, split] : [0];
+    xs.forEach((x0, k) => {
+      const x1 = k + 1 < xs.length ? xs[k + 1] : S;
+      const c = brick[Math.floor(hash(x0 + ox, y, mask + ri) * brick.length)];
+      const bx = ox + x0 + (k === 0 ? 0 : 1),
+        bw = x1 - x0 - (k === 0 ? 1 : 1);
+      rect(ctx, bx, y, bw, h, c);
+      mottle(ctx, bx, y, bw, h, c, x0 * 3 + y + ri, 0.07);
+      rect(ctx, bx, y, bw, 1, shade(c, 0.18));
+      rect(ctx, bx, y + h - 1, bw, 1, shade(c, -0.25));
+      rect(ctx, bx + bw - 1, y, 1, h, shade(c, -0.15));
+      if (hash(x0, y, 63 + mask) > 0.55) crack(ctx, bx - ox, [[4, y + 2], [6, y + 6], [5, y + h - 2]].map(([a, b]) => [a + (bw > 20 ? 8 : 2), b]), shade(c, -0.3));
+    });
+  };
+  course(6, 12, hash(mask, 1, 64) > 0.5 ? 14 : 0, 0);
+  rect(ctx, ox, 18, S, 1, mortar);
+  course(19, 11, hash(mask, 2, 65) > 0.4 ? 20 : 9, 1);
+  // the wall foot is in shadow
+  rect(ctx, ox, S - 2, S, 2, shade(mortar, -0.45));
+  if (mask & 1) rect(ctx, ox + S - 2, 0, 2, S, STONE.edge);
+  if (mask & 2) rect(ctx, ox, 0, 2, S, STONE.edge);
   if (cracked) {
-    const c = shade(mortar, -0.4);
-    line(ctx, ox + 5, 4, ox + 8, 8, c);
-    line(ctx, ox + 8, 8, ox + 7, 12, c);
-    line(ctx, ox + 8, 8, ox + 11, 10, c);
-    px(ctx, ox + 6, 5, shade(brick[0], 0.25));
+    const c = shade(mortar, -0.5);
+    crack(ctx, ox, [[10, 6], [15, 12], [14, 18], [18, 25]], c);
+    crack(ctx, ox, [[15, 12], [21, 15], [24, 13]], c);
+    px(ctx, ox + 11, 7, shade(brick[0], 0.3));
   }
 }
 
+// deep rock between rooms: dark, low-contrast blocks so the lit walls stand out
+function drawRock(ctx: CanvasRenderingContext2D, ox: number, th: Theme) {
+  const STONE = th.stone;
+  const S = TILE_RES;
+  const base = shade(STONE.topLo, -0.38);
+  rect(ctx, ox, 0, S, S, shade(base, -0.25));
+  rect(ctx, ox + 1, 1, 30, 30, base);
+  mottle(ctx, ox + 1, 1, 30, 30, base, 77, 0.08);
+  rect(ctx, ox + 1, 1, 30, 1, shade(base, 0.12));
+  rect(ctx, ox + 1, 30, 30, 1, shade(base, -0.2));
+}
+
 function buildTileset() {
+  const S = TILE_RES;
   THEMES.forEach((th, ti) => {
-    const [c, ctx] = canvas(16 * TILE.count, 16);
-    for (let v = 0; v < 8; v++) drawFloor(ctx, 16 * (1 + v), v, th);
-    for (let m = 0; m < 8; m++) drawWallTop(ctx, 16 * (TILE.top + m), m, th);
-    for (let m = 0; m < 4; m++) drawWallFront(ctx, 16 * (TILE.front + m), m, false, th);
-    drawWallFront(ctx, 16 * TILE.frontCrack, 0, true, th);
-    drawWallFront(ctx, 16 * (TILE.frontCrack + 1), 0, true, th);
-    drawFloor(ctx, 16 * 23, 0, th);
-    rect(ctx, 16 * TILE.fog, 0, 16, 16, '#07060a');
+    const [c, ctx] = canvas(S * TILE.count, S);
+    for (let v = 0; v < 8; v++) drawFloor(ctx, S * (1 + v), v, th);
+    for (let m = 0; m < 8; m++) drawWallTop(ctx, S * (TILE.top + m), m, th);
+    for (let m = 0; m < 4; m++) drawWallFront(ctx, S * (TILE.front + m), m, false, th);
+    drawWallFront(ctx, S * TILE.frontCrack, 0, true, th);
+    drawWallFront(ctx, S * (TILE.frontCrack + 1), 0, true, th);
+    drawFloor(ctx, S * 23, 0, th);
+    rect(ctx, S * TILE.fog, 0, S, S, '#07060a');
+    drawRock(ctx, S * TILE.rock, th);
     addCanvas('tiles_' + ti, c);
     if (ti === 0) addCanvas('tiles', c);
   });

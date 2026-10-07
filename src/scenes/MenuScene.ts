@@ -90,7 +90,8 @@ export class MenuScene extends Phaser.Scene {
     const first = this.targets[Math.floor(Math.random() * this.targets.length)];
     this.focus = { ...first };
     const cam = this.cameras.main;
-    cam.setZoom(Math.max(2, Math.min(Math.floor(this.scale.height / 215), Math.floor(this.scale.width / 380))));
+    const z = Math.max(2, Math.min(Math.floor(this.scale.height / 215), Math.floor(this.scale.width / 380)));
+    cam.setZoom(z - (z % 2));
     cam.centerOn(first.x, first.y);
     this.dark = this.add.renderTexture(0, 0, 64, 64).setOrigin(0).setDepth(D.dark);
     this.lightImg = this.make.image({ key: 'light', add: false }).setOrigin(0.5);

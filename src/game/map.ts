@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Dungeon, T_FLOOR, T_WALL } from '../systems/dungeon';
-import { TILE, themeForFloor } from '../gfx/textures';
+import { TILE, TILE_RES, themeForFloor } from '../gfx/textures';
 import { hash } from '../gfx/pixel';
 
 export const TS = 16;
@@ -17,6 +17,8 @@ export class WorldMap {
   fog!: Phaser.Tilemaps.TilemapLayer;
   map!: Phaser.Tilemaps.Tilemap;
   private flowFrom = -1;
+  // secret rooms are drawn as solid rock until their cracked wall is broken
+  hiddenRooms = new Set<number>();
 
   constructor(d: Dungeon) {
     this.d = d;
@@ -26,6 +28,29 @@ export class WorldMap {
     for (let i = 0; i < d.w * d.h; i++) this.solid[i] = d.grid[i] === T_FLOOR ? 0 : 1;
     this.explored = new Uint8Array(d.w * d.h);
     this.flow = new Int16Array(d.w * d.h).fill(-1);
+    for (const r of d.rooms) if (r.type === 'secret') this.hiddenRooms.add(r.id);
+  }
+
+  isHidden(x: number, y: number) {
+    if (x < 0 || y < 0 || x >= this.w || y >= this.h) return false;
+    const r = this.d.roomId[y * this.w + x];
+    return r >= 0 && this.hiddenRooms.has(r);
+  }
+
+  // floor the player can currently see as floor (hidden secret rooms count as rock)
+  private openFloor(x: number, y: number) {
+    return this.tileAt(x, y) === T_FLOOR && !this.isHidden(x, y);
+  }
+
+  // a secret room was found: draw it for real
+  unhideRoom(id: number, cells: number[]) {
+    if (!this.hiddenRooms.delete(id)) return;
+    for (const c of cells) {
+      const x = c % this.w,
+        y = (c / this.w) | 0;
+      this.refreshTile(x, y);
+      this.addWallShadow(x, y - 1);
+    }
   }
 
   idx(x: number, y: number) {
@@ -48,6 +73,7 @@ export class WorldMap {
 
   tileIndexFor(x: number, y: number): number {
     const g = this.tileAt(x, y);
+    if (g === T_FLOOR && this.isHidden(x, y)) return TILE.rock;
     if (g === T_FLOOR) {
       const r = hash(x, y, this.d.floor);
       // mostly plain variants, sometimes moss/cracks
@@ -58,8 +84,12 @@ export class WorldMap {
       return TILE.floor[[0, 1, 2, 4][Math.floor(hash(y, x, 3) * 4)]];
     }
     if (g === T_WALL) {
-      const below = this.tileAt(x, y + 1) === T_FLOOR;
-      const fl = (xx: number, yy: number) => this.tileAt(xx, yy) === T_FLOOR;
+      const below = this.openFloor(x, y + 1);
+      const fl = (xx: number, yy: number) => this.openFloor(xx, yy);
+      // walls that touch no visible floor are part of the solid rock (this also keeps secret rooms secret)
+      let near = false;
+      for (let yy = y - 1; yy <= y + 1 && !near; yy++) for (let xx = x - 1; xx <= x + 1 && !near; xx++) near = fl(xx, yy);
+      if (!near) return TILE.rock;
       if (below) {
         const secret = this.d.secretWalls.some((s) => s.x === x && s.y === y);
         if (secret) return TILE.frontCrack;
@@ -74,7 +104,8 @@ export class WorldMap {
       if (fl(x - 1, y)) m |= 4;
       return TILE.top + m;
     }
-    return -1;
+    // everything between rooms is solid rock, like a dungeon carved out of a mountain
+    return TILE.rock;
   }
 
   build(scene: Phaser.Scene) {
@@ -84,19 +115,28 @@ export class WorldMap {
       for (let x = 0; x < this.w; x++) row.push(this.tileIndexFor(x, y));
       data.push(row);
     }
-    this.map = scene.make.tilemap({ data, tileWidth: TS, tileHeight: TS });
-    const ts = this.map.addTilesetImage('tiles', 'tiles_' + themeForFloor(this.d.floor), TS, TS, 0, 0)!;
+    // tile art has double resolution; layers are scaled down onto the 16px world grid
+    const R = TILE_RES;
+    this.map = scene.make.tilemap({ data, tileWidth: R, tileHeight: R });
+    const ts = this.map.addTilesetImage('tiles', 'tiles_' + themeForFloor(this.d.floor), R, R, 0, 0)!;
     this.layer = this.map.createLayer(0, ts, 0, 0)!;
-    this.layer.setDepth(0);
+    this.layer.setDepth(0).setScale(TS / R);
     // fog of war: black tiles removed as the player explores (just below the darkness overlay)
     this.fog = this.map.createBlankLayer('fog', ts, 0, 0)!;
     this.fog.fill(TILE.fog);
-    this.fog.setDepth(99990);
+    this.fog.setDepth(99990).setScale(TS / R);
+    // unexplored parts stay visible but dim (no black void)
+    this.fog.setAlpha(0.55);
     // floor shadows under front walls
+    this.scene = scene;
     for (let y = 0; y < this.h; y++)
-      for (let x = 0; x < this.w; x++) {
-        if (this.tileAt(x, y) === T_WALL && this.tileAt(x, y + 1) === T_FLOOR) scene.add.image(x * TS, (y + 1) * TS, 'wallshadow').setOrigin(0).setDepth(3).setAlpha(0.8);
-      }
+      for (let x = 0; x < this.w; x++) this.addWallShadow(x, y);
+  }
+
+  private scene?: Phaser.Scene;
+
+  private addWallShadow(x: number, y: number) {
+    if (this.tileAt(x, y) === T_WALL && this.openFloor(x, y + 1)) this.scene?.add.image(x * TS, (y + 1) * TS, 'wallshadow').setOrigin(0).setDepth(3).setAlpha(0.8);
   }
 
   refreshTile(x: number, y: number) {
@@ -265,6 +305,29 @@ export class WorldMap {
         changed = true;
         this.clearFog(x, y);
       }
+    return changed;
+  }
+
+  // reveals a whole room plus the walls around it
+  revealRoom(cells: number[]) {
+    let changed = false;
+    for (const c of cells) {
+      const cx = c % this.w,
+        cy = (c / this.w) | 0;
+      for (let y = cy - 1; y <= cy + 1; y++)
+        for (let x = cx - 1; x <= cx + 1; x++) {
+          if (x < 0 || y < 0 || x >= this.w || y >= this.h) continue;
+          const i = this.idx(x, y);
+          if (this.explored[i]) continue;
+          // only the room floor and the walls touching it, never what lies behind them
+          if (x !== cx || y !== cy) {
+            if (!this.solid[i]) continue;
+          }
+          this.explored[i] = 1;
+          this.clearFog(x, y);
+          changed = true;
+        }
+    }
     return changed;
   }
 
