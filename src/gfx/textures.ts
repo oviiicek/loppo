@@ -9,13 +9,62 @@ let SCENE: Phaser.Scene;
 const iconCache = new Map<string, string>();
 const canvases = new Map<string, HTMLCanvasElement>();
 
-function addCanvas(key: string, c: HTMLCanvasElement) {
+// Characters, monsters, allies and held weapons are smoothed to double resolution (EPX / Scale2x)
+// and drawn at half scale, so they match the double-detail tiles.
+export const ACTOR_SCALE = 0.5;
+const HI_RES = ['pl_', 'en_', 'al_', 'npc_', 'totem_', 'wp_'];
+const isHiRes = (key: string) => HI_RES.some((p) => key.startsWith(p));
+
+function epx2(src: HTMLCanvasElement, fw = src.width): HTMLCanvasElement {
+  const w = src.width,
+    h = src.height;
+  const sd = src.getContext('2d')!.getImageData(0, 0, w, h);
+  const s32 = new Uint32Array(sd.data.buffer);
+  // every fully transparent pixel compares equal
+  for (let i = 0; i < s32.length; i++) if ((s32[i] >>> 24) === 0) s32[i] = 0;
+  const [c, ctx] = canvas(w * 2, h * 2);
+  const od = ctx.createImageData(w * 2, h * 2);
+  const o32 = new Uint32Array(od.data.buffer);
+  const W2 = w * 2;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const P = s32[y * w + x];
+      const fx = x % fw;
+      const A = y > 0 ? s32[(y - 1) * w + x] : P;
+      const B = fx < fw - 1 ? s32[y * w + x + 1] : P;
+      const C = fx > 0 ? s32[y * w + x - 1] : P;
+      const D = y < h - 1 ? s32[(y + 1) * w + x] : P;
+      let p1 = P,
+        p2 = P,
+        p3 = P,
+        p4 = P;
+      if (C === A && C !== D && A !== B) p1 = A;
+      if (A === B && A !== C && B !== D) p2 = B;
+      if (D === C && D !== B && C !== A) p3 = C;
+      if (B === D && B !== A && D !== C) p4 = D;
+      const o = y * 2 * W2 + x * 2;
+      o32[o] = p1;
+      o32[o + 1] = p2;
+      o32[o + W2] = p3;
+      o32[o + W2 + 1] = p4;
+    }
+  ctx.putImageData(od, 0, 0);
+  return c;
+}
+
+function addCanvas(key: string, c: HTMLCanvasElement, native = true) {
+  if (native && isHiRes(key)) c = epx2(c);
   canvases.set(key, c);
   if (SCENE.textures.exists(key)) SCENE.textures.remove(key);
   SCENE.textures.addCanvas(key, c);
 }
 
 function addStrip(key: string, c: HTMLCanvasElement, fw: number, fh: number, n: number) {
+  if (isHiRes(key)) {
+    c = epx2(c, fw);
+    fw *= 2;
+    fh *= 2;
+  }
   canvases.set(key, c);
   if (SCENE.textures.exists(key)) SCENE.textures.remove(key);
   const tex = SCENE.textures.addCanvas(key, c)!;
@@ -1975,11 +2024,15 @@ export function spellIcon(glyph: string, color: string, size = 40): string {
   const s = size / 40;
   ctx.scale(s, s);
   // background
-  const g = ctx.createRadialGradient(20, 16, 2, 20, 20, 24);
-  g.addColorStop(0, shade(color, -0.35));
-  g.addColorStop(1, shade(color, -0.85));
+  // dark background with a soft halo of the spell colour, the glyph itself glows (like the reference HUD)
+  const g = ctx.createRadialGradient(20, 18, 1, 20, 20, 24);
+  g.addColorStop(0, shade(color, -0.45));
+  g.addColorStop(0.55, shade(color, -0.78));
+  g.addColorStop(1, shade(color, -0.93));
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 40, 40);
+  ctx.shadowColor = shade(color, 0.25);
+  ctx.shadowBlur = 5 * s;
   ctx.fillStyle = color;
   ctx.strokeStyle = color;
   ctx.lineCap = 'round';
@@ -2309,6 +2362,7 @@ export function spellIcon(glyph: string, color: string, size = 40): string {
       ctx.fill();
   }
   // frame
+  ctx.shadowBlur = 0;
   ctx.strokeStyle = 'rgba(0,0,0,0.6)';
   ctx.lineWidth = 2;
   ctx.strokeRect(1, 1, 38, 38);
@@ -2361,7 +2415,8 @@ function buildTierVariants() {
     }
     for (const w of TIERED_WEAPONS) {
       const src = canvases.get('wp_' + w);
-      if (src) addCanvas(`wp_${w}_t${t}`, recolorMetal(src, tint));
+      // (the source is already smoothed to double resolution)
+      if (src) addCanvas(`wp_${w}_t${t}`, recolorMetal(src, tint), false);
     }
   });
 }

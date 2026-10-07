@@ -508,7 +508,7 @@ export class Spells {
         p.x = nx;
         p.y = ny;
         if (i % 2 === 0) {
-          const ghost = sc.add.image(p.sprite.x, p.sprite.y, p.sprite.texture.key, 0).setOrigin(0.5, 1).setAlpha(0.4).setTint(EL_COLOR[el] ?? 0xffffff).setDepth(p.sprite.depth - 1).setFlipX(p.facing < 0);
+          const ghost = sc.add.image(p.sprite.x, p.sprite.y, p.sprite.texture.key, 0).setOrigin(0.5, 1).setScale(p.sprite.scaleX, p.sprite.scaleY).setAlpha(0.4).setTint(EL_COLOR[el] ?? 0xffffff).setDepth(p.sprite.depth - 1).setFlipX(p.facing < 0);
           sc.tweens.add({ targets: ghost, alpha: 0, duration: 250, onComplete: () => ghost.destroy() });
         }
         if ((f.p ?? 0) > 0) {

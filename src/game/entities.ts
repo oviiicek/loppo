@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { D, EL_COLOR } from './fx';
+import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
 import { EnemyDef, BossDef, enemyHpScale, enemyDmgScale, enemyXpScale } from '../data/enemies';
 import { Element } from '../data/types';
@@ -57,7 +58,7 @@ export abstract class Actor {
     this.y = y;
     this.spriteKey = key;
     this.shadow = scene.add.image(x, y + 3, 'shadow').setDepth(D.floorDeco + 2);
-    this.sprite = scene.add.sprite(x, y + 3, key, 0).setOrigin(0.5, 1);
+    this.sprite = scene.add.sprite(x, y + 3, key, 0).setOrigin(0.5, 1).setScale(ACTOR_SCALE);
     const tex = scene.textures.get(key);
     const frames = tex.frameTotal - 1;
     this.animated = frames >= 6 ? 'humanoid' : frames >= 2 ? 'loop' : 'static';
@@ -67,8 +68,9 @@ export abstract class Actor {
 
   setScale(s: number) {
     this.baseScale = s;
-    this.sprite.setScale(s);
-    this.shadow.setScale(s * (this.sprite.width / 14));
+    // actor textures have double resolution (see ACTOR_SCALE)
+    this.sprite.setScale(s * ACTOR_SCALE);
+    this.shadow.setScale(s * ((this.sprite.width * ACTOR_SCALE) / 14));
   }
 
   get stunned() {
@@ -196,11 +198,11 @@ export class Enemy extends Actor {
       if (this.eliteAffix === 'rychlý') this.speed *= 1.45;
       if (this.eliteAffix === 'obrněný') this.armor = this.armor * 2 + 20;
       this.name = `${def.name} (${this.eliteAffix})`;
-      this.sprite.preFX?.addGlow(0xffb020, 2, 0, false, 0.1, 6);
+      this.sprite.preFX?.addGlow(0xffb020, 2, 0, false, 0.1, 12);
     }
     this.setScale(sc);
     if (def.behavior === 'mimic') this.aggro = true;
-    if (def.behavior === 'thief') this.sprite.preFX?.addGlow(0xffd23a, 3, 0, false, 0.1, 8);
+    if (def.behavior === 'thief') this.sprite.preFX?.addGlow(0xffd23a, 3, 0, false, 0.1, 16);
   }
 
   makeBoss(boss: BossDef, tier: number, floor: number) {
@@ -220,7 +222,7 @@ export class Enemy extends Actor {
     this.setScale(boss.scale);
     if (boss.tint) this.sprite.setTint(boss.tint);
     this.baseTint = boss.tint ?? null;
-    this.sprite.preFX?.addGlow(0xff3030, 3, 0, false, 0.1, 8);
+    this.sprite.preFX?.addGlow(0xff3030, 3, 0, false, 0.1, 16);
     this.aggro = false;
   }
 

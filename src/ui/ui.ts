@@ -791,25 +791,48 @@ class UIManager {
   }
 }
 
+// leather backpack (like the reference HUD), 24 px pixel art shown at 48 px
 function bagIcon() {
   const c = document.createElement('canvas');
   c.width = c.height = 24;
   const x = c.getContext('2d')!;
-  x.fillStyle = '#5a3416';
-  x.fillRect(4, 7, 16, 14);
-  x.fillStyle = '#8a5a2b';
-  x.fillRect(5, 8, 14, 12);
-  x.fillStyle = '#a87a4a';
-  x.fillRect(5, 8, 14, 4);
-  x.fillStyle = '#5a3416';
-  x.fillRect(8, 3, 8, 5);
-  x.fillStyle = '#0000';
-  x.clearRect(10, 4, 4, 3);
-  x.fillStyle = '#e9b949';
-  x.fillRect(11, 11, 2, 3);
-  x.fillStyle = '#16121c';
-  x.strokeStyle = '#16121c';
-  x.strokeRect(3.5, 6.5, 17, 15);
+  const R = (col: string, a: number, b: number, w: number, h: number) => {
+    x.fillStyle = col;
+    x.fillRect(a, b, w, h);
+  };
+  const OUT = '#1e120a';
+  // carrying loop
+  R(OUT, 9, 1, 6, 1);
+  R(OUT, 8, 2, 1, 3);
+  R(OUT, 15, 2, 1, 3);
+  R('#6e4220', 9, 2, 6, 1);
+  // side pockets
+  R(OUT, 2, 11, 4, 9);
+  R(OUT, 18, 11, 4, 9);
+  R('#7a4a22', 3, 12, 2, 7);
+  R('#7a4a22', 19, 12, 2, 7);
+  // body
+  R(OUT, 4, 5, 16, 18);
+  R(OUT, 5, 4, 14, 1);
+  R('#8a5a2b', 5, 5, 14, 17);
+  R('#a8743c', 5, 5, 14, 2);
+  R('#a8743c', 5, 5, 2, 15);
+  R('#6a4020', 5, 19, 14, 3);
+  // flap
+  R(OUT, 4, 5, 16, 9);
+  R('#74461f', 5, 6, 14, 7);
+  R('#94602e', 5, 6, 14, 1);
+  R(OUT, 6, 13, 12, 1);
+  // strap with a brass buckle
+  R(OUT, 11, 9, 2, 10);
+  R('#4a2c12', 11, 9, 2, 10);
+  R(OUT, 10, 13, 4, 4);
+  R('#e9b949', 10, 13, 4, 4);
+  R('#8a6418', 11, 14, 2, 2);
+  R('#fff2a8', 10, 13, 1, 1);
+  // stitching
+  x.fillStyle = '#c89a5a';
+  for (let i = 6; i < 18; i += 2) x.fillRect(i, 21, 1, 1);
   const big = document.createElement('canvas');
   big.width = big.height = 48;
   const b = big.getContext('2d')!;

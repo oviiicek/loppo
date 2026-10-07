@@ -7,6 +7,7 @@ import { BuffMods } from '../data/spells';
 import { BASE_BY_ID, itemTier } from '../data/items';
 import { bus } from '../systems/events';
 import { sfx } from '../systems/audio';
+import { ACTOR_SCALE } from '../gfx/textures';
 
 export interface Buff {
   id: string;
@@ -99,12 +100,12 @@ export class Player extends Actor {
     const main = this.save.equip.main;
     if (main) {
       const key = `wp_${main.base}_t${itemTier(main)}`;
-      this.weapon = this.scene.add.image(this.x, this.y, key).setOrigin(0.5, 0.85);
+      this.weapon = this.scene.add.image(this.x, this.y, key).setOrigin(0.5, 0.85).setScale(ACTOR_SCALE);
     }
     const off = this.save.equip.off;
     if (off) {
       const key = `wp_${off.base}_t${itemTier(off)}`;
-      this.offhand = this.scene.add.image(this.x, this.y, key).setOrigin(0.5, off.base === 'shield' || off.base === 'orb' ? 0.5 : 0.85);
+      this.offhand = this.scene.add.image(this.x, this.y, key).setOrigin(0.5, off.base === 'shield' || off.base === 'orb' ? 0.5 : 0.85).setScale(ACTOR_SCALE);
     }
   }
 
@@ -375,7 +376,7 @@ export class Player extends Actor {
         rot = a;
         this.weapon.setOrigin(0.3, 0.5);
         this.weapon.setPosition(this.x + Math.cos(a) * 4, this.y - 6 + Math.sin(a) * 3 + bob);
-        this.weapon.setScale(this.swinging > 0 ? 0.85 + 0.15 * swingP : 1, 1);
+        this.weapon.setScale((this.swinging > 0 ? 0.85 + 0.15 * swingP : 1) * ACTOR_SCALE, ACTOR_SCALE);
         this.weapon.setFlipX(false);
         if (baseKey === 'crossbow') rot = a + Math.PI / 2;
       } else if (kind === 'magic') {
@@ -413,7 +414,7 @@ export class Player extends Actor {
         this.offhand.setPosition(ox, oy);
         this.offhand.setRotation(0);
         this.offhand.setDepth(depth + (f > 0 ? 0.6 : 0.6));
-        this.offhand.setScale(0.8);
+        this.offhand.setScale(0.8 * ACTOR_SCALE);
       } else if (offBase === 'orb') {
         this.offhand.setPosition(ox, oy - 4 + Math.sin(this.scene.time.now / 300) * 1.5);
         this.offhand.setDepth(depth + 0.6);

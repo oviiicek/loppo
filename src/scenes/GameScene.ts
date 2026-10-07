@@ -17,7 +17,7 @@ import { Item } from '../data/types';
 import { Element } from '../data/types';
 import { UI } from '../ui/ui';
 import { createAllAnims } from '../gfx/anims';
-import { THEMES, themeForFloor } from '../gfx/textures';
+import { THEMES, themeForFloor, ACTOR_SCALE } from '../gfx/textures';
 import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
 
@@ -115,7 +115,7 @@ export class GameScene extends Phaser.Scene {
   stairsObj: Interactable | null = null;
   paused = false;
   zoom = 3;
-  darkness = 0.56;
+  darkness = 0.48;
   revealedRooms = new Set<number>();
   mod: FloorMod | null = null;
   merchantStocks = new Map<Interactable, MerchantStock>();
@@ -146,7 +146,7 @@ export class GameScene extends Phaser.Scene {
     this.currentAction = null;
     this.floorKills = 0;
     this.deathAt = 0;
-    this.darkness = 0.56;
+    this.darkness = 0.48;
     this.revealedRooms = new Set<number>();
     this.mod = null;
   }
@@ -405,7 +405,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case 'merchant': {
-        const s = this.add.sprite(px, py + 6, 'npc_merchant').setOrigin(0.5, 1).play('npc_merchant_idle').setDepth(D.entityBase + py);
+        const s = this.add.sprite(px, py + 6, 'npc_merchant').setOrigin(0.5, 1).setScale(ACTOR_SCALE).play('npc_merchant_idle').setDepth(D.entityBase + py);
         this.add.image(px, py + 6, 'shadow').setDepth(D.floorDeco + 2);
         const it: Interactable = { kind: 'merchant', x: px, y: py + 6, tx: o.x, ty: o.y, sprite: s, data: {} };
         this.interactables.push(it);

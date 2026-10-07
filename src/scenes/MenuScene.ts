@@ -3,6 +3,7 @@ import { generateDungeon } from '../systems/dungeon';
 import { WorldMap, TS } from '../game/map';
 import { D } from '../game/fx';
 import { ENEMY_BY_ID } from '../data/enemies';
+import { ACTOR_SCALE } from '../gfx/textures';
 
 // Atmospheric background for the main menu: a real generated dungeon with
 // flickering torches and idle monsters, explored by a slowly drifting camera.
@@ -32,7 +33,7 @@ export class MenuScene extends Phaser.Scene {
         case 'torch':
           this.add.sprite(px, o.y * TS + 9, 'torch').play('torch_loop').setDepth(D.wallDeco);
           this.add.image(px, o.y * TS + 6, 'glow').setTint(0xff9a3a).setAlpha(0.22).setScale(1.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
-          this.lamps.push({ x: px, y: o.y * TS + 12, r: 70, f: Math.random() * 10 });
+          this.lamps.push({ x: px, y: o.y * TS + 12, r: 95, f: Math.random() * 10 });
           break;
         case 'banner':
           this.add.image(px, o.y * TS + 1, 'banner_' + (o.data?.color ?? 'blue')).setOrigin(0.5, 0).setDepth(D.wallDeco);
@@ -67,7 +68,7 @@ export class MenuScene extends Phaser.Scene {
           break;
         }
         case 'merchant':
-          this.add.sprite(px, py + 6, 'npc_merchant').setOrigin(0.5, 1).play('npc_merchant_idle').setDepth(D.entityBase + py);
+          this.add.sprite(px, py + 6, 'npc_merchant').setOrigin(0.5, 1).setScale(ACTOR_SCALE).play('npc_merchant_idle').setDepth(D.entityBase + py);
           this.lamps.push({ x: px, y: py, r: 70, f: 0 });
           break;
         case 'fountain':
@@ -82,7 +83,7 @@ export class MenuScene extends Phaser.Scene {
       const x = sp.x * TS + 8,
         y = sp.y * TS + 13;
       this.add.image(x, y, 'shadow').setDepth(D.floorDeco + 2);
-      const s = this.add.sprite(x, y, def.sprite, 0).setOrigin(0.5, 1).setDepth(D.entityBase + y).setFlipX(Math.random() < 0.5);
+      const s = this.add.sprite(x, y, def.sprite, 0).setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + y).setFlipX(Math.random() < 0.5);
       const anim = this.anims.exists(def.sprite + '_idle') ? def.sprite + '_idle' : def.sprite + '_loop';
       if (this.anims.exists(anim)) s.play({ key: anim, startFrame: Math.floor(Math.random() * 2) });
     }
@@ -124,7 +125,7 @@ export class MenuScene extends Phaser.Scene {
       oy = Math.floor(v.y) - 2;
     rt.setPosition(ox, oy);
     rt.clear();
-    rt.fill(0x05040a, 0.8);
+    rt.fill(0x05040a, 0.6);
     const L = this.lightImg;
     const t = this.time.now / 1000;
     rt.beginDraw();
