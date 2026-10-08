@@ -37,10 +37,20 @@ export class Mercenary extends Actor {
   private slotT = 0;
   private side = Math.random() < 0.5 ? -1 : 1;
   private recalcT = 1;
+  /** a wandering adventurer: walks from room to room on its own and fights what it meets */
+  roam = false;
+  private path: [number, number][] = [];
+  private pathT = 0;
+  /** set when it leaves the floor (an adventurer knocked out or going away) */
+  gone = false;
+  /** a seasoned adventurer has more health and shrugs off part of every blow */
+  hpMult = 1;
+  dmgTaken = 1;
+  private roamTime = 0;
 
   constructor(scene: GameScene, st: MercState, x: number, y: number) {
     const def = MERC_BY_ROLE[st.role];
-    super(scene, x, y, 'pl_' + mercLook(def, scene.save.cls));
+    super(scene, x, y, 'pl_' + (st.look ?? mercLook(def, scene.save.cls)));
     this.state = st;
     this.def = def;
     this.r = 4;
@@ -56,7 +66,7 @@ export class Mercenary extends Actor {
     const p = this.scene.player;
     const frac = this.maxHp > 1 ? this.hp / this.maxHp : 1;
     this.s = mercStats(this.state, p.save.level, p.d.maxHp);
-    this.maxHp = this.s.maxHp;
+    this.maxHp = Math.round(this.s.maxHp * this.hpMult);
     this.hp = full ? this.maxHp : Math.max(1, Math.round(this.maxHp * frac));
   }
 
@@ -90,6 +100,7 @@ export class Mercenary extends Actor {
     dmg *= 1 - this.s.armor / (this.s.armor + 50 + 12 * sc.floor);
     // the tank shrugs off a part of every blow
     if (this.def.role === 'tank') dmg *= 0.8;
+    dmg *= this.dmgTaken;
     this.hp -= dmg;
     this.calmT = 0;
     sc.fx.flash(this.sprite, 0xff6060, 60);
@@ -106,6 +117,12 @@ export class Mercenary extends Actor {
 
   private knockOut() {
     const sc = this.scene;
+    if (this.state.temp) {
+      // an adventurer met in the dungeon does not lie there: they drink a potion and leave through a portal
+      sc.ui.toast(`${this.state.name} ${this.state.fem ? 'utekla' : 'utekl'} portálem z boje`, '#c8a8ff');
+      this.leave();
+      return;
+    }
     this.hp = 0;
     this.downT = DOWN_TIME;
     this.target = null;
@@ -128,6 +145,18 @@ export class Mercenary extends Actor {
     const p = sc.player;
     if (Math.hypot(p.x - this.x, p.y - this.y) > 120) this.blink();
     sc.fx.burst(this.x, this.y - 6, 0x6dff7a, 10);
+  }
+
+  /** goes away through a portal (gone from the floor) */
+  leave() {
+    if (this.gone) return;
+    this.gone = true;
+    const sc = this.scene;
+    sc.fx.burst(this.x, this.y - 6, 0xb07dff, 18, 'puff');
+    sc.fx.ring(this.x, this.y - 4, 20, 0xb07dff, 400);
+    sfx('stairs');
+    this.dead = true;
+    this.destroyVisuals();
   }
 
   /** jumps to the hero (stuck, or left far behind) */
@@ -168,7 +197,7 @@ export class Mercenary extends Actor {
     const regen = this.s.regen + (this.calmT > 4 ? this.maxHp * 0.04 : 0);
     if (regen > 0 && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + regen * dt);
     const dHero = Math.hypot(p.x - this.x, p.y - this.y);
-    if (dHero > 260) this.blink();
+    if (dHero > 260 && !this.roam) this.blink();
     // knockback
     if (Math.abs(this.knockX) + Math.abs(this.knockY) > 0.5) {
       [this.x, this.y] = sc.map.move(this.x, this.y, this.knockX * dt, this.knockY * dt, this.r);
@@ -211,7 +240,11 @@ export class Mercenary extends Actor {
         if (this.skillT <= 0) this.skill(t);
       }
     }
-    if (!goal && (!t || t.dead)) {
+    if (!goal && (!t || t.dead) && this.roam) {
+      // wandering: from room to room
+      goal = this.roamStep(dt);
+      speed = this.s.move * 0.8;
+    } else if (!goal && (!t || t.dead)) {
       // follow: a spot next to the hero
       if (this.slotT <= 0) this.slot = this.pickSlot();
       this.slotT -= dt;
@@ -225,10 +258,32 @@ export class Mercenary extends Actor {
     this.sync(moving);
   }
 
+  /** the next point of its walk through the floor (a new room when it gets there) */
+  private roamStep(dt: number): [number, number] | null {
+    const sc = this.scene;
+    this.pathT -= dt;
+    this.roamTime += dt;
+    while (this.path.length && Math.hypot(this.path[0][0] - this.x, this.path[0][1] - this.y) < 6) this.path.shift();
+    if (!this.path.length || this.pathT <= 0) {
+      this.pathT = 12;
+      // after a while it comes looking for the hero (so the two do meet)
+      if (this.roamTime > 30 && Math.random() < 0.6) {
+        const p = sc.player;
+        this.path = sc.map.findPath(this.x, this.y, p.x, p.y) || [];
+      } else {
+        const rooms = sc.dungeon.rooms.filter((r) => r.type !== 'secret' && Math.hypot(r.cx * 16 - this.x, r.cy * 16 - this.y) > 60);
+        const r = rooms[Math.floor(Math.random() * rooms.length)];
+        this.path = (r && sc.map.findPath(this.x, this.y, r.cx * 16 + 8, r.cy * 16 + 8)) || [];
+      }
+      if (!this.path.length) return null;
+    }
+    return this.path[0];
+  }
+
   /** whom to fight, by its order */
   private pickTarget(): Enemy | null {
     const sc = this.scene;
-    const p = sc.player;
+    const p = this.roam ? this : sc.player;
     const order = this.state.order;
     if (order === 'follow') return null;
     const cur = this.target;
@@ -411,8 +466,8 @@ export class Mercenary extends Actor {
     const step = Math.min(d, speed * this.speedMult * dt);
     if (!this.target) this.facing = dx >= 0 ? 1 : -1;
     let dir: [number, number] = [dx / d, dy / d];
-    // around corners the way to the hero is known (the monsters' flow field)
-    if (!sc.map.los(this.x, this.y, gx, gy)) {
+    // around corners the way to the hero is known (the monsters' flow field); a wanderer follows its path
+    if (!this.roam && !sc.map.los(this.x, this.y, gx, gy)) {
       const f = sc.map.flowDir(this.x, this.y);
       if (f) dir = f;
     }
@@ -423,7 +478,10 @@ export class Mercenary extends Actor {
     this.stuckT = moved ? 0 : this.stuckT + dt;
     if (this.stuckT > 2.5) {
       this.target = null;
-      this.blink();
+      if (this.roam) {
+        this.path = [];
+        this.stuckT = 0;
+      } else this.blink();
     }
     return moved;
   }

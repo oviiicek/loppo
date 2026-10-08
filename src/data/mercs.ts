@@ -15,6 +15,11 @@ export interface MercState {
   order: MercOrder;
   /** times it was knocked out (statistics) */
   downs?: number;
+  /** the hero look it wears (a wandering adventurer has their own class) */
+  look?: ClassId;
+  /** a companion only for this floor (an adventurer met in the dungeon): leaves instead of getting up */
+  temp?: boolean;
+  fem?: boolean;
 }
 
 export interface MercDef {

@@ -233,6 +233,53 @@ export class WorldMap {
     }
   }
 
+  /** a walkable way between two points (tile centres in pixels, straight stretches skipped), or null */
+  findPath(x0: number, y0: number, x1: number, y1: number, maxNodes = 6000): [number, number][] | null {
+    const sx = Math.floor(x0 / TS),
+      sy = Math.floor(y0 / TS),
+      tx = Math.floor(x1 / TS),
+      ty = Math.floor(y1 / TS);
+    const start = this.idx(sx, sy),
+      goal = this.idx(tx, ty);
+    if (this.solid[goal]) return null;
+    const prev = new Int32Array(this.w * this.h).fill(-1);
+    const q = new Int32Array(this.w * this.h);
+    let qh = 0,
+      qt = 0;
+    q[qt++] = start;
+    prev[start] = start;
+    while (qh < qt && qt < maxNodes) {
+      const c = q[qh++];
+      if (c === goal) break;
+      const cx = c % this.w,
+        cy = (c / this.w) | 0;
+      for (let k = 0; k < 4; k++) {
+        const nx = cx + (k === 0 ? 1 : k === 1 ? -1 : 0),
+          ny = cy + (k === 2 ? 1 : k === 3 ? -1 : 0);
+        if (nx < 0 || ny < 0 || nx >= this.w || ny >= this.h) continue;
+        const ni = ny * this.w + nx;
+        if (this.solid[ni] || prev[ni] >= 0 || this.isHidden(nx, ny)) continue;
+        prev[ni] = c;
+        q[qt++] = ni;
+      }
+    }
+    if (prev[goal] < 0) return null;
+    const cells: number[] = [];
+    for (let c = goal; c !== start; c = prev[c]) cells.push(c);
+    cells.reverse();
+    const pts = cells.map((c) => [(c % this.w) * TS + TS / 2, ((c / this.w) | 0) * TS + TS / 2] as [number, number]);
+    // keep only the corners: a point is dropped when the one after it can be seen from the last kept one
+    const out: [number, number][] = [];
+    let from: [number, number] = [x0, y0];
+    for (let i = 0; i < pts.length; i++) {
+      const next = pts[i + 1];
+      if (next && this.los(from[0], from[1], next[0], next[1])) continue;
+      out.push(pts[i]);
+      from = pts[i];
+    }
+    return out;
+  }
+
   // Direction (unit vector) down the flow field from a pixel position.
   flowDir(x: number, y: number): [number, number] | null {
     const tx = Math.floor(x / TS),

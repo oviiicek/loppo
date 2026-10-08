@@ -67,6 +67,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   // the mercenary
   { id: 'merc1', name: 'Parťák', desc: 'Najmi si žoldáka', reward: { gold: 500, stone: 2 }, check: (s) => !!s.merc },
   { id: 'merc3', name: 'Dobře vyzbrojený', desc: 'Obsaď žoldákovi všechny tři sloty vybavení', reward: { gold: 4000, dust: 3 }, check: (s) => !!s.merc && ['weapon', 'armor', 'jewel'].every((k) => !!(s.merc!.equip as any)[k]) },
+  { id: 'rival1', name: 'Souboj dobrodruhů', desc: 'Poraz dobrodruha, který se proti tobě postavil', reward: { gold: 3000, dust: 3 }, check: (s) => (st(s).rivals ?? 0) >= 1 },
   // nemeses
   { id: 'nemesis1', name: 'Pomsta', desc: 'Poraz svého nemesis', reward: { gold: 5000, dust: 4 }, check: (s) => (st(s).nemeses ?? 0) >= 1 },
   { id: 'nemesis5', name: 'Nikdo mi neuteče', desc: 'Poraz 5 nemesis', reward: { gold: 60000, attr: 4 }, check: (s) => (st(s).nemeses ?? 0) >= 5 },

@@ -3308,3 +3308,29 @@ textarea.code {
 .slot.minv.fits {
   box-shadow: 0 0 0 2px #6dff7a66 inset;
 }
+
+/* meeting a wandering adventurer */
+.rivaltalk .rtbody {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px 4px;
+}
+.rivaltalk .rtbody img {
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+.rivaltalk .rtline {
+  font-size: 19px;
+  margin: 4px 0;
+  color: #f0e6d0;
+}
+.rivaltalk .rtbtns {
+  justify-content: flex-end;
+  padding: 6px 14px 12px;
+}
+.rivalshop .rsbody {
+  padding: 10px 14px 12px;
+}

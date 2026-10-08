@@ -10,10 +10,12 @@ import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
 import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END } from '../data/enemies';
 import { CHAPTERS, noteForFloor } from '../data/story';
-import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf } from '../systems/state';
+import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory } from '../systems/state';
 import { PetFollower } from '../game/pet';
 import { Mercenary } from '../game/merc';
-import { MercRole, MERC_BY_ROLE, randomMercName, MercOrder } from '../data/mercs';
+import { MercRole, MERC_BY_ROLE, randomMercName, MercOrder, MercState } from '../data/mercs';
+import { RivalMood, RIVAL_PEOPLE, RIVAL_GREETING, rivalRole, rivalFoeBase, rivalToll } from '../data/rivals';
+import { CLASSES, CLASS_BY_ID } from '../data/classes';
 import { Weather } from '../game/weather';
 import { PET_BY_ID, PetId, petTitle, cagePetFor, cageChance, petLevel } from '../data/pets';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
@@ -207,6 +209,9 @@ export class GameScene extends Phaser.Scene {
     this.hazards = [];
     this.pet = null;
     this.merc = null;
+    this.rival = null;
+    this.rivalFoe = null;
+    this.rivalAlly = false;
     this.lastHit = null;
     this.cursed = null;
     this.bounty = null;
@@ -260,6 +265,7 @@ export class GameScene extends Phaser.Scene {
     // the pet and the mercenary come down the stairs right after the hero (shown in arrive)
     this.spawnPet(ux, uy + 4, false);
     this.spawnMerc(ux, uy + 4, false);
+    this.spawnRival();
 
     // camera
     const cam = this.cameras.main;
@@ -904,6 +910,7 @@ export class GameScene extends Phaser.Scene {
       bumpStat(this.save, 'elites');
     }
     if (e.nemesis) this.nemesisDefeated(e);
+    if (e.rivalFoe) this.rivalDefeated(e);
   }
 
   // ---------------------------------------------------------------- nemesis
@@ -1194,6 +1201,141 @@ export class GameScene extends Phaser.Scene {
     saveGame(this.save);
   }
 
+  // ---------------------------------------------------------------- wandering adventurer
+  /** another hero walking this floor (until they join, trade, leave or turn hostile) */
+  rival: Mercenary | null = null;
+  rivalMood: RivalMood = 'friendly';
+  rivalMet = false;
+  rivalAlly = false;
+  /** the adventurer who chose to fight */
+  rivalFoe: Enemy | null = null;
+  rivalLevel = 1;
+
+  spawnRival() {
+    this.rival = null;
+    this.rivalMet = false;
+    this.rivalAlly = false;
+    const forced = (window as any).__forceRival as RivalMood | undefined; // dev testing hook
+    if (!forced && (this.floor < 4 || isBossFloor(this.floor) || Math.random() > 0.1)) return;
+    const spot = this.freeSpot(forced ? 5 : 14) ?? this.freeSpot(5);
+    if (!spot) return;
+    const who = RIVAL_PEOPLE[Math.floor(Math.random() * RIVAL_PEOPLE.length)];
+    const classes = CLASSES.filter((c) => c.id !== this.save.cls);
+    const cls = classes[Math.floor(Math.random() * classes.length)].id;
+    const st: MercState = { role: rivalRole(cls), name: who.name, equip: {}, order: 'attack', look: cls, temp: true, fem: who.fem };
+    const r = new Mercenary(this, st, spot.x * TS + 8, spot.y * TS + 10);
+    r.roam = true;
+    r.hpMult = 2.5;
+    r.dmgTaken = 0.5;
+    r.recalc(true);
+    this.rival = r;
+    this.rivalLevel = Math.max(1, this.save.level + Math.floor(Math.random() * 7) - 3);
+    const moods: RivalMood[] = ['friendly', 'friendly', 'trader', 'trader', 'hostile'];
+    this.rivalMood = forced ?? moods[Math.floor(Math.random() * moods.length)];
+  }
+
+  updateRival(dt: number) {
+    const f = this.rivalFoe;
+    if (f) {
+      if (f.dead) this.rivalFoe = null;
+      else if (f.nameLabel) f.nameLabel.setPosition(Math.round(f.x), Math.round(f.y - 15 * f.baseScale));
+    }
+    const r = this.rival;
+    if (!r) return;
+    if (r.dead || r.gone) {
+      this.rival = null;
+      this.rivalAlly = false;
+      return;
+    }
+    r.update(dt);
+    const p = this.player;
+    if (!this.rivalMet && !p.dead && !this.cinematic && !UI.panel && Math.hypot(p.x - r.x, p.y - r.y) < 85 && this.map.los(p.x, p.y, r.x, r.y)) {
+      this.rivalMet = true;
+      this.meetRival(r);
+    }
+  }
+
+  /** face to face: the adventurer says what they want */
+  meetRival(r: Mercenary) {
+    const mood = this.rivalMood;
+    const lines = RIVAL_GREETING[mood];
+    const toll = rivalToll(this.floor);
+    r.facing = this.player.x > r.x ? 1 : -1;
+    sfx('ui');
+    UI.panels.rivalTalk(r, mood, lines[Math.floor(Math.random() * lines.length)], this.rivalLevel, toll, (choice) => {
+      if (choice === 'join') {
+        r.roam = false;
+        this.rivalAlly = true;
+        UI.toast(`${r.state.name} jde s tebou`, '#9dff9d');
+      } else if (choice === 'shop') {
+        UI.panels.rivalShop(r, this.rivalWares());
+      } else if (choice === 'pay') {
+        if (this.save.gold < toll) {
+          UI.toast('Tolik zlata nemáš – bude se bojovat!', '#ff8a7a');
+          this.rivalTurns(r);
+          return;
+        }
+        this.save.gold -= toll;
+        sfx('coin');
+        UI.toast(`${r.state.name} si ${r.state.fem ? 'vzala' : 'vzal'} zlato a ${r.state.fem ? 'zmizela' : 'zmizel'}`, '#ffd76a');
+        r.leave();
+      } else if (choice === 'fight') this.rivalTurns(r);
+    });
+  }
+
+  /** what a trading adventurer carries (generated when the bag is opened) */
+  rivalWares(): Item[] {
+    const f = this.floor;
+    const out: Item[] = [];
+    for (let i = 0; i < 3; i++) out.push(generateItem(f + 1 + Math.floor(Math.random() * 3), { rarity: Math.random() < 0.15 ? 4 : Math.random() < 0.5 ? 3 : 2, filter: this.loot.bias() }));
+    return out;
+  }
+
+  /** the adventurer turns on the hero: a duel with a strong champion that wears a hero's face */
+  rivalTurns(r: Mercenary) {
+    const base = rivalFoeBase(r.def.role);
+    const affixes = ['rychlý', 'obrněný', 'upíří', 'mrazivý'];
+    const e = this.spawnEnemy(base, r.x, r.y, true, this.dungeon.roomId[this.map.idx(Math.floor(r.x / TS), Math.floor(r.y / TS))] ?? -1, r.spriteKey, affixes[Math.floor(Math.random() * affixes.length)]);
+    e.setScale(1);
+    e.name = r.state.name;
+    e.maxHp = e.hp = Math.round(e.maxHp * 3.5);
+    e.dmg *= 1.25;
+    e.xp = Math.round(e.xp * 3);
+    e.aggro = true;
+    e.rivalFoe = true;
+    e.nameLabel = this.fx.label(e.x, e.y - 20, `⚔ ${r.state.name}`, '#ffb070', 6);
+    e.nameLabel.setDepth(99980);
+    this.rivalFoe = e;
+    this.rivalAlly = false;
+    r.dead = true;
+    r.destroyVisuals();
+    this.rival = null;
+    sfx('boss');
+    this.fx.shake(0.006, 300);
+    UI.banner(`⚔ ${r.state.name}`, 'Souboj dobrodruhů!');
+  }
+
+  /** the adventurer who fought the hero lies beaten: their pack is the hero's */
+  rivalDefeated(e: Enemy) {
+    const f = this.floor;
+    bumpStat(this.save, 'rivals');
+    UI.banner('Souboj vyhrán!', `${e.name} je poražen${/a$/.test(e.name.split(' ')[0]) ? 'a' : ''}`);
+    for (let i = 0; i < 2; i++) this.loot.dropItem(generateItem(f + 2, { rarity: Math.random() < 0.3 ? 4 : 3, filter: this.loot.bias() }), e.x, e.y);
+    for (let i = 0; i < 6; i++) this.loot.dropGold(this.loot.goldAmount(3), e.x, e.y);
+    this.loot.dropRandomGem(e.x, e.y, 1);
+    this.rivalFoe = null;
+  }
+
+  /** a companion adventurer may covet a legendary find... */
+  onItemPicked(it: Item) {
+    const r = this.rival;
+    if (!r || !this.rivalAlly || it.rarity < 4 || Math.random() > 0.15) return;
+    UI.toast(`${r.state.name}: „Tenhle kousek měl být můj!“`, '#ff8a7a');
+    this.time.delayedCall(700, () => {
+      if (this.rival === r && !r.dead) this.rivalTurns(r);
+    });
+  }
+
   /** the pet hops off the stairs after the hero (and the mercenary follows) */
   petArrives() {
     const m = this.merc;
@@ -1370,6 +1512,14 @@ export class GameScene extends Phaser.Scene {
       if (d < bd - 10 && d < 60) {
         bd = d;
         best = m;
+      }
+    }
+    const r = this.rival;
+    if (r && !r.dead && !e.rivalFoe) {
+      const d = Math.hypot(r.x - e.x, r.y - e.y);
+      if (d < bd - 10 && d < 60) {
+        bd = d;
+        best = r;
       }
     }
     for (const a of this.allies) {
@@ -1922,6 +2072,13 @@ export class GameScene extends Phaser.Scene {
     if (this.descending) return;
     this.descending = true;
     this.cinematic = true;
+    // an adventurer who came along says goodbye with a gift
+    const ally = this.rival;
+    if (ally && this.rivalAlly && !ally.dead) {
+      const gift = generateItem(this.floor + 2, { rarity: Math.random() < 0.25 ? 4 : 3, filter: this.loot.bias() });
+      if (addToInventory(this.save, gift)) UI.toast(`${ally.state.name}: „Díky za společnou cestu! Tohle si vezmi.“ (${gift.name})`, '#9dff9d');
+      ally.leave();
+    }
     // a nemesis left behind waits a few floors deeper
     const nem = this.nemesis?.nemesis;
     if (nem && !this.nemesis!.dead) {
@@ -2084,6 +2241,7 @@ export class GameScene extends Phaser.Scene {
     if (this.allies.some((a) => a.dead)) this.allies = this.allies.filter((a) => !a.dead);
     if (this.pet && !p.dead) this.pet.update(dt);
     this.merc?.update(dt);
+    this.updateRival(dt);
     if (this.cursed && !p.dead) this.updateCursed(dt);
     if (this.streak.t > 0) {
       this.streak.t -= dt;

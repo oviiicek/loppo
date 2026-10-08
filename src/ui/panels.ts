@@ -37,6 +37,8 @@ import { GEMS, GEM_TIERS, GEM_MAX_TIER, GEM_PLACE_NAME, GemPlace, gemPlace, gemE
 import { PETS, PET_BY_ID, PetId, petLevel, petFloorsToNext, petBonusText, petTitle, PET_MAX_LEVEL, PET_FLOORS_PER_LEVEL } from '../data/pets';
 import { difficultyOf } from '../data/difficulty';
 import { MERCS, MERC_BY_ROLE, MERC_SLOTS, MERC_ORDERS, MercSlot, MercRole, MercOrder, mercFits, mercSlotFor, mercPrice, mercLook, mercStats } from '../data/mercs';
+import type { RivalMood } from '../data/rivals';
+import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -1024,6 +1026,79 @@ export class Panels {
       );
     });
     if (!host) this.ui.showOverlay(p, () => {});
+  }
+
+  // ------------------------------------------------------------------ WANDERING ADVENTURER
+  /** meeting an adventurer: their words and what the hero can answer */
+  rivalTalk(r: Mercenary, mood: RivalMood, line: string, level: number, toll: number, onPick: (choice: string) => void) {
+    const opts: [string, string, string][] =
+      mood === 'friendly'
+        ? [
+            ['join', 'Pojďme spolu', 'green'],
+            ['no', 'Každý sám', ''],
+          ]
+        : mood === 'trader'
+          ? [
+              ['shop', 'Ukaž zboží', 'green'],
+              ['no', 'Ne, díky', ''],
+            ]
+          : [
+              ['pay', `Zaplatit ${toll.toLocaleString('cs-CZ')} zlata`, 'gold'],
+              ['fight', 'Bojovat!', 'red'],
+            ];
+    const cls = CLASS_BY_ID[r.state.look ?? 'warrior'];
+    const d = el(`<div class="panel small rivaltalk"><div class="head"><h2>${esc(r.state.name)}</h2></div>
+      <div class="rtbody"><img src="${iconURL(r.spriteKey, 64)}"><div style="min-width:0"><div class="hint">${esc(cls.name)} • úroveň ${level}${mood === 'hostile' ? ' • <span style="color:#ff8a7a">nepřátelsky naladěn' + (r.state.fem ? 'á' : 'ý') + '</span>' : ''}</div><p class="rtline">„${esc(line)}“</p></div></div>
+      <div class="row rtbtns">${opts.map(([id, label, cl]) => `<button class="btn ${cl}" data-rc="${id}">${esc(label)}</button>`).join('')}</div></div>`);
+    const close = this.ui.dialog(d);
+    d.querySelectorAll<HTMLElement>('[data-rc]').forEach((b) =>
+      b.addEventListener('click', () => {
+        sfx('ui');
+        close();
+        onPick(b.dataset.rc!);
+      }),
+    );
+  }
+
+  /** a trading adventurer's pack: three items for gold, a bit cheaper than the merchant */
+  rivalShop(r: Mercenary, wares: (Item | null)[]) {
+    const s = this.save;
+    const price = (it: Item) => Math.round(buyPrice(it) * 0.8);
+    let sel = -1;
+    const d = el(`<div class="panel small rivalshop"><div class="head"><h2>Batoh: ${esc(r.state.name)}</h2><button class="close">✕</button></div><div class="rsbody"></div></div>`);
+    const close = this.ui.dialog(d);
+    $('.close', d).addEventListener('click', () => close());
+    const body = $('.rsbody', d);
+    const render = () => {
+      const it = sel >= 0 ? wares[sel] : null;
+      body.innerHTML = `<div class="hint">Máš ${s.gold.toLocaleString('cs-CZ')} zlata.</div>
+        <div class="grid" style="grid-template-columns:repeat(3,64px);justify-content:center">${wares.map((w, i) => this.slotHtml(w, `rsw ${i === sel ? 'sel' : ''}" data-i="${i}`, w ? '' : 'prodáno', w ? price(w) : undefined)).join('')}</div>
+        <div class="box" style="margin-top:6px;max-height:42vh;overflow-y:auto">${it ? this.itemDetailHtml(it, `<button class="btn green small" data-a="buy" ${s.gold < price(it) ? 'disabled' : ''}>Koupit za ${price(it).toLocaleString('cs-CZ')}</button>`, true) : '<div class="hint">Vyber předmět.</div>'}</div>`;
+      body.querySelectorAll<HTMLElement>('.rsw').forEach((c) =>
+        c.addEventListener('click', () => {
+          if (!wares[+c.dataset.i!]) return;
+          sfx('ui');
+          sel = +c.dataset.i!;
+          render();
+        }),
+      );
+      body.querySelector('[data-a=buy]')?.addEventListener('click', () => {
+        const w = wares[sel];
+        if (!w || s.gold < price(w)) return;
+        if (!addToInventory(s, w)) {
+          this.ui.toast('Inventář je plný!', '#ff6060');
+          return;
+        }
+        s.gold -= price(w);
+        wares[sel] = null;
+        sel = -1;
+        sfx('coin');
+        bus.emit('stats');
+        saveGame(s);
+        render();
+      });
+    };
+    render();
   }
 
   /** the mercenary's gear changed: new numbers and a new weapon in its hand */

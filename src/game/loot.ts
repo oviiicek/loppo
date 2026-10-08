@@ -330,6 +330,7 @@ export class Loot {
       sfx('pickup');
       maxStat(p.save, 'bestRarity', g.item.rarity);
       bumpStat(p.save, 'items');
+      sc.onItemPicked(g.item);
       sc.ui.newItems++;
       sc.ui.loot(g.item.name + (this.isUpgrade(g.item) ? '  ▲' : ''), itemColor(g.item), iconURL(itemIcon(g.item), 32));
     }

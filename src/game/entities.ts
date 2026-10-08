@@ -217,6 +217,8 @@ export class Enemy extends Actor {
   nemesis: Nemesis | null = null;
   /** seconds it must keep attacking the mercenary who taunted it */
   tauntT = 0;
+  /** a wandering adventurer who chose to fight the hero */
+  rivalFoe = false;
 
   constructor(scene: GameScene, def: EnemyDef, x: number, y: number, floor: number, elite: boolean, roomId: number, affix?: string | null) {
     super(scene, x, y, def.sprite);
@@ -1055,11 +1057,12 @@ export class Projectile {
           return true;
         }
       }
-      const m = sc.merc;
-      if (m && !m.dead && !m.down && Math.abs(m.x - this.x) < 6 && Math.abs(m.y - 6 - this.y) < 9) {
-        m.takeDamage(this.o.dmg);
-        this.kill();
-        return true;
+      for (const m of [sc.merc, sc.rival]) {
+        if (m && !m.dead && !m.down && Math.abs(m.x - this.x) < 6 && Math.abs(m.y - 6 - this.y) < 9) {
+          m.takeDamage(this.o.dmg);
+          this.kill();
+          return true;
+        }
       }
     }
     return false;
