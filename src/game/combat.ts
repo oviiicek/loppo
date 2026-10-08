@@ -321,6 +321,8 @@ export class Combat {
     const floor = sc.floor;
     if (el === 'phys' && !isDot) dmg *= 1 - d.armor / (d.armor + 50 + 12 * floor);
     else if (!isDot) dmg *= 1 - Math.min(0.5, d.armor / (d.armor + 200 + 25 * floor));
+    // a curse of glass: every blow hurts more
+    if (d.specials.has('fragile')) dmg *= 1.25;
     // thorns
     if (src && src instanceof Enemy && !isDot) {
       const thornsPct = p.buffs.reduce((a, b) => a + (b.mods.thornsPct ?? 0), 0);

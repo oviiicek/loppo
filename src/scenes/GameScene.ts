@@ -1627,7 +1627,7 @@ export class GameScene extends Phaser.Scene {
     this.save.mats[kind]--;
     bumpStat(this.save, 'potions');
     if (kind === 'hpPotion') {
-      p.heal(p.d.maxHp * 0.45 + 30);
+      p.heal((p.d.maxHp * 0.45 + 30) * (p.d.specials.has('weakPotions') ? 0.5 : 1));
       this.fx.burst(p.x, p.y - 6, 0xff5050, 12);
     } else {
       p.mp = Math.min(p.d.maxMp, p.mp + p.d.maxMp * 0.6 + 20);

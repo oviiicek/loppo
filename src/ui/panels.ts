@@ -40,6 +40,7 @@ import { difficultyOf } from '../data/difficulty';
 import { MERCS, MERC_BY_ROLE, MERC_SLOTS, MERC_ORDERS, MercSlot, MercRole, MercOrder, mercFits, mercSlotFor, mercPrice, mercLook, mercStats } from '../data/mercs';
 import type { RivalMood } from '../data/rivals';
 import { TRANSMUTE_N, transmuteOdds, transmuteCost, transmute } from '../data/transmute';
+import { CURSE_BY_ID, curseStats } from '../data/curses';
 import { RUNES, RUNE_TIERS, RUNE_MAX_TIER, parseRune, runeName, runeIcon, runeDesc, runeKey, runeSlots, runeSlotCount, runeCombineCost, RuneType } from '../data/runes';
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
@@ -115,7 +116,8 @@ export class Panels {
     if (!it) return `<div class="slot ${extra}">${label ? `<span class="lbl">${esc(label)}</span>` : ''}</div>`;
     const socks = it.sockets?.length ? `<span class="socks">${it.sockets.map((g) => `<i${g ? ` style="background:${parseGem(g)?.def.color}"` : ''}></i>`).join('')}</span>` : '';
     const lock = it.locked ? '<span class="lockmark">🔒</span>' : '';
-    return `<div class="slot r${it.rarity}${it.set ? ' set' : ''} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}${lock}</div>`;
+    const curse = it.curse ? '<span class="cursemark">☠</span>' : '';
+    return `<div class="slot r${it.rarity}${it.set ? ' set' : ''}${it.curse ? ' cursed' : ''} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}${lock}${curse}</div>`;
   }
 
   matsHtml() {
@@ -165,6 +167,15 @@ export class Panels {
         const e = g ? gemEffect(g, place) : null;
         h += g && e ? `<div class="aff" style="color:${parseGem(g)?.def.color}">◆ ${gemName(g)}: ${formatStat(e.key, e.value)}</div>` : `<div class="aff" style="color:#9a94a8">◇ Volný soket</div>`;
       }
+    }
+    if (it.curse && CURSE_BY_ID[it.curse]) {
+      const c = CURSE_BY_ID[it.curse];
+      const cs = curseStats(it.curse, it.ilvl);
+      h += `<div class="curse"><b>☠ Prokletí: ${esc(c.name)}</b>${Object.entries(cs.bonus)
+        .map(([k, v]) => `<div class="cbon">${formatStat(k as any, v as number)}</div>`)
+        .join('')}${Object.entries(cs.malus)
+        .map(([k, v]) => `<div class="cmal">${formatStat(k as any, v as number)}</div>`)
+        .join('')}${c.malusText ? `<div class="cmal">${esc(c.malusText)}</div>` : ''}</div>`;
     }
     if (socketLines && runeSlotCount(it)) {
       for (const r of runeSlots(it)) h += r ? `<div class="aff" style="color:${parseRune(r)?.def.color}">ᚱ ${runeName(r)}: ${runeDesc(r)}</div>` : `<div class="aff" style="color:#9a94a8">ᚱ Volný runový soket</div>`;

@@ -1,3 +1,4 @@
+import { CURSES, CURSE_BY_ID, CURSE_CHANCE, curseStats } from './curses';
 import { AttackKind, Affix, Item, ItemCategory, Slot, StatKey, Stats } from './types';
 import { RNG, rng as globalRng } from '../systems/rng';
 import { rollSockets, socketStats } from './gems';
@@ -313,7 +314,7 @@ function buildName(base: BaseType, rarity: number, ilvl: number, affixes: Affix[
   return name;
 }
 
-export function generateItem(ilvl: number, opts: { rarity?: number; base?: string; magicFind?: number; rarityBonus?: number; r?: RNG; filter?: (b: BaseType) => boolean } = {}): Item {
+export function generateItem(ilvl: number, opts: { rarity?: number; base?: string; magicFind?: number; rarityBonus?: number; r?: RNG; filter?: (b: BaseType) => boolean; noCurse?: boolean } = {}): Item {
   const r = opts.r ?? globalRng;
   const base = opts.base ? BASE_BY_ID[opts.base] : pickBase(r, opts.filter);
   const rarity = opts.rarity ?? rollRarity(r, opts.magicFind ?? 0, opts.rarityBonus ?? 0);
@@ -358,6 +359,20 @@ export function generateItem(ilvl: number, opts: { rarity?: number; base?: strin
   item.name = buildName(base, rarity, ilvl, item.affixes, r);
   const sockets = rollSockets(base.cat, rarity, () => r.next());
   if (sockets) item.sockets = sockets;
+  // now and then a rare (or better) find carries a curse: a big bonus with a price
+  if (rarity >= 2 && !opts.noCurse && r.next() < CURSE_CHANCE) curseItem(item, r);
+  return item;
+}
+
+/** lays a curse on an item (its name says so) */
+export function curseItem(item: Item, r: RNG = globalRng, id?: string) {
+  const c = id ? CURSE_BY_ID[id] : r.pick(CURSES);
+  if (!c) return item;
+  item.curse = c.id;
+  const g = BASE_BY_ID[item.base].gender;
+  const adj = g === 'f' ? 'Prokletá' : g === 'n' ? 'Prokleté' : g === 'p' ? 'Prokleté' : 'Prokletý';
+  // unique names stay capitalised ("Prokletý Drakobijec"), common ones do not ("Prokletý železný meč")
+  if (!item.name.startsWith('Prokle')) item.name = `${adj} ${item.rarity >= 4 ? item.name : item.name[0].toLowerCase() + item.name.slice(1)}`;
   return item;
 }
 
@@ -366,7 +381,7 @@ export function generateSetItem(ilvl: number, setId?: string, piece?: number, r:
   const def = setId ? SET_BY_ID[setId] : r.pick(SETS);
   const pi = piece ?? r.int(0, def.pieces.length - 1);
   const p = def.pieces[pi];
-  const it = generateItem(ilvl, { base: p.base, rarity: 4, r });
+  const it = generateItem(ilvl, { base: p.base, rarity: 4, r, noCurse: true });
   it.specials = [];
   it.name = p.name;
   it.set = `${def.id}:${pi}`;
@@ -397,6 +412,11 @@ export function itemStats(it: Item): Stats {
   for (const a of it.affixes) add(a.key, scaledAffix(a.key, a.value, am));
   if (it.enchant) add(it.enchant.key, scaledAffix(it.enchant.key, it.enchant.value, am));
   socketStats(it, base.cat, s);
+  if (it.curse) {
+    const c = curseStats(it.curse, it.ilvl);
+    for (const [k, v] of Object.entries(c.bonus)) add(k as StatKey, v as number);
+    for (const [k, v] of Object.entries(c.malus)) add(k as StatKey, v as number);
+  }
   return s;
 }
 
@@ -423,8 +443,8 @@ export function formatStat(key: StatKey, v: number): string {
   const names: Partial<Record<StatKey, string>> = { block: 'Šance na blok', range: 'Dosah' };
   const label = def?.label ?? names[key] ?? key;
   const pct = def?.pct || key === 'block';
-  const val = Number.isInteger(v) ? v.toString() : v.toFixed(1).replace('.', ',');
-  return `+${val}${pct ? ' %' : ''} ${label}`;
+  const val = Number.isInteger(v) ? Math.abs(v).toString() : Math.abs(v).toFixed(1).replace('.', ',');
+  return `${v < 0 ? '−' : '+'}${val}${pct ? ' %' : ''} ${label}`;
 }
 
 export function upgradeCost(it: Item) {

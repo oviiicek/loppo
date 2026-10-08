@@ -692,3 +692,14 @@ Object.assign(dev, {
     return Object.keys(s.runes).length;
   },
 });
+import { curseItem } from './data/items';
+Object.assign(dev, {
+  /** a cursed item of a base into the bag */
+  cursed(base = 'sword', id = 'bloodpact', ilvl = 20) {
+    const s = (window as any).__scene.save;
+    const at = s.inventory.findIndex((x: unknown) => !x);
+    if (at < 0) return -1;
+    s.inventory[at] = curseItem(generateItem(ilvl, { base, rarity: 3, noCurse: true }), undefined, id);
+    return at;
+  },
+});

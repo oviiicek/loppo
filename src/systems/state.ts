@@ -1,5 +1,6 @@
 import type { Nemesis } from '../data/nemesis';
 import type { MercState } from '../data/mercs';
+import { CURSE_BY_ID } from '../data/curses';
 import { ATTR_KEYS, AttrKey, ClassId, Item, Slot, StatKey, Stats } from '../data/types';
 import { DEFAULT_DIFFICULTY } from '../data/difficulty';
 import { CLASS_BY_ID } from '../data/classes';
@@ -285,6 +286,8 @@ export function gearStats(s: SaveData): { stats: Stats; specials: Set<string> } 
     const st = itemStats(it);
     for (const [k, v] of Object.entries(st)) add(k as StatKey, v as number);
     it.specials.forEach((x) => specials.add(x));
+    const curse = it.curse ? CURSE_BY_ID[it.curse] : null;
+    if (curse?.special) specials.add(curse.special);
   }
   const cdef = CLASS_BY_ID[s.cls];
   for (const [k, v] of Object.entries(cdef.passiveStats)) add(k as StatKey, v as number);

@@ -255,7 +255,9 @@ export class Player extends Actor {
     // regen
     // spell buffs and shrine blessings
     const regenPct = [...this.buffs, ...this.scene.shrineBuffs].reduce((a, b) => a + (b.mods.regenPct ?? 0), 0);
-    this.hp = Math.min(this.d.maxHp, this.hp + (this.d.hpRegen + (this.d.maxHp * regenPct) / 100) * dt);
+    // a curse of madness stops the natural regeneration (blessings still heal)
+    const natural = this.d.specials.has('noRegen') ? 0 : this.d.hpRegen;
+    this.hp = Math.min(this.d.maxHp, this.hp + (natural + (this.d.maxHp * regenPct) / 100) * dt);
     this.mp = Math.min(this.d.maxMp, this.mp + this.d.mpRegen * dt);
 
     // cooldowns
@@ -457,6 +459,8 @@ export class Player extends Actor {
     this.facing = dx >= 0 ? 1 : -1;
     if (this.atkT > 0) return;
     this.atkT = 1 / this.d.aps;
+    // the frenzy curse: every attack burns a little mana
+    if (this.d.specials.has('manaBurn')) this.mp = Math.max(0, this.mp - this.d.maxMp * 0.02);
     // attacking always happens with the weapon in hand
     this.combatPing();
     this.armT = 1;

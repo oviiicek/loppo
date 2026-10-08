@@ -3419,3 +3419,32 @@ textarea.code {
 .slot.tinv.dim {
   opacity: 0.35;
 }
+
+/* cursed items */
+.curse {
+  margin: 5px 0;
+  padding: 4px 7px;
+  border: 1px solid #5a1a6a;
+  border-radius: 6px;
+  background: linear-gradient(rgba(70, 10, 80, 0.45), rgba(20, 4, 24, 0.6));
+}
+.curse b {
+  color: #d07aff;
+}
+.curse .cbon {
+  color: #9dff9d;
+}
+.curse .cmal {
+  color: #ff7a7a;
+}
+.slot.cursed {
+  box-shadow: inset 0 0 12px rgba(160, 40, 200, 0.55), 0 0 5px rgba(140, 30, 180, 0.5);
+}
+.slot .cursemark {
+  position: absolute;
+  left: 2px;
+  bottom: 0;
+  font-size: 12px;
+  color: #e080ff;
+  text-shadow: 0 0 3px #000, 1px 1px 0 #000;
+}

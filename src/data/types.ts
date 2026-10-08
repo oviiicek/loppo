@@ -126,6 +126,8 @@ export interface Item {
   sockets?: (string | null)[];
   /** rune sockets of a weapon: a rune key ("fire3") or null */
   runes?: (string | null)[];
+  /** a curse: a big bonus with a drawback (id in CURSES) */
+  curse?: string;
   // rolled base values
   dmgMin?: number;
   dmgMax?: number;

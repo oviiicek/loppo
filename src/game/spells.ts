@@ -101,6 +101,8 @@ export class Spells {
       return false;
     }
     p.mp -= cost;
+    // blood magic: every spell also costs a little health
+    if (p.d.specials.has('bloodPrice')) p.hp = Math.max(1, p.hp - p.d.maxHp * 0.03);
     p.cds[slot] = this.cooldown(sp);
     p.combatPing();
     this.execute(sp);
