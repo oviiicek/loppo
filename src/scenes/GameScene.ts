@@ -40,6 +40,7 @@ import { generateVillage } from '../systems/dungeon';
 import { BUILDINGS, villageOf } from '../data/village';
 import { ClassId } from '../data/types';
 import { potionMult } from '../data/village';
+import { BEASTS, bestiaryOf, KNOW_AT, EL_NAME } from '../data/bestiary';
 
 /** seconds between kills that keep a kill streak going */
 const STREAK_WINDOW = 2.6;
@@ -971,6 +972,22 @@ export class GameScene extends Phaser.Scene {
     if (e.nemesis) this.nemesisDefeated(e);
     if (e.rivalFoe) this.rivalDefeated(e);
     this.enc.onKill(e);
+    if (!e.boss) this.learnBeast(e.def.id);
+  }
+
+  /** the bestiary counts kills of each kind and tells what was learned */
+  learnBeast(id: string) {
+    const info = BEASTS[id];
+    if (!info) return;
+    const b = bestiaryOf(this.save);
+    const k = (b[id] = (b[id] ?? 0) + 1);
+    const name = ENEMY_BY_ID[id]?.name ?? id;
+    const els = (l: Element[]) => l.map((x) => EL_NAME[x]).join(', ') || 'žádné';
+    if (k === 1) UI.toast(`📖 Nový záznam v bestiáři: ${name}`, '#e8d8b0');
+    else if (k === KNOW_AT.weak) UI.toast(`📖 ${name}: slabiny ${els(info.weak)} · odolnosti ${els(info.resist)}`, '#ffd76a');
+    else if (k === KNOW_AT.loot) UI.toast(`📖 ${name}: v bestiáři je i jeho kořist`, '#e8d8b0');
+    else if (k === KNOW_AT.master1) UI.toast(`📖 Mistrovství: ${name} – +5 % poškození proti nim`, '#9dff7a');
+    else if (k === KNOW_AT.master2) UI.toast(`📖 Velmistrovství: ${name} – +10 % poškození proti nim`, '#9dff7a');
   }
 
   // ---------------------------------------------------------------- nemesis

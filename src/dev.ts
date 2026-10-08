@@ -824,3 +824,16 @@ Object.assign(dev, {
     return { type: q.type, floor: q.floor, goal: q.goal, title: q.title };
   },
 });
+Object.assign(dev, {
+  /** a champion with chosen traits right next to the hero */
+  elite(id = 'orc', affixes: string[] = ['štítonoš'], dx = 50) {
+    const sc = (window as any).__scene;
+    const p = sc.player;
+    const e = sc.spawnEnemy(id, p.x + dx, p.y, true, -1, undefined, affixes[0]);
+    e.affixes = affixes;
+    e.eliteAffix = affixes[0];
+    e.name = `${e.def.name} (${affixes.join(', ')})`;
+    e.aggro = true;
+    return { name: e.name, hp: e.maxHp, id: e.id };
+  },
+});

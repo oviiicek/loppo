@@ -90,6 +90,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'lore10', name: 'Kronikář', desc: 'Přečti 10 zápisků z hlubin', reward: { gold: 3000, dust: 3 }, check: (s) => (s.lore?.length ?? 0) >= 10 },
   { id: 'lore30', name: 'Strážce paměti', desc: 'Přečti 30 zápisků z hlubin', reward: { gold: 25000, attr: 2 }, check: (s) => (s.lore?.length ?? 0) >= 30 },
   { id: 'wtf', name: 'Tohle mi nikdo neuvěří', desc: 'Zažij něco, co se stává jednou za sto pater', reward: { gold: 10000, attr: 2 }, check: (s) => (st(s).wtf ?? 0) >= 1 },
+  { id: 'beast10', name: 'Znalec nestvůr', desc: 'Odhal slabiny 10 druhů nestvůr (10 zabití od každého)', reward: { gold: 4000, dust: 4 }, check: (s) => Object.values(s.bestiary ?? {}).filter((k) => k >= 10).length >= 10 },
+  { id: 'beastMaster', name: 'Mistr lovec', desc: 'Získej mistrovství proti 15 druhům nestvůr (50 zabití od každého)', reward: { gold: 50000, attr: 4 }, check: (s) => Object.values(s.bestiary ?? {}).filter((k) => k >= 50).length >= 15 },
   { id: 'brawl', name: 'Smějící se třetí', desc: 'Buď u rvačky dvou smeček nestvůr', reward: { gold: 1000 }, check: (s) => (st(s).brawls ?? 0) >= 1 },
 ];
 

@@ -6,6 +6,7 @@ import { bumpStat, maxStat } from '../systems/state';
 import { parseRune, RUNE_CHANCE, RuneType } from '../data/runes';
 import { sfx, vibrate } from '../systems/audio';
 import { bus } from '../systems/events';
+import { elemMult, masteryPct } from '../data/bestiary';
 
 /** what to call a hit without a monster behind it (on the death screen) */
 const EL_CAUSE: Record<string, string> = { phys: 'neznámý úder', fire: 'oheň', ice: 'mráz', lightning: 'blesk', poison: 'jed', holy: 'svaté světlo', shadow: 'stín' };
@@ -113,6 +114,8 @@ export class Combat {
 
   /** a meteor's own explosion does not call more meteors */
   private inMeteor = false;
+  /** a mirrored champion's reflection does not reflect again */
+  private reflecting = false;
   /** seconds until thunderClap can sound again */
   clapT = 0;
 
@@ -191,6 +194,10 @@ export class Combat {
       }
     }
     if (e.st.vulnT > 0) dmg *= 1 + e.st.vuln;
+    // the kind's weak spots and resistances (bestiary), and the hero's mastery of fighting it
+    const em = e.boss ? 1 : elemMult(e.def.id, el);
+    dmg *= em;
+    if (!o.fromAlly && !e.boss) dmg *= 1 + masteryPct(p.save, e.def.id) / 100;
     // the hero's mastery of an element (talents)
     if (!o.fromAlly) dmg *= 1 + (p.d.elemPct[el] ?? 0) / 100;
     // armour only vs physical
@@ -209,6 +216,20 @@ export class Combat {
       e.capBudget -= dmg;
     }
     dmg = Math.max(1, dmg);
+    // a champion's shield of light soaks the blow first
+    if (e.shieldHp > 0) {
+      const soak = Math.min(e.shieldHp, dmg);
+      e.shieldHp -= soak;
+      dmg -= soak;
+      if (e.shieldHp <= 0) {
+        e.dropShield();
+        sc.fx.ring(e.x, e.y - 6, 22, 0x7fb2ff, 300);
+      }
+      if (dmg <= 0) {
+        if (!o.silent && !o.dot) sc.fx.number(e.x, e.y - 14 * e.baseScale, 'štít', '#9fc8ff');
+        return 0;
+      }
+    }
     // spells leave their element behind: fire burns, poison poisons, frost slows
     if (o.spell && !o.dot && !o.fromAlly) {
       if (el === 'fire') {
@@ -245,7 +266,9 @@ export class Combat {
     }
     if (!o.silent || crit) {
       const txt = Math.round(dmg).toString();
-      sc.fx.number(e.x, e.y - 14 * e.baseScale, crit ? txt + '!' : txt, crit ? '#ffd23a' : o.dot ? '#c8a8a8' : EL_TEXT[el] ?? '#fff', crit);
+      // a weak spot hit shows big, a resisted one dim
+      const col = crit ? '#ffd23a' : o.dot ? '#c8a8a8' : em < 1 ? '#8a8494' : EL_TEXT[el] ?? '#fff';
+      sc.fx.number(e.x, e.y - 14 * e.baseScale, crit ? txt + '!' : txt, col, crit || (em > 1 && !o.dot));
     }
     if (crit) {
       sfx('crit');
@@ -264,11 +287,28 @@ export class Combat {
       if (o.isAttack && p.d.manaOnHit) p.mp = Math.min(p.d.maxMp, p.mp + p.d.manaOnHit);
       if (o.isAttack && !o.dot) this.onHitProcs(e, dmg);
     }
+    // a mirrored champion sends part of the hero's blow back
+    if (!o.fromAlly && !o.dot && !this.reflecting && e.affixes.includes('zrcadlový') && !sc.player.dead) {
+      this.reflecting = true;
+      this.cause = `${e.name} – odraz`;
+      this.causeFoe = e;
+      this.damagePlayer(dmg * 0.15, null, el, false);
+      this.reflecting = false;
+    }
     if (e.hp <= 0) {
       // a story guardian with stages left changes instead of dying
       if (e.story && e.phase < e.phaseCount - 1) {
         e.hp = 1;
         sc.storyNextPhase(e);
+      } else if (e.affixes.includes('nesmrtelný') && !e.revived) {
+        // an undying champion gets up once more
+        e.revived = true;
+        e.hp = Math.round(e.maxHp * 0.4);
+        e.st.burnT = e.st.poisonT = e.st.bleedT = 0;
+        sc.fx.ring(e.x, e.y - 6, 34, 0xfff2a8, 500);
+        sc.fx.burst(e.x, e.y - 8, 0xfff2a8, 20);
+        sc.fx.number(e.x, e.y - 22, 'vstává!', '#fff2a8', true);
+        sfx('summon');
       } else this.killEnemy(e);
     }
     return dmg;
@@ -321,7 +361,7 @@ export class Combat {
       p.buffs = p.buffs.filter((b) => b.id !== 'bloodlust');
       p.addBuff('bloodlust', `Krvežíznivost ×${p.lustN}`, { atkSpdPct: 6 * p.lustN }, 6, 0xff3a4a);
     }
-    if (e.eliteAffix === 'výbušný') {
+    if (e.affixes.includes('výbušný')) {
       sc.fx.telegraph(e.x, e.y, 34, 500);
       sc.time.delayedCall(500, () => {
         sc.fx.disc(e.x, e.y, 34, 0xff7a2a);

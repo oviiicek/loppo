@@ -9,19 +9,34 @@ import type { Nemesis } from '../data/nemesis';
 import { Element } from '../data/types';
 
 /** champion traits: what they do is in Enemy.affixTick (and a few in combat); each glows its own colour */
-export const ELITE_AFFIXES: Record<string, { glow: number; desc: string }> = {
-  rychlý: { glow: 0xffe45c, desc: 'rychle se pohybuje a útočí' },
-  obrněný: { glow: 0x9aa8b8, desc: 'má silné brnění' },
-  upíří: { glow: 0xff3b5a, desc: 'léčí se z úderů' },
-  výbušný: { glow: 0xff7a2a, desc: 'po smrti vybuchne' },
-  mrazivý: { glow: 0x7fd8ff, desc: 'zpomaluje údery' },
-  ohnivý: { glow: 0xff4a10, desc: 'nechává za sebou hořící zem' },
-  elektrický: { glow: 0xfff27a, desc: 'metá blesky' },
-  léčitel: { glow: 0x52ff8f, desc: 'léčí nestvůry kolem sebe' },
-  teleportér: { glow: 0xb07dff, desc: 'přeskakuje k hrdinovi' },
-  vyvolávač: { glow: 0x7bd88f, desc: 'povolává pomocníky' },
+export const ELITE_AFFIXES: Record<string, { glow: number; desc: string; min: number }> = {
+  rychlý: { glow: 0xffe45c, desc: 'rychle se pohybuje a útočí', min: 1 },
+  obrněný: { glow: 0x9aa8b8, desc: 'má silné brnění', min: 1 },
+  upíří: { glow: 0xff3b5a, desc: 'léčí se z úderů', min: 1 },
+  výbušný: { glow: 0xff7a2a, desc: 'po smrti vybuchne', min: 1 },
+  mrazivý: { glow: 0x7fd8ff, desc: 'zpomaluje údery', min: 1 },
+  ohnivý: { glow: 0xff4a10, desc: 'nechává za sebou hořící zem', min: 4 },
+  elektrický: { glow: 0xfff27a, desc: 'metá blesky', min: 4 },
+  léčitel: { glow: 0x52ff8f, desc: 'léčí nestvůry kolem sebe', min: 4 },
+  teleportér: { glow: 0xb07dff, desc: 'přeskakuje k hrdinovi', min: 4 },
+  vyvolávač: { glow: 0x7bd88f, desc: 'povolává pomocníky', min: 4 },
+  // deeper down
+  zuřivý: { glow: 0xff3a1a, desc: 'při polovině zdraví se rozzuří', min: 8 },
+  jedovatý: { glow: 0x7be05a, desc: 'nechává za sebou jedovatý mrak', min: 10 },
+  štítonoš: { glow: 0x7fb2ff, desc: 'chrání se štítem ze světla', min: 15 },
+  magnetický: { glow: 0xc77dff, desc: 'přitahuje hrdinu k sobě', min: 20 },
+  zrcadlový: { glow: 0xe8e8ff, desc: 'vrací část poškození útočníkovi', min: 25 },
+  nesmrtelný: { glow: 0xfff2a8, desc: 'jednou vstane z mrtvých', min: 30 },
 };
 const AFFIX_IDS = Object.keys(ELITE_AFFIXES);
+
+/** how many traits a champion has: one near the surface, two and then three deeper down */
+export function affixCount(floor: number, rnd = Math.random) {
+  if (floor < 25) return 1;
+  if (floor < 60) return rnd() < 0.4 ? 2 : 1;
+  if (floor < 120) return rnd() < 0.3 ? 3 : 2;
+  return 3;
+}
 
 let nextId = 1;
 
@@ -209,8 +224,14 @@ export class Enemy extends Actor {
   spotted = false;
   dodgeT = 0;
   sparkT = 0;
-  /** champion trait timer (fire trail, lightning, healing, blinking, summoning) */
-  affT = 1.5 + Math.random() * 2;
+  /** the champion's traits (one, or a combination deeper down) and each trait's timer */
+  affixes: string[] = [];
+  affTimers: Record<string, number> = {};
+  /** a champion's shield of light, the one rise from the dead, the frenzy at half health */
+  shieldHp = 0;
+  shieldT = 0;
+  revived = false;
+  frenzied = false;
   /** the champion that summoned this one (summoners keep at most a few) */
   summoner: Enemy | null = null;
   /** a named champion that once killed the hero */
@@ -251,13 +272,25 @@ export class Enemy extends Actor {
     let sc = def.scale ?? 1;
     if (elite) {
       sc *= 1.25;
-      // the new traits only show up from floor 4 on (the first floors stay simple)
-      const pool = floor < 4 ? AFFIX_IDS.slice(0, 5) : AFFIX_IDS;
-      this.eliteAffix = affix && ELITE_AFFIXES[affix] ? affix : pool[Math.floor(Math.random() * pool.length)];
-      if (this.eliteAffix === 'rychlý') this.speed *= 1.45;
-      if (this.eliteAffix === 'obrněný') this.armor = this.armor * 2 + 20;
-      this.name = `${def.name} (${this.eliteAffix})`;
-      this.sprite.preFX?.addGlow(ELITE_AFFIXES[this.eliteAffix].glow, 2, 0, false, 0.1, 12);
+      // traits come with depth: the first floors stay simple, deeper champions combine two or three
+      const pool = AFFIX_IDS.filter((a) => ELITE_AFFIXES[a].min <= floor);
+      const list = affix && ELITE_AFFIXES[affix] ? [affix] : [];
+      const want = Math.max(list.length, affixCount(floor));
+      while (list.length < want) {
+        const free = pool.filter((a) => !list.includes(a));
+        if (!free.length) break;
+        list.push(free[Math.floor(Math.random() * free.length)]);
+      }
+      this.affixes = list;
+      this.eliteAffix = list[0] ?? null;
+      if (list.includes('rychlý')) this.speed *= 1.45;
+      if (list.includes('obrněný')) this.armor = this.armor * 2 + 20;
+      // every extra trait makes it tougher and worth more
+      const extra = list.length - 1;
+      this.maxHp = this.hp = Math.round(this.maxHp * (1 + extra * 0.25));
+      this.xp = Math.round(this.xp * (1 + extra * 0.5));
+      this.name = `${def.name} (${list.join(', ')})`;
+      if (this.eliteAffix) this.sprite.preFX?.addGlow(ELITE_AFFIXES[this.eliteAffix].glow, extra ? 3 : 2, 0, false, 0.1, 12);
     }
     this.setScale(sc);
     if (def.behavior === 'mimic') this.aggro = true;
@@ -393,36 +426,59 @@ export class Enemy extends Actor {
       this.scene.bossAI.update(this, dt);
       return;
     }
-    if (this.eliteAffix && this.aggro) this.affixTick(dt);
+    if (this.affixes.length && this.aggro) this.affixTick(dt);
     if (this.dead) return;
     this.ai(dt);
   }
 
-  /** what a champion's trait does while it fights */
+  /** what a champion's traits do while it fights (each trait keeps its own timer) */
   private affixTick(dt: number) {
     const sc = this.scene;
     const p = sc.player;
     if (p.dead) return;
-    this.affT -= dt;
-    if (this.affT > 0) return;
+    // a shield fades after a while
+    if (this.shieldT > 0) {
+      this.shieldT -= dt;
+      if (this.shieldT <= 0 || this.shieldHp <= 0) this.dropShield();
+    }
+    // frenzy at half health
+    if (!this.frenzied && this.affixes.includes('zuřivý') && this.hp < this.maxHp * 0.5) {
+      this.frenzied = true;
+      this.speed *= 1.35;
+      this.dmg *= 1.3;
+      this.baseTint = 0xff9a8a;
+      this.sprite.setTint(0xff9a8a);
+      sc.fx.ring(this.x, this.y - 6, 30, 0xff3a1a, 400);
+      sc.fx.number(this.x, this.y - 20, 'zuří!', '#ff6a4a');
+    }
+    for (const a of this.affixes) {
+      const t = (this.affTimers[a] ?? 1.5 + Math.random() * 2) - dt;
+      this.affTimers[a] = t > 0 ? t : this.affixAct(a);
+    }
+  }
+
+  /** one trait acts; returns the seconds until it acts again */
+  private affixAct(a: string): number {
+    const sc = this.scene;
+    const p = sc.player;
     const d = Math.hypot(p.x - this.x, p.y - this.y);
-    switch (this.eliteAffix) {
+    switch (a) {
       case 'ohnivý':
         // burning ground along its path
-        this.affT = 0.75;
         sc.addHazard(this.x, this.y + 1, 9, this.dmg * 0.45, 'fire', 3.2, 0xff5a1a, this.name, false, this);
-        break;
-      case 'elektrický': {
-        this.affT = 2.4;
+        return 0.75;
+      case 'jedovatý':
+        // a cloud of poison where it stood
+        sc.addHazard(this.x, this.y + 1, 15, this.dmg * 0.35, 'poison', 3.5, 0x7be05a, this.name, false, this);
+        return 2.2;
+      case 'elektrický':
         if (d < 150 && sc.map.canSee(this.x, this.y, p.x, p.y)) {
-          const a = Math.atan2(p.y - 4 - (this.y - 6), p.x - this.x);
-          for (const da of [-0.32, 0, 0.32]) sc.spawnEnemyProjectile(this.x, this.y - 6, a + da, 'pr_bolt', this.dmg * 0.55, 'lightning', 80, this.name, this);
+          const ang = Math.atan2(p.y - 4 - (this.y - 6), p.x - this.x);
+          for (const da of [-0.32, 0, 0.32]) sc.spawnEnemyProjectile(this.x, this.y - 6, ang + da, 'pr_bolt', this.dmg * 0.55, 'lightning', 80, this.name, this);
           sc.fx.burst(this.x, this.y - 8, 0xfff27a, 6);
         }
-        break;
-      }
+        return 2.4;
       case 'léčitel': {
-        this.affT = 3;
         let healed = false;
         for (const o of sc.enemiesNear(this.x, this.y, 80)) {
           if (o.dead || o.hp >= o.maxHp || o.boss) continue;
@@ -431,10 +487,9 @@ export class Enemy extends Actor {
           healed = true;
         }
         if (healed) sc.fx.ring(this.x, this.y - 4, 80, 0x52ff8f, 500);
-        break;
+        return 3;
       }
-      case 'teleportér': {
-        this.affT = 4 + Math.random() * 2;
+      case 'teleportér':
         if (d > 50 && d < 220) {
           const spot = sc.map.randomFloorNear(p.x, p.y, 34);
           if (spot && Math.hypot(spot[0] - p.x, spot[1] - p.y) > 16) {
@@ -445,10 +500,8 @@ export class Enemy extends Actor {
             sc.fx.ring(this.x, this.y - 4, 22, 0xb07dff, 350);
           }
         }
-        break;
-      }
+        return 4 + Math.random() * 2;
       case 'vyvolávač': {
-        this.affT = 6;
         const mine = sc.enemies.filter((e) => !e.dead && e.summoner === this).length;
         for (let i = 0; i < Math.min(2, 6 - mine); i++) {
           const s = sc.map.randomFloorNear(this.x, this.y, 26);
@@ -463,11 +516,36 @@ export class Enemy extends Actor {
           sc.fx.burst(s[0], s[1] - 6, 0x7bd88f, 10, 'puff');
           sc.fx.ring(s[0], s[1], 16, 0x7bd88f, 400);
         }
-        break;
+        return 6;
       }
-      default:
-        this.affT = 99;
+      case 'štítonoš':
+        // a shield of light that soaks a fifth of its health
+        this.shieldHp = this.maxHp * 0.2;
+        this.shieldT = 5;
+        this.baseTint = 0xa8ccff;
+        this.sprite.setTint(0xa8ccff);
+        sc.fx.ring(this.x, this.y - 6, 24, 0x7fb2ff, 450);
+        return 8;
+      case 'magnetický':
+        // drags the hero closer
+        if (d > 36 && d < 150 && sc.map.canSee(this.x, this.y, p.x, p.y)) {
+          p.knockX += ((this.x - p.x) / d) * 170;
+          p.knockY += ((this.y - p.y) / d) * 170;
+          sc.fx.ring(p.x, p.y - 6, 20, 0xc77dff, 350);
+          sc.fx.ring(this.x, this.y - 6, 28, 0xc77dff, 350);
+        }
+        return 5;
     }
+    return 99;
+  }
+
+  /** the shield broke or faded */
+  dropShield() {
+    this.shieldHp = 0;
+    this.shieldT = 0;
+    this.baseTint = this.frenzied ? 0xff9a8a : null;
+    if (this.baseTint !== null) this.sprite.setTint(this.baseTint);
+    else this.sprite.clearTint();
   }
 
   // Treasure goblin: waits until it notices the player, then runs away and escapes after a while.
@@ -624,7 +702,7 @@ export class Enemy extends Actor {
         moving = this.stepToward(-dx / dist, -dy / dist, spd * 0.7, dt);
       }
       if (this.atkT <= 0) {
-        this.atkT = def.atkCd * (this.eliteAffix === 'rychlý' ? 0.75 : 1);
+        this.atkT = def.atkCd * (this.affixes.includes('rychlý') ? 0.75 : 1);
         this.windup = ranged ? 0.35 : 0.3;
         this.lunge(dx / dist, dy / dist);
       }
@@ -704,8 +782,8 @@ export class Enemy extends Actor {
           sc.player.st.burnT = Math.max(sc.player.st.burnT, 2.5);
           sc.player.st.burnDps = Math.max(sc.player.st.burnDps, this.dmg * 0.15);
         }
-        if (this.eliteAffix === 'upíří') this.hp = Math.min(this.maxHp, this.hp + this.dmg * 0.5);
-        if (this.eliteAffix === 'mrazivý') sc.player.chill(1.5);
+        if (this.affixes.includes('upíří')) this.hp = Math.min(this.maxHp, this.hp + this.dmg * 0.5);
+        if (this.affixes.includes('mrazivý')) sc.player.chill(1.5);
       } else {
         target.takeDamage(this.dmg);
       }

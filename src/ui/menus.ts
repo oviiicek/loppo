@@ -14,6 +14,7 @@ import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic
 import { fsButtonHTML, isStandalone } from './fullscreen';
 import { CHRONICLE_ORDER, CUTSCENE_BY_ID } from '../data/story';
 import { LORE, LORE_BY_ID } from '../data/lore';
+import { BEASTS, KNOW_AT, EL_NAME, EL_CSS, masteryPct } from '../data/bestiary';
 import { ENEMY_BY_ID } from '../data/enemies';
 import { cleanName } from '../data/nemesis';
 import { codexOf, codexCount, CODEX_TOTAL, CODEX_TOTALS, ALL_STONES } from '../data/codex';
@@ -548,7 +549,7 @@ export class Menus {
   }
 
   /** achievements and, on the second tab, the hero's statistics */
-  achievements(tab: 'ach' | 'stats' | 'nem' | 'codex' = 'ach') {
+  achievements(tab: 'ach' | 'stats' | 'nem' | 'codex' | 'beast' = 'ach') {
     const sc = this.ui.scene!;
     const s = sc.save;
     const got = s.achievements ?? [];
@@ -590,6 +591,26 @@ export class Menus {
         <h3 class="cxh">Sady</h3><div class="cxsets">${sets}</div>
         <h3 class="cxh">Drahokamy a runy</h3><div class="cxstones">${stones}</div>
         <h3 class="cxh">Druhy předmětů podle vzácnosti</h3><div style="overflow-x:auto">${kinds}</div>`;
+    } else if (tab === 'beast') {
+      const kills = s.bestiary ?? {};
+      const known = Object.keys(BEASTS).filter((id) => (kills[id] ?? 0) > 0).length;
+      const els = (l: string[]) => (l.length ? l.map((x) => `<b style="color:${EL_CSS[x as 'fire']}">${esc(EL_NAME[x as 'fire'])}</b>`).join(', ') : 'žádné');
+      const cards = Object.entries(BEASTS)
+        .map(([id, b]) => {
+          const def = ENEMY_BY_ID[id];
+          const k = kills[id] ?? 0;
+          if (!def) return '';
+          if (!k) return `<div class="bstc"><img class="unk" src="${iconURL(def.sprite, 48)}"><div style="min-width:0"><div class="nm">???</div><div class="lv2">Ještě nepotkán${def.minFloor > 1 ? ` · od ${def.minFloor}. patra` : ''}</div></div></div>`;
+          const next = k < KNOW_AT.weak ? KNOW_AT.weak : k < KNOW_AT.loot ? KNOW_AT.loot : k < KNOW_AT.master1 ? KNOW_AT.master1 : k < KNOW_AT.master2 ? KNOW_AT.master2 : 0;
+          const m = masteryPct(s, id);
+          return `<div class="bstc found"><img src="${iconURL(def.sprite, 48)}"><div style="min-width:0"><div class="nm">${esc(def.name)} <span class="hint">· zabito ${n(k)}${next ? ` / ${next}` : ''}</span></div>
+            <div class="lv2">${esc(b.note)}</div>
+            <div class="lv2">${k >= KNOW_AT.weak ? `Slabiny: ${els(b.weak)} · odolnosti: ${els(b.resist)}` : `Slabiny a odolnosti: <span class="hint">po ${KNOW_AT.weak} zabitích</span>`}</div>
+            <div class="lv2">${k >= KNOW_AT.loot ? `Kořist: ${esc(b.loot)}` : `Kořist: <span class="hint">po ${KNOW_AT.loot} zabitích</span>`}</div>
+            ${m ? `<div class="lv2" style="color:#9dff7a">Mistrovství: +${m} % poškození</div>` : `<div class="lv2 hint">Mistrovství po ${KNOW_AT.master1} zabitích</div>`}</div></div>`;
+        })
+        .join('');
+      body = `<div class="codexhead">Poznáno <b>${known}/${Object.keys(BEASTS).length}</b> druhů nestvůr · slabina = poškození ×${1.5}, odolnost = ×${0.6}</div><div class="bstgrid">${cards}</div>`;
     } else if (tab === 'nem') {
       const list = s.nemeses ?? [];
       const beaten = st.nemeses ?? 0;
@@ -638,7 +659,7 @@ export class Menus {
       ];
       body = `<div class="statgrid">${tiles.map(([ic, lb, vl, col]) => `<div class="stattile"><span class="ic">${ic}</span><span><span class="lb">${lb}</span><br><b class="vl" ${col ? `style="color:${col}"` : ''}>${esc(vl)}</b></span></div>`).join('')}</div>`;
     }
-    const p = el(`<div class="panel"><div class="head"><h2>${tab === 'ach' ? `Úspěchy ${got.length}/${ACHIEVEMENTS.length}` : tab === 'nem' ? 'Nemesis' : tab === 'codex' ? `Kodex ${codexCount(s)}/${CODEX_TOTAL}` : 'Statistiky'}</h2><div class="tabs"><button class="tab ${tab === 'ach' ? 'on' : ''}" data-tab="ach">Úspěchy</button><button class="tab ${tab === 'stats' ? 'on' : ''}" data-tab="stats">Statistiky</button><button class="tab ${tab === 'nem' ? 'on' : ''}" data-tab="nem">Nemesis${s.nemeses?.length ? ` (${s.nemeses.length})` : ''}</button><button class="tab ${tab === 'codex' ? 'on' : ''}" data-tab="codex">Kodex</button></div><button class="close">✕</button></div>
+    const p = el(`<div class="panel"><div class="head"><h2>${tab === 'ach' ? `Úspěchy ${got.length}/${ACHIEVEMENTS.length}` : tab === 'nem' ? 'Nemesis' : tab === 'codex' ? `Kodex ${codexCount(s)}/${CODEX_TOTAL}` : tab === 'beast' ? 'Bestiář' : 'Statistiky'}</h2><div class="tabs"><button class="tab ${tab === 'ach' ? 'on' : ''}" data-tab="ach">Úspěchy</button><button class="tab ${tab === 'stats' ? 'on' : ''}" data-tab="stats">Statistiky</button><button class="tab ${tab === 'nem' ? 'on' : ''}" data-tab="nem">Nemesis${s.nemeses?.length ? ` (${s.nemeses.length})` : ''}</button><button class="tab ${tab === 'codex' ? 'on' : ''}" data-tab="codex">Kodex</button><button class="tab ${tab === 'beast' ? 'on' : ''}" data-tab="beast">Bestiář</button></div><button class="close">✕</button></div>
       <div class="body scroll" style="display:block">${body}</div></div>`);
     this.ui.showOverlay(p, () => {});
     $('.close', p).addEventListener('click', () => this.ui.closeOverlay());
@@ -646,7 +667,7 @@ export class Menus {
       b.addEventListener('click', () => {
         if (b.dataset.tab === tab) return;
         sfx('ui');
-        this.achievements(b.dataset.tab as 'ach' | 'stats' | 'nem' | 'codex');
+        this.achievements(b.dataset.tab as 'ach' | 'stats' | 'nem' | 'codex' | 'beast');
       }),
     );
   }

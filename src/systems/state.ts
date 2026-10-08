@@ -87,6 +87,8 @@ export interface SaveData {
   fates?: Fate[];
   /** lore read in the dungeon (letters, inscriptions) */
   lore?: string[];
+  /** monsters killed of each kind (the bestiary) */
+  bestiary?: Record<string, number>;
 }
 
 /** a talent counts when it belongs to the hero's class (or the second class of a multiclass hero) */

@@ -3850,3 +3850,38 @@ textarea.code {
 .qlog {
   width: min(94vw, 640px);
 }
+
+/* the bestiary */
+.bstgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 6px;
+}
+.bstc {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #2a2230;
+  border-radius: 6px;
+  background: rgba(14, 10, 20, 0.6);
+}
+.bstc img {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+.bstc img.unk {
+  filter: brightness(0) opacity(0.45);
+}
+.bstc .nm {
+  color: #8a8496;
+  font-size: 19px;
+}
+.bstc.found {
+  border-color: #4a3a2a;
+}
+.bstc.found .nm {
+  color: #ffd76a;
+}
