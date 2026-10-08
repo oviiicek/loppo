@@ -261,6 +261,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnEnemies();
     this.placePetCage();
     this.placeCursedChest();
+    this.placeAlchemist();
     this.rollBounty();
     // the pet and the mercenary come down the stairs right after the hero (shown in arrive)
     this.spawnPet(ux, uy + 4, false);
@@ -1025,6 +1026,27 @@ export class GameScene extends Phaser.Scene {
     saveGame(s);
   }
 
+  // ---------------------------------------------------------------- alchemist
+  /** now and then an alchemist sets up his cauldron on a floor: five items of a rarity melt into a better one */
+  placeAlchemist() {
+    const forced = (window as any).__forceAlchemist; // dev testing hook
+    if (!forced && (this.floor < 3 || isBossFloor(this.floor) || (this.floor % 7 !== 3 && Math.random() > 0.1))) return;
+    const c = this.freeSpot(forced ? 4 : 8);
+    if (!c) return;
+    const px = c.x * TS + 8,
+      py = c.y * TS + 8;
+    const s = this.add.sprite(px, py + 6, 'npc_alchemist').setOrigin(0.5, 1).setScale(ACTOR_SCALE).play('npc_alchemist_idle').setDepth(D.entityBase + py);
+    this.add.image(px, py + 6, 'shadow').setDepth(D.floorDeco + 2);
+    const pot = this.add.image(px + 13, py + 7, 'cauldron').setOrigin(0.5, 1).setDepth(D.entityBase + py + 1);
+    this.tweens.add({ targets: pot, scaleY: 1.06, yoyo: true, repeat: -1, duration: 600 });
+    const glow = this.add.image(px + 13, py, 'glow').setTint(0x5dff9a).setAlpha(0.3).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
+    this.trackGlow(glow, c.x, c.y);
+    this.interactables.push({ kind: 'alchemist', x: px, y: py + 6, tx: c.x, ty: c.y, sprite: s, data: {} });
+    this.lamps.push({ x: px, y: py, r: 72, flicker: 1 });
+    const t = this.fx.label(px, py - 16, 'Alchymista', '#7dffcf', 6);
+    t.setDepth(99980);
+  }
+
   // ---------------------------------------------------------------- cursed chest
   /** a rare black chest: whoever opens it must hold out against waves of monsters for 30 seconds */
   placeCursedChest() {
@@ -1659,6 +1681,8 @@ export class GameScene extends Phaser.Scene {
         return `Osvobodit: ${PET_BY_ID[it.data.id as PetId].name}`;
       case 'cursed':
         return 'Prokletá truhla';
+      case 'alchemist':
+        return 'Transmutace';
     }
     return 'Použít';
   }
@@ -1699,6 +1723,9 @@ export class GameScene extends Phaser.Scene {
         break;
       case 'anvil':
         UI.openForge();
+        break;
+      case 'alchemist':
+        UI.panels.transmute();
         break;
       case 'shrine': {
         const def = SHRINES[it.data.type];

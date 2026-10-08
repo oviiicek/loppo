@@ -1181,9 +1181,21 @@ img.px {
   box-shadow: inset 0 0 14px rgba(255, 160, 30, 0.4), 0 0 6px rgba(255, 160, 30, 0.4);
 }
 .r5 {
-  border-color: #ff3860;
-  box-shadow: inset 0 0 16px rgba(255, 60, 100, 0.45), 0 0 8px rgba(255, 60, 100, 0.5);
+  border-color: #ff4fb4;
+  box-shadow: inset 0 0 16px rgba(255, 80, 180, 0.45), 0 0 8px rgba(255, 80, 180, 0.5);
   animation: mythic 2s ease-in-out infinite;
+}
+/* primal: blood red, burning */
+.r6 {
+  border-color: #ff2a2a;
+  background: radial-gradient(circle at 50% 60%, rgba(140, 0, 0, 0.55), rgba(20, 4, 6, 0.9));
+  box-shadow: inset 0 0 18px rgba(255, 30, 30, 0.6), 0 0 10px rgba(255, 40, 20, 0.7);
+  animation: primal 1.4s ease-in-out infinite;
+}
+@keyframes primal {
+  50% {
+    box-shadow: inset 0 0 24px rgba(255, 60, 30, 0.8), 0 0 16px rgba(255, 60, 20, 0.95);
+  }
 }
 /* pieces of item sets */
 .slot.set,
@@ -1224,7 +1236,7 @@ img.px {
 }
 @keyframes mythic {
   50% {
-    box-shadow: inset 0 0 20px rgba(255, 60, 100, 0.6), 0 0 14px rgba(255, 60, 100, 0.7);
+    box-shadow: inset 0 0 20px rgba(255, 80, 180, 0.6), 0 0 14px rgba(255, 80, 180, 0.7);
   }
 }
 
@@ -3361,4 +3373,49 @@ textarea.code {
 }
 .lrrow .btn:not(.green):not(.gold):not(.purple) {
   opacity: 0.5;
+}
+
+/* the alchemist's cauldron */
+.kettle {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50% 50% 14px 14px / 30% 30% 14px 14px;
+  background: radial-gradient(ellipse at 50% 20%, rgba(93, 255, 154, 0.25), rgba(10, 20, 16, 0.9) 70%);
+  border: 2px solid #2a4a3a;
+}
+.kettle .slot {
+  width: 48px;
+  height: 48px;
+}
+.kettle.full {
+  border-color: #5dff9a;
+  box-shadow: 0 0 12px rgba(93, 255, 154, 0.5);
+}
+.kettle.brewing {
+  animation: brew 0.85s ease-in-out;
+}
+@keyframes brew {
+  0%,
+  100% {
+    transform: none;
+  }
+  20% {
+    transform: rotate(-3deg) scale(1.03);
+    box-shadow: 0 0 22px rgba(93, 255, 154, 0.9);
+  }
+  45% {
+    transform: rotate(3deg) scale(1.05);
+  }
+  70% {
+    transform: rotate(-2deg) scale(1.02);
+    box-shadow: 0 0 30px rgba(180, 255, 210, 1);
+  }
+}
+.odds {
+  margin-top: 6px;
+}
+.slot.tinv.dim {
+  opacity: 0.35;
 }

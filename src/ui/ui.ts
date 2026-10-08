@@ -650,6 +650,11 @@ class UIManager {
         ctx.beginPath();
         ctx.arc(mx, my, 2.5, 0, Math.PI * 2);
         ctx.fill();
+      } else if (it.kind === 'alchemist') {
+        ctx.fillStyle = '#7dffcf';
+        ctx.beginPath();
+        ctx.arc(mx, my, 3, 0, Math.PI * 2);
+        ctx.fill();
       } else if (it.kind === 'cursed') {
         ctx.fillStyle = '#7dff9a';
         ctx.fillRect(mx - 2, my - 2, 4, 4);
@@ -690,7 +695,7 @@ class UIManager {
     const sc = this.scene;
     if (!sc || this.panel) return;
     const m = sc.map;
-    const p = el(`<div class="panel" style="width:min(96vw,1000px)"><div class="head"><h2>Mapa – patro ${sc.floor}</h2><span class="hint"><b style="color:#fff">●</b> ty &nbsp; <b style="color:#ffd23a">■</b> schody &nbsp; <b style="color:#c77dff">●</b> obchodník &nbsp; <b style="color:#e9b949">■</b> truhla &nbsp; <b style="color:#7cc8ff">■</b> svatyně / fontána / kovadlina &nbsp; <b style="color:#ff9ab0">●</b> klec &nbsp; <b style="color:#7dff9a">■</b> prokletá truhla &nbsp; <b style="color:#ff3030">●</b> strážce${sc.nemesis?.spotted && !sc.nemesis.dead ? ' &nbsp; <b style="color:#ff5a8a">●</b> nemesis' : ''}</span><button class="close">✕</button></div>
+    const p = el(`<div class="panel" style="width:min(96vw,1000px)"><div class="head"><h2>Mapa – patro ${sc.floor}</h2><span class="hint"><b style="color:#fff">●</b> ty &nbsp; <b style="color:#ffd23a">■</b> schody &nbsp; <b style="color:#c77dff">●</b> obchodník &nbsp; <b style="color:#e9b949">■</b> truhla &nbsp; <b style="color:#7cc8ff">■</b> svatyně / fontána / kovadlina &nbsp; <b style="color:#ff9ab0">●</b> klec &nbsp; <b style="color:#7dff9a">■</b> prokletá truhla &nbsp; <b style="color:#7dffcf">●</b> alchymista &nbsp; <b style="color:#ff3030">●</b> strážce${sc.nemesis?.spotted && !sc.nemesis.dead ? ' &nbsp; <b style="color:#ff5a8a">●</b> nemesis' : ''}</span><button class="close">✕</button></div>
       <div class="body" style="align-items:center;justify-content:center"><canvas></canvas></div></div>`);
     this.showOverlay(p, () => {});
     $('.close', p).addEventListener('click', () => this.closeOverlay());
@@ -732,6 +737,7 @@ class UIManager {
       else if (['shrine', 'fountain', 'anvil'].includes(it.kind)) dot(it.x, it.y, '#7cc8ff', Math.max(2, cell * 0.6), true);
       else if (it.kind === 'cage') dot(it.x, it.y, '#ff9ab0', Math.max(3, cell * 0.8));
       else if (it.kind === 'cursed') dot(it.x, it.y, '#7dff9a', Math.max(3, cell * 0.8), true);
+      else if (it.kind === 'alchemist') dot(it.x, it.y, '#7dffcf', Math.max(3, cell));
     }
     if (sc.boss && !sc.boss.dead && m.explored[m.idx(Math.floor(sc.boss.x / TS), Math.floor(sc.boss.y / TS))]) dot(sc.boss.x, sc.boss.y, '#ff3030', Math.max(4, cell * 1.2));
     const nem = sc.nemesis;

@@ -154,7 +154,7 @@ export function maxSockets(cat: ItemCategory) {
 
 /** sockets a newly found item comes with (better items have them more often, and more of them) */
 export function rollSockets(cat: ItemCategory, rarity: number, rnd: () => number): (string | null)[] | undefined {
-  const chance = [0.08, 0.16, 0.26, 0.38, 0.55, 0.7][rarity] ?? 0;
+  const chance = [0.08, 0.16, 0.26, 0.38, 0.55, 0.7, 0.9][rarity] ?? 0;
   if (rnd() >= chance) return undefined;
   let n = 1;
   if (rarity >= 2 && rnd() < 0.4) n++;

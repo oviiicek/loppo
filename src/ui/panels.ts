@@ -27,6 +27,7 @@ import {
   rerollCost,
   rerollOptions,
   upgradeAffixMult,
+  PRIMAL,
 } from '../data/items';
 import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR } from '../data/sets';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
@@ -38,6 +39,7 @@ import { PETS, PET_BY_ID, PetId, petLevel, petFloorsToNext, petBonusText, petTit
 import { difficultyOf } from '../data/difficulty';
 import { MERCS, MERC_BY_ROLE, MERC_SLOTS, MERC_ORDERS, MercSlot, MercRole, MercOrder, mercFits, mercSlotFor, mercPrice, mercLook, mercStats } from '../data/mercs';
 import type { RivalMood } from '../data/rivals';
+import { TRANSMUTE_N, transmuteOdds, transmuteCost, transmute } from '../data/transmute';
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx, settings, saveSettings, LootRule } from '../systems/audio';
@@ -1028,6 +1030,114 @@ export class Panels {
           redraw();
         }),
       );
+    });
+    if (!host) this.ui.showOverlay(p, () => {});
+  }
+
+  // ------------------------------------------------------------------ ALCHEMIST
+  /** bag indices put into the cauldron */
+  brew: number[] = [];
+
+  transmute(host?: HTMLElement) {
+    const p = host ?? this.frame('Alchymista – transmutace');
+    const body = $('.body', p);
+    const s = this.save;
+    const f = this.sc.floor;
+    // forget what left the bag meanwhile
+    this.brew = this.brew.filter((i) => s.inventory[i] && !s.inventory[i]!.locked);
+    const items = this.brew.map((i) => s.inventory[i]!);
+    const r = items[0]?.rarity ?? -1;
+    const full = items.length === TRANSMUTE_N;
+    const cost = r >= 0 ? transmuteCost(r, f) : 0;
+    const odds = r >= 0 ? transmuteOdds(r).outcomes : [];
+    const pct = (x: number) => (x >= 0.01 ? Math.round(x * 100) + ' %' : (x * 100).toLocaleString('cs-CZ', { maximumFractionDigits: 2 }) + ' %');
+    body.innerHTML = `
+      <div class="col detail box scroll" style="width:min(320px,40%)">
+        <p class="hint" style="margin:0 0 6px">Vlož do kotle ${TRANSMUTE_N} předmětů stejné vzácnosti. Spojí se v jeden – obvykle o stupeň lepší, někdy o dva, a s trochou štěstí i <b style="color:${RARITIES[PRIMAL].color}">${RARITIES[PRIMAL].name.toLowerCase()}</b>. Výsledek má druh jednoho z vložených předmětů.</p>
+        <div class="kettle ${full ? 'full' : ''}">${Array.from({ length: TRANSMUTE_N }, (_, i) => this.slotHtml(items[i], `kslot" data-k="${i}`)).join('')}</div>
+        ${
+          r >= 0
+            ? `<div class="odds">${odds
+                .filter(([, x]) => x > 0)
+                .map(([rr, x]) => `<div class="statline"><span style="color:${RARITIES[rr].color}">${rr === r ? `${RARITIES[rr].name} (nezdar)` : RARITIES[rr].name}</span><b>${pct(x)}</b></div>`)
+                .join('')}</div>`
+            : '<div class="hint">Kotel je prázdný.</div>'
+        }
+        <button class="btn green" data-a="brew" ${full && s.gold >= cost ? '' : 'disabled'} style="margin-top:8px">Spojit${full ? ` · ${cost.toLocaleString('cs-CZ')} zl.` : ` (${items.length}/${TRANSMUTE_N})`}</button>
+        ${items.length ? '<button class="btn small" data-a="empty" style="margin-top:4px">Vyprázdnit kotel</button>' : ''}
+      </div>
+      <div class="col" style="flex:1;min-width:0">
+        <div class="hint">Klepni na předmět v batohu (zamčené a ${RARITIES[PRIMAL].name.toLowerCase()} spojit nejde).</div>
+        <div class="scroll" style="flex:1"><div class="grid">${s.inventory
+          .map((it, i) => {
+            const usable = it && !it.locked && it.rarity < PRIMAL && (r < 0 || it.rarity === r) && !this.brew.includes(i);
+            return this.slotHtml(it, `tinv ${this.brew.includes(i) ? 'sel' : usable ? '' : it ? 'dim' : ''}" data-idx="${i}`);
+          })
+          .join('')}</div></div>
+        <div class="hint">Máš ${s.gold.toLocaleString('cs-CZ')} zlata. Volno v batohu: ${freeSlots(s)}.</div>
+      </div>`;
+    const redraw = () => this.transmute(p);
+    body.querySelectorAll<HTMLElement>('.tinv').forEach((c) =>
+      c.addEventListener('click', () => {
+        const i = +c.dataset.idx!;
+        const it = s.inventory[i];
+        if (!it) return;
+        if (this.brew.includes(i)) this.brew = this.brew.filter((x) => x !== i);
+        else {
+          if (it.locked) return void this.ui.toast('Zamčený předmět nejde spojit', '#ff8a7a');
+          if (it.rarity >= PRIMAL) return void this.ui.toast(`${RARITIES[PRIMAL].name} předmět už výš nejde`, '#ff8a7a');
+          if (r >= 0 && it.rarity !== r) return void this.ui.toast(`Do kotle patří jen ${RARITIES[r].name.toLowerCase()} předměty`, '#ff8a7a');
+          if (this.brew.length >= TRANSMUTE_N) return void this.ui.toast('Kotel je plný', '#ff8a7a');
+          this.brew.push(i);
+        }
+        sfx('ui');
+        redraw();
+      }),
+    );
+    body.querySelectorAll<HTMLElement>('.kslot').forEach((c) =>
+      c.addEventListener('click', () => {
+        const k = +c.dataset.k!;
+        if (this.brew[k] === undefined) return;
+        this.brew.splice(k, 1);
+        sfx('ui');
+        redraw();
+      }),
+    );
+    body.querySelector('[data-a=empty]')?.addEventListener('click', () => {
+      this.brew = [];
+      sfx('ui');
+      redraw();
+    });
+    body.querySelector('[data-a=brew]')?.addEventListener('click', () => {
+      if (!full || s.gold < cost) return;
+      const used = this.brew.map((i) => s.inventory[i]!);
+      s.gold -= cost;
+      for (const i of this.brew) {
+        if (returnGems(s, s.inventory[i]!)) this.ui.toast('Drahokamy se vrátily do váčku', '#d08aff');
+        s.inventory[i] = null;
+      }
+      this.brew = [];
+      const res = transmute(used, f);
+      const at = s.inventory.findIndex((x) => !x);
+      s.inventory[at] = res;
+      bumpStat(s, 'transmutes');
+      maxStat(s, 'bestRarity', res.rarity);
+      saveGame(s);
+      bus.emit('stats');
+      // the brew bubbles, then shows what came out
+      const kettle = $('.kettle', body);
+      kettle.classList.add('brewing');
+      sfx('magic');
+      setTimeout(() => {
+        const up = res.rarity - used[0].rarity;
+        sfx(res.rarity >= PRIMAL ? 'boss' : up > 0 ? 'levelup' : 'ui');
+        const d = el(`<div class="panel small brewres"><div class="head"><h2>${up >= 2 ? 'Mistrovské dílo!' : up === 1 ? 'Povedlo se!' : 'Nezdar…'}</h2></div><div style="padding:10px 14px">${this.itemDetailHtml(res)}<div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn green" data-a="ok">Vzít</button></div></div></div>`);
+        const close = this.ui.dialog(d);
+        $('[data-a=ok]', d).addEventListener('click', () => {
+          close();
+          redraw();
+        });
+      }, 850);
     });
     if (!host) this.ui.showOverlay(p, () => {});
   }

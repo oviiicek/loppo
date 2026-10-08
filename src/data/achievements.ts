@@ -37,6 +37,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'upgrade10', name: 'Mistr kovář', desc: 'Vylepši předmět na +10', reward: { gold: 10000, attr: 2 }, check: (s) => (st(s).maxUpgrade ?? 0) >= 10 },
   { id: 'legend', name: 'Legenda', desc: 'Najdi legendární předmět', reward: { gold: 500 }, check: (s) => (st(s).bestRarity ?? 0) >= 4 },
   { id: 'mythic', name: 'Mýtus', desc: 'Najdi mýtický předmět', reward: { gold: 3000, dust: 3 }, check: (s) => (st(s).bestRarity ?? 0) >= 5 },
+  { id: 'primal', name: 'Pradávná síla', desc: 'Získej pradávný předmět', reward: { gold: 50000, attr: 5 }, check: (s) => (st(s).bestRarity ?? 0) >= 6 },
+  { id: 'trans1', name: 'Alchymie', desc: 'Spoj u alchymisty pět předmětů v jeden', reward: { gold: 800, dust: 2 }, check: (s) => (st(s).transmutes ?? 0) >= 1 },
   { id: 'rich', name: 'Boháč', desc: 'Měj u sebe 10 000 zlata', reward: { dust: 3 }, check: (s) => s.gold >= 10000 },
   { id: 'classchange', name: 'Nová cesta', desc: 'Změň classu u obchodníka', reward: { gold: 500 }, check: (s) => s.classChanges >= 1 },
   // the story

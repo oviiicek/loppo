@@ -21,8 +21,13 @@ export const RARITIES: Rarity[] = [
   { name: 'Vzácný', color: '#58a6ff', affixes: [2, 3], specials: 0, mult: 1.22, value: 45 },
   { name: 'Epický', color: '#bc6ff1', affixes: [3, 4], specials: 0, mult: 1.36, value: 110 },
   { name: 'Legendární', color: '#ff9f1c', affixes: [4, 5], specials: 1, mult: 1.52, value: 260 },
-  { name: 'Mýtický', color: '#ff3860', affixes: [5, 6], specials: 2, mult: 1.75, value: 600 },
+  { name: 'Mýtický', color: '#ff4fb4', affixes: [5, 6], specials: 2, mult: 1.75, value: 600 },
+  // the rarest of all: a blood-red relic of the world before the dungeon
+  { name: 'Pradávný', color: '#ff2a2a', affixes: [6, 7], specials: 3, mult: 2.0, value: 1500 },
 ];
+
+/** the top rarity (only from great luck or transmutation) */
+export const PRIMAL = RARITIES.length - 1;
 
 // ---------------------------------------------------------------------------
 // Base item types
@@ -268,7 +273,7 @@ export function affixValue(def: { key?: StatKey; base: number; perLevel: number;
 export function rollRarity(r: RNG, magicFind = 0, bonus = 0): number {
   // bonus shifts the distribution up (bosses, gold chests ...)
   const mf = 1 + magicFind / 100;
-  const weights = [60, 26 * mf, 10 * mf, 3.2 * mf, 0.7 * mf, 0.12 * mf];
+  const weights = [60, 26 * mf, 10 * mf, 3.2 * mf, 0.7 * mf, 0.12 * mf, 0.01 * mf];
   for (let b = 0; b < bonus; b++) {
     weights.shift();
     weights.push(weights[weights.length - 1] * 0.25);
@@ -277,9 +282,9 @@ export function rollRarity(r: RNG, magicFind = 0, bonus = 0): number {
   let x = r.next() * total;
   for (let i = 0; i < weights.length; i++) {
     x -= weights[i];
-    if (x <= 0) return Math.min(5, i + bonus);
+    if (x <= 0) return Math.min(PRIMAL, i + bonus);
   }
-  return Math.min(5, bonus);
+  return Math.min(PRIMAL, bonus);
 }
 
 export function pickBase(r: RNG, filter?: (b: BaseType) => boolean): BaseType {

@@ -45,7 +45,7 @@ export interface SaveData {
   playTime: number;
   stash?: (Item | null)[];
   slot?: number;
-  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number; rivals?: number };
+  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number; rivals?: number; transmutes?: number };
   achievements?: string[];
   story?: StoryState;
   /** combat difficulty (index into DIFFICULTIES, normal when missing) */

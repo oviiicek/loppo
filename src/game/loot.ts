@@ -3,7 +3,7 @@ import type { GameScene } from '../scenes/GameScene';
 import { Enemy } from './entities';
 import { D } from './fx';
 import { Item, Slot } from '../data/types';
-import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded, itemValue } from '../data/items';
+import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded, itemValue, PRIMAL } from '../data/items';
 import { SET_MIN_FLOOR } from '../data/sets';
 import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData, addGem } from '../systems/state';
 import { gemIcon, gemName, parseGem, randomGem } from '../data/gems';
@@ -218,6 +218,15 @@ export class Loot {
     if (it.rarity >= 1) {
       g.beam = sc.add.image(tx, ty + 2, 'beam').setOrigin(0.5, 1).setTint(Phaser.Display.Color.HexStringToColor(col).color).setAlpha(it.rarity >= 3 ? 0.7 : 0.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow).setScale(it.rarity >= 4 ? 1.2 : 0.8, it.rarity >= 3 ? 1 : 0.6);
       sc.tweens.add({ targets: g.beam, alpha: g.beam.alpha * 0.5, yoyo: true, repeat: -1, duration: 700 });
+      if (it.rarity >= PRIMAL) {
+        // a primal relic: a pillar of red light, a tremor and a word on screen
+        g.beam.setScale(1.9, 1.6).setAlpha(0.95);
+        sc.fx.shake(0.006, 400);
+        sc.fx.ring(tx, ty - 4, 54, 0xff2a2a, 800);
+        sc.fx.burst(tx, ty - 6, 0xff3a20, 24);
+        sfx('levelup');
+        sc.ui.toast('☄ Pradávný předmět!', '#ff2a2a');
+      } else if (it.rarity >= 5) sc.fx.ring(tx, ty - 4, 30, 0xff4fb4, 500);
     }
     sc.time.delayedCall(400, () => {
       if (g.dead) return;

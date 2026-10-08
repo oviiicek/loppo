@@ -1495,6 +1495,27 @@ function buildEnemies() {
   humanoidStrip('en_lich', 'lich', 'robe', { a: '#e9b949', i: '#c77dff', s: '#e8e2cf', e: '#c77dff', c: '#3a1f5a', v: '#24123a', w: '#55307f', u: '#3a1f5a', l: '#e9b949', b: '#120a18', g: '#e8e2cf', d: '#b9b29c' });
   humanoidStrip('en_demon', 'demon', 'armor', { y: '#2a1a1a', s: '#b8281c', j: '#7a1810', d: '#7a1810', e: '#ffde3b', u: '#2a1a1a', c: '#3a2020', v: '#221010', w: '#5a3030', a: '#ff7a2a', l: '#111', p: '#3a2020', q: '#221010', b: '#111', g: '#b8281c' });
   humanoidStrip('npc_merchant', 'merchant', 'robe', { h: '#6a2c8a', a: '#e9b949', s: '#f1c39b', d: '#c98f6b', e: '#1b1b2a', y: '#d8d8e0', c: '#6a2c8a', v: '#4a1c62', w: '#8a44aa', u: '#6a2c8a', l: '#e9b949', b: '#3b2716', g: '#f1c39b' });
+  humanoidStrip('npc_alchemist', 'merchant', 'robe', { h: '#1f6a5a', a: '#7dffcf', s: '#f1c39b', d: '#c98f6b', e: '#1b1b2a', y: '#eceaf4', c: '#1f5a5a', v: '#123c3c', w: '#2f7a7a', u: '#1f5a5a', l: '#7dffcf', b: '#2a1e14', g: '#f1c39b' });
+  // the alchemist's cauldron: black iron, green brew
+  {
+    const [c, ctx] = canvas(16, 14);
+    ctx.fillStyle = '#1a1a20';
+    ctx.beginPath();
+    ctx.ellipse(8, 8, 7, 5.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(3, 12, 2, 2);
+    ctx.fillRect(11, 12, 2, 2);
+    ctx.fillStyle = '#3a3a46';
+    ctx.fillRect(1, 4, 14, 2);
+    ctx.fillStyle = '#5dff9a';
+    ctx.fillRect(3, 3, 10, 2);
+    ctx.fillStyle = '#b8ffd4';
+    ctx.fillRect(5, 2, 2, 1);
+    ctx.fillRect(10, 3, 1, 1);
+    ctx.fillStyle = '#2a2a34';
+    ctx.fillRect(4, 9, 3, 1);
+    addCanvas('cauldron', c);
+  }
   humanoidStrip('al_treant', 'antlers', 'robe', { h: '#4f7f3a', j: '#365a27', i: '#6fa356', y: '#6b4423', s: '#8b5a2b', d: '#6b4423', e: '#ffde3b', c: '#7a4a22', v: '#5a3416', w: '#8b5a2b', u: '#4f7f3a', a: '#4f7f3a', l: '#4f7f3a', b: '#3b2716', g: '#8b5a2b' });
   humanoidStrip('al_fireElemental', 'demon', 'robe', { y: '#ffde3b', s: '#ff7a2a', j: '#d63a1a', d: '#d63a1a', e: '#fff7b0', u: '#ff9a3a', c: '#ff7a2a', v: '#d63a1a', w: '#ffb84a', a: '#ffde3b', l: '#ffde3b', b: '#d63a1a', g: '#ff7a2a' });
 
