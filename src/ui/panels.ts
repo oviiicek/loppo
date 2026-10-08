@@ -41,6 +41,8 @@ import { MERCS, MERC_BY_ROLE, MERC_SLOTS, MERC_ORDERS, MercSlot, MercRole, MercO
 import type { RivalMood } from '../data/rivals';
 import { TRANSMUTE_N, transmuteOdds, transmuteCost, transmute } from '../data/transmute';
 import { CURSE_BY_ID, curseStats } from '../data/curses';
+import { POWER_BY_ID, UNIQUE_BY_ID, UNIQUES } from '../data/uniques';
+import { discoverItem } from '../data/codex';
 import { RUNES, RUNE_TIERS, RUNE_MAX_TIER, parseRune, runeName, runeIcon, runeDesc, runeKey, runeSlots, runeSlotCount, runeCombineCost, RuneType } from '../data/runes';
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
@@ -147,6 +149,8 @@ export class Panels {
   itemStatsHtml(it: Item, socketLines = true) {
     const base = BASE_BY_ID[it.base];
     let h = '';
+    const uq = it.unique ? UNIQUE_BY_ID[it.unique] : null;
+    if (uq) h += `<div class="lore">„${esc(uq.lore)}“</div>`;
     if (it.dmgMin !== undefined) {
       const [a, b] = weaponDamage(it);
       const kind = base.attack === 'melee' ? 'na blízko' : base.attack === 'ranged' ? 'na dálku' : 'magická';
@@ -160,7 +164,7 @@ export class Panels {
     const am = 1 + 0.04 * it.upgrade;
     for (const a of it.affixes) h += `<div class="aff">${formatStat(a.key, scaledAffix(a.key, a.value, am))}</div>`;
     if (it.enchant) h += `<div class="ench">✧ Očarování: ${formatStat(it.enchant.key, scaledAffix(it.enchant.key, it.enchant.value, am))}</div>`;
-    for (const sp of it.specials) h += `<div class="spec">★ ${esc(SPECIAL_BY_ID[sp]?.desc ?? sp)}</div>`;
+    for (const sp of it.specials) h += POWER_BY_ID[sp] ? `<div class="power">✦ ${esc(POWER_BY_ID[sp].desc)}</div>` : `<div class="spec">★ ${esc(SPECIAL_BY_ID[sp]?.desc ?? sp)}</div>`;
     if (socketLines && it.sockets?.length) {
       const place = gemPlace(base.cat);
       for (const g of it.sockets) {
@@ -1272,6 +1276,8 @@ export class Panels {
       const res = transmute(used, f);
       const at = s.inventory.findIndex((x) => !x);
       s.inventory[at] = res;
+      const news = discoverItem(s, res);
+      if (news) bus.emit('codex', news);
       bumpStat(s, 'transmutes');
       maxStat(s, 'bestRarity', res.rarity);
       saveGame(s);

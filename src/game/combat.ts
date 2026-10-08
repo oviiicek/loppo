@@ -81,6 +81,10 @@ export class Combat {
       e.st.burnT = 3;
       e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.2);
     }
+    if (s.has('markOfDeath')) {
+      e.st.vulnT = 4;
+      e.st.vuln = Math.max(e.st.vuln, 0.25);
+    }
     // runes in the weapons
     for (const w of [p.save.equip.main, p.save.equip.off]) {
       if (!w?.runes) continue;
@@ -102,6 +106,11 @@ export class Combat {
       if (b.mods.onHitChain && Math.random() < 0.6) sc.spells.chain(e.x, e.y, 3, dmg * 0.5, 'lightning', new Set([e.id]));
     }
   }
+
+  /** a meteor's own explosion does not call more meteors */
+  private inMeteor = false;
+  /** seconds until thunderClap can sound again */
+  clapT = 0;
 
   /** a rune in the weapon took effect */
   runeProc(e: Enemy, type: RuneType, tier: number, dmg: number) {
@@ -160,6 +169,23 @@ export class Combat {
       if (crit) dmg *= p.d.critDmg / 100;
     }
     if (o.execute && e.hp < e.maxHp * 0.35) dmg *= 2;
+    // unique powers on the hero's own blows and spells
+    if (!o.fromAlly && !o.dot) {
+      const sp = p.d.specials;
+      if (sp.has('executioner') && e.hp < e.maxHp * 0.25) dmg *= e.boss ? 1.5 : 3;
+      if (sp.has('giantSlayer') && (e.elite || e.boss)) dmg *= 1.5;
+      if (crit && sp.has('lifeTap')) p.heal(p.d.maxHp * 0.05, false);
+      if (crit && sp.has('meteorCrit') && !this.inMeteor && Math.random() < 0.2) {
+        const x = e.x,
+          y = e.y;
+        sc.spells.fallingMeteor(x, y, 380);
+        sc.time.delayedCall(380, () => {
+          this.inMeteor = true;
+          sc.spells.explosion(x, y, 30, Math.max(p.weaponHit(), p.spellBase()) * 1.6, 'fire', {});
+          this.inMeteor = false;
+        });
+      }
+    }
     if (e.st.vulnT > 0) dmg *= 1 + e.st.vuln;
     // armour only vs physical
     if (el === 'phys') dmg *= 1 - e.armor / (e.armor + 120);
@@ -260,6 +286,19 @@ export class Combat {
     if (s.has('explodeOnKill')) sc.spells.explosion(e.x, e.y, 36, p.weaponHit() * 0.6, 'fire', {});
     if (s.has('healOnKill')) p.heal(p.d.maxHp * 0.04);
     if (s.has('cdrOnKill')) p.cds = p.cds.map((c) => Math.max(0, c - 0.5));
+    // unique powers
+    if (s.has('soulRise') && !e.boss && !e.isMinion && Math.random() < 0.25) {
+      const a = sc.addAlly('shadow', e.x, e.y, p.d.maxHp * 0.25, p.weaponHit() * 0.5, 15);
+      a.sprite.setTint(0x9a8ac8);
+      sc.fx.burst(e.x, e.y - 6, 0x9a8ac8, 12, 'puff');
+    }
+    if (s.has('bloodShield') && p.shield < p.d.maxHp * 0.3) p.addShield(Math.min(p.d.maxHp * 0.05, p.d.maxHp * 0.3 - p.shield), 12);
+    if (s.has('bloodlust')) {
+      p.lustN = p.lustT > 0 ? Math.min(10, p.lustN + 1) : 1;
+      p.lustT = 6;
+      p.buffs = p.buffs.filter((b) => b.id !== 'bloodlust');
+      p.addBuff('bloodlust', `Krvežíznivost ×${p.lustN}`, { atkSpdPct: 6 * p.lustN }, 6, 0xff3a4a);
+    }
     if (e.eliteAffix === 'výbušný') {
       sc.fx.telegraph(e.x, e.y, 34, 500);
       sc.time.delayedCall(500, () => {
@@ -293,6 +332,15 @@ export class Combat {
   /** the monster behind such a hit (its arrow, its burning trail), when there is one */
   causeFoe: Enemy | null = null;
 
+  /** thunderClap: a dodge or a block answers with a wave of thunder */
+  thunderClap() {
+    const sc = this.scene;
+    const p = sc.player;
+    if (!p.d.specials.has('thunderClap') || this.clapT > sc.time.now) return;
+    this.clapT = sc.time.now + 1500;
+    sc.spells.nova(p.x, p.y, 50, p.weaponHit(), 'lightning', { stun: 0.5 });
+  }
+
   damagePlayer(amount: number, src: Actor | null, el: Element = 'phys', isDot = false) {
     const sc = this.scene;
     const p = sc.player;
@@ -309,12 +357,14 @@ export class Combat {
     if (!isDot) {
       if (Math.random() * 100 < d.dodge) {
         sc.fx.number(p.x, p.y - 18, 'úhyb', '#9fe6ff');
+        this.thunderClap();
         return;
       }
       if (d.block > 0 && Math.random() * 100 < d.block) {
         sc.fx.number(p.x, p.y - 18, 'blok', '#c8d0d8');
         sc.fx.burst(p.x - 5 * p.facing, p.y - 6, 0xc8d0d8, 5);
         amount *= 0.25;
+        this.thunderClap();
       }
     }
     let dmg = amount;
@@ -323,6 +373,9 @@ export class Combat {
     else if (!isDot) dmg *= 1 - Math.min(0.5, d.armor / (d.armor + 200 + 25 * floor));
     // a curse of glass: every blow hurts more
     if (d.specials.has('fragile')) dmg *= 1.25;
+    // stone skin: standing still
+    if (d.specials.has('stoneSkin') && Math.hypot(sc.moveVec[0], sc.moveVec[1]) < 0.1) dmg *= 0.7;
+    if (!isDot && d.specials.has('frostArmor') && Math.random() < 0.15) sc.spells.nova(p.x, p.y, 55, p.weaponHit() * 0.8, 'ice', { freeze: 1.2 });
     // thorns
     if (src && src instanceof Enemy && !isDot) {
       const thornsPct = p.buffs.reduce((a, b) => a + (b.mods.thornsPct ?? 0), 0);
@@ -361,6 +414,36 @@ export class Combat {
       foe: foe ?? causeFoe,
     };
     p.hp -= dmg;
+    // powers that keep the hero alive
+    if (p.hp <= 0 && d.specials.has('cheatDeath') && p.cheatT <= 0) {
+      p.hp = d.maxHp * 0.3;
+      p.cheatT = 60;
+      p.invulnT = Math.max(p.invulnT, 1.5);
+      sc.fx.ring(p.x, p.y - 6, 40, 0xfff2a8, 600);
+      sc.fx.burst(p.x, p.y - 8, 0xfff2a8, 20);
+      sfx('levelup');
+      sc.ui.toast('✦ Smrt tě tentokrát minula', '#fff2a8');
+    }
+    if (p.hp <= 0 && d.specials.has('phoenix') && !sc.phoenixUsed) {
+      sc.phoenixUsed = true;
+      p.hp = d.maxHp * 0.5;
+      p.invulnT = Math.max(p.invulnT, 2);
+      sc.spells.nova(p.x, p.y, 80, Math.max(p.weaponHit(), p.spellBase()) * 3, 'fire', { knock: 40 });
+      sc.fx.shake(0.01, 400);
+      sfx('explosion');
+      sc.ui.toast('✦ Vstáváš z popela!', '#ff9a3a');
+    }
+    if (p.hp > 0 && p.hp < d.maxHp * 0.3 && d.specials.has('secondWind') && p.windT <= 0) {
+      p.windT = 30;
+      p.heal(d.maxHp * 0.35);
+      sc.fx.ring(p.x, p.y - 6, 30, 0x6dff7a, 500);
+    }
+    if (p.hp > 0 && p.hp < d.maxHp * 0.5 && d.specials.has('berserkRoar') && p.roarT <= 0) {
+      p.roarT = 20;
+      p.addBuff('roar', 'Řev zuřivosti', { dmgPct: 40 }, 5, 0xff5a3a);
+      sc.fx.ring(p.x, p.y - 6, 50, 0xff5a3a, 500);
+      sfx('shout');
+    }
     if (!isDot) {
       sfx('hurt');
       vibrate(20);

@@ -94,6 +94,21 @@ export class Player extends Actor {
   novaPulseT = 0;
   orbitAngle = 0;
   orbitFx: Phaser.GameObjects.Image[] = [];
+  // unique powers: stacks and timers
+  lustN = 0;
+  lustT = 0;
+  cheatT = 0;
+  windT = 0;
+  roarT = 0;
+  private atkCount = 0;
+  private stormT = 1;
+  private wolvesT = 3;
+  private starT = 4;
+  private frostT = 0.5;
+  private trailT = 0.3;
+  private bladeA = 0;
+  private bladeTick = 0;
+  bladeFx: Phaser.GameObjects.Image[] = [];
   orbitTick = 0;
   vampTick = 0;
   hurtT = 0;
@@ -260,8 +275,13 @@ export class Player extends Actor {
     this.hp = Math.min(this.d.maxHp, this.hp + (natural + (this.d.maxHp * regenPct) / 100) * dt);
     this.mp = Math.min(this.d.maxMp, this.mp + this.d.mpRegen * dt);
 
-    // cooldowns
-    const cdRate = 1 + this.buffs.reduce((a, b) => a + (b.mods.cdrRate ?? 0), 0);
+    // timers of the unique powers
+    if (this.lustT > 0) this.lustT -= dt;
+    if (this.cheatT > 0) this.cheatT -= dt;
+    if (this.windT > 0) this.windT -= dt;
+    if (this.roarT > 0) this.roarT -= dt;
+    // cooldowns (timeWarp: they run faster)
+    const cdRate = 1 + this.buffs.reduce((a, b) => a + (b.mods.cdrRate ?? 0), 0) + (this.d.specials.has('timeWarp') ? 0.25 : 0);
     for (let i = 0; i < this.cds.length; i++) if (this.cds[i] > 0) this.cds[i] = Math.max(0, this.cds[i] - dt * cdRate);
 
     // movement
@@ -394,6 +414,7 @@ export class Player extends Actor {
 
   specialsTick(dt: number) {
     const sc = this.scene;
+    this.powersTick(dt);
     // nova pulse buff (Avatar války)
     // (and the storm shrine: a lightning pulse)
     const pulse = this.buffs.find((b) => b.mods.novaPulse) ?? sc.shrineBuffs.find((b) => b.mods.novaPulse);
@@ -433,6 +454,85 @@ export class Player extends Actor {
   // average weapon hit (used for weapon-scaled spells)
   weaponHit() {
     return (this.d.dmgMin + this.d.dmgMax) / 2;
+  }
+
+  /** the stronger of the hero's blows and spells (for powers that do not care which) */
+  powerHit() {
+    return Math.max(this.weaponHit(), this.spellBase());
+  }
+
+  /** the periodic unique powers: lightning, wolves, falling stars, frost, a burning trail, orbiting blades */
+  private powersTick(dt: number) {
+    const sc = this.scene;
+    const s = this.d.specials;
+    if (s.has('stormAura')) {
+      this.stormT -= dt;
+      if (this.stormT <= 0) {
+        this.stormT = 1;
+        const e = sc.nearestEnemy(this.x, this.y, 100, true);
+        if (e) sc.spells.chain(this.x, this.y - 8, 1, this.powerHit() * 0.5, 'lightning', new Set(), e);
+      }
+    }
+    if (s.has('spiritWolves')) {
+      this.wolvesT -= dt;
+      if (this.wolvesT <= 0 && sc.nearestEnemy(this.x, this.y, 150, true)) {
+        this.wolvesT = 15;
+        for (let i = 0; i < 2; i++) {
+          const spot = sc.map.randomFloorNear(this.x, this.y, 20) ?? [this.x, this.y];
+          sc.addAlly('spiritWolf', spot[0], spot[1], this.d.maxHp * 0.3, this.weaponHit() * 0.5, 10);
+        }
+        sfx('summon');
+      }
+    }
+    if (s.has('starfall')) {
+      this.starT -= dt;
+      if (this.starT <= 0) {
+        const near = sc.enemiesNear(this.x, this.y, 130).filter((e) => !e.dead).slice(0, 4);
+        if (near.length) {
+          this.starT = 8;
+          near.forEach((e, i) => {
+            const x = e.x,
+              y = e.y;
+            sc.time.delayedCall(150 * i, () => {
+              sc.fx.beam(x + 20, y - 120, x, y - 4, 0xfff2a8, 3, 200);
+              sc.spells.explosion(x, y, 22, this.powerHit() * 1.2, 'holy', {});
+            });
+          });
+        } else this.starT = 1;
+      }
+    }
+    if (s.has('frostAura')) {
+      this.frostT -= dt;
+      if (this.frostT <= 0) {
+        this.frostT = 0.5;
+        for (const e of sc.enemiesNear(this.x, this.y, 40)) {
+          e.st.slowT = Math.max(e.st.slowT, 1);
+          e.st.slowMult = e.boss ? 0.75 : 0.5;
+          sc.combat.damageEnemy(e, this.powerHit() * 0.12, { el: 'ice', silent: true, noCrit: true });
+        }
+      }
+    }
+    if (s.has('fireTrail') && this.moving) {
+      this.trailT -= dt;
+      if (this.trailT <= 0) {
+        this.trailT = 0.35;
+        sc.spells.addField(this.x, this.y + 2, 14, this.powerHit() * 0.6, 'fire', 2.2, false, { t: 'field' } as any);
+      }
+    }
+    // three ghostly blades circle the hero and cut what they touch
+    const want = s.has('orbitBlades') ? 3 : 0;
+    while (this.bladeFx.length > want) this.bladeFx.pop()!.destroy();
+    while (this.bladeFx.length < want) this.bladeFx.push(sc.add.image(this.x, this.y, 'wp_dagger_t3').setScale(ACTOR_SCALE).setDepth(D.bright).setAlpha(0.85).setTint(0xc8d8ff));
+    if (want) {
+      this.bladeA += dt * 3.2;
+      this.bladeTick -= dt;
+      this.bladeFx.forEach((b, i) => {
+        const a = this.bladeA + (i * Math.PI * 2) / want;
+        b.setPosition(this.x + Math.cos(a) * 22, this.y - 6 + Math.sin(a) * 15).setRotation(a + Math.PI);
+        if (this.bladeTick <= 0) for (const e of sc.enemiesNear(b.x, b.y + 6, 10)) sc.combat.damageEnemy(e, this.weaponHit() * 0.35, { el: 'phys', silent: true });
+      });
+      if (this.bladeTick <= 0) this.bladeTick = 0.3;
+    }
   }
 
   spellBase() {
@@ -486,6 +586,16 @@ export class Player extends Actor {
     const base = this.save.equip.main ? BASE_BY_ID[this.save.equip.main.base] : null;
     this.swinging = 0.18;
     this.swingHand = this.d.dual ? 1 - this.swingHand : 0;
+    // unique powers on attacks: a whirl every fourth swing, a ghostly echo of the blow
+    this.atkCount++;
+    if (this.d.specials.has('whirl') && this.atkCount % 4 === 0) sc.time.delayedCall(90, () => !this.dead && sc.spells.nova(this.x, this.y, 42, this.weaponHit() * 1.3, 'phys', { knock: 30 }, 0xe8e0d0));
+    if (this.d.specials.has('echoStrike')) {
+      sc.time.delayedCall(380, () => {
+        if (this.dead || t.dead || Math.hypot(t.x - this.x, t.y - this.y) > this.d.range * 1.6 + 20) return;
+        sc.fx.slash(t.x, t.y - 6, Math.atan2(t.y - this.y, t.x - this.x), 12, 0xb8a8ff, 100);
+        sc.combat.damageEnemy(t, this.weaponHit() * 0.5, { el: 'shadow' });
+      });
+    }
     if (kind === 'melee') {
       sfx('swing');
       const arc = (this.d.arc * Math.PI) / 180;

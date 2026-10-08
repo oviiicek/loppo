@@ -79,7 +79,8 @@ export class Spells {
 
   // -------------------------------------------------------------- casting
   manaCost(sp: SpellDef) {
-    return Math.round(sp.mana * (1 + 0.012 * this.p.save.level));
+    // arcaneFlow: spells cost less
+    return Math.round(sp.mana * (1 + 0.012 * this.p.save.level) * (this.p.d.specials.has('arcaneFlow') ? 0.7 : 1));
   }
 
   cooldown(sp: SpellDef) {
@@ -101,6 +102,7 @@ export class Spells {
       return false;
     }
     p.mp -= cost;
+    if (p.d.specials.has('arcaneFlow')) p.heal(p.d.maxHp * 0.03, false);
     // blood magic: every spell also costs a little health
     if (p.d.specials.has('bloodPrice')) p.hp = Math.max(1, p.hp - p.d.maxHp * 0.03);
     p.cds[slot] = this.cooldown(sp);

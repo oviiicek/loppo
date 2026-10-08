@@ -1,5 +1,7 @@
 import type { SaveData } from '../systems/state';
 import { equippedSetCounts } from './sets';
+import { codexCount } from './codex';
+import { UNIQUES } from './uniques';
 
 export interface Achievement {
   id: string;
@@ -70,6 +72,11 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'merc1', name: 'Parťák', desc: 'Najmi si žoldáka', reward: { gold: 500, stone: 2 }, check: (s) => !!s.merc },
   { id: 'merc3', name: 'Dobře vyzbrojený', desc: 'Obsaď žoldákovi všechny tři sloty vybavení', reward: { gold: 4000, dust: 3 }, check: (s) => !!s.merc && ['weapon', 'armor', 'jewel'].every((k) => !!(s.merc!.equip as any)[k]) },
   { id: 'rival1', name: 'Souboj dobrodruhů', desc: 'Poraz dobrodruha, který se proti tobě postavil', reward: { gold: 3000, dust: 3 }, check: (s) => (st(s).rivals ?? 0) >= 1 },
+  // the codex
+  { id: 'codex50', name: 'Sběratel kuriozit', desc: 'Měj v kodexu 50 záznamů', reward: { gold: 3000, dust: 3 }, check: (s) => codexCount(s) >= 50 },
+  { id: 'codex150', name: 'Kurátor', desc: 'Měj v kodexu 150 záznamů', reward: { gold: 30000, attr: 3 }, check: (s) => codexCount(s) >= 150 },
+  { id: 'uniq10', name: 'Lovec legend', desc: 'Najdi 10 různých legendárních unikátů', reward: { gold: 20000, dust: 6 }, check: (s) => (s.codex?.u?.length ?? 0) >= 10 },
+  { id: 'uniqAll', name: 'Legendární sbírka', desc: 'Najdi všechny legendární unikáty', reward: { gold: 500000, attr: 10 }, check: (s) => (s.codex?.u?.length ?? 0) >= UNIQUES.length },
   // nemeses
   { id: 'nemesis1', name: 'Pomsta', desc: 'Poraz svého nemesis', reward: { gold: 5000, dust: 4 }, check: (s) => (st(s).nemeses ?? 0) >= 1 },
   { id: 'nemesis5', name: 'Nikdo mi neuteče', desc: 'Poraz 5 nemesis', reward: { gold: 60000, attr: 4 }, check: (s) => (st(s).nemeses ?? 0) >= 5 },

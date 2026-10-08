@@ -3,7 +3,7 @@ import type { UI as UIType } from './ui';
 import { iconURL, spellIcon } from '../gfx/textures';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
 import { spellsForClass } from '../data/spells';
-import { BASE_BY_ID, RARITIES } from '../data/items';
+import { BASE_BY_ID, RARITIES, BASES, CATEGORY_NAMES } from '../data/items';
 import { PETS, PET_BY_ID, petTitle, petLevel } from '../data/pets';
 import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
@@ -15,6 +15,11 @@ import { fsButtonHTML, isStandalone } from './fullscreen';
 import { CHRONICLE_ORDER, CUTSCENE_BY_ID } from '../data/story';
 import { ENEMY_BY_ID } from '../data/enemies';
 import { cleanName } from '../data/nemesis';
+import { codexOf, codexCount, CODEX_TOTAL, CODEX_TOTALS, ALL_STONES } from '../data/codex';
+import { UNIQUES, POWER_BY_ID } from '../data/uniques';
+import { SETS, SET_COLOR } from '../data/sets';
+import { parseGem, gemIcon, gemName } from '../data/gems';
+import { runeIcon, runeName } from '../data/runes';
 
 type UIM = typeof UIType;
 
@@ -511,7 +516,7 @@ export class Menus {
   }
 
   /** achievements and, on the second tab, the hero's statistics */
-  achievements(tab: 'ach' | 'stats' | 'nem' = 'ach') {
+  achievements(tab: 'ach' | 'stats' | 'nem' | 'codex' = 'ach') {
     const sc = this.ui.scene!;
     const s = sc.save;
     const got = s.achievements ?? [];
@@ -523,6 +528,35 @@ export class Menus {
         const done = got.includes(a.id);
         return `<div class="spcard ${done ? '' : 'locked'}" style="align-items:flex-start"><div style="font-size:26px;line-height:1">${done ? '🏆' : '🔒'}</div><div style="min-width:0"><div class="nm" style="color:${done ? '#ffd76a' : '#ddd'}">${esc(a.name)}</div><div class="lv2">${esc(a.desc)}</div><div class="lv2" style="color:#9dff9d">Odměna: ${achievementReward(a.reward)}</div></div></div>`;
       }).join('')}</div>`;
+    } else if (tab === 'codex') {
+      const c = codexOf(s);
+      const icon = (base: string, tier = 4) => iconURL(`${BASE_BY_ID[base].icon}_t${tier}`, 32);
+      const uq = UNIQUES.map((u) => {
+        const found = c.u.includes(u.id);
+        return `<div class="cxe ${found ? 'found' : ''}"><img src="${icon(u.base)}"><div style="min-width:0"><div class="nm">${found ? esc(u.name) : '???'}</div><div class="lv2">${found ? esc(POWER_BY_ID[u.power]?.desc ?? '') : esc(BASE_BY_ID[u.base].noun)}</div></div></div>`;
+      }).join('');
+      const sets = SETS.map(
+        (d) =>
+          `<div class="cxset"><span class="nm" style="color:${SET_COLOR}">${esc(d.name)}</span>${d.pieces
+            .map((pc, i) => {
+              const found = c.s.includes(`${d.id}:${i}`);
+              return `<span class="cxp ${found ? 'found' : ''}" title="${found ? esc(pc.name) : '???'}"><img src="${icon(pc.base)}"></span>`;
+            })
+            .join('')}</div>`,
+      ).join('');
+      const kinds = `<table class="cxtab"><tr><th></th>${RARITIES.map((r) => `<th style="color:${r.color}">${esc(r.name.slice(0, 3))}</th>`).join('')}</tr>${BASES.map(
+        (b) => `<tr><td>${esc(b.noun)}</td>${RARITIES.map((r, i) => `<td>${c.b.includes(`${b.id}:${i}`) ? `<b style="color:${r.color}">●</b>` : '<span class="cxno">·</span>'}</td>`).join('')}</tr>`,
+      ).join('')}</table>`;
+      const stones = ALL_STONES.map((k) => {
+        const found = c.g.includes(k);
+        const ic = parseGem(k) ? gemIcon(k) : runeIcon(k);
+        return `<span class="cxp ${found ? 'found' : ''}" title="${found ? esc(parseGem(k) ? gemName(k) : runeName(k)) : '???'}"><img src="${iconURL(ic, 30)}"></span>`;
+      }).join('');
+      body = `<div class="codexhead">Objeveno <b>${codexCount(s)}/${CODEX_TOTAL}</b> · unikáty ${c.u.length}/${CODEX_TOTALS.u} · kusy sad ${c.s.length}/${CODEX_TOTALS.s} · druhy předmětů ${c.b.length}/${CODEX_TOTALS.b} · drahokamy a runy ${c.g.length}/${CODEX_TOTALS.g}</div>
+        <h3 class="cxh">Legendární unikáty</h3><div class="cxgrid">${uq}</div>
+        <h3 class="cxh">Sady</h3><div class="cxsets">${sets}</div>
+        <h3 class="cxh">Drahokamy a runy</h3><div class="cxstones">${stones}</div>
+        <h3 class="cxh">Druhy předmětů podle vzácnosti</h3><div style="overflow-x:auto">${kinds}</div>`;
     } else if (tab === 'nem') {
       const list = s.nemeses ?? [];
       const beaten = st.nemeses ?? 0;
@@ -566,7 +600,7 @@ export class Menus {
       ];
       body = `<div class="statgrid">${tiles.map(([ic, lb, vl, col]) => `<div class="stattile"><span class="ic">${ic}</span><span><span class="lb">${lb}</span><br><b class="vl" ${col ? `style="color:${col}"` : ''}>${esc(vl)}</b></span></div>`).join('')}</div>`;
     }
-    const p = el(`<div class="panel"><div class="head"><h2>${tab === 'ach' ? `Úspěchy ${got.length}/${ACHIEVEMENTS.length}` : tab === 'nem' ? 'Nemesis' : 'Statistiky'}</h2><div class="tabs"><button class="tab ${tab === 'ach' ? 'on' : ''}" data-tab="ach">Úspěchy</button><button class="tab ${tab === 'stats' ? 'on' : ''}" data-tab="stats">Statistiky</button><button class="tab ${tab === 'nem' ? 'on' : ''}" data-tab="nem">Nemesis${s.nemeses?.length ? ` (${s.nemeses.length})` : ''}</button></div><button class="close">✕</button></div>
+    const p = el(`<div class="panel"><div class="head"><h2>${tab === 'ach' ? `Úspěchy ${got.length}/${ACHIEVEMENTS.length}` : tab === 'nem' ? 'Nemesis' : tab === 'codex' ? `Kodex ${codexCount(s)}/${CODEX_TOTAL}` : 'Statistiky'}</h2><div class="tabs"><button class="tab ${tab === 'ach' ? 'on' : ''}" data-tab="ach">Úspěchy</button><button class="tab ${tab === 'stats' ? 'on' : ''}" data-tab="stats">Statistiky</button><button class="tab ${tab === 'nem' ? 'on' : ''}" data-tab="nem">Nemesis${s.nemeses?.length ? ` (${s.nemeses.length})` : ''}</button><button class="tab ${tab === 'codex' ? 'on' : ''}" data-tab="codex">Kodex</button></div><button class="close">✕</button></div>
       <div class="body scroll" style="display:block">${body}</div></div>`);
     this.ui.showOverlay(p, () => {});
     $('.close', p).addEventListener('click', () => this.ui.closeOverlay());
@@ -574,7 +608,7 @@ export class Menus {
       b.addEventListener('click', () => {
         if (b.dataset.tab === tab) return;
         sfx('ui');
-        this.achievements(b.dataset.tab as 'ach' | 'stats' | 'nem');
+        this.achievements(b.dataset.tab as 'ach' | 'stats' | 'nem' | 'codex');
       }),
     );
   }

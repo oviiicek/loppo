@@ -3448,3 +3448,97 @@ textarea.code {
   color: #e080ff;
   text-shadow: 0 0 3px #000, 1px 1px 0 #000;
 }
+
+/* legendary uniques: their power and a line of lore */
+.power {
+  color: #ffc24a;
+  text-shadow: 0 0 6px rgba(255, 170, 40, 0.35);
+}
+.lore {
+  color: #c8b89a;
+  font-style: italic;
+  margin-bottom: 3px;
+}
+
+/* the codex */
+.codexhead {
+  color: #e8dcc0;
+  margin-bottom: 6px;
+}
+.codexhead b {
+  color: #ffd76a;
+}
+.cxh {
+  color: #ffc24a;
+  font-size: 20px;
+  margin: 10px 0 4px;
+}
+.cxgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 5px;
+}
+.cxe {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 1px solid #2a2230;
+  border-radius: 6px;
+  background: rgba(14, 10, 20, 0.6);
+}
+.cxe img,
+.cxp img {
+  width: 30px;
+  height: 30px;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+  filter: brightness(0) opacity(0.45);
+}
+.cxe.found img,
+.cxp.found img {
+  filter: none;
+}
+.cxe .nm {
+  color: #8a8496;
+}
+.cxe.found {
+  border-color: #6a4a1a;
+}
+.cxe.found .nm {
+  color: #ff9f1c;
+}
+.cxsets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.cxset {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.cxset .nm {
+  margin-right: 4px;
+}
+.cxstones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.cxtab {
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.cxtab th,
+.cxtab td {
+  padding: 1px 6px;
+  text-align: center;
+}
+.cxtab td:first-child {
+  text-align: left;
+  color: #c8c0d8;
+}
+.cxno {
+  color: #4a4456;
+}

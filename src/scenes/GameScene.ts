@@ -16,6 +16,7 @@ import { Mercenary } from '../game/merc';
 import { MercRole, MERC_BY_ROLE, randomMercName, MercOrder, MercState } from '../data/mercs';
 import { RivalMood, RIVAL_PEOPLE, RIVAL_GREETING, rivalRole, rivalFoeBase, rivalToll } from '../data/rivals';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
+import { syncCodex } from '../data/codex';
 import { Weather } from '../game/weather';
 import { PET_BY_ID, PetId, petTitle, cagePetFor, cageChance, petLevel } from '../data/pets';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
@@ -217,6 +218,7 @@ export class GameScene extends Phaser.Scene {
     this.bounty = null;
     this.nemesis = null;
     this.nemesisNote = null;
+    this.phoenixUsed = false;
     this.arenaDark = 0;
     this.hitStop = 0;
   }
@@ -266,6 +268,7 @@ export class GameScene extends Phaser.Scene {
     // the pet and the mercenary come down the stairs right after the hero (shown in arrive)
     this.spawnPet(ux, uy + 4, false);
     this.spawnMerc(ux, uy + 4, false);
+    syncCodex(this.save);
     this.spawnRival();
 
     // camera
@@ -1161,6 +1164,9 @@ export class GameScene extends Phaser.Scene {
     this.pet.setVisible(visible);
   }
 
+  /** the phoenix power rises once per floor */
+  phoenixUsed = false;
+
   // ---------------------------------------------------------------- mercenary
   merc: Mercenary | null = null;
 
@@ -1571,9 +1577,34 @@ export class GameScene extends Phaser.Scene {
     const proj = new Projectile(this, { x, y, angle, speed: p.d.attack === 'ranged' ? 330 : 250, sprite, dmg, el: p.d.attack === 'magic' ? 'shadow' : 'phys', owner: 'player', pierce, range: p.d.range + 40, isAttack: true });
     // basic attack projectiles use attackHit for on-hit effects
     const orig = proj.hitEnemy.bind(proj);
+    let bounces = p.d.specials.has('ricochet') ? 2 : 0;
+    let split = p.d.specials.has('splitShot');
     proj.hitEnemy = (e: Enemy) => {
       this.combat.attackHit(e, proj.vx, proj.vy);
       this.fx.burst(proj.x, proj.y, p.d.attack === 'magic' ? 0xc77dff : 0xffffff, 4);
+      // splitShot: the first hit breaks the shot into three
+      if (split) {
+        split = false;
+        const a0 = Math.atan2(proj.vy, proj.vx);
+        for (const da of [-0.5, 0.5]) {
+          const sp = new Projectile(this, { x: proj.x, y: proj.y, angle: a0 + da, speed: 300, sprite, dmg: p.weaponHit() * 0.5, el: 'phys', owner: 'player', range: 110 });
+          sp.hitIds.add(e.id);
+          this.projectiles.push(sp);
+        }
+      }
+      // ricochet: on to the next foe
+      if (bounces > 0) {
+        const next = this.nearestEnemy(proj.x, proj.y, 110, true, proj.hitIds);
+        if (next) {
+          bounces--;
+          const a = Math.atan2(next.y - 6 - proj.y, next.x - proj.x);
+          const v = Math.hypot(proj.vx, proj.vy);
+          proj.vx = Math.cos(a) * v;
+          proj.vy = Math.sin(a) * v;
+          proj.traveled = 0;
+          return;
+        }
+      }
       if (proj.pierceLeft > 0) proj.pierceLeft--;
       else proj.kill();
       void orig;

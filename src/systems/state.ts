@@ -1,6 +1,7 @@
 import type { Nemesis } from '../data/nemesis';
 import type { MercState } from '../data/mercs';
 import { CURSE_BY_ID } from '../data/curses';
+import { Codex, discoverItem, discoverStone } from '../data/codex';
 import { ATTR_KEYS, AttrKey, ClassId, Item, Slot, StatKey, Stats } from '../data/types';
 import { DEFAULT_DIFFICULTY } from '../data/difficulty';
 import { CLASS_BY_ID } from '../data/classes';
@@ -67,6 +68,8 @@ export interface SaveData {
   nemeses?: Nemesis[];
   /** the hired companion (its role, name, gear and order) */
   merc?: MercState;
+  /** everything ever found (see data/codex.ts) */
+  codex?: Codex;
 }
 
 export function gemPouch(s: SaveData): Record<string, number> {
@@ -78,12 +81,14 @@ export function runePouch(s: SaveData): Record<string, number> {
 }
 
 export function addRune(s: SaveData, key: string, n = 1) {
+  if (n > 0) discoverStone(s, key);
   const p = runePouch(s);
   p[key] = (p[key] ?? 0) + n;
   if (p[key] <= 0) delete p[key];
 }
 
 export function addGem(s: SaveData, key: string, n = 1) {
+  if (n > 0) discoverStone(s, key);
   const p = gemPouch(s);
   p[key] = (p[key] ?? 0) + n;
   if (p[key] <= 0) delete p[key];
@@ -397,6 +402,8 @@ export function addToInventory(s: SaveData, it: Item): boolean {
   const idx = s.inventory.findIndex((x) => !x);
   if (idx < 0) return false;
   s.inventory[idx] = it;
+  const news = discoverItem(s, it);
+  if (news) bus.emit('codex', news);
   bus.emit('inventory');
   return true;
 }

@@ -1,4 +1,5 @@
 import { CURSES, CURSE_BY_ID, CURSE_CHANCE, curseStats } from './curses';
+import { POWERS, UNIQUES, UniqueDef, uniquesFor } from './uniques';
 import { AttackKind, Affix, Item, ItemCategory, Slot, StatKey, Stats } from './types';
 import { RNG, rng as globalRng } from '../systems/rng';
 import { rollSockets, socketStats } from './gems';
@@ -222,7 +223,7 @@ export const SPECIALS: SpecialDef[] = [
   { id: 'arcaneOrbit', desc: 'Kolem tebe krouží 2 magické koule', cats: ['amulet', 'offhand', 'helmet', 'ring'] },
 ];
 
-export const SPECIAL_BY_ID: Record<string, SpecialDef> = Object.fromEntries(SPECIALS.map((s) => [s.id, s]));
+export const SPECIAL_BY_ID: Record<string, SpecialDef> = Object.fromEntries([...SPECIALS, ...POWERS.map((p) => ({ ...p, cats: 'all' as const }))].map((s) => [s.id, s]));
 
 // Enchant pool (applied by enchanting, one per item)
 export const ENCHANTS: { key: StatKey; base: number; perLevel: number }[] = [
@@ -314,10 +315,16 @@ function buildName(base: BaseType, rarity: number, ilvl: number, affixes: Affix[
   return name;
 }
 
-export function generateItem(ilvl: number, opts: { rarity?: number; base?: string; magicFind?: number; rarityBonus?: number; r?: RNG; filter?: (b: BaseType) => boolean; noCurse?: boolean } = {}): Item {
+export function generateItem(ilvl: number, opts: { rarity?: number; base?: string; magicFind?: number; rarityBonus?: number; r?: RNG; filter?: (b: BaseType) => boolean; noCurse?: boolean; noUnique?: boolean } = {}): Item {
   const r = opts.r ?? globalRng;
-  const base = opts.base ? BASE_BY_ID[opts.base] : pickBase(r, opts.filter);
   const rarity = opts.rarity ?? rollRarity(r, opts.magicFind ?? 0, opts.rarityBonus ?? 0);
+  // a legendary (or better) find is one of the named uniques with a power of its own
+  let unique: UniqueDef | null = null;
+  if (rarity >= 4 && !opts.noUnique) {
+    const pool = opts.base ? uniquesFor(opts.base) : UNIQUES.filter((u) => !opts.filter || opts.filter(BASE_BY_ID[u.base]));
+    unique = pool.length ? r.pick(pool) : opts.base ? null : r.pick(UNIQUES);
+  }
+  const base = unique ? BASE_BY_ID[unique.base] : opts.base ? BASE_BY_ID[opts.base] : pickBase(r, opts.filter);
   const rar = RARITIES[rarity];
   const scale = 1 + 0.15 * ilvl + 0.004 * ilvl * ilvl;
   const item: Item = {
@@ -352,11 +359,14 @@ export function generateItem(ilvl: number, opts: { rarity?: number; base?: strin
     item.affixes.push({ key: def.key, value: affixValue(def, ilvl, rar.mult, r) });
   }
   const specPool = SPECIALS.filter((s) => s.cats === 'all' || s.cats.includes(base.cat));
-  for (let i = 0; i < rar.specials && specPool.length; i++) {
+  // a unique's own power comes first and takes the place of one random special
+  if (unique) item.specials.push(unique.power);
+  for (let i = unique ? 1 : 0; i < rar.specials && specPool.length; i++) {
     const s = r.pick(specPool.filter((x) => !item.specials.includes(x.id)));
     if (s) item.specials.push(s.id);
   }
-  item.name = buildName(base, rarity, ilvl, item.affixes, r);
+  item.name = unique ? unique.name : buildName(base, rarity, ilvl, item.affixes, r);
+  if (unique) item.unique = unique.id;
   const sockets = rollSockets(base.cat, rarity, () => r.next());
   if (sockets) item.sockets = sockets;
   // now and then a rare (or better) find carries a curse: a big bonus with a price
@@ -381,7 +391,7 @@ export function generateSetItem(ilvl: number, setId?: string, piece?: number, r:
   const def = setId ? SET_BY_ID[setId] : r.pick(SETS);
   const pi = piece ?? r.int(0, def.pieces.length - 1);
   const p = def.pieces[pi];
-  const it = generateItem(ilvl, { base: p.base, rarity: 4, r, noCurse: true });
+  const it = generateItem(ilvl, { base: p.base, rarity: 4, r, noCurse: true, noUnique: true });
   it.specials = [];
   it.name = p.name;
   it.set = `${def.id}:${pi}`;

@@ -8,6 +8,7 @@ import { SET_MIN_FLOOR } from '../data/sets';
 import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData, addGem, addRune } from '../systems/state';
 import { gemIcon, gemName, parseGem, randomGem } from '../data/gems';
 import { parseRune, runeIcon, runeName, randomRune } from '../data/runes';
+import { discoverItem } from '../data/codex';
 import { sfx, settings, LootRule } from '../systems/audio';
 import { bus } from '../systems/events';
 import { iconURL } from '../gfx/textures';
@@ -49,13 +50,13 @@ export class Loot {
 
   get mf() {
     const sc = this.scene;
-    return sc.player.d.magicFind + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0), 0) + (sc.mod?.mf ?? 0) + sc.diff.mf;
+    return sc.player.d.magicFind + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0), 0) + (sc.mod?.mf ?? 0) + sc.diff.mf + (sc.player.d.specials.has('luckyStar') ? 40 : 0);
   }
 
   get goldMult() {
     const sc = this.scene;
     const p = sc.player;
-    return (1 + p.d.gold / 100 + (p.d.specials.has('goldRush') ? 0.6 : 0) + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0) / 100, 0) + (sc.mod?.gold ?? 0)) * sc.diff.gold;
+    return (1 + p.d.gold / 100 + (p.d.specials.has('goldRush') ? 0.6 : 0) + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0) / 100, 0) + (sc.mod?.gold ?? 0)) * sc.diff.gold * (p.d.specials.has('midas') ? 3 : 1);
   }
 
   // "smart loot": some drops favour the weapon type / slots the player actually uses
@@ -117,7 +118,7 @@ export class Loot {
     }
     if (e.elite) {
       this.dropItem(this.item(f, 1), x, y);
-      if (Math.random() < 0.1) this.dropRandomGem(x, y);
+      if (Math.random() < (this.scene.player.d.specials.has('midas') ? 0.4 : 0.1)) this.dropRandomGem(x, y);
       if (Math.random() < 0.06) this.dropRandomRune(x, y);
       if (Math.random() < 0.35) this.dropItem(this.item(f), x, y);
       this.dropGold(this.goldAmount(2.5), x, y);
@@ -172,6 +173,7 @@ export class Loot {
       goldMult = 8;
     }
     if (this.scene.mod?.chestBonus) bonus = Math.min(3, bonus + 1);
+    if (this.scene.player.d.specials.has('luckyStar')) nItems++;
     for (let i = 0; i < nItems; i++) {
       const it = generateItem(f + (tier === 'boss' ? 2 : 0), { magicFind: mf, rarityBonus: bonus, filter: this.bias() });
       if (tier === 'boss' && i === 0 && it.rarity < 3) {
@@ -353,6 +355,8 @@ export class Loot {
       // the hero's loot rules: sell or salvage it on the spot
       const it = g.item;
       maxStat(p.save, 'bestRarity', it.rarity);
+      const news = discoverItem(p.save, it);
+      if (news) bus.emit('codex', news);
       if (this.autoRule(it) === 'sell') {
         const price = itemValue(it);
         p.save.gold += price;

@@ -1040,6 +1040,18 @@ export class Projectile {
     } else {
       const p = sc.player;
       if (Math.abs(p.x - this.x) < 6 && Math.abs(p.y - 6 - this.y) < 9) {
+        // reflect: the shot turns back on its shooter, twice as strong
+        if (p.d.specials.has('reflect') && !p.dead && Math.random() < 0.25) {
+          this.o.owner = 'player';
+          this.o.dmg *= 2;
+          this.vx = -this.vx;
+          this.vy = -this.vy;
+          this.traveled = 0;
+          this.hitIds.clear();
+          sc.fx.burst(this.x, this.y, 0xffd76a, 6);
+          sc.fx.number(p.x, p.y - 18, 'odraženo', '#ffd76a');
+          return false;
+        }
         sc.combat.cause = this.o.srcName ?? null;
         sc.combat.causeFoe = this.o.srcFoe ?? null;
         sc.combat.damagePlayer(this.o.dmg, null, this.o.el);

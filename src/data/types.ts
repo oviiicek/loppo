@@ -128,6 +128,8 @@ export interface Item {
   runes?: (string | null)[];
   /** a curse: a big bonus with a drawback (id in CURSES) */
   curse?: string;
+  /** the named legendary this item is (id in UNIQUES) */
+  unique?: string;
   // rolled base values
   dmgMin?: number;
   dmgMax?: number;

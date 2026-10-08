@@ -703,3 +703,17 @@ Object.assign(dev, {
     return at;
   },
 });
+Object.assign(dev, {
+  /** a unique by id into the bag */
+  unique(id = 'shadowthorn', ilvl = 20, rarity = 4) {
+    const s = (window as any).__scene.save;
+    const at = s.inventory.findIndex((x: unknown) => !x);
+    if (at < 0) return -1;
+    const u = UNIQUE_BY_ID[id];
+    let it = generateItem(ilvl, { base: u.base, rarity, noCurse: true });
+    for (let i = 0; i < 50 && it.unique !== id; i++) it = generateItem(ilvl, { base: u.base, rarity, noCurse: true });
+    s.inventory[at] = it;
+    return at;
+  },
+});
+import { UNIQUE_BY_ID } from './data/uniques';

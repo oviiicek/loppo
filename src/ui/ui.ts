@@ -66,6 +66,7 @@ class UIManager {
     this.root = document.getElementById('ui')!;
     this.pad.start();
     bus.on('buffs', () => this.renderBuffs());
+    bus.on('codex', (name: string) => this.toast(`📖 Nový záznam v kodexu: ${name}`, '#ffc24a'));
     bus.on('equip', () => this.refreshSkills());
     document.addEventListener(
       'pointerdown',
