@@ -23,7 +23,8 @@ function uiScaleName() {
 }
 
 function salvageName() {
-  return ['nic', 'běžné', 'běžné + neobvyklé'][settings.autoSalvage] ?? 'nic';
+  const n = settings.lootRules.filter((r) => r && r !== 'keep').length;
+  return n ? `${n}× auto` : 'vše nechat';
 }
 
 function fxName() {
@@ -422,7 +423,7 @@ export class Menus {
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button><button class="btn" style="flex:1" data-a="merc">⚔️ Žoldák</button></div>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="pets">🐾 Mazlíčci</button><button class="btn" style="flex:1" data-a="ach">🏆 Úspěchy</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button>${isStandalone() ? '' : `<button class="btn small blue" data-a="fs" data-fs="label">${fsButtonHTML('label')}</button>`}</div>
-        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Rozebírat: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button></div>
+        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Kořist: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button></div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
       </div></div>`);
     this.ui.showOverlay(p, () => {});
@@ -450,9 +451,7 @@ export class Menus {
         this.ui.layout();
         b.textContent = 'Ovládání: ' + uiScaleName();
       } else if (a === 'salvage') {
-        settings.autoSalvage = (settings.autoSalvage + 1) % 3;
-        saveSettings();
-        b.textContent = 'Rozebírat: ' + salvageName();
+        this.ui.panels.lootRules(() => (b.textContent = 'Kořist: ' + salvageName()));
       } else if (a === 'fx') {
         settings.lowFx = !settings.lowFx;
         saveSettings();

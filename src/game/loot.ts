@@ -3,11 +3,11 @@ import type { GameScene } from '../scenes/GameScene';
 import { Enemy } from './entities';
 import { D } from './fx';
 import { Item, Slot } from '../data/types';
-import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded } from '../data/items';
+import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded, itemValue } from '../data/items';
 import { SET_MIN_FLOOR } from '../data/sets';
 import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData, addGem } from '../systems/state';
 import { gemIcon, gemName, parseGem, randomGem } from '../data/gems';
-import { sfx, settings } from '../systems/audio';
+import { sfx, settings, LootRule } from '../systems/audio';
 import { bus } from '../systems/events';
 import { iconURL } from '../gfx/textures';
 
@@ -311,14 +311,24 @@ export class Loot {
       p.save.mats[g.mat!] += g.amount;
       sfx('pickup');
       sc.ui.loot(`+${g.amount} ${MAT_INFO[g.mat!].name}`, MAT_INFO[g.mat!].color, iconURL(MAT_INFO[g.mat!].icon, 32));
-    } else if (g.item && g.item.rarity < settings.autoSalvage && !this.isUpgrade(g.item)) {
-      // auto-salvage weak items straight into materials
-      const r = salvageResult(g.item);
-      p.save.gold += r.gold;
-      p.save.mats.dust += r.dust;
-      p.save.mats.stone += r.stones;
+    } else if (g.item && this.autoRule(g.item) !== 'keep') {
+      // the hero's loot rules: sell or salvage it on the spot
+      const it = g.item;
+      maxStat(p.save, 'bestRarity', it.rarity);
+      if (this.autoRule(it) === 'sell') {
+        const price = itemValue(it);
+        p.save.gold += price;
+        bumpStat(p.save, 'goldEarned', price);
+        sc.ui.loot(`Prodáno: ${it.name} (+${price} zl.)`, '#b8a888', iconURL(itemIcon(it), 32));
+      } else {
+        const r = salvageResult(it);
+        p.save.gold += r.gold;
+        p.save.mats.dust += r.dust;
+        p.save.mats.stone += r.stones;
+        sc.ui.loot(`Rozebráno: ${it.name}${r.dust ? ` (+${r.dust} prach)` : ''}`, '#b8a888', iconURL(itemIcon(it), 32));
+      }
       sfx('coin');
-      sc.fx.number(p.x, p.y - 20, '+' + r.gold, '#ffd23a');
+      sc.fx.number(p.x, p.y - 20, '♻', '#ffd23a');
     } else if (g.item) {
       if (!addToInventory(p.save, g.item)) {
         if (!g.warned) {
@@ -339,6 +349,14 @@ export class Loot {
     g.label?.destroy();
     g.beam?.destroy();
     bus.emit('stats');
+  }
+
+  /** what the loot rules say about an item: keep it, or sell / salvage it the moment it is picked up */
+  autoRule(it: Item): LootRule {
+    const r = settings.lootRules[it.rarity] ?? 'keep';
+    if (r === 'keep' || it.set || it.locked) return 'keep';
+    if (settings.keepUpgrades && this.isUpgrade(it)) return 'keep';
+    return r;
   }
 
   // would equipping this item raise damage output, armour or HP? (cheap estimate on a copy)

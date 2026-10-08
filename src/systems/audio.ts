@@ -209,12 +209,28 @@ export function sfx(name: string) {
 // ---------------------------------------------------------------------------
 // Settings shared with the UI (persisted)
 // ---------------------------------------------------------------------------
-export const settings = { music: true, vibrate: true, uiScale: 1, autoSalvage: 0, lowFx: false };
+export type LootRule = 'keep' | 'sell' | 'salvage';
+export const settings = {
+  music: true,
+  vibrate: true,
+  uiScale: 1,
+  autoSalvage: 0,
+  lowFx: false,
+  /** what happens to a picked-up item of each rarity: kept, sold at once or salvaged at once */
+  lootRules: [] as LootRule[],
+  /** items better than the equipped ones are always kept */
+  keepUpgrades: true,
+};
 try {
   const raw = localStorage.getItem('loppo-settings');
   if (raw) Object.assign(settings, JSON.parse(raw));
 } catch {
   /* ignore */
+}
+// the old single setting ("salvage commons", "salvage commons and uncommons") becomes per-rarity rules
+if (!Array.isArray(settings.lootRules) || !settings.lootRules.length) {
+  settings.lootRules = [];
+  for (let r = 0; r < settings.autoSalvage; r++) settings.lootRules[r] = 'salvage';
 }
 export function saveSettings() {
   try {

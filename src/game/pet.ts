@@ -235,7 +235,7 @@ export class PetFollower {
   private salvaged(g: Ground) {
     let v = this.salvageMemo.get(g);
     if (v === undefined) {
-      v = g.item!.rarity < settings.autoSalvage && !this.scene.loot.isUpgrade(g.item!);
+      v = this.scene.loot.autoRule(g.item!) !== 'keep';
       this.salvageMemo.set(g, v);
     }
     return v;

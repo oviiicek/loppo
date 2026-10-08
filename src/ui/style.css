@@ -3334,3 +3334,31 @@ textarea.code {
 .rivalshop .rsbody {
   padding: 10px 14px 12px;
 }
+
+/* loot rules per rarity */
+.lootrules .lrbody {
+  padding: 8px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.lrrow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.lrrow .lrname {
+  flex: 1;
+  font-size: 19px;
+  min-width: 90px;
+}
+.lrrow .btn {
+  min-width: 0;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.lrrow .btn:not(.green):not(.gold):not(.purple) {
+  opacity: 0.5;
+}

@@ -40,7 +40,7 @@ import { MERCS, MERC_BY_ROLE, MERC_SLOTS, MERC_ORDERS, MercSlot, MercRole, MercO
 import type { RivalMood } from '../data/rivals';
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
-import { sfx } from '../systems/audio';
+import { sfx, settings, saveSettings, LootRule } from '../systems/audio';
 import { bus } from '../systems/events';
 
 type UIM = typeof UIType;
@@ -498,7 +498,7 @@ export class Panels {
       <div class="col" style="flex:1;min-width:0">
         <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv" data-idx="${i}`, '', undefined, better[i])).join('')}</div></div>
         <div class="box">${this.matsHtml()}</div>
-        <div class="row">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : '<button class="btn small" data-a="salvcommon">Rozebrat běžné předměty</button>'}<button class="btn small blue" data-a="sort">Seřadit</button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span></div>
+        <div class="row">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : '<button class="btn small" data-a="salvcommon">Rozebrat běžné předměty</button>'}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙ Kořist</button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span></div>
       </div>
       <div class="col detail box scroll" style="width:min(300px,34%)"></div>`;
     const detail = $('.detail', body);
@@ -669,6 +669,10 @@ export class Panels {
       this.ui.toast(n ? `Nasazeno ${n} lepších předmětů` : 'Nic lepšího není', '#9dff9d');
       this.sel = null;
       rerender();
+    });
+    body.querySelector('[data-a=lootrules]')?.addEventListener('click', () => {
+      sfx('ui');
+      this.lootRules();
     });
     body.querySelector('[data-a=sort]')?.addEventListener('click', () => {
       const items = s.inventory.filter((x): x is Item => !!x);
@@ -1026,6 +1030,44 @@ export class Panels {
       );
     });
     if (!host) this.ui.showOverlay(p, () => {});
+  }
+
+  // ------------------------------------------------------------------ LOOT RULES
+  /** for each rarity: keep picked-up items, sell them at once or salvage them at once */
+  lootRules(onClose?: () => void) {
+    const d = el(`<div class="panel small lootrules"><div class="head"><h2>Automatická kořist</h2><button class="close">✕</button></div><div class="lrbody"></div></div>`);
+    const close = this.ui.dialog(d);
+    $('.close', d).addEventListener('click', () => {
+      close();
+      onClose?.();
+    });
+    const body = $('.lrbody', d);
+    const names: Record<LootRule, string> = { keep: 'Nechat', sell: 'Prodat', salvage: 'Rozebrat' };
+    const render = () => {
+      body.innerHTML = `<p class="hint">Co se stane s předmětem, když ho sebereš. Prodané dají zlato hned, rozebrané zlato a materiál. Sady a zamčené věci se nechávají vždy.</p>
+        ${RARITIES.map(
+          (r, i) => `<div class="lrrow"><span class="lrname" style="color:${r.color}">${esc(r.name)}</span>${(['keep', 'sell', 'salvage'] as LootRule[])
+            .map((k) => `<button class="btn small ${(settings.lootRules[i] ?? 'keep') === k ? (k === 'keep' ? 'green' : k === 'sell' ? 'gold' : 'purple') : ''}" data-r="${i}" data-k="${k}">${names[k]}</button>`)
+            .join('')}</div>`,
+        ).join('')}
+        <button class="hcbox ${settings.keepUpgrades ? 'on' : ''}" data-a="upg"><span class="tick"></span><span class="hctext"><b>Vylepšení si vždy nechat</b><small>Předmět lepší než ten, co máš na sobě (▲), se nikdy neprodá ani nerozebere.</small></span></button>`;
+      body.querySelectorAll<HTMLElement>('[data-k]').forEach((b) =>
+        b.addEventListener('click', () => {
+          sfx('ui');
+          settings.lootRules[+b.dataset.r!] = b.dataset.k as LootRule;
+          for (let i = 0; i < RARITIES.length; i++) settings.lootRules[i] ??= 'keep';
+          saveSettings();
+          render();
+        }),
+      );
+      $('[data-a=upg]', body).addEventListener('click', () => {
+        sfx('ui');
+        settings.keepUpgrades = !settings.keepUpgrades;
+        saveSettings();
+        render();
+      });
+    };
+    render();
   }
 
   // ------------------------------------------------------------------ WANDERING ADVENTURER
