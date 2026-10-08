@@ -33,7 +33,7 @@ import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR } from '../data/sets';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame, runePouch, addRune, addSpellRune, freeTalentPoints } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame, runePouch, addRune, addSpellRune, freeTalentPoints, multiTalentSpent, heroTitle } from '../systems/state';
 import { GEMS, GEM_TIERS, GEM_MAX_TIER, GEM_PLACE_NAME, GemPlace, gemPlace, gemEffect, gemIcon, gemName, parseGem, gemKey, maxSockets, drillCost, combineCost } from '../data/gems';
 import { PETS, PET_BY_ID, PetId, petLevel, petFloorsToNext, petBonusText, petTitle, PET_MAX_LEVEL, PET_FLOORS_PER_LEVEL } from '../data/pets';
 import { difficultyOf } from '../data/difficulty';
@@ -45,7 +45,8 @@ import { POWER_BY_ID, UNIQUE_BY_ID, UNIQUES } from '../data/uniques';
 import { discoverItem } from '../data/codex';
 import { RUNES, RUNE_TIERS, RUNE_MAX_TIER, parseRune, runeName, runeIcon, runeDesc, runeKey, runeSlots, runeSlotCount, runeCombineCost, RuneType } from '../data/runes';
 import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
-import { TALENT_TREES, TALENT_GATE, TalentDef, COND_NAME, spentIn, canLearn, talentPoints } from '../data/talents';
+import { TALENT_TREES, TALENT_GATE, TalentDef, COND_NAME, spentIn, canLearn, talentPoints, TALENT_CLASS } from '../data/talents';
+import { MULTI_LEVEL, MULTI_COST, MULTI_TALENT_CAP, multiTitle } from '../data/multiclass';
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx, settings, saveSettings, LootRule } from '../systems/audio';
@@ -935,11 +936,16 @@ export class Panels {
     body.innerHTML = `
       <div class="col scroll" style="width:min(240px,28%)">
         <div class="box" style="text-align:center"><img class="px" style="height:96px;image-rendering:pixelated" src="${iconURL('pl_' + s.cls, 96)}">
-          <div style="font-size:26px;color:#ffd76a">${cls.name}</div><div class="hint">Úroveň ${s.level} • Patro ${s.floor} (max ${s.maxFloor})</div>
+          <div style="font-size:26px;color:#ffd76a">${esc(heroTitle(s))}</div>${s.multi ? `<div class="hint">${esc(cls.name)} + ${esc(CLASS_BY_ID[s.multi].name)}</div>` : ''}<div class="hint">Úroveň ${s.level} • Patro ${s.floor} (max ${s.maxFloor})</div>
           <div style="font-size:17px;margin-top:2px">Obtížnost: <span style="color:${difficultyOf(s).color}">${difficultyOf(s).name}</span>${s.hardcore ? ' <span class="hctag">☠ Hardcore</span>' : ''}</div>
           <div class="hint" style="margin-top:6px">${esc(cls.desc)}</div>
           <div style="margin-top:6px;font-size:17px;color:#9dff9d">Pasivní: ${esc(cls.passive)}</div>
           <div class="hint" style="margin-top:6px">Zabito nepřátel: ${s.kills.toLocaleString('cs-CZ')}</div>
+          ${
+            s.level >= MULTI_LEVEL
+              ? `<button class="btn small purple" data-a="multi" style="margin-top:6px">⚔ ${s.multi ? 'Změnit druhou classu' : 'Zvolit druhou classu'}</button>`
+              : `<div class="hint" style="margin-top:6px">⚔ Od úrovně ${MULTI_LEVEL} si můžeš vzít druhou classu.</div>`
+          }
           ${this.petLineHtml()}
           ${s.story && (s.story.shards || s.story.blessing) ? `<div style="margin-top:6px;font-size:17px;color:#9fe6ff">Pečetní střepy: ${s.story.shards}/4${s.story.blessing ? ' • Elařino požehnání' : ''}<br><span class="hint">+${storyBonusPct(s)} % zdraví, poškození a síly kouzel</span></div>` : ''}
         </div>
@@ -956,6 +962,10 @@ export class Panels {
       sfx('ui');
       this.pets();
     });
+    body.querySelector('[data-a=multi]')?.addEventListener('click', () => {
+      sfx('ui');
+      this.multiclassDialog(() => this.character(p));
+    });
     body.querySelectorAll<HTMLButtonElement>('[data-attr],[data-attr5]').forEach((b) =>
       b.addEventListener('click', () => {
         const k = (b.dataset.attr ?? b.dataset.attr5) as AttrKey;
@@ -969,6 +979,42 @@ export class Panels {
       }),
     );
     if (!host) this.ui.showOverlay(p, () => {});
+  }
+
+  /** choose (or change) the second class */
+  multiclassDialog(after: () => void) {
+    const s = this.save;
+    const d = el(`<div class="panel"><div class="head"><h2>Druhá classa</h2><button class="close">✕</button></div><div class="body"><div class="col" style="flex:1;min-width:0">
+      <p class="hint" style="margin:0 0 6px">Druhá classa ti dá polovinu svého pasivního bonusu, jedno své kouzlo do běžného slotu a až ${MULTI_TALENT_CAP} bodů talentů ve svém stromu. Stojí ${MULTI_COST.toLocaleString('cs-CZ')} zlata${s.multi ? ' (při změně se talenty staré druhé classy vrátí)' : ''}.</p>
+      <div class="scroll" style="flex:1"><div class="mercgrid">${CLASSES.filter((c) => c.id !== s.cls)
+        .map(
+          (c) => `<div class="merccard" style="--mc:#c77dff"><img src="${iconURL('pl_' + c.id, 64)}"><div class="mtxt"><div class="nm">${esc(multiTitle(s.cls, c.id))}</div><div class="lv2">${esc(CLASS_BY_ID[s.cls].name)} + ${esc(c.name)}</div><div class="lv2 sk">Pasivní (polovina): ${esc(c.passive)}</div></div><button class="btn green small" data-mc="${c.id}" ${s.multi === c.id || s.gold < MULTI_COST ? 'disabled' : ''}>${s.multi === c.id ? 'Máš' : 'Zvolit'}</button></div>`,
+        )
+        .join('')}</div></div></div></div></div>`);
+    const close = this.ui.dialog(d);
+    $('.close', d).addEventListener('click', () => close());
+    d.querySelectorAll<HTMLElement>('[data-mc]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const c = b.dataset.mc as ClassId;
+        if (s.gold < MULTI_COST || c === s.cls) return;
+        s.gold -= MULTI_COST;
+        // the old second class leaves: its talents come back, its spell leaves the slots
+        const old = s.multi;
+        if (old) {
+          for (const [id] of Object.entries(s.talents ?? {})) if (TALENT_CLASS[id] === old) delete s.talents![id];
+          s.loadout = s.loadout.map((x) => (x && SPELL_BY_ID[x]?.cls === old ? null : x));
+        }
+        s.multi = c;
+        sfx('levelup');
+        this.ui.toast(`Nyní jsi ${multiTitle(s.cls, c)}!`, '#c77dff');
+        this.sc.player.recalc();
+        this.ui.refreshSkills();
+        bus.emit('stats');
+        saveGame(s);
+        close();
+        after();
+      }),
+    );
   }
 
   // ------------------------------------------------------------------ PETS
@@ -1424,15 +1470,16 @@ export class Panels {
   }
 
   // ------------------------------------------------------------------ SPELLS
-  spellTab: 'class' | 'universal' | 'talents' = 'class';
+  spellTab: 'class' | 'universal' | 'talents' | 'multi' = 'class';
   selSpell: string | null = null;
 
   spells(host?: HTMLElement) {
     const p = host ?? this.frame('Kouzla a schopnosti', [
       { id: 'class', label: CLASS_BY_ID[this.save.cls].name },
+      ...(this.save.multi ? [{ id: 'multi', label: CLASS_BY_ID[this.save.multi].name }] : []),
       { id: 'universal', label: 'Univerzální' },
       { id: 'talents', label: freeTalentPoints(this.save) > 0 ? `Talenty (${freeTalentPoints(this.save)})` : 'Talenty' },
-    ], this.spellTab);
+    ], this.spellTab === 'multi' && !this.save.multi ? 'class' : this.spellTab);
     if (!host) {
       p.querySelectorAll<HTMLElement>('.tab').forEach((t) =>
         t.addEventListener('click', () => {
@@ -1450,7 +1497,8 @@ export class Panels {
     }
     const body = $('.body', p);
     const s = this.save;
-    const list = spellsForClass(this.spellTab === 'class' ? s.cls : 'universal');
+    if (this.spellTab === 'multi' && !s.multi) this.spellTab = 'class';
+    const list = spellsForClass(this.spellTab === 'class' ? s.cls : this.spellTab === 'multi' ? s.multi! : 'universal');
     const slotNames = ['Kouzlo 1', 'Kouzlo 2', 'Kouzlo 3', 'Ultimátní', 'Univerzální'];
     const loadout = s.loadout
       .map((id, i) => {
@@ -1508,8 +1556,9 @@ export class Panels {
             s.spellRanks[sp.id] = (s.spellRanks[sp.id] ?? 0) + 1;
           } else if (a.startsWith('slot')) {
             const i = +a.slice(4);
-            // remove from other slots
+            // remove from other slots; a multiclass hero carries only one spell of the second class
             s.loadout = s.loadout.map((x) => (x === sp.id ? null : x));
+            if (s.multi && sp.cls === s.multi) s.loadout = s.loadout.map((x, j) => (j < 3 && x && SPELL_BY_ID[x]?.cls === s.multi ? null : x));
             s.loadout[i] = sp.id;
             this.sc.player.cds[i] = Math.max(this.sc.player.cds[i], 1);
           }
@@ -1565,9 +1614,10 @@ export class Panels {
       if (f.t === 'summon') dmgTxt += `<div class="main">Vyvolá: <b>${f.n ?? 1}×</b> na ${f.dur} s</div>`;
       if (f.t === 'buff' && f.dur) dmgTxt += `<div class="main">Trvání: <b>${Math.round(f.dur * (1 + 0.05 * (rank - 1)))} s</b></div>`;
     }
-    const type = sp.ult ? '<span style="color:#ffb347">Ultimátní kouzlo</span>' : sp.cls === 'universal' ? '<span style="color:#7dff9a">Univerzální kouzlo</span>' : 'Kouzlo classy';
+    const type = sp.ult ? '<span style="color:#ffb347">Ultimátní kouzlo</span>' : sp.cls === 'universal' ? '<span style="color:#7dff9a">Univerzální kouzlo</span>' : s.multi && sp.cls === s.multi ? '<span style="color:#c77dff">Kouzlo druhé classy (jen jedno ve slotech)</span>' : 'Kouzlo classy';
     let btns = '';
-    if (!locked) {
+    if (!locked && s.multi && sp.cls === s.multi && sp.ult) btns = '';
+    else if (!locked) {
       if (sp.cls === 'universal') btns += [0, 1, 2].map((i) => `<button class="btn small blue" data-a="slot${i}">Slot ${i + 1}</button>`).join('') + `<button class="btn small green" data-a="slot4">Univerzální slot</button>`;
       else if (sp.ult) btns += `<button class="btn small" data-a="slot3">Ultimátní slot</button>`;
       else btns += [0, 1, 2].map((i) => `<button class="btn small blue" data-a="slot${i}">Slot ${i + 1}</button>`).join('');
@@ -1586,14 +1636,20 @@ export class Panels {
 
   // ------------------------------------------------------------------ TALENTS
   /** the class's talent tree: three branches, a point into a talent with one tap */
+  /** which tree the talents tab shows: the hero's class or the second class */
+  talentTree: 'main' | 'multi' = 'main';
+
   talentsView(p: HTMLElement) {
     const body = $('.body', p);
     const s = this.save;
     const ranks = (s.talents ??= {});
-    const free = freeTalentPoints(s);
     const total = talentPoints(s.level);
     const respec = Math.round(150 * s.level * (1 + s.level / 40));
-    const branches = TALENT_TREES[s.cls];
+    if (!s.multi) this.talentTree = 'main';
+    const second = this.talentTree === 'multi' && !!s.multi;
+    const branches = TALENT_TREES[second ? s.multi! : s.cls];
+    // the second class's tree takes at most a few points
+    const free = second ? Math.min(freeTalentPoints(s), MULTI_TALENT_CAP - multiTalentSpent(s)) : freeTalentPoints(s);
     const statText = (tl: TalentDef, r: number) =>
       tl.stats
         ? Object.entries(tl.stats)
@@ -1601,7 +1657,11 @@ export class Panels {
             .join(', ') + (tl.when ? ` (${COND_NAME[tl.when]})` : '')
         : (tl.desc ?? POWER_BY_ID[tl.special ?? '']?.desc ?? SPECIAL_BY_ID[tl.special ?? '']?.desc ?? '');
     body.innerHTML = `<div class="col" style="flex:1;min-width:0">
-      <div class="row tlhead"><span>Volné body talentů: <b style="color:${free > 0 ? '#9dff9d' : '#fff'}">${free}</b> z ${total} <span class="hint">(bod za každou druhou úroveň)</span></span><button class="btn small red" data-a="respec" ${total - free > 0 && s.gold >= respec ? '' : 'disabled'}>Zapomenout vše · ${respec.toLocaleString('cs-CZ')} zl.</button></div>
+      <div class="row tlhead"><span>Volné body talentů: <b style="color:${freeTalentPoints(s) > 0 ? '#9dff9d' : '#fff'}">${freeTalentPoints(s)}</b> z ${total} <span class="hint">(bod za každou druhou úroveň)</span></span>${
+        s.multi
+          ? `<span class="row" style="gap:4px"><button class="btn small ${second ? '' : 'gold'}" data-tree="main">${esc(CLASS_BY_ID[s.cls].name)}</button><button class="btn small ${second ? 'gold' : ''}" data-tree="multi">${esc(CLASS_BY_ID[s.multi].name)} (${multiTalentSpent(s)}/${MULTI_TALENT_CAP})</button></span>`
+          : ''
+      }<button class="btn small red" data-a="respec" ${total - freeTalentPoints(s) > 0 && s.gold >= respec ? '' : 'disabled'}>Zapomenout vše · ${respec.toLocaleString('cs-CZ')} zl.</button></div>
       <div class="scroll" style="flex:1"><div class="tltree">${branches
         .map((b) => {
           const spent = spentIn(ranks, b);
@@ -1620,13 +1680,21 @@ export class Panels {
         const id = btn.dataset.tl!;
         const b = branches.find((x) => x.talents.some((tl) => tl.id === id))!;
         const i = b.talents.findIndex((tl) => tl.id === id);
-        if (!canLearn(ranks, b, i, freeTalentPoints(s))) return;
+        const left = second ? Math.min(freeTalentPoints(s), MULTI_TALENT_CAP - multiTalentSpent(s)) : freeTalentPoints(s);
+        if (!canLearn(ranks, b, i, left)) return;
         ranks[id] = (ranks[id] ?? 0) + 1;
         sfx('upgrade');
         this.sc.player.recalc();
         bus.emit('stats');
         saveGame(s);
         this.refreshTalentTab(p);
+        this.talentsView(p);
+      }),
+    );
+    body.querySelectorAll<HTMLElement>('[data-tree]').forEach((b) =>
+      b.addEventListener('click', () => {
+        sfx('ui');
+        this.talentTree = b.dataset.tree as 'main' | 'multi';
         this.talentsView(p);
       }),
     );

@@ -3,6 +3,7 @@ import type { MercState } from '../data/mercs';
 import { CURSE_BY_ID } from '../data/curses';
 import { Codex, discoverItem, discoverStone } from '../data/codex';
 import { TALENT_BY_ID, TALENT_CLASS, TalentCond, talentPoints } from '../data/talents';
+import { multiTitle } from '../data/multiclass';
 import { ATTR_KEYS, AttrKey, ClassId, Item, Slot, StatKey, Stats } from '../data/types';
 import { DEFAULT_DIFFICULTY } from '../data/difficulty';
 import { CLASS_BY_ID } from '../data/classes';
@@ -84,6 +85,17 @@ export interface SaveData {
 export function talentActive(s: SaveData, id: string) {
   const c = TALENT_CLASS[id];
   return c === s.cls || (!!s.multi && c === s.multi);
+}
+
+/** the hero's class name, or the title of the pair for a multiclass hero */
+export function heroTitle(s: SaveData) {
+  return s.multi ? multiTitle(s.cls, s.multi) : CLASS_BY_ID[s.cls].name;
+}
+
+/** points spent in the second class's tree */
+export function multiTalentSpent(s: SaveData) {
+  if (!s.multi) return 0;
+  return Object.entries(s.talents ?? {}).reduce((a, [id, r]) => a + (TALENT_CLASS[id] === s.multi ? r : 0), 0);
 }
 
 /** talent points not spent yet */
@@ -276,8 +288,10 @@ export function changeClass(s: SaveData, cls: ClassId) {
     }
   }
   s.spellPoints += refund;
-  // the talents of the old class are forgotten (the points come back)
+  // the talents of the old class are forgotten (the points come back); a second class that becomes the
+  // main one is no longer a second class
   s.talents = {};
+  if (s.multi === cls) delete s.multi;
   // swap class attribute bonus
   const oldDef = CLASS_BY_ID[s.cls];
   const newDef = CLASS_BY_ID[cls];
@@ -348,6 +362,8 @@ export function gearStats(s: SaveData): { stats: Stats; specials: Set<string> } 
   }
   const cdef = CLASS_BY_ID[s.cls];
   for (const [k, v] of Object.entries(cdef.passiveStats)) add(k as StatKey, v as number);
+  // a second class gives half of its passive
+  if (s.multi && CLASS_BY_ID[s.multi]) for (const [k, v] of Object.entries(CLASS_BY_ID[s.multi].passiveStats)) add(k as StatKey, (v as number) / 2);
   // pieces of item sets worn together
   addSetBonuses(s.equip, add, specials);
   // talents (of the hero's class)

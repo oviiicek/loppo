@@ -72,6 +72,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'merc1', name: 'Parťák', desc: 'Najmi si žoldáka', reward: { gold: 500, stone: 2 }, check: (s) => !!s.merc },
   { id: 'merc3', name: 'Dobře vyzbrojený', desc: 'Obsaď žoldákovi všechny tři sloty vybavení', reward: { gold: 4000, dust: 3 }, check: (s) => !!s.merc && ['weapon', 'armor', 'jewel'].every((k) => !!(s.merc!.equip as any)[k]) },
   { id: 'rival1', name: 'Souboj dobrodruhů', desc: 'Poraz dobrodruha, který se proti tobě postavil', reward: { gold: 3000, dust: 3 }, check: (s) => (st(s).rivals ?? 0) >= 1 },
+  { id: 'multi', name: 'Dvě cesty', desc: 'Zvol si od úrovně 100 druhou classu', reward: { gold: 20000, attr: 3 }, check: (s) => !!s.multi },
   // the codex
   { id: 'codex50', name: 'Sběratel kuriozit', desc: 'Měj v kodexu 50 záznamů', reward: { gold: 3000, dust: 3 }, check: (s) => codexCount(s) >= 50 },
   { id: 'codex150', name: 'Kurátor', desc: 'Měj v kodexu 150 záznamů', reward: { gold: 30000, attr: 3 }, check: (s) => codexCount(s) >= 150 },

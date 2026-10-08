@@ -7,7 +7,7 @@ import { BASE_BY_ID, RARITIES, BASES, CATEGORY_NAMES } from '../data/items';
 import { PETS, PET_BY_ID, petTitle, petLevel } from '../data/pets';
 import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
-import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, listFallen } from '../systems/state';
+import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, listFallen, heroTitle } from '../systems/state';
 import { DIFFICULTIES, DEFAULT_DIFFICULTY, difficultyOf, difficultyLines } from '../data/difficulty';
 import { areaForFloor } from '../data/biomes';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
@@ -100,7 +100,7 @@ export class Menus {
         ${slots
           .map((sv, i) =>
             sv
-              ? `<div class="box row" style="justify-content:space-between;flex-wrap:nowrap;${i === act ? 'border-color:#8a6a3a' : ''}"><div class="row" style="flex-wrap:nowrap"><span class="slothero"><img style="height:56px;image-rendering:pixelated" src="${iconURL('pl_' + sv.cls, 64)}">${sv.pets?.active ? `<img class="slotpet" src="${iconURL('pet_' + sv.pets.active, 48)}">` : ''}</span><div><div style="font-size:20px;color:#ffd76a">${sv.heroName ? `${esc(sv.heroName)} – ` : ''}${esc(CLASS_BY_ID[sv.cls].name)} • úroveň ${sv.level} <button class="btn small renbtn" data-ren="${i}" title="Pojmenovat hrdinu">✎</button></div><div class="hint">Patro ${sv.floor} (nejhlouběji ${sv.maxFloor}) • ${diffTag(sv)} • ${Math.floor(sv.playTime / 60)} min • zabito ${sv.kills}</div><div class="hint">🏆 ${(sv.achievements ?? []).length}/${ACHIEVEMENTS.length}${sv.pets?.active ? ` • 🐾 ${esc(petTitle(PET_BY_ID[sv.pets.active]))} (úr. ${petLevel(sv.pets, sv.pets.active)})` : ''}</div></div></div>
+              ? `<div class="box row" style="justify-content:space-between;flex-wrap:nowrap;${i === act ? 'border-color:#8a6a3a' : ''}"><div class="row" style="flex-wrap:nowrap"><span class="slothero"><img style="height:56px;image-rendering:pixelated" src="${iconURL('pl_' + sv.cls, 64)}">${sv.pets?.active ? `<img class="slotpet" src="${iconURL('pet_' + sv.pets.active, 48)}">` : ''}</span><div><div style="font-size:20px;color:#ffd76a">${sv.heroName ? `${esc(sv.heroName)} – ` : ''}${esc(heroTitle(sv))} • úroveň ${sv.level} <button class="btn small renbtn" data-ren="${i}" title="Pojmenovat hrdinu">✎</button></div><div class="hint">Patro ${sv.floor} (nejhlouběji ${sv.maxFloor}) • ${diffTag(sv)} • ${Math.floor(sv.playTime / 60)} min • zabito ${sv.kills}</div><div class="hint">🏆 ${(sv.achievements ?? []).length}/${ACHIEVEMENTS.length}${sv.pets?.active ? ` • 🐾 ${esc(petTitle(PET_BY_ID[sv.pets.active]))} (úr. ${petLevel(sv.pets, sv.pets.active)})` : ''}</div></div></div>
                  <div class="row" style="flex-wrap:nowrap"><button class="btn green" data-play="${i}">Hrát</button><button class="btn blue small" data-exp="${i}">Přenést</button><button class="btn red small" data-del="${i}">Smazat</button></div></div>`
               : `<div class="box row" style="justify-content:space-between"><span class="hint" style="font-size:18px">Slot ${i + 1} – volný</span><div class="row"><button class="btn" data-new="${i}">Nová postava</button><button class="btn blue small" data-imp="${i}">Vložit kód</button></div></div>`,
           )
@@ -424,7 +424,7 @@ export class Menus {
     const sc = this.ui.scene!;
     const p = el(`<div class="panel small"><div class="head"><h2>Pauza</h2><button class="close">✕</button></div>
       <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
-        <div class="hint">${esc(CLASS_BY_ID[sc.save.cls].name)} • úroveň ${sc.save.level} • patro ${sc.floor} • herní čas ${Math.floor(sc.save.playTime / 60)} min • <button class="linkbtn" data-a="diff">${diffTag(sc.save)} ✎</button></div>
+        <div class="hint">${esc(heroTitle(sc.save))} • úroveň ${sc.save.level} • patro ${sc.floor} • herní čas ${Math.floor(sc.save.playTime / 60)} min • <button class="linkbtn" data-a="diff">${diffTag(sc.save)} ✎</button></div>
         <button class="btn green" data-a="resume">Pokračovat</button>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button><button class="btn" style="flex:1" data-a="merc">⚔️ Žoldák</button></div>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="pets">🐾 Mazlíčci</button><button class="btn" style="flex:1" data-a="ach">🏆 Úspěchy</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
