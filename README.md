@@ -137,7 +137,10 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   - magická síla,
   - rychlost útoku.
 - Body kouzel zvyšují stupeň kouzla (až 10/10): +15 % síly a −2 % přebíjení za stupeň.
-- Classu lze změnit u obchodníka za zlato. Body z kouzel staré classy se vrátí jako volné. Atributy jde u obchodníka také přerozdělit.
+- Classu lze změnit u obchodníka (nebo na cvičišti v Loppu) za zlato. Body z kouzel staré classy se vrátí jako volné. Atributy jde také přerozdělit.
+- **Talentové stromy:** každá classa má 3 větve talentů (např. Bojovník: tank, obouruční zbraně, dvě zbraně; Mág: oheň, mráz, blesk; Assassin: jed, kritické zásahy, stealth). Bod talentu je za každou druhou úroveň, hlubší talenty se otevírají podle bodů ve větvi a na konci každé větve čeká silná schopnost. Talenty jde zapomenout za zlato (v záložce Kouzla → Talenty).
+- **Multiclass:** od úrovně 100 si hrdina zvolí druhou classu. Dostane polovinu jejího pasivního bonusu, může používat její kouzla, investovat do jejích talentů (omezený počet bodů) a nese spojený titul (Bitevní mág, Stínový mág, Hraničář…).
+- Hrdina může mít vlastní jméno (podle něj si ho pamatují nemesis).
 - Každá classa má vlastní detailní postavičku (kreslenou ve dvojnásobném rozlišení). Když stojí, dýchá a mrká a občas se podrbe na hlavě, rozhlédne nebo protáhne.
 - Mimo boj nosí postava zbraň na zádech nebo u opasku (štít na zádech, kastety a magická koule se schovají). Jakmile se přiblíží nepřítel, zbraň tasí, a 5–10 s po skončení boje ji zase zasune.
 
@@ -151,19 +154,32 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
 - Dvě jednoruční zbraně se střídají v útoku a dávají +15 % rychlosti útoku.
 - Kritické zásahy, úhyb, blok štítem, brnění, vysávání života, trny a elementální poškození (oheň, mráz, blesk, jed).
 - Stavy nepřátel: zpomalení, omráčení, zmrazení, hoření, otrava, krvácení, zranitelnost.
-- Nepřátelé (23 typů, každé prostředí má své) s vlastním chováním: na blízko, střelci, kouzelníci, nájezdníci, vyvolávači, slizy, které se dělí, létající, přízraky procházející zdmi a mimikové. Elitní šampioni mají náhodné vlastnosti: rychlý, obrněný, upíří, výbušný nebo mrazivý.
+- Nepřátelé (23 typů, každé prostředí má své) s vlastním chováním: na blízko, střelci, kouzelníci, nájezdníci, vyvolávači, slizy, které se dělí, létající, přízraky procházející zdmi a mimikové.
+- **Šampioni** mají vlastnosti, které jsou vidět na jejich záři: rychlý, obrněný, upíří, výbušný, mrazivý, ohnivý (hořící stopa), elektrický (blesky), léčitel, teleportér, vyvolávač a hlouběji i zuřivý, jedovatý, štítonoš, magnetický (přitahuje hrdinu), zrcadlový (vrací část poškození) a nesmrtelný (jednou vstane z mrtvých). Od 25. patra mívají dvě vlastnosti, od 60. až tři a od 120. vždy tři – každá navíc jim přidá zdraví a zkušenosti.
+- **Bestiář:** každý druh nestvůry má slabiny a odolnosti vůči živlům (slabina = poškození ×1,5, odolnost = ×0,6; přízrak třeba odolává zbraním, ale bojí se svatého světla). Zabíjením se bestiář plní: po 10 zabitích ukáže slabiny, po 25 kořist, po 50 a 100 dá mistrovství (+5 / +10 % poškození proti tomu druhu). Najdeš ho v Úspěších.
+- **Fáze strážců:** při 70, 40 a 10 % zdraví strážce změní chování – naučí se nové útoky (bodce, kříže, novy, pavučiny, vysávání), promění arénu (hořící zem, padající kamení, temnota, která zužuje světlo) a v posledních 10 % zuří a útočí rychleji. Ukazatel zdraví má značky fází.
+- **Série zabití:** rychle po sobě poražené nestvůry tvoří sérii; od 5 zabití dá na konci bonusové zkušenosti.
 - Vyvolaní spojenci (kostlivci, golemové, vlci, medvěd, ent, elementál…) a totemy.
 
 ### Kořist a vybavení
-- 6 kvalit:
+- 7 kvalit:
   - běžná,
   - neobvyklá,
   - vzácná,
   - epická,
   - legendární,
-  - mýtická.
+  - mýtická,
+  - **pradávná** (krvavě rudá, nejvzácnější – jen z velkého štěstí nebo transmutace).
 
-  Legendární a mýtické předměty mají unikátní jména a zvláštní efekty, například řetězový blesk, exploze při zabití, extra projektil nebo kouzelnou ozvěnu.
+  Legendární a lepší předměty jsou **unikáty** s vlastním jménem a vlastní mechanikou (61 unikátů, 30 schopností): luk, jehož šípy se odrážejí, meč, který z poražených vyvolá stíny, prsten, který jednou za minutu zachrání před smrtí, meteor při kritickém zásahu, bouřková aura, krvežíznivost…
+- **Drahokamy a sokety:** předměty mívají sokety (další jde vyvrtat v kovárně). Drahokamy 6 druhů a 5 stupňů dávají podle místa (zbraň, zbroj, šperk) různé bonusy; tři stejné se spojí ve vyšší stupeň. Při rozebrání předmětu se drahokamy vrátí.
+- **Runy zbraní:** každá zbraň má runový soket (obouruční dva). Runa ohně, jedu, mrazu, bouře, krve, zkázy nebo upíra má podle stupně 10–50 % šanci při zásahu zapálit, otrávit, zmrazit, vyvolat blesk, způsobit krvácení, oslabit nebo vysát život.
+- **Runy kouzel:** do každého kouzla jde vložit jednu z 12 run, která změní, jak funguje – ozvěna, rozštěpení, oheň, mráz, bouře, jed, síla, spěch, upír, průraz, navádění, výbuch. Spolu s legendárními schopnostmi a vlastnostmi šampionů tak každé patro hraje jinak.
+- **Sady předmětů:** legendární kusy sad (od 10. patra) dávají bonusy za 2, 3 a 4 nasazené kusy.
+- **Prokleté předměty:** občas vzácný předmět nese kletbu – obrovský bonus za cenu postihu (např. +80 % poškození a −30 % zdraví, nebo lektvary léčí jen napůl). V chrámu v Loppu jde kletbu zkrotit: zůstane 60 % bonusu a postih zmizí.
+- **Transmutace:** u alchymisty (náhodně v kobkách nebo v laboratoři v Loppu) se 5 předmětů stejné kvality spojí v jeden – většinou o stupeň lepší, někdy o dva, výjimečně pradávný.
+- **Kodex:** sbírka všeho nalezeného (unikáty, kusy sad, drahokamy, runy, druhy předmětů podle kvality) v Úspěších.
+- **Automatická kořist:** pro každou kvalitu jde v pauze nastavit, jestli se předmět nechá, hned prodá, nebo rozebere. Předměty jde **zamknout**, aby je hromadný prodej ani rozebrání nevzaly.
 - 23 typů předmětů a 32 typů bonusů. Názvy se generují česky se správným rodem, například „Runová sekera zuřivosti“ nebo „Dračí boty větru“.
 - Sloty vybavení:
   - hlavní ruka,
@@ -185,9 +201,11 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   - náhodné zboží,
   - zpětný odkup omylem prodaných předmětů za stejnou cenu,
   - „tajemné zboží“ (zbraň tvého stylu, zbroj, šperk nebo cokoliv) neznámé kvality s velkou šancí na vzácný až mýtický předmět.
-- Kovárna:
+- Kovárna (kovadlina):
   - vylepšení +1 až +10 (šance na úspěch klesá s úrovní),
-  - očarování, které přidá nebo přehodí magický efekt.
+  - očarování, které přidá nebo přehodí magický efekt,
+  - přehození jedné vlastnosti předmětu,
+  - vrtání soketů.
 - Chytrý loot: část zbraní padá podle typu útoku postavy a přednost mají prázdné sloty.
 
 ### Prostředí a průzkum
@@ -219,7 +237,7 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   Postup ukazuje rámeček pod minimapou. Za splnění padne k hrdinovým nohám zlato, předmět, materiály a někdy paklíč.
 - Prokletá truhla: vzácná černá truhla se zelenými runami. Po přijetí výzvy se 30 sekund kolem ní otevírají zelené portály s vlnami nestvůr. Nahoře běží čas a počet poražených. Na konci zbylé nestvůry zmizí a truhla se otevře; čím víc nestvůr padlo, tím víc předmětů v ní je (od 20 poražených i legendární nebo mýtický).
 - Atmosféra prostředí: v kobkách poletuje prach, v jeskyních svítící spory, v ledových hlubinách sněží, ve výhni stoupají jiskry a padá popel a v propasti blikají fialové jiskřičky. Úsporná grafika je vypne.
-- 43 úspěchů s odměnami (zlato, materiály, paklíče, body atributů). Na druhé záložce panelu úspěchů jsou statistiky postavy: herní čas, poražení nepřátelé a šampioni, sebrané zlato a předměty, nejlepší nález, nejsilnější zásah, splněné úkoly, prokleté truhly, mazlíčci, smrti a další.
+- Přes 70 úspěchů s odměnami (zlato, materiály, paklíče, body atributů). Na druhé záložce panelu úspěchů jsou statistiky postavy: herní čas, poražení nepřátelé a šampioni, sebrané zlato a předměty, nejlepší nález, nejsilnější zásah, splněné úkoly, prokleté truhly, mazlíčci, smrti a další.
 - Barva kovu u zbraní a zbroje odpovídá materiálu předmětu (rezavý, železný, ocelový, runový, mithrilový, dračí, démonický, hvězdný). Vidět je to v inventáři i na zbrani v ruce postavy.
 
 ### Mazlíčci
@@ -242,11 +260,48 @@ V dungeonu čeká v klecích 8 zvířátek. První klec se objeví nejpozději v
 
 Létající mazlíčci (sova, bludička, dráček) se vznášejí nad zemí a když hrdina dlouho stojí, sova a dráček si sednou. Když hrdina odpočívá, mazlíček se prochází kolem, občas ukáže srdíčko a po delší době usne. Mazlíčky jde přepínat v pauze (Mazlíčci) nebo v okně postavy.
 
+### Společníci, soupeři a nemesis
+- **Žoldák:** v pauze jde najmout jednoho parťáka – tanka (provokuje nepřátele), léčitele, lučištníka nebo mága. Má vlastní sloty vybavení (zbraň, zbroj, šperk) a jednoduché rozkazy: útočit, bránit hrdinu, nebo jen následovat. Když padne, za chvíli vstane.
+- **Dobrodruzi v kobkách:** občas patrem prochází jiný dobrodruh. Může se přidat (a u schodů dát dárek), nabídnout obchod, nebo chtít mýto a bojovat. Spojenec, kterému sebereš legendární kořist před nosem, se může obrátit proti tobě.
+- **Nemesis:** šampion, který hrdinu zabije, může dostat jméno a titul („Grak, Zabiják Oviho“) a zesílit. Později se vrátí – a pokaždé, když znovu zvítězí, roste. Když ho konečně porazíš, padne bohatá kořist. Seznam nemesis je v Úspěších.
+
+### Události v kobkách
+Každé běžné patro má obvykle jednu až dvě náhodné události (na minimapě jako barevný kosočtverec):
+
+- **Zajatci:** vesničané z Loppa (kovář, kupkyně, lovkyně, alchymistka, mág, mistr zbraní, kněžka) a cizí poutníci, které hlídají nestvůry. Osvobozený vesničan se vrátí domů a otevře v Loppu svou budovu; poutníci dají dárek (mapu patra, lektvary, zlato, předmět, zkušenosti, tajný průchod). Některý „zajatec“ ale může být převtělenec.
+- **Oltáře:** krvavý (obětuj třetinu zdraví za +30 % poškození a +10 % kritické šance do konce patra), oltář proměny (polož předmět – často se vrátí o stupeň vzácnější) a oltář osudu (hod kostkami za zlato: požehnání, poklad, jackpot – nebo zkouška).
+- **Duchové** padlých dobrodruhů: pomsti je (jejich vrah je vyznačený na mapě), nech si ukázat jejich skrýš, nebo je nech odpočívat.
+- **Trhlina:** portál do zkřiveného světa plného nestvůr. Poraz jich dost, přivolej strážce trhliny a zabij ho – padne bohatá kořist (s bonusem za rychlost) a portál tě vynese o patro hlouběji.
+- **Rvačka:** dvě smečky nestvůr bojují mezi sebou. Počkej, až se oslabí – vítězové jdou po tobě, ale nesou kořist poražených.
+- **Krvavá výzva** (risk/reward): obelisk uprostřed místnosti. Po přijetí se místnost uzavře rudým světlem a přijdou dvě vlny silných nestvůr. Odměnou je krvavá truhla s +300 % šancí na legendární kořist.
+- **Rozhodnutí s následky:** spoutaný nekromant Morvan (osvobodit / zabít / nechat), raněný rytíř Bertram (dát mu lektvar?) a démon v lahvi (splní přání…). Za pár pater se rozhodnutí vrátí – jako pomoc, zrada, společník, mrtvé tělo nebo vymahač dluhů.
+- **Kostlivci u karet:** zahraj si o zlato.
+- **Lore:** dopisy padlých dobrodruhů a nápisy na zdech (40 zápisků, některé prozradí tajný průchod). Přečtené se ukládají do Kroniky.
+- **Velmi vzácné chvíle:** zlatá komnata plná pokladů, tajný strážce Aurex – Zlatý drak, zlatý portál do snového světa plného zlatých skřetů a zlatý déšť.
+
+### Vesnice Loppo
+Domov hrdiny pod Šedými horami. Dostaneš se tam z pauzy (🏠 Domů do Loppa – ne uprostřed boje) a zpět bránou do kobek; patro pak začíná znovu od schodů. Na návsi stojí studna, Ilda (řekne, kdo z vesničanů ještě chybí) a osm domů. Dům se otevře, až se jeho majitel vrátí z kobek, a dál roste za investované zlato (3 úrovně):
+
+| Budova | Kdo | Co umí |
+| --- | --- | --- |
+| Sklad | – | společný sklad: 42 / 84 / 126 míst |
+| Kovárna | kovář Bořek (od 3. patra) | kovadlina; v Loppu vyšší šance na vylepšení a levnější vylepšení a sokety |
+| Obchod | kupkyně Šárka (od 5.) | 9 / 12 / 15 předmětů, s úrovní lepší zboží |
+| Nástěnka úkolů | lovkyně Jitka (od 7.) | úkoly: 2 / 3 / 4 najednou, vyšší odměny |
+| Laboratoř | alchymistka Vanda (od 9.) | transmutace, lektvary za 70 % ceny, silnější lektvary, transmutace bez nezdaru |
+| Věž mága | mág Ignác (od 12.) | runy do zbraní (až 4. stupeň), runy kouzel, levnější zapomenutí talentů |
+| Cvičiště | mistr Radovan (od 15.) | změna classy, +5 / +10 % zkušeností, silnější žoldák |
+| Chrám | kněžka Bohdana (od 20.) | požehnání na 3–5 pater (síla, život, štěstí), krocení kleteb |
+
+### Úkoly
+Na nástěnce v Loppu visí úkoly od vesničanů: najdi ztraceného dobrodruha (čeká jako zajatec na určeném patře), přines artefakt strážce, otevři prokletou hrobku, poraz strážce bez lektvarů, najdi tajné místnosti, poraz šampiony nebo nestvůry, osvoboď zajatce, přečti zápisky, zavři trhlinu a pomsti se nemesis. Splněný úkol se vyzvedne na nástěnce (zlato, předmět, drahokam, runa nebo materiál). Přehled úkolů je v pauze.
+
 ### Ostatní
 - Dynamické osvětlení s blikajícími pochodněmi, minimapa s mlhou války, čísla poškození, částicové efekty a otřesy obrazovky.
 - Automatické ukládání do `localStorage`: při změně patra, každých 20 s a při odchodu z aplikace. K dispozici jsou 3 sloty pro různé postavy.
 - Přenos postavy mezi zařízeními nebo prohlížeči: v menu Postavy tlačítko Přenést vytvoří textový kód a Vložit kód ho na jiném zařízení načte do volného slotu.
-- Úložiště u obchodníka (42 míst) pro předměty, které nechceš nosit ani prodat.
+- Sklad (u obchodníků i v Loppu, 42–126 míst) pro předměty, které nechceš nosit ani prodat.
+- Po smrti ukáže obrazovka, kdo zasadil poslední ránu a jak silnou, s tipem, jak se tomu příště vyhnout.
 - Smrt znamená ztrátu části zlata a zkušeností (podle obtížnosti 5–25 % zlata). Patro se pak vygeneruje znovu. V režimu Hardcore postava po smrti navždy zmizí.
 - Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání, automatické rozebírání slabých předmětů a úspornou grafiku (bez dynamického osvětlení, pro slabší telefony).
 - Hlavní menu má živé pozadí, náhodně vygenerovaný dungeon s pochodněmi.
@@ -257,12 +312,15 @@ Létající mazlíčci (sova, bludička, dráček) se vznášejí nad zemí a kd
 ```
 src/
   main.ts              konfigurace Phaseru
-  data/                classy, kouzla, předměty, nepřátelé, typy
+  data/                classy, kouzla, předměty, nepřátelé, drahokamy, runy, kletby, unikáty, talenty,
+                       vesnice, úkoly, osudy, lore, bestiář, typy
   systems/             generátor dungeonu, stav postavy a ukládání, RNG, zvuk
   gfx/                 procedurální pixel-art (textury, ikony kouzel)
-  game/                mapa a kolize, hráč, nepřátelé a spojenci, boj, kouzla, loot, AI bossů, efekty
+  game/                mapa a kolize, hráč, nepřátelé a spojenci, boj, kouzla, loot, AI bossů, efekty,
+                       žoldák, události v kobkách (encounters), vesnice, úkoly
   scenes/              Boot, Game (hlavní herní smyčka), Gallery (náhled grafiky)
-  ui/                  HTML/CSS rozhraní: HUD, joystick, inventář, postava, kouzla, obchod, menu
+  ui/                  HTML/CSS rozhraní: HUD, joystick, inventář, postava, kouzla, obchod, menu,
+                       budovy Loppa, nástěnka úkolů
   dev.ts               vývojářské nástroje (jen v dev režimu), včetně bota, který hru sám hraje
 ```
 
@@ -274,4 +332,9 @@ src/
   - `__dev.castAll('mage')` sešle všechna kouzla classy,
   - `__dev.bot(true)` zapne bota, který hraje sám,
   - `__dev.speed(3)` zrychlí herní logiku,
-  - `__dev.pets('owl')` dá postavě všechny mazlíčky a s sebou vezme sovu.
+  - `__dev.pets('owl')` dá postavě všechny mazlíčky a s sebou vezme sovu,
+  - `__dev.ev('arena')` umístí na patro událost (`captive`, `altarBlood`, `ghost`, `portal`, `brawl`, `arena`, `necro`, `knight`, `bottle`, `cards`, `corpse`, `runes`, `golden`, `dragon`, `dream`, `rain`), `__dev.goTo('arena')` k ní přenese hrdinu,
+  - `__dev.village()` přenese hrdinu do Loppa, `__dev.buildAll(3)` postaví všechny budovy na danou úroveň,
+  - `__dev.quest('lost')` přijme úkol, `__dev.questInfo()` ukáže úkoly,
+  - `__dev.elite('orc', ['štítonoš', 'zrcadlový'])` postaví vedle hrdiny šampiona s danými vlastnostmi,
+  - `__dev.evInfo()` vypíše stav událostí patra.
