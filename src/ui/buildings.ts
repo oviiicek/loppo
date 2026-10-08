@@ -87,6 +87,8 @@ export class BuildingPanels {
   private render(p: HTMLElement, id: BuildingId, tab: string) {
     const P = this.P;
     P.sel = null;
+    // gold and materials in the header on every tab
+    P.headMats(p);
     const body = $('.body', p);
     body.scrollTop = 0;
     switch (tab) {
@@ -250,7 +252,6 @@ export class BuildingPanels {
           <span class="row"><span style="color:#ffd76a">${n(price[k])} zl.</span><button class="btn small green" data-buy="${k}" data-n="1" ${s.gold < price[k] ? 'disabled' : ''}>Koupit 1</button><button class="btn small green" data-buy="${k}" data-n="5" ${s.gold < price[k] * 5 ? 'disabled' : ''}>Koupit 5</button></span></div>`,
         )
         .join('')}
-      <div class="box">${this.P.matsHtml()}</div>
     </div>`;
     body.querySelectorAll<HTMLElement>('[data-buy]').forEach((b) =>
       b.addEventListener('click', () => {

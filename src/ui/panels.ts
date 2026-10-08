@@ -81,6 +81,28 @@ export class Panels {
   multi: Set<number> | null = null;
   constructor(ui: UIM) {
     this.ui = ui;
+    // the gold and materials in open panel headers follow every purchase, upgrade or reward
+    window.setInterval(() => this.syncHeadMats(), 400);
+    window.addEventListener('resize', () =>
+      requestAnimationFrame(() => this.ui.root?.querySelectorAll<HTMLElement>('.headmats').forEach((b) => b.parentElement && this.fitHead(b.parentElement))),
+    );
+  }
+
+  private headSig = '';
+
+  private syncHeadMats() {
+    const sc = this.ui.scene;
+    const boxes = this.ui.root?.querySelectorAll<HTMLElement>('.headmats');
+    if (!sc?.save || !boxes?.length) return;
+    const s = sc.save;
+    const sig = [s.gold, s.mats.hpPotion, s.mats.mpPotion, s.mats.lockpick, s.mats.stone, s.mats.dust, JSON.stringify(gemPouch(s)), JSON.stringify(runePouch(s))].join('|');
+    if (sig === this.headSig) return;
+    this.headSig = sig;
+    const html = this.matsHtml();
+    boxes.forEach((b) => {
+      b.innerHTML = html;
+      if (b.parentElement) this.fitHead(b.parentElement);
+    });
   }
 
   get sc() {
@@ -130,6 +152,32 @@ export class Panels {
     const lock = it.locked ? '<span class="lockmark">🔒</span>' : '';
     const curse = it.curse ? '<span class="cursemark">☠</span>' : '';
     return `<div class="slot r${it.rarity}${it.set ? ' set' : ''}${it.curse ? ' cursed' : ''} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}${lock}${curse}</div>`;
+  }
+
+  /** gold and materials in a panel's header, next to its title and tabs (the body keeps the room) */
+  headMats(p: HTMLElement) {
+    const head = p.querySelector<HTMLElement>(':scope > .head');
+    if (!head) return;
+    let hm = head.querySelector<HTMLElement>('.headmats');
+    if (!hm) {
+      hm = el('<div class="headmats"></div>');
+      head.insertBefore(hm, head.querySelector('.headacts') ?? $('.close', head));
+    }
+    hm.innerHTML = this.matsHtml();
+    requestAnimationFrame(() => this.fitHead(head));
+  }
+
+  /** a crowded header squeezes until the materials fit: smaller tabs and materials first, then without the title */
+  fitHead(head: HTMLElement) {
+    const hm = head.querySelector<HTMLElement>(':scope > .headmats');
+    head.classList.remove('tight', 'notitle');
+    if (!hm || !head.isConnected) return;
+    const h2 = head.querySelector<HTMLElement>(':scope > h2');
+    const cut = (e: HTMLElement | null) => !!e && e.scrollWidth > e.clientWidth + 1;
+    if (!cut(hm) && !cut(h2)) return;
+    head.classList.add('tight');
+    // a title cut down to a stub says nothing, the tabs tell where you are
+    if (head.querySelector('.tabs .tab') && (cut(hm) || (cut(h2) && h2!.clientWidth < 90))) head.classList.add('notitle');
   }
 
   matsHtml() {
@@ -673,6 +721,7 @@ export class Panels {
               <div>Brnění <b>${d.armor}</b></div>
               <div>HP <b>${d.maxHp}</b> • Mana <b>${d.maxMp}</b></div>
               ${d.dual ? '<div style="color:#ffb347">Dvě zbraně</div>' : ''}
+              ${mode === 'sell' ? `<div>Volno v batohu <b>${freeSlots(s)}/${s.inventory.length}</b></div>` : ''}
             </div>
           </div>
           <div class="side">${EQUIP_RIGHT.map((sl) => this.slotHtml(s.equip[sl] ?? (sl === 'off' && isTwoHanded(s.equip.main) ? null : null), `eq ${sl === 'off' && isTwoHanded(s.equip.main) ? 'blocked' : ''}" data-slot="${sl}`, sl === 'off' && isTwoHanded(s.equip.main) ? '2H' : SLOT_NAMES[sl])).join('')}</div>
@@ -680,25 +729,18 @@ export class Panels {
       </div>
       <div class="col" style="flex:1;min-width:0">
         <div class="scroll bagscroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv${multi?.has(i) ? ' msel' : ''}" data-idx="${i}`, '', undefined, better[i])).join('')}</div></div>
-        ${mode === 'sell' ? `<div class="box">${this.matsHtml()}</div>` : ''}
         ${
           multi
             ? `<div class="row multibar"><span class="mcount">Vybráno <b>${marked.length}</b></span><button class="btn small gold" data-a="msell">Prodat · ${markedValue.toLocaleString('cs-CZ')} zl.</button><button class="btn small purple" data-a="msalv">Rozebrat</button><button class="btn small" data-a="mnone">✕ Zrušit</button></div>`
             : ''
         }
-        <div class="row invacts"${multi ? ' hidden' : ''}>${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : ''}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙ Kořist</button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}${mode === 'sell' ? `<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span>` : ''}</div>
+        <div class="row invacts ${mode}"${multi ? ' hidden' : ''}>${mode === 'sell' ? '<button class="btn small twoline" data-a="sellcommon">Prodat běžné<br>a neobvyklé</button>' : ''}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙<span class="lootlbl"> Kořist</span></button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}</div>
       </div>
       <div class="col detail box scroll" style="width:min(300px,34%)"></div>`;
     // gold and materials sit in the header next to the title, so the bag gets the room
-    // (the merchant's header is full of tabs: there they stay under the bag)
+    this.headMats(p);
     if (mode === 'normal') {
       const head = $('.head', p);
-      let hm = head.querySelector<HTMLElement>('.headmats');
-      if (!hm) {
-        hm = el('<div class="headmats"></div>');
-        head.insertBefore(hm, $('.close', head));
-      }
-      hm.innerHTML = this.matsHtml();
       const h2 = $('h2', head);
       h2.innerHTML = `Inventář <small class="hfree">volno ${freeSlots(s)}/${s.inventory.length}</small>`;
       h2.classList.add('nowrap');
@@ -2057,6 +2099,7 @@ export class Panels {
       );
       this.ui.showOverlay(p, () => {});
     }
+    this.headMats(p);
     if (this.merchantTab === 'sell') return this.inventory('sell', p);
     if (this.merchantTab === 'forge') return this.forge(p);
     if (this.merchantTab === 'class') return this.classChange(p);
@@ -2079,7 +2122,6 @@ export class Panels {
             <span class="row"><span style="color:#ffd76a">${m.price} zl.</span><button class="btn small green" data-mat="${i}" ${m.qty <= 0 || s.gold < m.price ? 'disabled' : ''}>Koupit</button></span></div>`,
           )
           .join('')}</div></div>
-        <div class="box">${this.matsHtml()}</div>
       </div>
       <div class="col detail box scroll" style="width:min(320px,36%)"><p class="hint">Vyber předmět.</p></div>`;
     const detail = $('.detail', body);
@@ -2203,21 +2245,24 @@ export class Panels {
     const s = this.save;
     const eqSlots: Slot[] = [...EQUIP_LEFT, ...EQUIP_RIGHT];
     const getItem = () => (this.forgeSel?.from === 'inv' ? s.inventory[this.forgeSel.idx] : this.forgeSel?.from === 'eq' ? s.equip[this.forgeSel.slot] : null);
+    // gold and materials in the header; the bag in the same small slots as the equipment, so all of it fits
+    this.headMats(p);
+    const scrolled = body.querySelector<HTMLElement>('.forgebag')?.scrollTop ?? 0;
     body.innerHTML = `
       <div class="col" style="flex:1;min-width:0">
-        <div class="hint">Vylepšování (+1 až +${MAX_UPGRADE}) zvyšuje základní hodnoty o 10 % a bonusy o 4 % za stupeň. Očarování přidá nebo přehodí jeden magický efekt.</div>
         <b style="color:#ffd76a">Vybavení</b>
         <div class="grid" style="grid-template-columns:repeat(11,1fr)">${eqSlots.map((sl) => this.slotHtml(s.equip[sl], `feq" data-slot="${sl}`, SLOT_NAMES[sl])).join('')}</div>
         <b style="color:#ffd76a">Inventář</b>
-        <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `finv" data-idx="${i}`)).join('')}</div></div>
-        <div class="box">${this.matsHtml()}</div>
+        <div class="scroll forgebag" style="flex:1"><div class="grid" style="grid-template-columns:repeat(11,1fr)">${s.inventory.map((it, i) => this.slotHtml(it, `finv" data-idx="${i}`)).join('')}</div></div>
       </div>
       <div class="col detail box scroll" style="width:min(340px,38%)"></div>`;
+    const fb = body.querySelector<HTMLElement>('.forgebag');
+    if (fb && scrolled) fb.scrollTop = scrolled;
     const detail = $('.detail', body);
     const render = () => {
       const it = getItem();
       if (!it) {
-        detail.innerHTML = '<p class="hint">Vyber předmět k vylepšení nebo očarování.</p>';
+        detail.innerHTML = `<p class="hint">Vyber předmět k vylepšení nebo očarování.</p><p class="hint">Vylepšování (+1 až +${MAX_UPGRADE}) zvyšuje základní hodnoty o 10 % a bonusy o 4 % za stupeň. Očarování přidá nebo přehodí jeden magický efekt.</p>`;
         return;
       }
       const uc = this.upCost(it);

@@ -1371,6 +1371,27 @@ img.px {
   height: 22px;
   image-rendering: pixelated;
 }
+/* a header with tabs and materials: the title gives way first (it is the least needed), the tabs never */
+.panel .head:has(.headmats) h2 {
+  flex: 1 1000 auto;
+  min-width: 52px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.panel .head .tabs,
+.panel .head > .close {
+  flex: none;
+}
+@media (max-width: 1000px) {
+  .panel .head:has(.headmats) .tab {
+    font-size: 15px;
+    padding: 4px 8px;
+  }
+  .panel .head:has(.headmats) .tabs {
+    gap: 3px;
+  }
+}
 /* the materials and the salvage button in a panel header (inventory) */
 .panel .head h2.nowrap {
   white-space: nowrap;
@@ -1388,15 +1409,31 @@ img.px {
   flex-wrap: wrap;
   gap: 6px;
 }
+.invacts .btn {
+  align-self: stretch;
+}
+/* the bulk sale on two short lines keeps the actions under the bag in one row */
+.invacts .btn.twoline {
+  font-size: 13px;
+  line-height: 1.05;
+  padding: 3px 8px;
+}
+@media (max-width: 700px) {
+  .invacts.sell .lootlbl {
+    display: none;
+  }
+}
 .hfree {
   font-size: 15px;
   color: #a89c88;
   text-shadow: none;
   white-space: nowrap;
 }
+/* the materials give way last: the title shrinks first (its shrink factor is far larger), then Panels.fitHead squeezes the header */
 .headmats {
   flex: 0 1 auto;
   min-width: 0;
+  margin-left: auto;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -1433,6 +1470,34 @@ img.px {
     width: 17px;
     height: 17px;
   }
+}
+/* a header that still did not fit (Panels.fitHead): smaller tabs and materials, then no title */
+.panel .head.tight .tabs {
+  gap: 2px;
+}
+.panel .head.tight .tab {
+  font-size: 14px;
+  padding: 3px 6px;
+}
+.panel .head.tight .headmats .mats {
+  gap: 5px;
+  font-size: 14px;
+}
+.panel .head.tight .headmats .matbtn {
+  font-size: 14px;
+  padding: 0 4px 0 2px;
+}
+.panel .head.tight .headmats .mats img,
+.panel .head.tight .headmats .matbtn img {
+  width: 15px;
+  height: 15px;
+}
+.panel .head.tight .headacts .btn {
+  font-size: 14px;
+  padding: 4px 6px;
+}
+.panel .head.notitle h2 {
+  display: none;
 }
 
 .detail h3 {
