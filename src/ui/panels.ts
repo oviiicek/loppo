@@ -663,10 +663,22 @@ export class Panels {
       </div>
       <div class="col" style="flex:1;min-width:0">
         <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv" data-idx="${i}`, '', undefined, better[i])).join('')}</div></div>
-        <div class="box">${this.matsHtml()}</div>
-        <div class="row">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : '<button class="btn small" data-a="salvcommon">Rozebrat běžné předměty</button>'}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙ Kořist</button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span></div>
+        ${mode === 'sell' ? `<div class="box">${this.matsHtml()}</div>` : ''}
+        <div class="row">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : '<button class="btn small" data-a="salvcommon">Rozebrat běžné předměty</button>'}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙ Kořist</button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}${mode === 'sell' ? `<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span>` : ''}</div>
       </div>
       <div class="col detail box scroll" style="width:min(300px,34%)"></div>`;
+    // gold and materials sit in the header next to the title, so the bag gets the room
+    // (the merchant's header is full of tabs: there they stay under the bag)
+    if (mode === 'normal') {
+      const head = $('.head', p);
+      let hm = head.querySelector<HTMLElement>('.headmats');
+      if (!hm) {
+        hm = el('<div class="headmats"></div>');
+        head.insertBefore(hm, $('.close', head));
+      }
+      hm.innerHTML = this.matsHtml();
+      $('h2', head).innerHTML = `Inventář <small class="hfree">volno ${freeSlots(s)}/${s.inventory.length}</small>`;
+    }
     const detail = $('.detail', body);
     const renderDetail = () => {
       // a newly picked item starts at the top, where its buttons are
