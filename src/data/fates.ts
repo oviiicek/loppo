@@ -86,11 +86,11 @@ export const WISHES = [
 /** what the consequence says when it comes */
 export const FATE_LINES: Record<string, string> = {
   necroHelp: 'Říkal jsem, že dluh splatím. Mrtví budou dnes bojovat za tebe!',
-  necroBetray: 'Díky za svobodu, hlupáku. Tvoje duše mi poslouží mnohem líp než ty řetězy.',
+  necroBetray: 'Díky za svobodu, bláhová duše. Tvoje duše mi poslouží mnohem líp než ty řetězy.',
   necroGhost: 'Můj život skončil tvou rukou… ale pro nekromanta je smrt jen další dveře. Teď si pro tebe přišel můj stín!',
   knightHelp: 'To jsi ty! Tvůj lektvar mi zachránil život. Rytíř dluhy splácí – dnes jdu s tebou.',
   knightDead: 'U zdi leží rytíř v proražené zbroji. Bertram. V ruce svírá meč a vzkaz: „Kdyby mi tak někdo pomohl…“',
-  demonBack: 'Přišel čas zaplatit, smrtelníku! Třetinu tvého zlata – nebo tvoji kůži. Vyber si!',
+  demonBack: 'Přišel čas zaplatit, smrtelná duše! Třetinu tvého zlata – nebo tvoji kůži. Vyber si!',
 };
 
 export function fateDueIn(id: FateId): [number, number] {

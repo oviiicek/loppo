@@ -59,7 +59,7 @@ export const LORE: LoreEntry[] = [
   { id: 'w_morgrim', kind: 'wall', title: 'Brána', text: '„Strážce bran nespí. Strážce bran čeká.“', biome: 0 },
   { id: 'w_pepa', kind: 'wall', title: 'Nápis', text: '„Byl tu Pepa.“ A pod tím jiným písmem: „Pepa tu pořád je.“' },
   { id: 'w_heart', kind: 'wall', title: 'Srdce', text: 'Vyryté srdce a v něm dvě jména: Ilda a Tomáš. Kámen je kolem ohlazený, jako by se ho někdo často dotýkal.' },
-  { id: 'w_lantern', kind: 'wall', title: 'Lucerna', text: '„Dokud svítí lucerna, nejsi tu sám.“' },
+  { id: 'w_lantern', kind: 'wall', title: 'Lucerna', text: '„Dokud svítí lucerna, nikdo tu není sám.“' },
 ];
 
 export const LORE_BY_ID: Record<string, LoreEntry> = Object.fromEntries(LORE.map((l) => [l.id, l]));

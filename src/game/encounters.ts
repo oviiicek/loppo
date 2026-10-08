@@ -1071,7 +1071,7 @@ export class Encounters {
       it.used = true;
       n.t.setColor('#8a8a8a');
       if (fd.id === 'knight') remember();
-      this.say(it.x, it.y - 20, fd.id === 'knight' ? '…chápu. Ať se ti daří.' : fd.id === 'necro' ? 'Pošetilče. Budeš litovat.' : 'Hloupý! Mohl jsi mít všechno!', '#c8c8c8');
+      this.say(it.x, it.y - 20, fd.id === 'knight' ? '…chápu. Ať se ti daří.' : fd.id === 'necro' ? 'Pošetilost. Budeš litovat.' : 'Hloupost! Všechno mohlo být tvoje!', '#c8c8c8');
       return;
     }
     if (fd.id === 'necro' && choice === 'free') {

@@ -40,14 +40,14 @@ export function rivalFoeBase(role: MercRole) {
 
 export const RIVAL_GREETING: Record<RivalMood, string[]> = {
   friendly: [
-    'Zdravím, kolego! Ve dvou se to tu líp přežije. Půjdeme kus cesty spolu?',
+    'Zdravím! Ve dvou se to tu líp přežije. Půjdeme kus cesty spolu?',
     'Konečně živá duše! Tohle patro je plné havěti – co kdybychom si ho rozdělili napůl?',
     'Ty jdeš taky dolů? Kryju ti záda, když ty kryješ moje.',
   ],
   trader: [
     'Psst! Mám v batohu pár kousků, které se ti budou líbit. Za rozumnou cenu, samozřejmě.',
     'Nesu toho víc, než unesu. Nechceš mi trochu odlehčit? Ne zadarmo, pochopitelně.',
-    'Obchodník v hlubinách? Proč ne. Podívej se, co jsem cestou našel.',
+    'Obchodník v hlubinách? Proč ne. Podívej se, co nesu z hlubin.',
   ],
   hostile: [
     'Tohle patro je moje. Buď zaplatíš za průchod, nebo tě tu nechám ležet.',

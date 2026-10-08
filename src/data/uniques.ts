@@ -110,7 +110,7 @@ export const UNIQUES: UniqueDef[] = [
   { id: 'martyrblood', name: 'Krev mučedníka', base: 'bracer', power: 'orbitBlades', lore: 'Obětovaná krev se stala ostřím.' },
   { id: 'northstar', name: 'Hvězda severu', base: 'amulet', power: 'starfall', lore: 'Ukazuje cestu – a padá na nepřátele.' },
   { id: 'kingring', name: 'Zlatý prsten krále', base: 'ring', power: 'midas', lore: 'Král nikdy neodešel s prázdnou.' },
-  { id: 'packbracer', name: 'Náramek smečky', base: 'bracer', power: 'spiritWolves', lore: 'Vytí slyšíš, i když jsi sám.' },
+  { id: 'packbracer', name: 'Náramek smečky', base: 'bracer', power: 'spiritWolves', lore: 'Vytí slyšíš, i když kolem nikdo není.' },
   { id: 'lastchance', name: 'Amulet poslední šance', base: 'amulet', power: 'cheatDeath', lore: 'Pro chvíle, kdy už není kam couvnout.' },
   { id: 'ancientorb', name: 'Koule pradávných', base: 'orb', power: 'arcaneFlow', lore: 'Pamatuje si první kouzlo světa.' },
   { id: 'stormorb', name: 'Bouřná koule', base: 'orb', power: 'starfall', lore: 'Uvnitř se převalují hvězdy.' },

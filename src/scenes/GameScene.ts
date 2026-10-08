@@ -1932,7 +1932,7 @@ export class GameScene extends Phaser.Scene {
     sfx('door');
     this.fx.burst(it.x, it.y - 6, 0x9a99a6, 24, 'puff');
     this.fx.shake(0.004, 200);
-    UI.toast('Objevil jsi tajnou místnost!', '#ffd23a');
+    UI.toast('Tajná místnost objevena!', '#ffd23a');
   }
 
   openDoor(it: Interactable) {

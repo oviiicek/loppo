@@ -207,7 +207,7 @@ export class Panels {
     const can = s.gold >= rc.gold && s.mats.dust >= rc.dust;
     const am = upgradeAffixMult(it);
     return `<div class="box" style="margin-top:8px"><b style="color:#ffb347">Přebroušení vlastnosti</b>
-      <div class="hint">Vyber vlastnost: nabídnou se ti dvě nové, nebo si necháš původní. ${it.reroll !== undefined ? 'U tohoto předmětu jde měnit už jen vlastnost, kterou jsi zvolil poprvé.' : 'U každého předmětu jde měnit jen jedna vlastnost – ta, kterou zvolíš poprvé.'}</div>
+      <div class="hint">Vyber vlastnost: nabídnou se ti dvě nové, nebo si necháš původní. ${it.reroll !== undefined ? 'U tohoto předmětu jde měnit už jen vlastnost zvolená napoprvé.' : 'U každého předmětu jde měnit jen jedna vlastnost – ta, kterou zvolíš poprvé.'}</div>
       <div class="rrlist">${it.affixes.map((a, i) => `<button class="btn small rr ${it.reroll === i ? 'gold' : ''}" data-rr="${i}" ${(it.reroll !== undefined && it.reroll !== i) || !can ? 'disabled' : ''}>${formatStat(a.key, scaledAffix(a.key, a.value, am))}</button>`).join('')}</div>
       <div class="statline"><span>Cena</span><b>${rc.gold} zl. + ${rc.dust}× prach</b></div></div>`;
   }
@@ -1901,7 +1901,7 @@ export class Panels {
       <div class="col" style="flex:1;min-width:0">
         <div class="hint">Zboží se u každého obchodníka liší. Klepni na předmět pro detail.</div>
         <div class="scroll" style="flex:1"><div class="grid">${stock.items.map((it, i) => this.slotHtml(it, `shop" data-idx="${i}`, '', buyPrice(it))).join('')}</div>
-        ${stock.buyback?.length ? `<b style="color:#ffd76a;display:block;margin-top:8px">Zpětný odkup</b><div class="hint">Předměty, které jsi tu prodal. Koupíš je zpět za stejnou cenu.</div><div class="grid">${stock.buyback.map((b, i) => this.slotHtml(b.it, `back" data-idx="${i}`, '', b.price)).join('')}</div>` : ''}
+        ${stock.buyback?.length ? `<b style="color:#ffd76a;display:block;margin-top:8px">Zpětný odkup</b><div class="hint">Tvé prodané předměty – koupíš je zpět za stejnou cenu.</div><div class="grid">${stock.buyback.map((b, i) => this.slotHtml(b.it, `back" data-idx="${i}`, '', b.price)).join('')}</div>` : ''}
         <div class="box" style="margin-top:8px"><b style="color:#ffd76a">Tajemné zboží</b> <span class="hint">předmět neznámé kvality, často vzácný nebo lepší</span>
           <div class="mystery">${MYSTERY.map(
             (m) => `<div class="myst"><div class="slot r2"><img src="${iconURL(m.icon, 64)}"><span class="q">?</span></div><div class="nm">${m.name}</div><button class="btn small green" data-myst="${m.id}" ${s.gold < this.mysteryPrice(m.id) ? 'disabled' : ''}>${this.mysteryPrice(m.id)} zl.</button></div>`,

@@ -134,7 +134,7 @@ export const BUILDINGS: BuildingDef[] = [
   {
     id: 'temple',
     name: 'Chrám',
-    who: { name: 'Bohdana', trade: 'kněžka', key: 'npc_priest', fem: true, thanks: 'Světlo tě provází, poutníku. Modlila jsem se za záchranu a přišla. V Loppu znovu zapálím chrámové svíce – požehnám ti a sejmu kletby.' },
+    who: { name: 'Bohdana', trade: 'kněžka', key: 'npc_priest', fem: true, thanks: 'Světlo tě provází. Modlila jsem se za záchranu a přišla. V Loppu znovu zapálím chrámové svíce – požehnám ti a sejmu kletby.' },
     rescue: 20,
     desc: 'Požehnání na další patra a krocení kleteb: prokletý předmět si nechá část síly a ztratí svou daň.',
     levels: [

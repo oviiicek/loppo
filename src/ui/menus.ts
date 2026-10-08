@@ -190,7 +190,7 @@ export class Menus {
     return `<div class="fallen"><h3>☠ Síň padlých</h3>${list
       .map(
         (f) =>
-          `<div class="row" style="flex-wrap:nowrap"><img class="px" src="${iconURL('pl_' + f.cls, 64)}"><div><div>${esc(CLASS_BY_ID[f.cls]?.name ?? f.cls)} • úroveň ${f.level} • padl v patře ${f.floor} (${esc(areaForFloor(f.floor).name)})</div><div class="hint">${diffTag({ difficulty: f.difficulty })} • nejhlouběji ${f.maxFloor} • zabito ${f.kills} • ${Math.floor(f.playTime / 60)} min • ${new Date(f.date).toLocaleDateString('cs-CZ')}</div></div></div>`,
+          `<div class="row" style="flex-wrap:nowrap"><img class="px" src="${iconURL('pl_' + f.cls, 64)}"><div><div>${esc(CLASS_BY_ID[f.cls]?.name ?? f.cls)} • úroveň ${f.level} • konec v patře ${f.floor} (${esc(areaForFloor(f.floor).name)})</div><div class="hint">${diffTag({ difficulty: f.difficulty })} • nejhlouběji ${f.maxFloor} • zabito ${f.kills} • ${Math.floor(f.playTime / 60)} min • ${new Date(f.date).toLocaleDateString('cs-CZ')}</div></div></div>`,
       )
       .join('')}</div>`;
   }
@@ -226,7 +226,7 @@ export class Menus {
   transferIn(slot: number, done: () => void) {
     const p = el(`<div class="overlay" style="z-index:90"><div class="panel small" style="width:min(94vw,560px)"><div class="head"><h2>Vložit kód postavy</h2><button class="close">✕</button></div>
       <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
-        <p class="hint" style="margin:0">Vlož kód, který jsi zkopíroval z menu Postavy → Přenést.</p>
+        <p class="hint" style="margin:0">Vlož kód zkopírovaný z menu Postavy → Přenést.</p>
         <textarea class="code" placeholder="LOPPO1:…"></textarea>
         <div class="row" style="justify-content:flex-end"><span class="hint" data-msg style="color:#ff8080"></span><button class="btn green" data-x="load">Načíst do slotu ${slot + 1}</button></div>
       </div></div></div>`);
@@ -701,7 +701,7 @@ export class Menus {
 
   death(floor: number, lostGold: number) {
     const sc = this.ui.scene!;
-    const p = el(`<div class="panel small" style="border-color:#8a2a2a"><div class="head" style="background:linear-gradient(#3a1414,#1a0a0a)"><h2 style="color:#ff6b6b">Padl jsi</h2></div>
+    const p = el(`<div class="panel small" style="border-color:#8a2a2a"><div class="head" style="background:linear-gradient(#3a1414,#1a0a0a)"><h2 style="color:#ff6b6b">Porážka</h2></div>
       <div style="padding:16px;text-align:center">
         <p style="font-size:20px">Tvoje cesta skončila v patře ${floor}.</p>
         <p class="hint">Přijdeš o ${lostGold} zlata a část zkušeností do další úrovně. Předměty i úroveň ti zůstanou.</p>

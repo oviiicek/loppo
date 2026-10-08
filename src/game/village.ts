@@ -21,7 +21,7 @@ const CHATTER: Record<BuildingId, string[]> = {
   lab: ['Nedotýkej se té zelené baňky!', 'Pět za jedno – to je alchymie.', 'Cítíš to? To je pokrok. Nebo síra.'],
   tower: ['Runy šeptají, když se jim naslouchá.', 'Hmm? Ach, to jsi ty.', 'Hvězdy dnes stojí příznivě. Asi.'],
   trainer: ['Kryt nahoru! Nohy pevně!', 'Každá kapka potu je ušetřená kapka krve.', 'Tvůj žoldák by potřeboval trénink.'],
-  temple: ['Světlo tě provází, poutníku.', 'I ve tmě se dá najít naděje.', 'Kletba je jen zkouška víry.'],
+  temple: ['Světlo tě provází.', 'I ve tmě se dá najít naděje.', 'Kletba je jen zkouška víry.'],
 };
 
 /** what Ilda says (besides news of the village) */

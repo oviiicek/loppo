@@ -635,7 +635,7 @@ export function importSave(code: string, slot: number): SaveData | string {
     const raw = code.trim().replace(CODE_PREFIX, '').replace(/\s+/g, '');
     s = JSON.parse(decodeURIComponent(escape(atob(raw))));
   } catch {
-    return 'Kód se nepodařilo přečíst. Zkontroluj, že jsi zkopíroval celý text.';
+    return 'Kód se nepodařilo přečíst. Zkontroluj, že je zkopírovaný celý text.';
   }
   if (!s || s.version !== 1 || !CLASS_BY_ID[s.cls] || typeof s.level !== 'number' || !Array.isArray(s.inventory) || !s.equip || !s.attrs) return 'Tohle není platný kód postavy.';
   while (s.inventory.length < INVENTORY_SIZE) s.inventory.push(null);
