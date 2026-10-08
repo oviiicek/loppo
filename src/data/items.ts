@@ -450,9 +450,19 @@ export function buyPrice(it: Item): number {
 
 export function formatStat(key: StatKey, v: number): string {
   const def = AFFIX_BY_KEY[key];
-  const names: Partial<Record<StatKey, string>> = { block: 'Šance na blok', range: 'Dosah' };
+  const names: Partial<Record<StatKey, string>> = {
+    block: 'Šance na blok',
+    range: 'Dosah',
+    armorPct: 'Brnění',
+    fireDmg: 'Poškození ohněm',
+    iceDmg: 'Poškození mrazem',
+    lightDmg: 'Poškození bleskem',
+    poisonDmg: 'Poškození jedem',
+    shadowDmg: 'Poškození stínem',
+    holyDmg: 'Poškození světlem',
+  };
   const label = def?.label ?? names[key] ?? key;
-  const pct = def?.pct || key === 'block';
+  const pct = def?.pct || ['block', 'range', 'armorPct', 'fireDmg', 'iceDmg', 'lightDmg', 'poisonDmg', 'shadowDmg', 'holyDmg'].includes(key);
   const val = Number.isInteger(v) ? Math.abs(v).toString() : Math.abs(v).toFixed(1).replace('.', ',');
   return `${v < 0 ? '−' : '+'}${val}${pct ? ' %' : ''} ${label}`;
 }

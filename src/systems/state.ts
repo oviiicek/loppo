@@ -2,6 +2,7 @@ import type { Nemesis } from '../data/nemesis';
 import type { MercState } from '../data/mercs';
 import { CURSE_BY_ID } from '../data/curses';
 import { Codex, discoverItem, discoverStone } from '../data/codex';
+import { TALENT_BY_ID, TALENT_CLASS, TalentCond, talentPoints } from '../data/talents';
 import { ATTR_KEYS, AttrKey, ClassId, Item, Slot, StatKey, Stats } from '../data/types';
 import { DEFAULT_DIFFICULTY } from '../data/difficulty';
 import { CLASS_BY_ID } from '../data/classes';
@@ -73,6 +74,43 @@ export interface SaveData {
   /** spell runes the hero carries (id: count) and the rune set into each spell (spell id: rune id) */
   spellRuneBag?: Record<string, number>;
   spellRunes?: Record<string, string>;
+  /** talent ranks (talent id: rank) */
+  talents?: Record<string, number>;
+  /** the second class of a multiclass hero (from level 100) */
+  multi?: ClassId;
+}
+
+/** a talent counts when it belongs to the hero's class (or the second class of a multiclass hero) */
+export function talentActive(s: SaveData, id: string) {
+  const c = TALENT_CLASS[id];
+  return c === s.cls || (!!s.multi && c === s.multi);
+}
+
+/** talent points not spent yet */
+export function freeTalentPoints(s: SaveData) {
+  const spent = Object.values(s.talents ?? {}).reduce((a, b) => a + b, 0);
+  return talentPoints(s.level) - spent;
+}
+
+/** does the hero's gear meet a talent's condition? */
+export function talentCondMet(s: SaveData, c: TalentCond | undefined) {
+  if (!c) return true;
+  const main = s.equip.main ? BASE_BY_ID[s.equip.main.base] : null;
+  const off = s.equip.off ? BASE_BY_ID[s.equip.off.base] : null;
+  switch (c) {
+    case 'shield':
+      return off?.cat === 'shield';
+    case 'twoHand':
+      return main?.cat === 'weapon2h';
+    case 'dual':
+      return !!main && off?.cat === 'weapon1h';
+    case 'melee':
+      return (main?.attack ?? 'melee') === 'melee';
+    case 'ranged':
+      return main?.attack === 'ranged';
+    case 'magic':
+      return main?.attack === 'magic';
+  }
 }
 
 export function addSpellRune(s: SaveData, id: string, n = 1) {
@@ -238,6 +276,8 @@ export function changeClass(s: SaveData, cls: ClassId) {
     }
   }
   s.spellPoints += refund;
+  // the talents of the old class are forgotten (the points come back)
+  s.talents = {};
   // swap class attribute bonus
   const oldDef = CLASS_BY_ID[s.cls];
   const newDef = CLASS_BY_ID[cls];
@@ -285,6 +325,8 @@ export interface Derived {
   thorns: number;
   xp: number;
   elem: { fire: number; ice: number; lightning: number; poison: number };
+  /** extra damage of each element in per cent (talents) */
+  elemPct: Record<string, number>;
   dual: boolean;
   specials: Set<string>;
   attrs: Record<AttrKey, number>;
@@ -308,6 +350,13 @@ export function gearStats(s: SaveData): { stats: Stats; specials: Set<string> } 
   for (const [k, v] of Object.entries(cdef.passiveStats)) add(k as StatKey, v as number);
   // pieces of item sets worn together
   addSetBonuses(s.equip, add, specials);
+  // talents (of the hero's class)
+  for (const [id, rank] of Object.entries(s.talents ?? {})) {
+    const tl = TALENT_BY_ID[id];
+    if (!tl || !rank || !talentCondMet(s, tl.when) || !talentActive(s, id)) continue;
+    if (tl.stats) for (const [k, v] of Object.entries(tl.stats)) add(k as StatKey, (v as number) * rank);
+    if (tl.special) specials.add(tl.special);
+  }
   // the pet that travels with the hero
   const pet = s.pets?.active ? PET_BY_ID[s.pets.active] : null;
   if (pet) for (const [k, v] of Object.entries(pet.stats(petLevel(s.pets!, pet.id)))) add(k as StatKey, v as number);
@@ -366,7 +415,7 @@ export function derive(s: SaveData, buffs: BuffMods[] = []): Derived {
   if (attack !== 'melee') range *= 1 + (g('range') + b('range')) / 100;
 
   let armor = g('armor');
-  armor *= 1 + b('armorPct') / 100 + (s.cls === 'warrior' ? 0.15 : 0);
+  armor *= 1 + (b('armorPct') + g('armorPct')) / 100 + (s.cls === 'warrior' ? 0.15 : 0);
 
   const maxHp = Math.round((80 + attrs.vit * 12 + attrs.str * 2 + s.level * 6 + g('hp')) * (1 + (g('hpPct') + storyPct) / 100));
   const maxMp = Math.round(40 + attrs.ene * 8 + s.level * 3 + g('mp'));
@@ -397,6 +446,7 @@ export function derive(s: SaveData, buffs: BuffMods[] = []): Derived {
     thorns: g('thorns'),
     xp: g('xp'),
     elem: { fire: g('fire'), ice: g('ice'), lightning: g('lightning'), poison: g('poison') },
+    elemPct: { fire: g('fireDmg'), ice: g('iceDmg'), lightning: g('lightDmg'), poison: g('poisonDmg'), shadow: g('shadowDmg'), holy: g('holyDmg') },
     dual,
     specials,
     attrs,

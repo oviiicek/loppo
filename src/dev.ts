@@ -726,3 +726,10 @@ Object.assign(dev, {
     return true;
   },
 });
+Object.assign(dev, {
+  talentInfo() {
+    const sc = (window as any).__scene;
+    const d = sc.player.d;
+    return { talents: sc.save.talents, specials: [...d.specials].join(','), armor: d.armor, hp: d.maxHp, crit: d.crit, elemPct: d.elemPct };
+  },
+});

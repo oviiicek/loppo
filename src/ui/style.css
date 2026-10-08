@@ -3570,3 +3570,71 @@ textarea.code {
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
   pointer-events: none;
 }
+
+/* talent trees */
+.tlhead {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.tltree {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 640px) {
+  .tltree {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.tlbranch {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.tlbname {
+  color: var(--bc);
+  font-size: 21px;
+  text-align: center;
+  border-bottom: 2px solid color-mix(in srgb, var(--bc) 50%, transparent);
+}
+.tlnode {
+  position: relative;
+  padding: 5px 7px;
+  border: 1px solid #3a3040;
+  border-radius: 7px;
+  background: rgba(16, 12, 22, 0.75);
+}
+.tlnode.has {
+  border-color: color-mix(in srgb, var(--bc) 70%, #000);
+  box-shadow: inset 0 0 8px color-mix(in srgb, var(--bc) 30%, transparent);
+}
+.tlnode.max .tlr {
+  color: #9dff9d;
+}
+.tlnode.cap {
+  border-style: double;
+  border-width: 3px;
+}
+.tlnode.locked {
+  opacity: 0.45;
+}
+.tltop {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+.tltop b {
+  color: var(--bc);
+}
+.tlnode .btn {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  min-width: 0;
+  padding: 0 9px;
+}
+.tlnode .lv2 {
+  padding-right: 34px;
+}

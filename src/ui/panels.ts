@@ -33,7 +33,7 @@ import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR } from '../data/sets';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame, runePouch, addRune, addSpellRune } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame, runePouch, addRune, addSpellRune, freeTalentPoints } from '../systems/state';
 import { GEMS, GEM_TIERS, GEM_MAX_TIER, GEM_PLACE_NAME, GemPlace, gemPlace, gemEffect, gemIcon, gemName, parseGem, gemKey, maxSockets, drillCost, combineCost } from '../data/gems';
 import { PETS, PET_BY_ID, PetId, petLevel, petFloorsToNext, petBonusText, petTitle, PET_MAX_LEVEL, PET_FLOORS_PER_LEVEL } from '../data/pets';
 import { difficultyOf } from '../data/difficulty';
@@ -45,6 +45,7 @@ import { POWER_BY_ID, UNIQUE_BY_ID, UNIQUES } from '../data/uniques';
 import { discoverItem } from '../data/codex';
 import { RUNES, RUNE_TIERS, RUNE_MAX_TIER, parseRune, runeName, runeIcon, runeDesc, runeKey, runeSlots, runeSlotCount, runeCombineCost, RuneType } from '../data/runes';
 import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
+import { TALENT_TREES, TALENT_GATE, TalentDef, COND_NAME, spentIn, canLearn, talentPoints } from '../data/talents';
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx, settings, saveSettings, LootRule } from '../systems/audio';
@@ -1423,13 +1424,14 @@ export class Panels {
   }
 
   // ------------------------------------------------------------------ SPELLS
-  spellTab: 'class' | 'universal' = 'class';
+  spellTab: 'class' | 'universal' | 'talents' = 'class';
   selSpell: string | null = null;
 
   spells(host?: HTMLElement) {
     const p = host ?? this.frame('Kouzla a schopnosti', [
       { id: 'class', label: CLASS_BY_ID[this.save.cls].name },
       { id: 'universal', label: 'Univerzální' },
+      { id: 'talents', label: freeTalentPoints(this.save) > 0 ? `Talenty (${freeTalentPoints(this.save)})` : 'Talenty' },
     ], this.spellTab);
     if (!host) {
       p.querySelectorAll<HTMLElement>('.tab').forEach((t) =>
@@ -1440,6 +1442,11 @@ export class Panels {
           this.spells(p);
         }),
       );
+    }
+    if (this.spellTab === 'talents') {
+      this.talentsView(p);
+      if (!host) this.ui.showOverlay(p, () => {});
+      return;
     }
     const body = $('.body', p);
     const s = this.save;
@@ -1575,6 +1582,73 @@ export class Panels {
       ${!locked ? `<div class="row" style="margin-top:8px"><button class="btn green" data-a="invest" ${canInvest(s, sp.id) ? '' : 'disabled'}>Vylepšit (+1 bod)</button></div>` : ''}
       ${btns ? `<div class="hint" style="margin-top:8px">Přiřadit do slotu:</div><div class="row">${btns}</div>` : ''}
       ${locked ? '' : this.spellRuneBoxHtml(sp)}`;
+  }
+
+  // ------------------------------------------------------------------ TALENTS
+  /** the class's talent tree: three branches, a point into a talent with one tap */
+  talentsView(p: HTMLElement) {
+    const body = $('.body', p);
+    const s = this.save;
+    const ranks = (s.talents ??= {});
+    const free = freeTalentPoints(s);
+    const total = talentPoints(s.level);
+    const respec = Math.round(150 * s.level * (1 + s.level / 40));
+    const branches = TALENT_TREES[s.cls];
+    const statText = (tl: TalentDef, r: number) =>
+      tl.stats
+        ? Object.entries(tl.stats)
+            .map(([k, v]) => formatStat(k as any, Math.round((v as number) * Math.max(1, r) * 10) / 10))
+            .join(', ') + (tl.when ? ` (${COND_NAME[tl.when]})` : '')
+        : (tl.desc ?? POWER_BY_ID[tl.special ?? '']?.desc ?? SPECIAL_BY_ID[tl.special ?? '']?.desc ?? '');
+    body.innerHTML = `<div class="col" style="flex:1;min-width:0">
+      <div class="row tlhead"><span>Volné body talentů: <b style="color:${free > 0 ? '#9dff9d' : '#fff'}">${free}</b> z ${total} <span class="hint">(bod za každou druhou úroveň)</span></span><button class="btn small red" data-a="respec" ${total - free > 0 && s.gold >= respec ? '' : 'disabled'}>Zapomenout vše · ${respec.toLocaleString('cs-CZ')} zl.</button></div>
+      <div class="scroll" style="flex:1"><div class="tltree">${branches
+        .map((b) => {
+          const spent = spentIn(ranks, b);
+          return `<div class="tlbranch" style="--bc:${b.color}"><div class="tlbname">${esc(b.name)} <span class="hint">${spent} b.</span></div>${b.talents
+            .map((tl, i) => {
+              const r = ranks[tl.id] ?? 0;
+              const open = spent >= TALENT_GATE[i];
+              const can = canLearn(ranks, b, i, free);
+              return `<div class="tlnode ${r ? 'has' : ''} ${open ? '' : 'locked'} ${r >= tl.max ? 'max' : ''} ${tl.special ? 'cap' : ''}"><div class="tltop"><b>${esc(tl.name)}</b><span class="tlr">${r}/${tl.max}</span></div><div class="lv2">${esc(statText(tl, 1))}${tl.max > 1 && !tl.special ? ' <span class="hint">za stupeň</span>' : ''}${tl.max > 1 && r > 1 ? `<br><span style="color:#9dff9d">celkem ${esc(statText(tl, r))}</span>` : ''}</div>${open ? (r < tl.max ? `<button class="btn small green" data-tl="${tl.id}" ${can ? '' : 'disabled'}>+1</button>` : '') : `<div class="hint">🔒 ${TALENT_GATE[i]} bodů ve větvi</div>`}</div>`;
+            })
+            .join('')}</div>`;
+        })
+        .join('')}</div></div></div>`;
+    body.querySelectorAll<HTMLElement>('[data-tl]').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.tl!;
+        const b = branches.find((x) => x.talents.some((tl) => tl.id === id))!;
+        const i = b.talents.findIndex((tl) => tl.id === id);
+        if (!canLearn(ranks, b, i, freeTalentPoints(s))) return;
+        ranks[id] = (ranks[id] ?? 0) + 1;
+        sfx('upgrade');
+        this.sc.player.recalc();
+        bus.emit('stats');
+        saveGame(s);
+        this.refreshTalentTab(p);
+        this.talentsView(p);
+      }),
+    );
+    body.querySelector('[data-a=respec]')?.addEventListener('click', () =>
+      this.ui.confirm('Zapomenout talenty?', `Všechny body talentů se vrátí a můžeš je rozdělit znovu. Stojí to ${respec.toLocaleString('cs-CZ')} zlata.`, () => {
+        if (s.gold < respec) return;
+        s.gold -= respec;
+        s.talents = {};
+        this.sc.player.recalc();
+        bus.emit('stats');
+        saveGame(s);
+        this.refreshTalentTab(p);
+        this.talentsView(p);
+      }, 'Zapomenout', 'Zpět'),
+    );
+  }
+
+  /** the tab shows how many points are left */
+  refreshTalentTab(p: HTMLElement) {
+    const tab = p.querySelector<HTMLElement>('.tab[data-tab=talents]');
+    const n = freeTalentPoints(this.save);
+    if (tab) tab.textContent = n > 0 ? `Talenty (${n})` : 'Talenty';
   }
 
   /** the rune slot of a spell: the rune in it (take it out) or the runes in the bag (set one) */

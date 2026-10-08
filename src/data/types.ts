@@ -51,7 +51,15 @@ export type StatKey =
   | 'block'
   | 'xp'
   | 'atkSpdPct'
-  | 'range';
+  | 'range'
+  // talents and the like: armour in per cent and damage of one element in per cent
+  | 'armorPct'
+  | 'fireDmg'
+  | 'iceDmg'
+  | 'lightDmg'
+  | 'poisonDmg'
+  | 'shadowDmg'
+  | 'holyDmg';
 
 export type Stats = Partial<Record<StatKey, number>>;
 

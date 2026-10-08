@@ -81,6 +81,10 @@ export class Combat {
       e.st.burnT = 3;
       e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.2);
     }
+    if (s.has('poisonOnHit')) {
+      e.st.poisonT = 4;
+      e.st.poisonDps = Math.max(e.st.poisonDps, dmg * 0.3);
+    }
     if (s.has('markOfDeath')) {
       e.st.vulnT = 4;
       e.st.vuln = Math.max(e.st.vuln, 0.25);
@@ -187,6 +191,8 @@ export class Combat {
       }
     }
     if (e.st.vulnT > 0) dmg *= 1 + e.st.vuln;
+    // the hero's mastery of an element (talents)
+    if (!o.fromAlly) dmg *= 1 + (p.d.elemPct[el] ?? 0) / 100;
     // armour only vs physical
     if (el === 'phys') dmg *= 1 - e.armor / (e.armor + 120);
     if (o.fromAlly && p.save.cls === 'necro') dmg *= 1.3;
@@ -305,6 +311,7 @@ export class Combat {
       a.sprite.setTint(0x9a8ac8);
       sc.fx.burst(e.x, e.y - 6, 0x9a8ac8, 12, 'puff');
     }
+    if (s.has('plagueBurst')) sc.spells.addField(e.x, e.y, 22, p.powerHit() * 0.5, 'poison', 3, false, { t: 'field' } as any);
     if (s.has('bloodShield') && p.shield < p.d.maxHp * 0.3) p.addShield(Math.min(p.d.maxHp * 0.05, p.d.maxHp * 0.3 - p.shield), 12);
     if (s.has('bloodlust')) {
       p.lustN = p.lustT > 0 ? Math.min(10, p.lustN + 1) : 1;
