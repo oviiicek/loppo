@@ -62,7 +62,7 @@ const AREA_FAMILIES: [string, string][] = [
 ];
 
 /** the families met on a floor (a rift has its own twisted crowd) */
-export function familiesFor(floor: number, rift?: 'rift' | 'dream'): [string, string] {
+export function familiesFor(floor: number, rift?: 'rift' | 'dream' | 'last'): [string, string] {
   if (rift === 'rift') return floor > 4 * BIOME_FLOORS && floor <= BIOME_COUNT * BIOME_FLOORS ? ['hell', 'golem'] : ['void', 'hell'];
   const f = ((Math.max(1, floor) - 1) % (BIOME_FLOORS * BIOME_COUNT)) + 1;
   return AREA_FAMILIES[Math.floor((f - 1) / AREA_FLOORS)] ?? AREA_FAMILIES[0];

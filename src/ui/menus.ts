@@ -24,6 +24,7 @@ import { SETS, SET_COLOR } from '../data/sets';
 import { parseGem, gemIcon, gemName } from '../data/gems';
 import { runeIcon, runeName } from '../data/runes';
 import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
+import { isCampFloor } from '../data/bands';
 
 type UIM = typeof UIType;
 
@@ -288,15 +289,21 @@ export class Menus {
         <p><b style="color:#ffd76a">Loppo a úkoly:</b> z pauzy se vrátíš domů do Loppa, zpět do kobek vede brána ve zřícenině hradu. Zachránění vesničané tam otevřou kovárnu, obchod, nástěnku úkolů, laboratoř, věž mága, cvičiště a chrám – a budovy rostou za zlato. V tvém domě je truhla, postel (odpočinek dává zkušenosti navíc) a trofeje. Úkoly z nástěnky tě pošlou na konkrétní patra; odměnu si vyzvedneš zase na nástěnce.</p>
         <p><b style="color:#ffd76a">Král Dobromil:</b> před zámkem dává královské úkoly. Za ně roste přízeň krále a s ní pocty s trvalými bonusy – až po Korunu Loppa. Ve vesnici se střídá den a noc podle hodin.</p>
         <p><b style="color:#ffd76a">Vybavení:</b> jednoruční zbraň + štít, dvě jednoruční zbraně, nebo obouruční zbraň. Dále helma, brnění, kalhoty, opasek, boty, 2 prsteny, náhrdelník a náramek.</p>
-        <p><b style="color:#ffd76a">Dungeon:</b> každé patro je náhodně generované a postupně větší. Hledej tajné místnosti (praskliny ve zdech), trezory zamčené paklíčem a obchodníky. Každé 5. patro hlídá strážce – po jeho porážce si vybereš jednu ze tří truhel.</p>
+        <p><b style="color:#ffd76a">Dungeon:</b> každé patro je náhodně generované a postupně větší. Hledej tajné místnosti (praskliny ve zdech), trezory zamčené paklíčem a obchodníky. Na konci každé desítky pater (10., 20., 30. …) hlídá strážce – po jeho porážce si vybereš jednu ze tří truhel a otevře se další desítka.</p>
         <p><b style="color:#ffd76a">Příběh:</b> sestup až na 250. patro, na dno podsvětí. Každých 50 pater se změní prostředí (kobky, jeskyně, led, výheň, propast) a čeká tam příběhový strážce – na 100. a 200. patře bojuje ve více fázích. Na každém desátém patře leží stránka deníku. Přečtené scény najdeš v pauze v Kronice. Pod 250. patrem pokračuje Nekonečná hlubina.</p>
         <p><b style="color:#ffd76a">Prostředí:</b> každých 50 pater je jiné prostředí – Kobky, Jeskyně, Ledové hlubiny, Výheň a Propast, každé s vlastními nepřáteli. Každých 10 pater začíná nová oblast se jménem.</p>
-        <p><b style="color:#ffd76a">Modifikátory pater:</b> asi každé čtvrté patro má zvláštní vlastnost – Temnota, Zlatá horečka, Prokletí, Hordy, Šampioni nebo Poklady. Víc rizika = lepší odměny.</p>
+        <p><b style="color:#ffd76a">Výprava a desítky pater:</b> kobky se dělí na desítky (1–10, 11–20 …). Brána v Loppu ukáže každou desítku s nejhlubším dosaženým patrem, doporučenou úrovní, bonusem ke kořisti a jejím strážcem. Nová výprava začíná prvním patrem desítky; strážce na jejím konci otevře další. Běží vždy jen jedna výprava – kdo začne jinou, tu rozběhnutou ukončí.</p>
+        <p><b style="color:#ffd76a">Checkpointy a tábor:</b> uprostřed každé desítky (5., 15., 25. …) je tábor – bezpečné patro s ohništěm (plné zdraví a mana, posila na 5 minut), obchodníkem, kovadlinou, alchymistou a truhlou úložiště. Smrt tě vrátí na poslední checkpoint: první patro desítky, nebo tábor, pokud do něj výprava už došla. Na lehké obtížnosti začneš stejné patro znovu.</p>
+        <p><b style="color:#ffd76a">Dveře:</b> po patře si vybereš ze 2–3 dveří: nebezpečná cesta (silnější nestvůry, lepší kořist), běžná cesta nebo cesta k obchodníkovi, a neznámá oblast (pokladnice, síň hádanek, místo setkání nebo patro s osudem).</p>
+        <p><b style="color:#ffd76a">Osudy pater:</b> asi každé třetí patro má osud, který se ukáže hned po příchodu – Temnota, Krvavý měsíc, Dvojitá kořist, Bez léčení, Invaze elit, Patro pokladů, Zlatá horečka, Prokletí nebo Hordy. Pod jménem patra je vidět, který platí.</p>
+        <p><b style="color:#ffd76a">Patra bez boje:</b> křižovatka obchodníků, pokladnice, síň hádanek (přečti tabulku a šlápni na runové desky ve správném pořadí) a místo setkání s věštkyní, hráči karet a oltáři.</p>
+        <p><b style="color:#ff8a7a">Poslední šance:</b> velmi vzácně tě smrt nechá bojovat v aréně. Když 40 sekund vydržíš proti vlnám nestvůr, vrátíš se do patra s jediným bodem zdraví.</p>
+        <p><b style="color:#ffd76a">Lektvary:</b> po vypití se lektvar chvíli nedá použít znovu (zdraví 4 s, mana 3 s) – na tlačítku je vidět, kdy bude znovu připravený.</p>
         <p><b style="color:#ffd76a">Mapa:</b> klepni na minimapu (klávesa M) pro velkou mapu prozkoumaného patra. Pozor na bodcové pasti!</p>
         <p><b style="color:#ffd76a">Obchodník:</b> kromě nákupu a prodeje nabízí zpětný odkup prodaných věcí, tajemné zboží neznámé kvality, kovárnu, úložiště a změnu classy.</p>
         <p><b style="color:#ffd76a">Zlatý skřet:</b> občas se v patře skrývá zlatý skřet. Jakmile tě uvidí, uteče a za 18 sekund zmizí portálem. Když ho chytíš, vysype spoustu zlata a vzácný předmět.</p>
         <p><b style="color:#ffd76a">Mazlíčci:</b> v kobkách čeká v klecích 8 zvířátek (kočka, pes, liška, sova, želva, sliz, bludička a dráček). První klec najdeš nejpozději ve 3. patře – dojdi k ní a otevři ji. Mazlíček s tebou chodí, nosí ti kořist, která leží kolem, a dává svůj bonus. Pes kouše a dráček plive oheň. Za každá 4 patra, která s tebou sestoupí, získá úroveň (nejvýš 10). Vyměnit ho jde v pauze (Mazlíčci).</p>
-        <p><b style="color:#ffd76a">Úkol patra:</b> pod minimapou je volitelný úkol (poraz nestvůry nebo šampiony, otevři truhly, rozbij bedny, prozkoumej patro). Za jeho splnění padne k tvým nohám odměna.</p>
+        <p><b style="color:#ffd76a">Deník úkolů:</b> tlačítko Úkoly pod minimapou ukazuje postup úkolu patra; klepnutím otevřeš deník s hlavním úkolem příběhu, úkolem patra, vedlejšími úkoly (z nástěnky jich uneseš 5–10) a mapami pokladů. Mapa pokladu občas leží v truhle nebo ji nosí šampion či zloděj: zlatý křížek na mapě ukáže, kde v patře kopat.</p>
         <p><b style="color:#ffd76a">Prokletá truhla:</b> černá truhla se zelenými runami. Kdo ji otevře, musí 30 sekund odolávat vlnám nestvůr – čím víc jich porazíš, tím bohatší kořist v ní najdeš.</p>
         <p><b style="color:#ffd76a">Úspěchy a statistiky:</b> v menu pauzy najdeš ${ACHIEVEMENTS.length} úspěchů s odměnami (zlato, materiály, paklíče i body atributů) a na druhé záložce statistiky tvé postavy.</p>
         <p><b style="color:#ffd76a">Obtížnost:</b> při zakládání postavy si vybereš Lehkou, Normální, Těžkou nebo Noční můru. Na vyšší obtížnosti mají nepřátelé víc zdraví a silnější útoky, ale dávají víc zkušeností, zlata a lepší kořist. Změnit ji jde v pauze.</p>
@@ -493,7 +500,7 @@ export class Menus {
       } else if (a === 'home') {
         if (sc.inVillage) {
           this.ui.closeOverlay();
-          sc.nextFloor(true);
+          this.ui.expedition();
           return;
         }
         const why = sc.canGoHome();
@@ -721,18 +728,34 @@ export class Menus {
 
   death(floor: number, lostGold: number) {
     const sc = this.ui.scene!;
+    const back = sc.deathReturnFloor();
+    const where =
+      back === floor
+        ? `Patro ${floor} začneš znovu od schodů.`
+        : `Výprava se vrací na checkpoint: <b style="color:#ffd76a">patro ${back}</b> (${isCampFloor(back) ? 'tábor' : 'začátek desítky'}).`;
     const p = el(`<div class="panel small" style="border-color:#8a2a2a"><div class="head" style="background:linear-gradient(#3a1414,#1a0a0a)"><h2 style="color:#ff6b6b">Porážka</h2></div>
       <div style="padding:16px;text-align:center">
-        <p style="font-size:20px">Tvoje cesta skončila v patře ${floor}.</p>
+        <p style="font-size:20px;margin:0 0 4px">Tvoje cesta skončila v patře ${floor}.</p>
+        <p style="font-size:17px;margin:0 0 6px">${where}</p>
         <p class="hint">Přijdeš o ${lostGold} zlata a část zkušeností do další úrovně. Předměty i úroveň ti zůstanou.</p>
         ${this.recapHtml()}
-        <div class="row" style="justify-content:center;margin-top:10px"><button class="btn green" data-a="retry">Zkusit patro znovu</button><button class="btn" data-a="menu">Hlavní menu</button></div>
+        ${
+          sc.lastChanceOffer
+            ? `<div class="lastch"><b>⚔ Poslední šance</b><span>Smrt váhá. Vydrž 40 sekund v aréně proti vlnám nestvůr – a vrátíš se do patra ${floor} s jediným bodem zdraví. Prohra tě pošle na checkpoint.</span><button class="btn red" data-a="last">Bojovat o život</button></div>`
+            : ''
+        }
+        <div class="row" style="justify-content:center;margin-top:10px"><button class="btn green" data-a="retry">Pokračovat (patro ${back})</button><button class="btn" data-a="menu">Hlavní menu</button></div>
       </div></div>`);
     this.ui.showOverlay(p, undefined, true, true);
     $('[data-a=retry]', p).addEventListener('click', () => {
       this.ui.closeOverlay(false, true);
       this.ui.game.scene.resume('Game');
       sc.respawn();
+    });
+    p.querySelector('[data-a=last]')?.addEventListener('click', () => {
+      this.ui.closeOverlay(false, true);
+      this.ui.game.scene.resume('Game');
+      sc.lastChance();
     });
     $('[data-a=menu]', p).addEventListener('click', () => {
       sc.payForDeath();

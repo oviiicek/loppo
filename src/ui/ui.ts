@@ -15,6 +15,8 @@ import { Panels } from './panels';
 import { Menus } from './menus';
 import { BuildingPanels } from './buildings';
 import { QuestPanels } from './quests';
+import { ExpeditionPanels } from './expedition';
+import type { FloorKind } from '../systems/state';
 import { Pad } from './gamepad';
 import type { Bounty } from '../scenes/GameScene';
 import { TS } from '../game/map';
@@ -127,6 +129,8 @@ class UIManager {
   /** the buildings of Loppo and the notice board's quests */
   buildings = new BuildingPanels(this);
   quests = new QuestPanels(this);
+  /** the bands of ten floors to start an expedition in, and the doors after a floor */
+  expeditions = new ExpeditionPanels(this);
   /** controller support (movement, buttons, menu navigation) */
   pad = new Pad(this);
   private tickT = 0;
@@ -324,7 +328,7 @@ class UIManager {
         </div>
       </div>
       <div class="minimap"><canvas width="124" height="124"></canvas></div>
-      <div class="floorlbl"><div class="fl"></div><div class="qchip" title="Deník úkolů"><img src="${iconURL('page', 32)}"><span class="qt">Úkoly</span><span class="qn"></span></div></div>
+      <div class="floorlbl"><div class="fl"></div><div class="flfate"></div><div class="qchip" title="Deník úkolů"><img src="${iconURL('page', 32)}"><span class="qt">Úkoly</span><span class="qn"></span></div></div>
       <div class="topbtns">
         ${fsSupported() && !isStandalone() ? `<div class="rbtn fs" data-a="fs" data-fs="icon" title="Celá obrazovka (F)">${fsButtonHTML('icon')}</div>` : ''}
         <div class="rbtn spellsbtn" data-a="spells" title="Kouzla (K)"><img src="${spellbookIcon()}" alt="Kouzla"><span class="badge sp"></span></div>
@@ -598,7 +602,14 @@ class UIManager {
     $('.lv', hud).textContent = `LV ${s.level}`;
     ($('.bar.xp .fill', hud) as HTMLElement).style.transform = `scaleX(${Math.min(1, s.xp / xpForLevel(s.level))})`;
     $('.gold', hud).textContent = s.gold.toLocaleString('cs-CZ');
-    $('.floorlbl .fl', hud).textContent = sc.inVillage ? 'Loppo · domov' : `Patro ${sc.floor} · ${sc.placeName}${sc.rift ? (sc.rift === 'dream' ? ' · sen' : ' · trhlina') : ''}${sc.mod ? ' · ' + sc.mod.name : ''}`;
+    $('.floorlbl .fl', hud).textContent = sc.inVillage ? 'Loppo · domov' : `Patro ${sc.floor} · ${sc.placeName}${sc.rift ? (sc.rift === 'dream' ? ' · sen' : sc.rift === 'last' ? ' · poslední šance' : ' · trhlina') : ''}`;
+    // the floor's fate (and the dangerous path) on a short line of its own, coloured by what it means
+    const fate = $('.floorlbl .flfate', hud);
+    const ft = sc.fate ? sc.fate.name + (sc.kind === 'danger' ? ' ☠' : '') : sc.kind === 'danger' ? '☠ Nebezpečná cesta' : sc.calm === 'camp' ? '⛺ Tábor' : '';
+    if (fate.textContent !== ft) {
+      fate.textContent = ft;
+      fate.className = 'flfate ' + (sc.fate?.tone ?? (sc.kind === 'danger' ? 'danger' : 'gift'));
+    }
     // low hp vignette
     const vig = $('.vignette', hud);
     vig.classList.toggle('low', hpF < 0.3 && !p.dead);
@@ -1268,6 +1279,27 @@ class UIManager {
   openForge() {
     this.panels.villageForge = false;
     this.panels.forge();
+  }
+
+  /** the village's gate: continue the expedition or start a new one in a band of ten floors */
+  expedition() {
+    if (this.panel) this.closeOverlay(false, true);
+    this.expeditions.expedition();
+  }
+
+  /** the doors after a floor */
+  pathChoice(next: number, options: FloorKind[], pick: (k: FloorKind) => void) {
+    this.expeditions.pathChoice(next, options, pick);
+  }
+
+  /** the shared stash (the camp's chest is the same one as in Loppo) */
+  openStash() {
+    if (this.panel) return;
+    const p = this.panels.frame('Úložiště');
+    this.showOverlay(p, () => {});
+    this.panels.stashSel = null;
+    this.panels.headMats(p);
+    this.panels.stash(p);
   }
 
   togglePause() {

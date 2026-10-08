@@ -4167,6 +4167,114 @@ function buildEvents() {
   };
   addCanvas('ev_obelisk', iconCanvasSized(12, 26, obelisk(true)));
   addCanvas('ev_obelisk_off', iconCanvasSized(12, 26, obelisk(false)));
+  // ---- the camp halfway down every band: a campfire (4 frames), a tent, logs to sit on, the stash chest
+  creatureStrip('ev_campfire', 16, 18, 4, (c, f) => {
+    // stones in a ring, crossed logs
+    ell(c, 8, 15, 7, 2.6, '#3a3640');
+    for (const [x, y] of [
+      [2, 15],
+      [5, 17],
+      [11, 17],
+      [14, 15],
+      [8, 13],
+    ])
+      rect(c, x - 1, y - 1, 3, 2, '#6a6672');
+    line(c, 3, 16, 13, 13, '#5a3a20');
+    line(c, 3, 13, 13, 16, '#6a4628');
+    // flames: three tongues that change every frame
+    const h = [5, 7, 6, 8][f];
+    const sway = [0, 1, 0, -1][f];
+    poly(c, [4, 14, 8 + sway, 14 - h - 3, 12, 14], '#e8501a');
+    poly(c, [5, 14, 7 + sway, 14 - h, 9, 14], '#ff9a2a');
+    poly(c, [8, 14, 10 - sway, 14 - h + 1, 12, 14], '#ff9a2a');
+    poly(c, [6, 14, 8 + sway, 15 - h + 2, 10, 14], '#ffe27a');
+    px(c, 8 + sway * 2, 2 + (f % 2), '#ffcf6a');
+    px(c, 6 - sway, 4 + ((f + 1) % 2), '#ff9a2a');
+  });
+  addCanvas(
+    'ev_tent',
+    iconCanvasSized(22, 16, (c) => {
+      poly(c, [11, 0, 22, 15, 0, 15], '#6a5a3a');
+      poly(c, [11, 0, 22, 15, 11, 15], '#5a4a2e');
+      poly(c, [11, 4, 15, 15, 7, 15], '#1a140e');
+      line(c, 11, 0, 11, 15, '#8a7a52');
+      rect(c, 0, 15, 22, 1, '#3a2e1c');
+      // a patched corner
+      rect(c, 16, 9, 3, 3, '#7a5a3a');
+    }),
+  );
+  addCanvas(
+    'ev_log',
+    iconCanvasSized(14, 6, (c) => {
+      rect(c, 1, 1, 12, 4, '#6a4628');
+      rect(c, 1, 1, 12, 1, '#8a6038');
+      ell(c, 1.5, 3, 1.5, 2, '#b08a5a');
+      px(c, 1, 3, '#7a5a38');
+      rect(c, 4, 3, 5, 1, '#5a3a20');
+    }),
+  );
+  addCanvas(
+    'ev_stash',
+    iconCanvasSized(16, 13, (c) => {
+      rect(c, 0, 4, 16, 9, '#2a4a7a');
+      rect(c, 0, 1, 16, 4, '#3a6aa8');
+      rect(c, 0, 4, 16, 1, '#1a2a4a');
+      for (const x of [0, 7, 15]) rect(c, x, 1, 1, 12, '#9aa0aa');
+      rect(c, 6, 5, 4, 4, '#e9b949');
+      px(c, 7, 6, '#fff3b0');
+      rect(c, 7, 7, 2, 2, '#3a2a10');
+    }),
+  );
+  // a doorway for the path choice: an arched wooden door in a stone frame, iron bands, a ring
+  addCanvas(
+    'ev_doorway',
+    iconCanvasSized(20, 26, (c) => {
+      // the stone arch
+      rect(c, 0, 6, 20, 20, '#5a5664');
+      ell(c, 10, 7, 10, 7, '#5a5664');
+      for (const [x, y] of [
+        [1, 12],
+        [17, 16],
+        [2, 21],
+        [16, 8],
+      ])
+        rect(c, x, y, 2, 1, '#46424e');
+      // the door
+      rect(c, 3, 8, 14, 18, '#6a4628');
+      ell(c, 10, 8, 7, 5, '#6a4628');
+      for (const x of [6, 10, 14]) rect(c, x, 4, 1, 22, '#4a301a');
+      rect(c, 3, 11, 14, 1, '#3a3a44');
+      rect(c, 3, 19, 14, 1, '#3a3a44');
+      // the ring and a sliver of light under the door
+      ell(c, 13, 16, 1.6, 1.6, '#c8a24a');
+      px(c, 13, 16, '#6a4628');
+      rect(c, 4, 25, 12, 1, '#ffd76a');
+    }),
+  );
+  // ---- the puzzle hall: rune plates in the floor (dark, lit) and the tablet that tells the order
+  const plate = (lit: boolean) => (c: CanvasRenderingContext2D) => {
+    rect(c, 0, 0, 14, 14, '#2e2c36');
+    rect(c, 1, 1, 12, 12, lit ? '#3a5a7a' : '#46444e');
+    rect(c, 1, 1, 12, 1, lit ? '#6aa8e8' : '#5a5862');
+    const g = lit ? '#bff0ff' : '#24222a';
+    // a rune: a vertical stroke with two branches
+    line(c, 7, 3, 7, 10, g);
+    line(c, 7, 5, 10, 3, g);
+    line(c, 7, 7, 4, 5, g);
+  };
+  addCanvas('ev_plate', iconCanvasSized(14, 14, plate(false), false));
+  addCanvas('ev_plate_on', iconCanvasSized(14, 14, plate(true), false));
+  addCanvas(
+    'ev_tablet',
+    iconCanvasSized(12, 20, (c) => {
+      rect(c, 1, 2, 10, 18, '#6a6672');
+      ell(c, 6, 3, 5, 3, '#6a6672');
+      rect(c, 2, 4, 8, 14, '#7a7684');
+      for (let k = 0; k < 4; k++) rect(c, 3, 6 + k * 3, 6, 1, '#3a3640');
+      rect(c, 0, 19, 12, 1, '#3a3640');
+    }),
+  );
+
   // the cross of a treasure map: a low mound of loose earth with a red cross painted over it, a forgotten shovel
   addCanvas(
     'ev_dig',

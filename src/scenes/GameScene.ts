@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import { generateDungeon, Dungeon, DObject, T_FLOOR, eliteChanceFor } from '../systems/dungeon';
+import { generateDungeon, Dungeon, DObject, T_FLOOR, eliteChanceFor, CalmKind } from '../systems/dungeon';
+import { FloorMod, FLOOR_MODS, FLOOR_MOD_BY_ID, DANGER_MOD, mergeMods, FATE_CHANCE } from '../data/floormods';
+import { bandOf, bandStart, isCampFloor, runOf } from '../data/bands';
 import { WorldMap, TS } from '../game/map';
 import { FX, D } from '../game/fx';
 import { Player } from '../game/player';
@@ -11,7 +13,7 @@ import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
 import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END, corruptName } from '../data/enemies';
 import { CHAPTERS, noteForFloor } from '../data/story';
-import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory } from '../systems/state';
+import { SaveData, FloorKind, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory } from '../systems/state';
 import { PetFollower } from '../game/pet';
 import { Mercenary } from '../game/merc';
 import { MercRole, MERC_BY_ROLE, randomMercName, MercOrder, MercState } from '../data/mercs';
@@ -89,31 +91,14 @@ export interface MerchantStock {
   mystery?: number;
 }
 
-export interface FloorMod {
-  id: string;
-  name: string;
-  desc: string;
-  enemyHp?: number;
-  enemyDmg?: number;
-  xp?: number;
-  gold?: number;
-  mf?: number;
-  extraEnemies?: number;
-  eliteMult?: number;
-  darkness?: number;
-  chestBonus?: boolean;
-  /** potions of health do nothing and the hero does not regenerate */
-  noHeal?: boolean;
-}
-
-export const FLOOR_MODS: FloorMod[] = [
-  { id: 'dark', name: 'Temnota', desc: 'Je tu větší tma, ale kořist je lepší', darkness: 0.85, mf: 40 },
-  { id: 'gold', name: 'Zlatá horečka', desc: 'Nepřátelé a truhly dávají dvojnásobek zlata', gold: 1 },
-  { id: 'curse', name: 'Prokletí', desc: 'Silnější nepřátelé, víc zkušeností a lepší kořist', enemyHp: 1.2, enemyDmg: 1.25, xp: 0.4, mf: 40 },
-  { id: 'horde', name: 'Hordy', desc: 'Mnohem víc nepřátel a víc zkušeností', extraEnemies: 0.4, xp: 0.2 },
-  { id: 'champions', name: 'Šampioni', desc: 'Elitních nepřátel je třikrát víc', eliteMult: 3, mf: 20 },
-  { id: 'treasure', name: 'Poklady', desc: 'Truhly obsahují lepší předměty', chestBonus: true },
-];
+/** what the floor card says about a floor without fighting */
+const CALM_SUB: Record<CalmKind, string> = {
+  camp: 'Tábor: bezpečné místo – odpočinek u ohně, obchodník a úložiště',
+  merchant: 'Křižovatka obchodníků: tady se nebojuje',
+  vault: 'Pokladnice: truhly a zlato bez hlídek',
+  puzzle: 'Síň hádanek: přečti tabulku a šlápni na desky ve správném pořadí',
+  npc: 'Místo setkání: tady se nebojuje',
+};
 
 const SHRINES: Record<string, { name: string; mods: BuffMods; xp?: number; mf?: number; color: number }> = {
   power: { name: 'Svatyně síly', mods: { dmgPct: 30 }, color: 0xff4d4d },
@@ -169,7 +154,15 @@ export class GameScene extends Phaser.Scene {
   zoom = 3;
   darkness = 0.48;
   revealedRooms = new Set<number>();
+  /** the floor's rules: its fate and the dangerous path together (see data/floormods.ts) */
   mod: FloorMod | null = null;
+  /** the fate the floor turned out to have (shown on arrival) */
+  fate: FloorMod | null = null;
+  /** what kind of floor this is (a camp, a calm floor, the dangerous path …) */
+  kind: FloorKind | 'camp' = 'normal';
+  get calm(): CalmKind | undefined {
+    return this.dungeon?.calm;
+  }
   merchantStocks = new Map<Interactable, MerchantStock>();
   currentAction: Interactable | null = null;
   playTimeT = 0;
@@ -239,6 +232,8 @@ export class GameScene extends Phaser.Scene {
     this.heroLight = 1;
     this.revealedRooms = new Set<number>();
     this.mod = null;
+    this.fate = null;
+    this.kind = 'normal';
     this.hazards = [];
     this.pet = null;
     this.merc = null;
@@ -258,9 +253,28 @@ export class GameScene extends Phaser.Scene {
   create() {
     const save = this.save;
     const rift = this.rift;
+    // the expedition: what kind of floor the path down led to (a camp halfway down every band of ten)
+    const run = !rift && !this.inVillage ? runOf(save) : null;
+    if (run) {
+      if (isCampFloor(this.floor)) this.kind = 'camp';
+      else if (!isBossFloor(this.floor)) {
+        let k = run.kind ?? 'normal';
+        // the unknown door: a treasury, a puzzle, a meeting place – or a floor with a fate for sure
+        if (k === 'unknown') {
+          const roll = Math.random();
+          k = roll < 0.25 ? 'vault' : roll < 0.5 ? 'puzzle' : roll < 0.7 ? 'npc' : 'normal';
+          if (k === 'normal') run.fate = FLOOR_MODS[Math.floor(Math.random() * FLOOR_MODS.length)].id;
+          run.kind = k;
+        }
+        this.kind = k;
+      }
+      // the band's first floor and its camp are the places a death sends the hero back to
+      if (this.floor === bandStart(bandOf(this.floor)) || isCampFloor(this.floor)) run.checkpoint = this.floor;
+    }
+    const calmKind: CalmKind | undefined = this.kind === 'camp' || this.kind === 'merchant' || this.kind === 'vault' || this.kind === 'puzzle' || this.kind === 'npc' ? this.kind : undefined;
     // pity: guarantee merchants regularly
     const forceMerchant = save.merchantPity >= 3;
-    this.dungeon = this.inVillage ? generateVillage(this.floor) : generateDungeon(this.floor, (Math.random() * 1e9) | 0, { forceMerchant, rift: rift ?? undefined });
+    this.dungeon = this.inVillage ? generateVillage(this.floor) : generateDungeon(this.floor, (Math.random() * 1e9) | 0, { forceMerchant, rift: rift ?? undefined, calm: calmKind });
     if (!rift && !this.inVillage) {
       if (this.dungeon.hasMerchant) save.merchantPity = 0;
       else save.merchantPity++;
@@ -288,38 +302,53 @@ export class GameScene extends Phaser.Scene {
     if (!this.inVillage) this.add.image(ux, uy, 'stairs_up').setScale(ACTOR_SCALE).setDepth(D.floorDeco);
     this.upStairs = { x: ux, y: uy };
     this.player = new Player(this, ux, uy, save);
-    // ~25 % of regular floors get a random modifier
+    // back from the last chance arena: a single point of health
+    if (run?.revived) {
+      run.revived = false;
+      this.player.hp = 1;
+    }
+    // the floor's fate (about every third regular floor, more often on the dangerous path), kept for a reload
     const forced = (window as any).__forceMod as string | undefined; // dev testing hook
-    this.mod = rift || this.inVillage
-      ? null
-      : forced
-        ? FLOOR_MODS.find((m) => m.id === forced) ?? null
-        : !isBossFloor(this.floor) && this.floor > 1 && Math.random() < 0.25
-          ? FLOOR_MODS[Math.floor(Math.random() * FLOOR_MODS.length)]
-          : null;
-    this.darkness = rift === 'dream' ? 0.16 : this.theme.darkness;
+    if (run && !this.calm && !isBossFloor(this.floor) && this.floor > 1) {
+      if (forced) run.fate = forced;
+      else if (run.fate === undefined) run.fate = Math.random() < (this.kind === 'danger' ? 0.45 : FATE_CHANCE) ? FLOOR_MODS[Math.floor(Math.random() * FLOOR_MODS.length)].id : null;
+      this.fate = run.fate ? FLOOR_MOD_BY_ID[run.fate] ?? null : null;
+    }
+    this.mod = mergeMods(this.fate, this.kind === 'danger' ? DANGER_MOD : null);
+    this.darkness = rift === 'dream' ? 0.16 : rift === 'last' ? 0.58 : this.theme.darkness;
+    if (rift === 'last') this.darkColor = 0x1e0406;
     if (this.mod?.darkness) this.darkness = this.mod.darkness;
+    if (this.mod?.darkColor) this.darkColor = this.mod.darkColor;
+    // a floor of treasures: chests and gold everywhere
+    if (this.mod?.extraChests) this.scatterTreasure(this.mod.extraChests);
     this.placeObjects();
     this.lamps.push({ x: ux, y: uy, r: 56, flicker: 0 });
     const home = this.inVillage;
+    const calm = this.calm;
     if (!rift && !home) this.placeStoryPage();
-    this.spawnEnemies();
-    if (!rift && !home) {
+    // a calm floor has no monsters at all (no thief, no nemesis, no guardian)
+    if (!calm) this.spawnEnemies();
+    if (!rift && !home && !calm) {
       this.placePetCage();
       this.placeCursedChest();
       this.placeAlchemist();
       this.rollBounty();
     }
+    if (calm === 'camp') this.placeAlchemist(true);
+    if (calm === 'puzzle') this.placePuzzle();
     // the pet and the mercenary come down the stairs right after the hero (shown in arrive)
     this.spawnPet(ux, uy + 4, false);
     this.spawnMerc(ux, uy + 4, false);
     syncCodex(this.save);
-    if (!rift && !home) this.spawnRival();
+    if (!rift && !home && !calm) this.spawnRival();
     else this.rival = null;
-    // what else happens on this floor (a rift has its own rules, the village is home)
+    // what else happens on this floor (a rift has its own rules, the village is home, a calm floor is quiet)
     if (rift) this.enc.setupRift(rift);
     else if (home) this.vil.place();
-    else {
+    else if (calm) {
+      if (calm === 'npc') this.enc.placeMeeting();
+      this.quests.placeFloorQuests(true);
+    } else {
       this.enc.place();
       this.quests.placeFloorQuests();
     }
@@ -393,15 +422,21 @@ export class GameScene extends Phaser.Scene {
       ? 'Trhlina: poraz nestvůry, přivolej strážce a zavři ji'
       : this.rift === 'dream'
         ? 'Snový svět: sbírej poklady, než se probudíš'
+        : this.rift === 'last'
+        ? 'Poslední šance: vydrž 40 sekund proti vlnám nestvůr'
         : story && !st.seen.includes(story.outro)
         ? `Zde čeká ${story.name} – ${story.title}`
         : isBossFloor(this.floor)
           ? 'Patro strážce – připrav se!'
-          : this.mod
-            ? `${this.mod.name}: ${this.mod.desc}`
-            : this.dungeon.hasMerchant
-              ? 'Někde zde čeká obchodník…'
-              : '';
+          : this.calm
+            ? CALM_SUB[this.calm]
+            : this.fate
+              ? `Osud patra – ${this.fate.name}: ${this.fate.desc}${this.kind === 'danger' ? ' · Nebezpečná cesta' : ''}`
+              : this.kind === 'danger'
+                ? 'Nebezpečná cesta: silnější nestvůry a víc šampionů, lepší kořist'
+                : this.dungeon.hasMerchant
+                  ? 'Někde zde čeká obchodník…'
+                  : '';
     // came down the stairs: the title card is already up; story scenes play over it
     const cardUp = UI.floorCardUp(this.floor);
     // a new area or a guardian deserves a longer look at the card (a tap shortens it)
@@ -421,6 +456,14 @@ export class GameScene extends Phaser.Scene {
     if (!this.sys.isActive() && !this.sys.isPaused()) return;
     UI.hideFloorCard();
     this.arrive();
+    // the floor's fate is announced the moment the hero steps off the stairs
+    if (this.fate) {
+      const f = this.fate;
+      this.time.delayedCall(700, () => {
+        sfx(f.tone === 'gift' ? 'chest' : 'boss');
+        UI.banner(`Osud patra: ${f.name}`, f.desc);
+      });
+    } else if (this.calm === 'camp') this.time.delayedCall(700, () => UI.banner('Tábor', 'Bezpečné místo · odpočinek u ohně, obchodník a úložiště · checkpoint'));
     if (this.floor === 1 && save.kills === 0 && save.level === 1) this.tutorial();
   }
 
@@ -482,7 +525,7 @@ export class GameScene extends Phaser.Scene {
       'Útok je automatický – stačí se přiblížit k nepříteli na dosah zbraně.',
       'Kouzla sesíláš tlačítky vpravo. Velké tlačítko je ultimátní kouzlo.',
       'Lektvary obnoví zdraví a manu. Truhly se otevřou, když na ně stoupneš.',
-      'Najdi schody dolů a sestup hlouběji. Každé 5. patro hlídá strážce!',
+      'Najdi schody dolů a sestup hlouběji. Na konci každé desítky pater hlídá strážce!',
     ];
     tips.forEach((t, i) => this.time.delayedCall(2800 + i * 6000, () => UI.hint(t, 5500)));
   }
@@ -758,6 +801,27 @@ export class GameScene extends Phaser.Scene {
         this.lamps.push({ x: px, y: py, r: 55, flicker: 0 });
         break;
       }
+      case 'campfire': {
+        // (halveProps shows the double-detail prop at half scale)
+        const s = this.add.sprite(px, py + 8, 'ev_campfire', 0).setOrigin(0.5, 1).play('ev_campfire_loop').setDepth(D.entityBase + py + 8);
+        this.interactables.push({ kind: 'campfire', x: px, y: py + 6, tx: o.x, ty: o.y, sprite: s, data: {} });
+        const glow = this.add.image(px, py, 'glow').setTint(0xff9a3a).setAlpha(0.35).setScale(1.6).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
+        this.tweens.add({ targets: glow, alpha: 0.22, yoyo: true, repeat: -1, duration: 420 });
+        this.lamps.push({ x: px, y: py, r: 120, flicker: 5, glow });
+        this.fx.label(px, py - 16, 'Tábor', '#ffb347', 6).setDepth(99980);
+        break;
+      }
+      case 'stashchest': {
+        const s = add('ev_stash');
+        this.interactables.push({ kind: 'stash', x: px, y: py + 4, tx: o.x, ty: o.y, sprite: s, data: {} });
+        break;
+      }
+      case 'tent':
+        add('ev_tent');
+        break;
+      case 'log':
+        add('ev_log');
+        break;
       case 'fountain': {
         const s = this.add.sprite(px, py + 8, 'fountain').setOrigin(0.5, 1).play('fountain_loop').setDepth(D.entityBase + py + 8);
         this.interactables.push({ kind: 'fountain', x: px, y: py + 6, tx: o.x, ty: o.y, sprite: s, data: {} });
@@ -854,6 +918,7 @@ export class GameScene extends Phaser.Scene {
       const e = this.spawnEnemy(sp.id, ox, oy, elite, sp.room);
       if (m?.enemyHp) e.maxHp = e.hp = Math.round(e.maxHp * m.enemyHp);
       if (m?.enemyDmg) e.dmg *= m.enemyDmg;
+      if (m?.enemySpeed) e.speed *= m.enemySpeed;
     }
     if (!this.rift && !this.inVillage) {
       this.spawnThief();
@@ -1179,8 +1244,8 @@ export class GameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- alchemist
   /** now and then an alchemist sets up his cauldron on a floor: five items of a rarity melt into a better one */
-  placeAlchemist() {
-    const forced = (window as any).__forceAlchemist; // dev testing hook
+  placeAlchemist(always = false) {
+    const forced = always || (window as any).__forceAlchemist; // (a camp always has one; dev testing hook)
     if (!forced && (this.floor < 3 || isBossFloor(this.floor) || (this.floor % 7 !== 3 && Math.random() > 0.1))) return;
     const c = this.freeSpot(forced ? 4 : 8);
     if (!c) return;
@@ -1196,6 +1261,133 @@ export class GameScene extends Phaser.Scene {
     this.lamps.push({ x: px, y: py, r: 72, flicker: 1 });
     const t = this.fx.label(px, py - 16, 'Alchymista', '#7dffcf', 6);
     t.setDepth(99980);
+  }
+
+  /** a floor of treasures: chests and heaps of gold in the rooms (added to the floor's objects before they are placed) */
+  scatterTreasure(n: number) {
+    const d = this.dungeon;
+    const taken = new Set(d.objects.map((o) => o.y * d.w + o.x));
+    const rooms = d.rooms.filter((r) => r.type !== 'start' && r.type !== 'boss' && r.type !== 'secret');
+    for (let k = 0; k < n * 2 && rooms.length; k++) {
+      const rm = rooms[Math.floor(Math.random() * rooms.length)];
+      const c = rm.cells[Math.floor(Math.random() * rm.cells.length)];
+      const x = c % d.w,
+        y = Math.floor(c / d.w);
+      if (taken.has(c) || d.grid[c] !== T_FLOOR || d.grid[c - d.w] !== T_FLOOR || d.grid[c + d.w] !== T_FLOOR) continue;
+      taken.add(c);
+      if (k < n) d.objects.push({ kind: 'chest', x, y, data: { tier: Math.random() < 0.25 ? 'gold' : Math.random() < 0.5 ? 'iron' : 'wood', locked: false } });
+      else d.objects.push({ kind: 'goldpile', x, y });
+    }
+  }
+
+  /** the puzzle hall: rune plates in the floor and a tablet with the order to step on them; solved, the
+   *  hall's treasure appears (a wrong step makes the plates go dark again, with a sting) */
+  puzzle: { plates: Interactable[]; order: number[]; step: number; solved: boolean; room: number } | null = null;
+
+  placePuzzle() {
+    const d = this.dungeon;
+    const rm = d.rooms.find((r) => r.type === 'puzzle');
+    if (!rm) return;
+    const n = 4 + (this.floor >= 60 ? 1 : 0);
+    // the plates stand in a ring around the middle of the hall
+    const spots: [number, number][] = [];
+    for (let k = 0; k < 24 && spots.length < n; k++) {
+      const a = (k / n) * Math.PI * 2 + (k >= n ? 0.4 : 0);
+      const rr = k >= n ? 2 : 3;
+      const x = Math.round(rm.cx + Math.cos(a) * rr * 1.3),
+        y = Math.round(rm.cy + Math.sin(a) * rr);
+      const i = y * d.w + x;
+      if (d.grid[i] !== T_FLOOR || d.roomId[i] !== rm.id || spots.some(([sx, sy]) => Math.abs(sx - x) + Math.abs(sy - y) < 2)) continue;
+      spots.push([x, y]);
+    }
+    if (spots.length < 3) return;
+    const plates: Interactable[] = spots.map(([x, y], i) => {
+      const s = this.add.image(x * TS + 8, y * TS + 8, 'ev_plate').setScale(ACTOR_SCALE).setDepth(D.floorDeco + 1);
+      const it: Interactable = { kind: 'plate', x: x * TS + 8, y: y * TS + 8, tx: x, ty: y, sprite: s, data: { i } };
+      this.interactables.push(it);
+      return it;
+    });
+    const order = Phaser.Utils.Array.Shuffle(plates.map((_, i) => i));
+    // the tablet by the wall tells the order: the plates' runes light up one by one when read
+    const tx = rm.cx,
+      ty = rm.y + 1 < rm.cy ? rm.y + 1 : rm.cy;
+    const tab = this.add.image(tx * TS + 8, ty * TS + 16, 'ev_tablet').setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + ty * TS + 16);
+    this.interactables.push({ kind: 'tablet', x: tx * TS + 8, y: ty * TS + 12, tx, ty, sprite: tab, data: {} });
+    this.lamps.push({ x: rm.cx * TS + 8, y: rm.cy * TS + 8, r: 90, flicker: 0 });
+    this.puzzle = { plates, order, step: 0, solved: false, room: rm.id };
+  }
+
+  /** the tablet shows the order: each plate glows in turn */
+  readTablet() {
+    const pz = this.puzzle;
+    if (!pz || pz.solved) return;
+    sfx('ui');
+    UI.toast('Tabulka ukazuje pořadí – zapamatuj si, které desky se rozsvítí', '#9fe6ff');
+    pz.order.forEach((pi, k) =>
+      this.time.delayedCall(500 + k * 700, () => {
+        const pl = pz.plates[pi];
+        (pl.sprite as Phaser.GameObjects.Image).setTexture('ev_plate_on');
+        this.fx.ring(pl.x, pl.y, 14, 0x9fe6ff, 400);
+        sfx('step');
+        this.time.delayedCall(550, () => {
+          if (!pz.solved && pz.step <= pz.order.indexOf(pi)) (pl.sprite as Phaser.GameObjects.Image).setTexture('ev_plate');
+        });
+      }),
+    );
+  }
+
+  /** the hero stepped on a plate */
+  stepPlate(it: Interactable) {
+    const pz = this.puzzle;
+    if (!pz || pz.solved || it.data.lit) return;
+    const want = pz.order[pz.step];
+    if (it.data.i === want) {
+      it.data.lit = true;
+      (it.sprite as Phaser.GameObjects.Image).setTexture('ev_plate_on');
+      this.fx.ring(it.x, it.y, 16, 0x9fe6ff, 400);
+      sfx('chest');
+      pz.step++;
+      if (pz.step >= pz.order.length) this.solvePuzzle();
+      return;
+    }
+    // a wrong plate: everything goes dark and a spark bites
+    sfx('lockFail');
+    this.fx.burst(it.x, it.y, 0x9fe6ff, 14);
+    this.combat.cause = 'Runová deska';
+    this.combat.damagePlayer(Math.round(this.player.d.maxHp * 0.06), null, 'lightning');
+    for (const pl of pz.plates) {
+      pl.data.lit = false;
+      (pl.sprite as Phaser.GameObjects.Image).setTexture('ev_plate');
+    }
+    pz.step = 0;
+    UI.toast('Špatná deska! Runy pohasly – přečti si tabulku znovu', '#ff8a7a');
+  }
+
+  /** the puzzle is solved: the hall's treasure rises from the floor */
+  solvePuzzle() {
+    const pz = this.puzzle!;
+    pz.solved = true;
+    sfx('levelup');
+    this.fx.shake(0.006, 400);
+    UI.banner('Hádanka vyřešena!', 'Síň vydala svůj poklad');
+    const rm = this.dungeon.rooms.find((r) => r.id === pz.room)!;
+    const f = this.floor;
+    for (let k = -1; k <= 1; k++) {
+      const x = rm.cx + k * 2,
+        y = rm.cy;
+      if (this.map.tileAt(x, y) !== T_FLOOR) continue;
+      const px = x * TS + 8,
+        py = y * TS + 8;
+      const tier = k === 0 ? 'gold' : 'iron';
+      const s = this.add.image(px, y * TS + 16, 'chest_' + tier).setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + py).setAlpha(0);
+      this.tweens.add({ targets: s, alpha: 1, duration: 600, delay: 300 + (k + 1) * 200 });
+      this.fx.burst(px, py, 0x9fe6ff, 16, 'puff');
+      this.interactables.push({ kind: 'chest', x: px, y: py + 4, tx: x, ty: y, sprite: s, data: { tier, locked: false } });
+      if (tier === 'gold') this.addSparkle(s);
+    }
+    this.loot.dropItem(generateItem(f + 1, { rarity: Math.random() < 0.3 ? 4 : 3, filter: this.loot.bias() }), rm.cx * TS + 8, rm.cy * TS + 14);
+    this.gainXp(Math.round(xpForLevel(this.save.level) * 0.04));
+    bumpStat(this.save, 'puzzles');
   }
 
   // ---------------------------------------------------------------- cursed chest
@@ -1852,7 +2044,7 @@ export class GameScene extends Phaser.Scene {
     for (const it of this.interactables) {
       if (it.used) continue;
       if (it.kind === 'chest' && !it.data.locked && !it.data.bossChoice) continue; // auto-open
-      if (it.kind === 'goldpile' || it.kind === 'mimic' || it.kind === 'breakable' || it.kind === 'page') continue;
+      if (it.kind === 'goldpile' || it.kind === 'mimic' || it.kind === 'breakable' || it.kind === 'page' || it.kind === 'plate') continue;
       const d = Math.hypot(it.x - p.x, it.y - p.y);
       if (d < bd) {
         bd = d;
@@ -1865,7 +2057,7 @@ export class GameScene extends Phaser.Scene {
   actionLabel(it: Interactable): string {
     switch (it.kind) {
       case 'stairs':
-        if (it.data.village) return `Do kobek (patro ${this.floor})`;
+        if (it.data.village) return 'Výprava do kobek';
         return it.data.portal ? `Projít portálem (patro ${this.floor + 1})` : `Sestoupit (patro ${this.floor + 1})`;
       case 'vb':
       case 'vilda':
@@ -1897,6 +2089,12 @@ export class GameScene extends Phaser.Scene {
         return 'Prokletá truhla';
       case 'alchemist':
         return 'Transmutace';
+      case 'tablet':
+        return 'Přečíst tabulku';
+      case 'campfire':
+        return it.data.rested ? 'Ohniště (odpočinuto)' : 'Odpočinout u ohně';
+      case 'stash':
+        return 'Truhla úložiště';
     }
     return 'Použít';
   }
@@ -1920,9 +2118,9 @@ export class GameScene extends Phaser.Scene {
         this.vil.interact(it);
         break;
       case 'stairs':
-        if (it.data.village) UI.confirm(`Sestoupit do kobek?`, `Pokračuješ patrem ${this.floor}, které začneš od schodů.`, () => this.nextFloor(true), 'Sestoupit', 'Ještě ne');
+        if (it.data.village) UI.expedition();
         else if (it.data.portal) UI.confirm(`Projít portálem do patra ${this.floor + 1}?`, 'Hra se uloží. Zpět se vrátit nelze.', () => this.nextFloor(), 'Projít', 'Ještě ne');
-        else UI.confirm(`Sestoupit do patra ${this.floor + 1}?`, 'Hra se uloží. Zpět se vrátit nelze.', () => this.nextFloor());
+        else this.chooseNextPath();
         break;
       case 'ev':
         this.enc.interact(it);
@@ -1990,7 +2188,36 @@ export class GameScene extends Phaser.Scene {
       case 'cursed':
         UI.confirm('Prokletá truhla', 'Kdo ji otevře, musí 30 sekund odolávat vlnám nestvůr. Čím víc jich porazíš, tím bohatší bude kořist.', () => this.startCursed(it), 'Přijmout výzvu', 'Raději ne');
         break;
+      case 'tablet':
+        this.readTablet();
+        break;
+      case 'campfire':
+        this.restAtCamp(it);
+        break;
+      case 'stash':
+        UI.openStash();
+        break;
     }
+  }
+
+  /** the camp's fire: health and mana back to full and a rested hero fights better for a while (once per camp) */
+  restAtCamp(it: Interactable) {
+    const p = this.player;
+    if (it.data.rested) {
+      UI.toast('Odpočinek u tohoto ohně už proběhl. Cesta vede dál po schodech.', '#ffd76a');
+      return;
+    }
+    it.data.rested = true;
+    p.hp = p.d.maxHp;
+    p.mp = p.d.maxMp;
+    this.potionCd.hpPotion = this.potionCd.mpPotion = 0;
+    this.shrineBuffs.push({ id: 'rested', name: 'Odpočinek u ohně', mods: { dmgPct: 10, regenPct: 0.5 }, t: 300, total: 300, color: 0xffb347 });
+    p.recalc();
+    sfx('heal');
+    this.fx.burst(p.x, p.y - 6, 0xffb347, 20);
+    UI.banner('Odpočinek u ohně', 'Plné zdraví i mana · na 5 minut +10 % poškození a obnova zdraví');
+    bus.emit('buffs');
+    saveGame(this.save);
   }
 
   refreshPlayerClass() {
@@ -2085,6 +2312,7 @@ export class GameScene extends Phaser.Scene {
       if (it.used) continue;
       const d = Math.hypot(it.x - p.x, it.y - p.y);
       if (it.kind === 'page' && d < 14) this.readPage(it);
+      else if (it.kind === 'plate' && d < 7) this.stepPlate(it);
       else if (it.kind === 'breakable' && d < 11) this.breakObject(it);
       else if (it.kind === 'chest' && !it.data.locked && !it.data.bossChoice && d < 13) this.openChest(it);
       else if (it.kind === 'goldpile' && d < 12) {
@@ -2311,6 +2539,8 @@ export class GameScene extends Phaser.Scene {
     // a hardcore hero is gone at once (closing the game now must not save them)
     if (this.save.hardcore) buryHero(this.save, this.floor);
     else this.recordNemesis();
+    // very rarely a last chance (once per expedition, never in a rift or the arena itself)
+    this.lastChanceOffer = !this.save.hardcore && !this.rift && !this.inVillage && !runOf(this.save).lastChance && Math.random() < 0.12;
     this.time.delayedCall(900, () => UI.death(this.floor, this.deathGold()));
     this.deathAt = this.time.now;
   }
@@ -2332,7 +2562,56 @@ export class GameScene extends Phaser.Scene {
   respawn() {
     if (this.save.hardcore) return;
     this.payForDeath();
+    // a death sends the hero back to the expedition's checkpoint (on the easy difficulty to the same floor)
+    const back = this.deathReturnFloor();
+    const run = runOf(this.save);
+    this.save.floor = back;
+    run.kind = 'normal';
+    run.fate = undefined;
+    saveGame(this.save);
     this.scene.restart({ save: this.save });
+  }
+
+  /** the floor a death sends the hero back to */
+  deathReturnFloor() {
+    if (this.inVillage || this.diff.id === 'easy') return this.floor;
+    return Math.min(this.floor, runOf(this.save).checkpoint);
+  }
+
+  /** a death may (rarely) offer the last chance: an arena; holding out brings the hero back with 1 HP */
+  lastChanceOffer = false;
+
+  lastChance() {
+    const run = runOf(this.save);
+    run.lastChance = true;
+    bumpStat(this.save, 'lastChances');
+    saveGame(this.save);
+    UI.floorCard({ floor: this.floor, name: 'Poslední šance', region: 'Aréna mezi životem a smrtí · vydrž', color: '#ff6a5a', top: 'Poslední šance' }, 'Přežij do konce a vrátíš se s jediným bodem zdraví', true);
+    this.scene.restart({ save: this.save, rift: 'last' });
+  }
+
+  /** the stairs down: where the path leads next – doors to choose from, unless a camp or a guardian comes next */
+  chooseNextPath() {
+    const next = this.floor + 1;
+    const go = (k: FloorKind) => {
+      this.nextKind = k;
+      this.nextFloor();
+    };
+    if (this.rift || isBossFloor(next) || isCampFloor(next)) {
+      const why = isBossFloor(next) ? 'Dole čeká strážce této desítky pater. Hra se uloží.' : isCampFloor(next) ? 'Dole je tábor – bezpečné místo k odpočinku. Hra se uloží.' : 'Hra se uloží. Zpět se vrátit nelze.';
+      UI.confirm(`Sestoupit do patra ${next}?`, why, () => go('normal'));
+      return;
+    }
+    UI.pathChoice(next, this.pathOptions(), go);
+  }
+
+  /** the kind of floor the chosen door leads to (any other way down leads to a regular floor) */
+  nextKind: FloorKind | null = null;
+
+  /** the doors after a floor: the dangerous path, a plain one or the merchant's, and the unknown */
+  pathOptions(): FloorKind[] {
+    const second: FloorKind = Math.random() < 0.4 ? 'merchant' : 'normal';
+    return Math.random() < 0.25 ? [second, 'danger'] : [second, 'danger', 'unknown'];
   }
 
   /** home to Loppo (from the pause menu): the floor will start again from its stairs */
@@ -2447,6 +2726,14 @@ export class GameScene extends Phaser.Scene {
     }
     this.save.floor = this.floor + (stay ? 0 : 1);
     this.save.maxFloor = Math.max(this.save.maxFloor, this.save.floor);
+    // the next floor is what the chosen door promised (a regular one by any other way); going back down from
+    // the village the floor keeps its kind and fate
+    if (!stay) {
+      const run = runOf(this.save);
+      run.kind = this.nextKind ?? 'normal';
+      run.fate = undefined;
+      this.nextKind = null;
+    }
     // the pet goes down with the hero and grows with every few floors
     const pets = petsOf(this.save);
     if (pets.active && !stay) {

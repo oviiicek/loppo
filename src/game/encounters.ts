@@ -39,7 +39,7 @@ export type EvType =
   | 'rain'
   | 'treasure';
 
-export type RiftKind = 'rift' | 'dream';
+export type RiftKind = 'rift' | 'dream' | 'last';
 
 /** state of one event on the floor (kept in its interactable's data) */
 export interface EvState {
@@ -287,6 +287,14 @@ export class Encounters {
   }
 
   // ================================================================== captives
+  /** a meeting place without fighting: a few friendly strangers (a fortune teller, card players, an altar of
+   *  gifts, the dead who left letters) */
+  placeMeeting() {
+    const kinds = Phaser.Utils.Array.Shuffle(['fate', 'cards', 'altarGift', 'altarFate', 'corpse', 'runes']).slice(0, 4);
+    if (!kinds.includes('fate')) kinds[0] = 'fate';
+    for (const k of kinds) this.placeKind(k);
+  }
+
   /** the cross of a treasure map: a patch of loose earth somewhere far from the stairs */
   placeTreasure(q: Quest) {
     const sc = this.sc;
@@ -1621,6 +1629,12 @@ export class Encounters {
   setupRift(kind: RiftKind) {
     const sc = this.sc;
     const d = sc.dungeon;
+    if (kind === 'last') {
+      // the last chance: hold out for 40 seconds against waves that keep coming
+      this.rift = { kind, need: 0, kills: 0, t: 40, total: 40, guard: null, cleared: false };
+      this.waveT = 2;
+      return;
+    }
     if (kind === 'rift') {
       const need = Math.max(12, Math.round(sc.enemies.length * 0.7));
       this.rift = { kind, need, kills: 0, t: 0, total: 150, guard: null, cleared: false };
@@ -1679,11 +1693,39 @@ export class Encounters {
     return it;
   }
 
+  /** seconds to the next wave of the last chance arena */
+  private waveT = 0;
+
   private updateRift(dt: number) {
     const r = this.rift!;
     const sc = this.sc;
     const p = sc.player;
     if (p.dead || sc.cinematic) return;
+    if (r.kind === 'last') {
+      if (r.cleared) return;
+      r.t -= dt;
+      sc.ui.eventBar(`⚔ Poslední šance · vydrž ještě ${Math.max(0, Math.ceil(r.t))} s`, Math.max(0, r.t / r.total));
+      this.waveT -= dt;
+      if (this.waveT <= 0 && r.t > 3) {
+        this.waveT = 5.5;
+        const pool = this.floorPool();
+        const n = 3 + Math.floor((r.total - r.t) / 10);
+        for (let k = 0; k < n; k++) {
+          let q: [number, number] | null = null;
+          for (let t = 0; t < 12 && !q; t++) {
+            const c = sc.map.randomFloorNear(p.x, p.y, 120);
+            if (c && Math.hypot(c[0] - p.x, c[1] - p.y) >= 34 && !sc.map.collides(c[0], c[1], 6)) q = c;
+          }
+          if (!q) continue;
+          const e = sc.spawnEnemy(pick(pool), q[0], q[1], Math.random() < 0.12, -1);
+          e.aggro = true;
+          sc.fx.burst(q[0], q[1] - 6, 0xff5a4a, 10, 'puff');
+        }
+        sfx('summon');
+      }
+      if (r.t <= 0) this.lastChanceWon();
+      return;
+    }
     if (r.kind === 'dream') {
       r.t -= dt;
       sc.ui.eventBar(`✨ Snový svět · probudíš se za ${Math.max(0, Math.ceil(r.t))} s`, Math.max(0, r.t / r.total));
@@ -1708,6 +1750,30 @@ export class Encounters {
       sc.ui.eventBar(`🌀 Trhlina · ${Math.round(pct * 100)} %${left > 0 ? ` · bonus za rychlost ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}` : ''}`, pct);
       if (pct >= 1) this.summonGuard();
     } else sc.ui.eventBar('🌀 Strážce trhliny přichází!', 1);
+  }
+
+  /** the hero held out: back to the floor of the death with a single point of health */
+  private lastChanceWon() {
+    const r = this.rift!;
+    const sc = this.sc;
+    r.cleared = true;
+    sc.ui.hideEventBar();
+    for (const e of sc.enemies) if (!e.dead) sc.combat.killEnemy(e);
+    sfx('levelup');
+    sc.cameras.main.flash(500, 255, 220, 200);
+    sc.ui.banner('Poslední šance!', 'Smrt tě tentokrát pustila. Vracíš se s jediným bodem zdraví.');
+    const run = sc.save.run;
+    if (run) {
+      run.revived = true;
+      run.kind = 'normal';
+      run.fate = undefined;
+    }
+    saveGame(sc.save);
+    sc.time.delayedCall(2200, () => {
+      if (sc.player.dead) return;
+      sc.ui.floorCard(sc.floorCardInfo(), 'Zpátky do boje – s jediným bodem zdraví', true);
+      sc.scene.restart({ save: sc.save });
+    });
   }
 
   private summonGuard() {

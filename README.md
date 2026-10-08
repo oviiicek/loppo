@@ -90,7 +90,7 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   - doupě plné nepřátel,
   - knihovna.
 - Truhly: dřevěné, železné, zlaté (zamčené, potřebují paklíč) a mimikové. Otevřená truhla zůstane otevřená.
-- Každé 5. patro hlídá strážce (boss) s vlastními útoky:
+- Kobky se dělí na desítky pater. Na posledním patře každé desítky (10., 20., 30. …) hlídá strážce (boss) s vlastními útoky:
   - vyvolávání pomocníků,
   - kruhy projektilů,
   - salvy,
@@ -109,9 +109,9 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   | Obtížnost | Zdraví nepřátel | Poškození nepřátel | Odměny | Smrt stojí |
   |---|---|---|---|---|
   | Lehká | −35 % | −40 % | běžné | 5 % zlata |
-  | Normální | běžné | běžné | běžné | 15 % zlata |
-  | Těžká | +35 % | +30 % | +25 % zkušeností a zlata, lepší kořist | 20 % zlata |
-  | Noční můra | +80 % | +60 % | +60 % zkušeností a zlata, mnohem lepší kořist | 25 % zlata |
+  | Normální | +20 % | +22 % | běžné | 15 % zlata |
+  | Těžká | +60 % | +55 % | +25 % zkušeností a zlata, lepší kořist | 20 % zlata |
+  | Noční můra | +120 % | +95 % | +60 % zkušeností a zlata, mnohem lepší kořist | 25 % zlata |
 
   Na vyšších obtížnostech jsou nepřátelé i trochu rychlejší a častěji elitní (na Lehké naopak méně). Platí to i pro strážce. Obtížnost jde změnit v pauze; změna platí od dalšího patra.
 - **☠ Hardcore:** volitelný režim s jediným životem. Po smrti se postava hned smaže a začínáš znovu s novou postavou. Padlí hrdinové se zapisují do Síně padlých (menu Postavy). Hardcore jde zapnout jen při zakládání postavy.
@@ -232,13 +232,19 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   - Výheň: Popelavé pláně, Lávové řeky, Kovárny Pětice, Řetězové mosty, Srdce výhně,
   - Propast: Okraj prázdnoty, Plovoucí ostrovy, Šepot tmy, Hlubina snů, Dno světa.
 - Přechod do dalšího patra: postava dojde ke schodům a sejde po nich do tmy. Na černé obrazovce se objeví číslo patra, jméno oblasti a co na patře čeká (strážce, modifikátor, obchodník). Na novém patře postava sejde ze schodů, které vedou z patra nad ním. Klepnutím se dá karta zkrátit.
-- Asi čtvrtina pater má náhodný modifikátor. Vyšší riziko přináší lepší odměnu:
-  - Temnota,
-  - Zlatá horečka,
-  - Prokletí,
-  - Hordy,
-  - Šampioni,
-  - Poklady.
+- **Výprava a desítky pater.** Brána do kobek v Loppu otevře výběr desítek (1–10, 11–20 …). U každé je nejhlubší dosažené patro, doporučená úroveň, bonus ke kořisti (+5 % za každou desítku) a strážce na jejím konci. Výprava začíná prvním patrem desítky; poražený strážce otevře další desítku. Běží vždy jen jedna výprava – začít jinou znamená tu rozběhnutou ukončit (hra se zeptá).
+- **Tábor a checkpointy.** Páté patro každé desítky (5., 15., 25. …) je tábor: bezpečné patro bez nestvůr s ohništěm (plné zdraví a mana a na 5 minut +10 % poškození), obchodníkem, kovadlinou, alchymistou a truhlou společného úložiště. Smrt vrací výpravu na poslední checkpoint – první patro desítky, nebo tábor. Na lehké obtížnosti se patro jen opakuje.
+- **Dveře.** Po patře se vybírá ze 2–3 dveří: nebezpečná cesta (o 35 % odolnější a o 25 % silnější nestvůry, víc šampionů, +60 % ke kořisti, víc zlata a zkušeností), běžná cesta nebo cesta k obchodníkovi, a neznámá oblast. Před táborem a strážcem žádné dveře nejsou.
+- **Patra bez boje:** křižovatka obchodníků (obchodník, kovadlina, fontána, svatyně), pokladnice (truhly a zlato bez hlídek), síň hádanek (tabulka ukáže pořadí runových desek; špatný krok kousne bleskem, vyřešená hádanka vydá truhly) a místo setkání (věštkyně, hráči karet, oltáře, dopisy padlých).
+- **Osudy pater.** Asi třetina běžných pater (na nebezpečné cestě víc) má osud, který se ukáže hned po příchodu a je napsaný pod jménem patra:
+  - Temnota (větší tma, lepší kořist),
+  - Krvavý měsíc (rychlejší a silnější nestvůry, víc zkušeností),
+  - Dvojitá kořist,
+  - Bez léčení (lektvary zdraví nepůsobí, žádná obnova zdraví; víc zlata a lepší kořist),
+  - Invaze elit (třikrát víc šampionů),
+  - Patro pokladů (truhly a zlato všude),
+  - Zlatá horečka, Prokletí a Hordy.
+- **Poslední šance.** Velmi vzácně (jednou za výpravu) nabídne obrazovka smrti boj v aréně: kdo 40 sekund vydrží proti sílícím vlnám, vrátí se do patra s jediným bodem zdraví. Prohra vrací na checkpoint.
 - Mlha války s přímou viditelností: neprozkoumané části patra jsou černé.
 - Velká mapa po klepnutí na minimapu (klávesa M). Když jsou objevené schody nebo obchodník mimo minimapu, ukazuje k nim šipka na jejím okraji.
 - Rozbitné bedny, sudy a hliněné nádoby s drobnou kořistí. Bodcové pasti v chodbách a místnostech.
@@ -250,7 +256,7 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   - rozbij bedny a nádoby,
   - prozkoumej 75 % patra.
 
-  Postup ukazuje rámeček pod minimapou. Za splnění padne k hrdinovým nohám zlato, předmět, materiály a někdy paklíč.
+  Postup ukazuje malé tlačítko Úkoly pod minimapou. Za splnění padne k hrdinovým nohám zlato, předmět, materiály a někdy paklíč.
 - Prokletá truhla: vzácná černá truhla se zelenými runami. Po přijetí výzvy se 30 sekund kolem ní otevírají zelené portály s vlnami nestvůr. Nahoře běží čas a počet poražených. Na konci zbylé nestvůry zmizí a truhla se otevře; čím víc nestvůr padlo, tím víc předmětů v ní je (od 20 poražených i legendární nebo mýtický).
 - Atmosféra prostředí: v kobkách poletuje prach, v jeskyních svítící spory, v ledových hlubinách sněží, ve výhni stoupají jiskry a padá popel a v propasti blikají fialové jiskřičky. Úsporná grafika je vypne.
 - Přes 70 úspěchů s odměnami (zlato, materiály, paklíče, body atributů). Na druhé záložce panelu úspěchů jsou statistiky postavy: herní čas, poražení nepřátelé a šampioni, sebrané zlato a předměty, nejlepší nález, nejsilnější zásah, splněné úkoly, prokleté truhly, mazlíčci, smrti a další.
@@ -326,7 +332,9 @@ Před zámkem stojí král Dobromil III. se stráží. Dává jeden královský 
 Hardcore hrdinové, kteří padli, mají na hřbitově u kaple vlastní hrob se svíčkou a náhrobkem (classa, úroveň, patro). Ostatní náhrobky patří vesničanům z minulých let.
 
 ### Úkoly
-Na nástěnce v Loppu visí úkoly od vesničanů: najdi ztraceného dobrodruha (čeká jako zajatec na určeném patře), přines artefakt strážce, otevři prokletou hrobku, poraz strážce bez lektvarů, najdi tajné místnosti, poraz šampiony nebo nestvůry, osvoboď zajatce, přečti zápisky, zavři trhlinu a pomsti se nemesis. Splněný úkol se vyzvedne na nástěnce (zlato, předmět, drahokam, runa nebo materiál). Přehled úkolů je v pauze.
+Na nástěnce v Loppu visí úkoly od vesničanů: najdi ztraceného dobrodruha (čeká jako zajatec na určeném patře), přines artefakt strážce, otevři prokletou hrobku, poraz strážce bez lektvarů, najdi tajné místnosti, poraz šampiony nebo nestvůry, osvoboď zajatce, přečti zápisky, zavři trhlinu a pomsti se nemesis. Najednou jich jde vzít 5, 7 nebo 10 (podle úrovně nástěnky). Splněný úkol se vyzvedne na nástěnce (zlato, předmět, drahokam, runa nebo materiál).
+
+Deník úkolů se otevře tlačítkem Úkoly pod minimapou (nebo z pauzy): nahoře hlavní úkol příběhu (další příběhový strážce a kapitola), pod ním úkol patra, vedlejší úkoly a mapy pokladů. Mapa pokladu občas leží v truhle (častěji ve zlaté), nosí ji šampion a skoro vždy zloděj. Přidá vedlejší úkol na jedno z dalších pater; tam na mapě i minimapě svítí zlatý křížek, kde se kope – vykopaná truhla dá předměty, zlato, drahokam a někdy runu. Najednou jdou nést 3 mapy.
 
 ### Ostatní
 - Dynamické osvětlení s blikajícími pochodněmi, minimapa s mlhou války, čísla poškození, částicové efekty a otřesy obrazovky.
@@ -334,7 +342,9 @@ Na nástěnce v Loppu visí úkoly od vesničanů: najdi ztraceného dobrodruha 
 - Přenos postavy mezi zařízeními nebo prohlížeči: v menu Postavy tlačítko Přenést vytvoří textový kód a Vložit kód ho na jiném zařízení načte do volného slotu.
 - Sklad (u obchodníků i v tvém domě v Loppu, 42–126 míst) pro předměty, které nechceš nosit ani prodat.
 - Po smrti ukáže obrazovka, kdo zasadil poslední ránu a jak silnou, s tipem, jak se tomu příště vyhnout.
-- Smrt znamená ztrátu části zlata a zkušeností (podle obtížnosti 5–25 % zlata). Patro se pak vygeneruje znovu. V režimu Hardcore postava po smrti navždy zmizí.
+- Smrt znamená ztrátu části zlata a zkušeností (podle obtížnosti 5–25 % zlata) a návrat na checkpoint výpravy (začátek desítky nebo tábor). V režimu Hardcore postava po smrti navždy zmizí.
+- Lektvary mají krátké přebíjení (zdraví 4 s, mana 3 s), na tlačítku je vidět jako u kouzel.
+- Tajemné zboží u obchodníka stojí zhruba trojnásobek toho, co v průměru dá, každý další kus u stejného obchodníka je o 40 % dražší a obchodník jich má jen čtyři.
 - Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání, automatické rozebírání slabých předmětů a úspornou grafiku (bez dynamického osvětlení, pro slabší telefony).
 - Hlavní menu má živé pozadí, náhodně vygenerovaný dungeon s pochodněmi.
 - Tlačítko Zpět na Androidu otevře pauzu místo opuštění hry.

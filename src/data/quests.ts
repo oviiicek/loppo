@@ -46,7 +46,7 @@ const rnd = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1)
 
 /** the next guardian floor from a floor on */
 export function nextBossFloor(floor: number) {
-  return Math.ceil(Math.max(1, floor) / 5) * 5;
+  return Math.ceil(Math.max(1, floor) / 10) * 10;
 }
 
 /** quest types that are floor bound (they place something on a floor) */

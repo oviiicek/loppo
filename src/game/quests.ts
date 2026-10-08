@@ -35,12 +35,12 @@ export class QuestLog {
     return royal ? [...board, royal] : board;
   }
 
-  /** quests that send the hero to this floor leave something here */
-  placeFloorQuests() {
+  /** quests that send the hero to this floor leave something here (a calm floor only takes a treasure) */
+  placeFloorQuests(calm = false) {
     const sc = this.sc;
     const f = sc.floor;
     for (const q of this.list) {
-      if (q.done || q.floor > f) continue;
+      if (q.done || q.floor > f || (calm && q.type !== 'treasure')) continue;
       if (q.type === 'lost' && !isBossFloor(f)) sc.enc.placeLost(q);
       else if (q.type === 'tomb' && !isBossFloor(f)) sc.placeCursedChest(q.id);
       else if (q.type === 'rift' && !isBossFloor(f)) sc.enc.placePortal('rift', q.id);

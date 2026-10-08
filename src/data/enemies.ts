@@ -222,8 +222,9 @@ export const BOSSES: BossDef[] = [
   { id: 'dragon', name: 'Starý drak Vermithrax', sprite: 'en_dragon', scale: 2.6, hp: 2600, dmg: 28, speed: 44, patterns: ['breath', 'meteors', 'charge', 'radial', 'summon'], proj: 'fire', el: 'fire', summon: 'imp' },
 ];
 
+/** the guardian waits on the last floor of every band of ten */
 export function isBossFloor(floor: number) {
-  return floor % 5 === 0;
+  return floor % 10 === 0;
 }
 
 /** every 50th floor (up to the end of the story) belongs to a story boss */
@@ -248,13 +249,13 @@ const BOSS_FAMILIES: Record<string, string[]> = {
 export function bossForFloor(floor: number): { def: BossDef; tier: number } {
   // the regular guardians cycle on the boss floors that are not story floors
   const storyBefore = Math.floor(Math.min(floor - 1, STORY_END) / 50);
-  const idx = Math.max(0, floor / 5 - 1 - storyBefore);
+  const idx = Math.max(0, floor / 10 - 1 - storyBefore);
   const def = BOSSES[idx % BOSSES.length];
   const tier = Math.floor(idx / BOSSES.length);
   // the guardian belongs to the area's families (the first boss floor of an area to the main one), with the
   // strength of the one whose turn it is
   const fams = familiesFor(floor);
-  const fam = floor % 10 === 5 ? fams[0] : fams[1];
+  const fam = Math.floor(floor / 10) % 2 ? fams[0] : fams[1];
   const fits = BOSSES.filter((b) => BOSS_FAMILIES[b.id]?.includes(fam));
   if (!fits.length || fits.includes(def)) return { def, tier };
   const pick = fits[Math.floor(floor / 10) % fits.length];

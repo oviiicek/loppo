@@ -361,6 +361,23 @@ img.px {
   transform-origin: left;
 }
 
+/* the floor's fate under its name */
+.floorlbl .flfate {
+  font-size: 14px;
+  line-height: 1.1;
+}
+.floorlbl .flfate:empty {
+  display: none;
+}
+.flfate.danger {
+  color: #ff8a7a;
+}
+.flfate.gift {
+  color: #9dff7a;
+}
+.flfate.odd {
+  color: #c8a8ff;
+}
 /* the quest chip under the floor name: the floor task's progress, the quest log on a tap */
 .floorlbl .qchip {
   position: relative;
@@ -4189,3 +4206,221 @@ textarea.code {
 .trophies .statline { display: flex; justify-content: space-between; gap: 8px; }
 .trophies b { color: #ffd76a; font-weight: normal; }
 .royal .rhonors { overflow-y: auto; max-height: 100%; padding-right: 4px; }
+
+/* ------------------------------------------------------------------
+   The expedition: bands of ten floors, the current run, the doors
+   ------------------------------------------------------------------ */
+.expedition {
+  width: min(96vw, 980px);
+}
+.runcard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border: 2px solid #8a6a3a;
+  border-radius: 10px;
+  background: linear-gradient(#2a2012, #17120c);
+}
+.runcard .rt {
+  font-size: 20px;
+  color: #e8dcc4;
+}
+.runcard .rt b {
+  color: #ffd76a;
+}
+.runcard .btn {
+  flex: none;
+}
+.bands {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 6px;
+}
+.band {
+  position: relative;
+  padding: 6px 10px 6px 14px;
+  border: 2px solid #3e3446;
+  border-radius: 9px;
+  background: #18141e;
+  cursor: pointer;
+  overflow: hidden;
+}
+/* the environment's colour along the left edge */
+.band::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--bc);
+  opacity: 0.85;
+}
+.band:active {
+  transform: scale(0.98);
+}
+.band.here {
+  border-color: #ffd76a;
+  box-shadow: 0 0 10px rgba(255, 215, 106, 0.25);
+}
+.band.locked {
+  opacity: 0.5;
+  cursor: default;
+}
+.band .btop {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.band .btop b {
+  color: #ffd76a;
+  font-size: 21px;
+}
+.band .bname {
+  flex: 1;
+  min-width: 0;
+  color: #e8dcc4;
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.band .bdone {
+  color: #9dff7a;
+  font-size: 18px;
+}
+.band .bstats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 15px;
+  color: #c8bca4;
+}
+.band .bstats b {
+  color: #fff;
+}
+.band .lv.ok {
+  color: #9dff7a;
+}
+.band .lv.near {
+  color: #ffd76a;
+}
+.band .lv.far {
+  color: #ff8a7a;
+}
+.band .loot {
+  color: #c8a8ff;
+}
+.band .bboss,
+.band .block {
+  font-size: 14px;
+  color: #a89c88;
+}
+/* the doors after a floor */
+.pathpick {
+  width: min(96vw, 760px);
+}
+.doors {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+}
+.door {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border: 2px solid #5a4630;
+  border-radius: 10px;
+  background: #1a1520;
+  color: #d8ccb4;
+  font-family: var(--font);
+  cursor: pointer;
+}
+.door:active {
+  transform: scale(0.97);
+}
+.door img {
+  width: 56px;
+  height: 56px;
+  image-rendering: pixelated;
+}
+.door b {
+  font-size: 20px;
+  color: #ffd76a;
+}
+.door span {
+  font-size: 15px;
+  line-height: 1.2;
+  text-align: center;
+}
+.door.danger {
+  border-color: #a03a3a;
+  background: linear-gradient(#2a1214, #1a0e10);
+}
+.door.danger b {
+  color: #ff8a7a;
+}
+.door.danger img {
+  filter: sepia(1) saturate(4) hue-rotate(-30deg);
+}
+.door.merchant {
+  border-color: #b8862a;
+}
+.door.merchant img {
+  filter: sepia(1) saturate(3) hue-rotate(5deg) brightness(1.15);
+}
+.door.unknown {
+  border-color: #7a4aaa;
+  background: linear-gradient(#21162c, #150f1c);
+}
+.door.unknown b {
+  color: #d08aff;
+}
+.door.unknown img {
+  filter: sepia(1) saturate(3) hue-rotate(220deg);
+}
+@media (max-height: 430px) {
+  .door img {
+    width: 42px;
+    height: 42px;
+  }
+  .door span {
+    font-size: 14px;
+  }
+}
+/* the last chance on the death screen */
+.lastch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 2px solid #ff6a5a;
+  border-radius: 9px;
+  background: radial-gradient(circle at 50% 0, #3a1010, #160a0a);
+  animation: lastchGlow 1.2s ease-in-out infinite alternate;
+}
+.lastch b {
+  color: #ff8a7a;
+  font-size: 21px;
+}
+.lastch span {
+  font-size: 15px;
+  color: #e8c8c0;
+}
+@keyframes lastchGlow {
+  from {
+    box-shadow: 0 0 6px rgba(255, 90, 74, 0.25);
+  }
+  to {
+    box-shadow: 0 0 16px rgba(255, 90, 74, 0.6);
+  }
+}

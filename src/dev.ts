@@ -234,6 +234,9 @@ function botTick() {
     gx = stairs.x;
     gy = stairs.y;
     if (Math.hypot(gx - p.x, gy - p.y) < 14) {
+      // the bot walks through a random door (so every kind of floor gets visited)
+      const next = sc.floor + 1;
+      if (!sc.rift && next % 10 !== 0 && next % 10 !== 5) sc.nextKind = (['normal', 'normal', 'danger', 'merchant', 'unknown'] as const)[Math.floor(Math.random() * 5)];
       sc.nextFloor();
       return;
     }
@@ -450,7 +453,7 @@ Object.assign(dev, {
       xp = 0;
     for (let f = 1; f < floor; f++) {
       xp += 0.7 * Math.min(110, 34 + 2 * f) * 15 * enemyXpScale(f) * 1.15;
-      if (f % 5 === 0) xp += 300 * enemyXpScale(f) * (1 + bossForFloor(f).tier);
+      if (f % 10 === 0) xp += 600 * enemyXpScale(f) * (1 + bossForFloor(f).tier);
       while (xp >= xpFor(L)) {
         xp -= xpFor(L);
         L++;
@@ -838,6 +841,7 @@ Object.assign(dev, {
   },
 });
 import { royalOf, makeRoyalQuest } from './data/royal';
+import { runOf } from './data/bands';
 Object.assign(dev, {
   /** gives the hero the king's task of a step at once (and favour, if asked) */
   royal(step?: number, favor?: number) {
@@ -908,5 +912,24 @@ Object.assign(dev, {
     sc.player.recalc();
     const d = sc.player.d;
     return { thorns: d.thorns, thornsPct: d.thornsPct, armor: d.armor, specials: [...d.specials] };
+  },
+});
+Object.assign(dev, {
+  /** jumps to a floor of the running expedition, of a kind (camp floors are camps anyway) and with a fate */
+  goto(floor: number, kind?: string, fate?: string | null) {
+    const sc = (window as any).__scene;
+    const s = sc.save;
+    s.floor = floor;
+    s.maxFloor = Math.max(s.maxFloor, floor);
+    const run = runOf(s);
+    run.kind = (kind ?? 'normal') as any;
+    run.fate = fate === undefined ? undefined : fate;
+    sc.scene.restart({ save: s });
+    return { floor, kind: run.kind, fate: run.fate };
+  },
+  /** what the running floor is */
+  floorKind() {
+    const sc = (window as any).__scene;
+    return { floor: sc.floor, kind: sc.kind, calm: sc.calm ?? null, fate: sc.fate?.id ?? null, mod: sc.mod?.name ?? null, enemies: sc.enemies.filter((e: any) => !e.dead).length, run: sc.save.run, inter: [...new Set(sc.interactables.map((i: any) => i.kind))].join(',') };
   },
 });

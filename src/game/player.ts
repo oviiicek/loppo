@@ -309,7 +309,8 @@ export class Player extends Actor {
     const regenPct = [...this.buffs, ...this.scene.shrineBuffs].reduce((a, b) => a + (b.mods.regenPct ?? 0), 0);
     // a curse of madness stops the natural regeneration (blessings still heal)
     const natural = this.d.specials.has('noRegen') ? 0 : this.d.hpRegen;
-    this.hp = Math.min(this.d.maxHp, this.hp + (natural + (this.d.maxHp * regenPct) / 100) * dt);
+    // a floor without healing: no regeneration of health at all
+    if (!this.scene.mod?.noHeal) this.hp = Math.min(this.d.maxHp, this.hp + (natural + (this.d.maxHp * regenPct) / 100) * dt);
     this.mp = Math.min(this.d.maxMp, this.mp + this.d.mpRegen * dt);
     // the leech allowance refills every second
     this.leechHp = Math.min((this.d.maxHp * LEECH_CAP.hp) / 100, this.leechHp + ((this.d.maxHp * LEECH_CAP.hp) / 100) * dt);

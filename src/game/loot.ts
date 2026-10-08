@@ -13,6 +13,7 @@ import { SPELL_RUNES, SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes
 import { sfx, settings, LootRule } from '../systems/audio';
 import { bus } from '../systems/events';
 import { iconURL } from '../gfx/textures';
+import { bandLootBonus } from '../data/bands';
 
 export type MatKey = keyof Materials;
 
@@ -51,7 +52,9 @@ export class Loot {
 
   get mf() {
     const sc = this.scene;
-    return sc.player.d.magicFind + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0), 0) + (sc.mod?.mf ?? 0) + sc.diff.mf + (sc.player.d.specials.has('luckyStar') ? 40 : 0);
+    // every band of ten floors down a little better loot
+    const band = sc.rift || sc.inVillage ? 0 : bandLootBonus(sc.floor);
+    return sc.player.d.magicFind + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0), 0) + (sc.mod?.mf ?? 0) + sc.diff.mf + band + (sc.player.d.specials.has('luckyStar') ? 40 : 0);
   }
 
   get goldMult() {
@@ -91,7 +94,13 @@ export class Loot {
     return Math.max(1, Math.round((2 + f * 1.6 + Math.random() * (3 + f)) * 0.68 * mult * this.goldMult));
   }
 
+  /** what a slain monster drops (a floor of double loot drops it all twice) */
   enemyDrops(e: Enemy) {
+    const n = this.scene.mod?.lootMult ?? 1;
+    for (let k = 0; k < n; k++) this.enemyDropsOnce(e);
+  }
+
+  private enemyDropsOnce(e: Enemy) {
     const f = this.scene.floor;
     const x = e.x,
       y = e.y;
@@ -172,7 +181,13 @@ export class Loot {
     this.dropMat('stone', 1 + Math.floor(f / 15), x, y);
   }
 
+  /** what a chest holds (a floor of double loot gives it all twice) */
   chestDrops(tier: string, x: number, y: number) {
+    const n = this.scene.mod?.lootMult ?? 1;
+    for (let k = 0; k < n; k++) this.chestDropsOnce(tier, x, y);
+  }
+
+  private chestDropsOnce(tier: string, x: number, y: number) {
     const f = this.scene.floor;
     const mf = this.mf;
     const potMult = this.scene.player.d.specials.has('goldRush') ? 2 : 1;

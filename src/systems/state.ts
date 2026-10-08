@@ -51,7 +51,7 @@ export interface SaveData {
   playTime: number;
   stash?: (Item | null)[];
   slot?: number;
-  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number; rivals?: number; transmutes?: number; rescued?: number; events?: number; rifts?: number; lore?: number; wtf?: number; brawls?: number; arenas?: number; corrupted?: number; priority?: number; thornKills?: number; treasures?: number };
+  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number; rivals?: number; transmutes?: number; rescued?: number; events?: number; rifts?: number; lore?: number; wtf?: number; brawls?: number; arenas?: number; corrupted?: number; priority?: number; thornKills?: number; treasures?: number; puzzles?: number; camps?: number; lastChances?: number };
   achievements?: string[];
   story?: StoryState;
   /** combat difficulty (index into DIFFICULTIES, normal when missing) */
@@ -89,6 +89,27 @@ export interface SaveData {
   lore?: string[];
   /** monsters killed of each kind (the bestiary) */
   bestiary?: Record<string, number>;
+  /** the expedition under way (see data/bands.ts): where a death sends the hero back, the kind of the floor
+   *  the hero is on and the path chosen for the next one */
+  run?: RunState;
+}
+
+/** what a floor is: a regular one, the dangerous path, or one of the floors without fighting */
+export type FloorKind = 'normal' | 'danger' | 'merchant' | 'vault' | 'puzzle' | 'npc' | 'unknown';
+
+export interface RunState {
+  /** the band the expedition started in */
+  band: number;
+  /** the floor a death sends the hero back to (the band's first floor or its camp) */
+  checkpoint: number;
+  /** the kind of the floor the hero is on (kept so a reload builds the same kind of floor) */
+  kind?: FloorKind;
+  /** the floor fate rolled for it (kept for a reload) */
+  fate?: string | null;
+  /** the last chance was already given on this expedition */
+  lastChance?: boolean;
+  /** coming back from the last chance arena: the floor starts with the hero at 1 HP */
+  revived?: boolean;
 }
 
 /** a talent counts when it belongs to the hero's class (or the second class of a multiclass hero) */

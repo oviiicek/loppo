@@ -21,7 +21,9 @@ export type RoomType =
   | 'forge'
   | 'den'
   | 'library'
-  | 'closet';
+  | 'closet'
+  | 'camp'
+  | 'puzzle';
 
 export interface Room {
   id: number;
@@ -66,13 +68,18 @@ export interface Dungeon {
   spawns: Spawn[];
   bossRoom: Room | null;
   hasMerchant: boolean;
-  /** a rift or a dream: a small floor of its own (see game/encounters.ts) */
-  rift?: 'rift' | 'dream';
+  /** a rift, a dream or the last chance arena: a small floor of its own (see game/encounters.ts) */
+  rift?: 'rift' | 'dream' | 'last';
   /** tileset override (index into THEMES) */
   theme?: number;
   /** the two monster families of the floor */
   families: [string, string];
+  /** a floor without fighting (a camp, a merchant's crossroads, a treasury, a puzzle, a meeting place) */
+  calm?: CalmKind;
 }
+
+/** the floors without fighting */
+export type CalmKind = 'camp' | 'merchant' | 'vault' | 'puzzle' | 'npc';
 
 const DIRS = [
   [1, 0],
@@ -86,13 +93,15 @@ export function eliteChanceFor(floor: number) {
   return Math.min(0.16, 0.05 + floor * 0.004);
 }
 
-export function generateDungeon(floor: number, seed: number, opts: { forceMerchant?: boolean; rift?: 'rift' | 'dream' } = {}): Dungeon {
+export function generateDungeon(floor: number, seed: number, opts: { forceMerchant?: boolean; rift?: 'rift' | 'dream' | 'last'; calm?: CalmKind } = {}): Dungeon {
   const r = new RNG(seed);
   const rift = opts.rift;
-  const boss = !rift && isBossFloor(floor);
-  // a rift is a small, crowded floor; a dream is small and full of treasure
-  const W = rift ? 52 : Math.min(46 + floor * 3, 130);
-  const H = rift ? 38 : Math.min(34 + floor * 2, 96);
+  const calm = rift ? undefined : opts.calm;
+  const boss = !rift && !calm && isBossFloor(floor);
+  // a rift is a small, crowded floor; a dream is small and full of treasure; a calm floor is small and quiet
+  const small = !!rift || !!calm;
+  const W = small ? 52 : Math.min(46 + floor * 3, 130);
+  const H = small ? 38 : Math.min(34 + floor * 2, 96);
   const grid = new Uint8Array(W * H);
   const roomId = new Int16Array(W * H).fill(-1);
   const idx = (x: number, y: number) => y * W + x;
@@ -244,7 +253,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   }
 
   // ------------------------------------------------------------ place rooms
-  const targetRooms = rift ? 9 : Math.min(7 + Math.floor(floor * 0.7), 34);
+  const targetRooms = rift ? 9 : calm ? ({ camp: 5, merchant: 5, vault: 6, puzzle: 5, npc: 6 } as const)[calm] : Math.min(7 + Math.floor(floor * 0.7), 34);
   let bossRoom: Room | null = null;
   if (boss) {
     // big arena placed first, at a random edge region
@@ -309,6 +318,12 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     adj[b].push(a);
   }
 
+  // a calm floor's heart: the camp's yard or the puzzle hall is the roomiest room
+  if (calm === 'camp' || calm === 'puzzle') {
+    const big = [...rooms].sort((a, b) => b.cells.length - a.cells.length)[0];
+    if (big) big.type = calm;
+  }
+
   // choose start & exit
   let startRoom: Room;
   if (bossRoom) {
@@ -316,14 +331,16 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     const d = treeDist(bossRoom.id);
     startRoom = rooms[d.indexOf(Math.max(...d))];
   } else {
-    startRoom = r.pick(rooms.filter((x) => x.cells.length < 90)) ?? rooms[0];
+    startRoom = r.pick(rooms.filter((x) => x.cells.length < 90 && x.type === 'normal')) ?? rooms.find((x) => x.type === 'normal') ?? rooms[0];
   }
   startRoom.type = 'start';
   const dStart = treeDist(startRoom.id);
   let exitRoom: Room;
   if (bossRoom) exitRoom = bossRoom;
   else {
-    exitRoom = rooms[dStart.indexOf(Math.max(...dStart))];
+    // the stairs never stand in the calm floor's heart
+    const far = rooms.map((rm, i) => (rm.type === 'normal' ? dStart[i] : -1));
+    exitRoom = rooms[far.indexOf(Math.max(...far))] ?? rooms[dStart.indexOf(Math.max(...dStart))];
     exitRoom.type = 'exit';
   }
 
@@ -345,7 +362,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   // vault: a leaf room (only one connection)
   const leaves = rooms.filter((rm) => rm.type === 'normal' && adj[rm.id].length === 1 && rm.cells.length <= 100);
   let vault: Room | null = null;
-  if (leaves.length && !rift && r.chance(0.4)) {
+  if (leaves.length && !rift && (calm === 'vault' || (!calm && r.chance(0.4)))) {
     vault = r.pick(leaves);
     vault.type = 'vault';
   }
@@ -620,7 +637,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
 
   // ------------------------------------------------------------ secret rooms
   const secretWalls: { x: number; y: number }[] = [];
-  const nSecret = rift ? 0 : r.chance(0.55 + Math.min(0.3, floor * 0.01)) ? (r.chance(0.25) ? 2 : 1) : 0;
+  const nSecret = rift || calm ? 0 : r.chance(0.55 + Math.min(0.3, floor * 0.01)) ? (r.chance(0.25) ? 2 : 1) : 0;
   for (let k = 0; k < nSecret; k++) {
     for (let t = 0; t < 300; t++) {
       const host = r.pick(rooms.filter((rm) => ['normal', 'exit', 'library', 'den', 'start'].includes(rm.type)));
@@ -706,7 +723,18 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     return rm;
   };
   let hasMerchant = false;
-  if (!rift) {
+  if (calm) {
+    // what each calm floor holds
+    const want: Record<CalmKind, RoomType[]> = {
+      camp: ['merchant', 'forge', 'library'],
+      merchant: ['merchant', 'shrine', 'fountain', 'forge'],
+      vault: ['treasure', 'treasure', 'treasure', 'library'],
+      puzzle: ['library', 'fountain'],
+      npc: ['shrine', 'library'],
+    };
+    for (const t of want[calm]) take(t);
+    hasMerchant = rooms.some((rm) => rm.type === 'merchant');
+  } else if (!rift) {
     if (opts.forceMerchant || r.chance(0.42)) {
       hasMerchant = !!take('merchant');
     }
@@ -723,6 +751,8 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   const objects: DObject[] = [];
   const occupied = new Set<number>();
   const put = (kind: string, x: number, y: number, data?: any) => {
+    // the last chance arena holds nothing to take
+    if (rift === 'last' && (kind === 'chest' || kind === 'mimic' || kind === 'goldpile' || kind === 'door' || kind === 'shrine' || kind === 'fountain')) return;
     objects.push({ kind, x, y, data });
     occupied.add(idx(x, y));
   };
@@ -780,7 +810,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   for (const rm of rooms) {
     switch (rm.type) {
       case 'treasure': {
-        const nC = r.int(2, 3);
+        const nC = calm === 'vault' ? 3 : r.int(2, 3);
         const cells = innerCells(rm);
         // put chests in a row near centre
         for (let k = 0; k < nC; k++) {
@@ -852,6 +882,30 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
       }
       case 'den':
         placeChest(rm, r.chance(0.5) ? 'iron' : 'gold', false);
+        break;
+      case 'camp': {
+        // the campfire in the middle, the stash chest and a tent beside it, logs to sit on
+        put('campfire', rm.cx, rm.cy);
+        const spots: [string, number, number][] = [
+          ['stashchest', 2, 0],
+          ['tent', -2, -1],
+          ['log', 0, 2],
+          ['log', -2, 1],
+        ];
+        for (const [k, dx, dy] of spots) {
+          const x = rm.cx + dx,
+            y = rm.cy + dy;
+          if (isFloor(x, y) && !occupied.has(idx(x, y))) put(k, x, y);
+          else {
+            const c = pickCell(innerCells(rm));
+            if (c) put(k, c.x, c.y);
+          }
+        }
+        break;
+      }
+      case 'puzzle':
+        // the scene lays the rune plates and the tablet (see GameScene.placePuzzle)
+        carpetFor(rm);
         break;
       case 'normal':
         if (r.chance(0.18)) placeChest(rm, chestTier());
@@ -931,7 +985,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   }
 
   // spike traps in corridors and some rooms (never near the start)
-  if (floor >= 2 && rift !== 'dream') {
+  if (floor >= 2 && rift !== 'dream' && !calm) {
     const trapChance = Math.min(0.025, 0.008 + floor * 0.0008);
     for (const c of corridorCells) {
       const x = c % W,
@@ -958,6 +1012,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   const guests = Object.keys(FAMILIES).filter((id) => !fams.includes(id) && familyFodder(FAMILIES[id], floor).length > 0 && familyMembers(FAMILIES[id], floor).length >= 3);
   const pickFamily = () => FAMILIES[guests.length && r.chance(0.08) ? r.pick(guests) : r.chance(0.65) ? fams[0] : fams[1]];
   for (const rm of rooms) {
+    if (calm) break;
     if (['start', 'merchant', 'shrine', 'fountain', 'forge', 'boss', 'closet'].includes(rm.type)) continue;
     const cells = freeFloor(rm).filter((c) => Math.hypot((c % W) - start.x, Math.floor(c / W) - start.y) > 8);
     if (!cells.length) continue;
@@ -968,7 +1023,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     if (rm.type === 'secret') count = 0;
     if (rm.type === 'treasure') count = Math.round(count * 0.7);
     if (rift === 'rift') count = Math.round(count * 1.6 + 1);
-    if (rift === 'dream') count = 0;
+    if (rift === 'dream' || rift === 'last') count = 0;
     count = Math.min(count, rift ? 14 : 10);
     if (count <= 0) continue;
     for (const slot of makePack(pickFamily(), floor, count, r)) {
@@ -986,7 +1041,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   // corridor wanderers: foot soldiers of the floor's main family
   const wanderers = familyFodder(FAMILIES[fams[0]], floor).filter((d) => !d.group);
   for (const c of corridorCells) {
-    if (rift !== 'dream' && wanderers.length && r.chance(0.022)) {
+    if (rift !== 'dream' && rift !== 'last' && !calm && wanderers.length && r.chance(0.022)) {
       const x = c % W,
         y = Math.floor(c / W);
       if (Math.hypot(x - start.x, y - start.y) < 10) continue;
@@ -1003,7 +1058,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
 
   // a rift lies in a twisted other place: the abyss (or the forge, for those already in the abyss); the dream is made of ice and light
   const theme = rift === 'rift' ? (biomeForFloor(floor) === 4 ? 3 : 4) : rift === 'dream' ? 2 : undefined;
-  return { floor, w: W, h: H, grid, roomId, rooms, start, exit, secretWalls, lockedDoors, objects, spawns, bossRoom, hasMerchant, rift, theme, families: fams };
+  return { floor, w: W, h: H, grid, roomId, rooms, start, exit, secretWalls, lockedDoors, objects, spawns, bossRoom, hasMerchant, rift, theme, families: fams, calm };
 }
 
 /** the square of Loppo: one big paved yard inside the old town walls, with room for eight houses */
