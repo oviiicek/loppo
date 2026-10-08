@@ -1,7 +1,10 @@
 import { $, esc } from './ui';
 import type { UI as UIType } from './ui';
 import { iconURL } from '../gfx/textures';
-import { BUILDING_BY_ID, BuildingId, BLESSINGS, BLESSING_BY_ID, blessingFloors, activeBlessing, buildingLevel, villageOf, runeMaxTier } from '../data/village';
+import { BUILDING_BY_ID, BuildingId, BLESSINGS, BLESSING_BY_ID, blessingFloors, activeBlessing, buildingLevel, villageOf, runeMaxTier, restFloors, restedOf, BUILDINGS } from '../data/village';
+import { honorsOf } from '../data/royal';
+import { ACHIEVEMENTS } from '../data/achievements';
+import { codexCount, CODEX_TOTAL } from '../data/codex';
 import { ROMAN } from '../game/village';
 import { RUNES, runeKey, runeName, runeIcon, runeDesc } from '../data/runes';
 import { SPELL_RUNES, spellRuneIcon } from '../data/spellrunes';
@@ -16,7 +19,11 @@ type UIM = typeof UIType;
 
 /** the tabs of each building (the last one is always the upgrade) */
 const TABS: Record<BuildingId, [string, string][]> = {
-  stash: [['stash', 'Sklad']],
+  stash: [
+    ['stash', 'Truhla'],
+    ['rest', 'Postel'],
+    ['trophy', 'Trofeje'],
+  ],
   smithy: [['forge', 'Kovadlina']],
   shop: [
     ['buy', 'Koupit'],
@@ -109,6 +116,10 @@ export class BuildingPanels {
         return this.blessings(p);
       case 'curse':
         return this.curses(p);
+      case 'rest':
+        return this.rest(p);
+      case 'trophy':
+        return this.trophies(p);
       case 'up':
         return this.upgrade(p, id);
     }
@@ -167,6 +178,61 @@ export class BuildingPanels {
       this.ui.toast(`${b.name} ${ROMAN[lvNow + 1]}: ${nx.text}`, b.color);
       this.upgrade(p, id);
     });
+  }
+
+  /** the hero's own bed: a night at home heals and leaves the hero rested for a few floors */
+  private rest(p: HTMLElement) {
+    const body = $('.body', p);
+    const s = this.save;
+    const lv = buildingLevel(s, 'stash');
+    const floors = restFloors(s);
+    const r = restedOf(s);
+    body.innerHTML = `<div class="col" style="flex:1;min-width:0">
+      <div class="hint" style="font-size:18px">Doma se spí nejlíp. Po noci ve vlastní posteli máš plné zdraví i manu a ${floors} pater dostáváš +10 % zkušeností${lv >= 3 ? ' a +5 % poškození' : ''}.</div>
+      ${r ? `<div class="box" style="color:#9dff9d">Odpočinek platí do ${r.until}. patra.</div>` : ''}
+      <div class="row" style="justify-content:center;margin-top:10px"><button class="btn green" data-a="sleep">${r ? 'Prospat se znovu' : 'Odpočinout si'}</button></div>
+    </div>`;
+    $('[data-a=sleep]', body).addEventListener('click', () => {
+      villageOf(s).rested = { until: s.floor + floors - 1, lv };
+      const pl = this.sc.player;
+      pl.hp = pl.d.maxHp;
+      pl.mp = pl.d.maxMp;
+      pl.recalc();
+      saveGame(s);
+      sfx('heal');
+      this.sc.fx.burst(pl.x, pl.y - 8, 0x9ad0ff, 16);
+      this.ui.toast(`Odpočinek: +10 % zkušeností do ${s.floor + floors - 1}. patra`, '#9dff9d');
+      bus.emit('stats');
+      this.rest(p);
+    });
+  }
+
+  /** the trophy wall of the hero's house */
+  private trophies(p: HTMLElement) {
+    const body = $('.body', p);
+    const s = this.save;
+    const st = (s.stats ?? {}) as Record<string, number | undefined>;
+    const v = villageOf(s);
+    const home = BUILDINGS.filter((b) => b.who && (v.lv[b.id] ?? 0) > 0).length;
+    const fav = v.royal?.favor ?? 0;
+    const hon = honorsOf(fav);
+    const got = (s.achievements ?? []).length;
+    const rows: [string, string][] = [
+      ['Nejhlubší patro', `${s.maxFloor}.`],
+      ['Poražení strážci', n(st.bosses ?? 0)],
+      ['Poražené nestvůry', n(s.kills)],
+      ['Pomsta na nemesis', n(st.nemeses ?? 0)],
+      ['Zachránění vesničané', `${home} ze 7`],
+      ['Přízeň krále', hon.length ? `${fav} · ${hon[hon.length - 1].name}` : `${fav}`],
+      ['Kodex předmětů', `${codexCount(s)} z ${CODEX_TOTAL}`],
+      ['Úspěchy', `${got} z ${ACHIEVEMENTS.length}`],
+    ];
+    body.innerHTML = `<div class="col" style="flex:1;min-width:0">
+      <div class="hint">Na stěně visí trofeje z hlubin – a ke každé patří jeden příběh.</div>
+      <div class="trophies">${rows.map(([a, b]) => `<div class="statline box"><span>${esc(a)}</span><b>${esc(b)}</b></div>`).join('')}</div>
+      <div class="row" style="justify-content:center"><button class="btn" data-a="ach">🏆 Úspěchy a statistiky</button></div>
+    </div>`;
+    $('[data-a=ach]', body).addEventListener('click', () => this.ui.menus.achievements('ach'));
   }
 
   /** potions of the laboratory: cheaper than anywhere in the dungeon, as many as you like */

@@ -1429,7 +1429,7 @@ export class Panels {
   }
 
   /** picks an item of the bag to give away (the altar of change) */
-  offerItem(title: string, hint: string, onPick: (idx: number) => void) {
+  offerItem(title: string, hint: string, onPick: (idx: number) => void, giveLabel = 'Položit na oltář', canGive: (it: Item) => boolean = () => true) {
     const s = this.save;
     const d = el(`<div class="panel offerpick"><div class="head"><h2>${esc(title)}</h2><button class="close">✕</button></div>
       <div class="body"><div class="col" style="flex:1;min-width:0"><div class="hint">${esc(hint)}</div>
@@ -1447,9 +1447,10 @@ export class Panels {
         d.querySelectorAll('.slot').forEach((x) => x.classList.remove('sel'));
         sl.classList.add('sel');
         detail.scrollTop = 0;
-        detail.innerHTML = this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn gold" data-a="give" ${it.locked ? 'disabled' : ''}>${it.locked ? 'Zamčený předmět' : 'Položit na oltář'}</button></div>`);
+        const ok = !it.locked && canGive(it);
+        detail.innerHTML = this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn gold" data-a="give" ${ok ? '' : 'disabled'}>${it.locked ? 'Zamčený předmět' : ok ? esc(giveLabel) : 'Tohle nestačí'}</button></div>`);
         $('[data-a=give]', detail).addEventListener('click', () => {
-          if (it.locked) return;
+          if (!ok) return;
           close();
           onPick(i);
         });

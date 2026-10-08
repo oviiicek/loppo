@@ -11,6 +11,8 @@ import { SPELL_RUNES } from '../data/spellrunes';
 import { addGem } from '../systems/state';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
+import { iconURL } from '../gfx/textures';
+import { royalOf, makeRoyalQuest, RoyalQuest, HONORS, honorsOf, kingGreeting, rarityName } from '../data/royal';
 
 type UIM = typeof UIType;
 
@@ -26,7 +28,7 @@ export class QuestPanels {
   }
 
   /** a quest's card: who asks, the story, the progress and the reward */
-  private card(q: Quest, actions: string, taken = true) {
+  card(q: Quest, actions: string, taken = true) {
     const pct = q.goal > 1 ? Math.round((q.have / q.goal) * 100) : q.done ? 100 : 0;
     return `<div class="qcard ${q.done ? 'done' : ''}"><div class="qtop"><b>${esc(q.title)}</b><span class="hint">${esc(q.giver)}</span></div>
       <div class="qtext">${esc(q.text)}</div>
@@ -91,7 +93,7 @@ export class QuestPanels {
   }
 
   /** the reward of a finished quest */
-  private pay(q: Quest) {
+  pay(q: Quest) {
     const sc = this.sc;
     const s = sc.save;
     const r = q.reward;
@@ -109,10 +111,119 @@ export class QuestPanels {
     bus.emit('stats');
   }
 
+  /** King Dobromil: his task, the reward, the king's favour and its honours */
+  royal() {
+    const sc = this.sc;
+    const s = sc.save;
+    const r = royalOf(s);
+    let offer: RoyalQuest | null = null;
+    const d = el(`<div class="panel royal"><div class="head"><h2>Král Dobromil III.</h2><span class="hint">vládce Šedých hor</span><button class="close">✕</button></div><div class="body"></div></div>`);
+    const close = this.ui.dialog(d);
+    $('.close', d).addEventListener('click', () => close());
+    const render = () => {
+      const q = r.quest as RoyalQuest | null | undefined;
+      if (!q && !offer) offer = makeRoyalQuest(r.step, s.maxFloor);
+      const shown = q ?? offer!;
+      const speech = q ? (q.done ? 'Výborně! Slovo krále platí – tady je tvá odměna.' : kingGreeting(r.favor)) : shown.speech;
+      let actions = '';
+      if (!q) actions = `<button class="btn green" data-a="take">Přijmout úkol</button><button class="btn" data-a="later">Později</button>`;
+      else if (q.done) actions = `<button class="btn gold" data-a="claim">Převzít odměnu</button>`;
+      else if (q.type === 'deliver') actions = `<button class="btn gold" data-a="give">Odevzdat předmět</button><button class="btn red" data-a="drop">Vzdát</button>`;
+      else if (q.type === 'tribute') actions = `<button class="btn gold" data-a="pay" ${s.gold >= (q.base ?? 0) ? '' : 'disabled'}>Darovat ${(q.base ?? 0).toLocaleString('cs-CZ')} zlata</button><button class="btn red" data-a="drop">Vzdát</button>`;
+      else actions = `<button class="btn red" data-a="drop">Vzdát</button>`;
+      const honors = HONORS.map((h) => {
+        const got = r.favor >= h.at;
+        return `<div class="rhonor ${got ? 'got' : ''}" style="--hc:${h.color}"><b>${got ? '✦' : '✧'} ${esc(h.name)}</b><span class="hint">${h.at} ${h.at === 1 ? 'bod' : h.at < 5 ? 'body' : 'bodů'} přízně · ${esc(h.perk)}</span></div>`;
+      }).join('');
+      $('.body', d).innerHTML = `<div class="col" style="flex:1;min-width:0">
+          <div class="rtbody"><img src="${iconURL('npc_king', 64)}"><p class="rtline">„${esc(speech)}“</p></div>
+          <div class="scroll" style="flex:1">${this.card(shown, `<div class="row qact">${actions}</div>`, !!q)}</div>
+        </div>
+        <div class="col rhonors" style="width:min(250px,38%)"><b style="color:#ffd76a">Přízeň krále: ${r.favor}</b>${honors}<div class="hint">Splněno královských úkolů: ${r.step}</div></div>`;
+      const on = (a: string, f: () => void) => d.querySelector(`[data-a=${a}]`)?.addEventListener('click', f);
+      on('take', () => {
+        if (!offer) return;
+        const key = QUEST_COUNTER[offer.type];
+        if (key && key !== 'maxFloor') offer.base = questCounter(s, key);
+        r.quest = offer;
+        offer = null;
+        sfx('ui');
+        this.ui.toast(`Královský úkol: ${r.quest.title}`, '#ffd76a');
+        saveGame(s);
+        render();
+      });
+      on('later', () => close());
+      on('drop', () =>
+        this.ui.confirm('Vzdát královský úkol?', 'Král ti dá jiný, až se vrátíš. Přízeň neztratíš.', () => {
+          r.quest = null;
+          saveGame(s);
+          render();
+        }, 'Vzdát', 'Ponechat'),
+      );
+      on('pay', () => {
+        const qq = r.quest;
+        if (!qq || s.gold < (qq.base ?? 0)) return;
+        s.gold -= qq.base ?? 0;
+        sfx('coin');
+        sc.quests.complete(qq);
+        bus.emit('stats');
+        render();
+      });
+      on('give', () => {
+        const qq = r.quest as RoyalQuest;
+        const min = qq.minRarity ?? 2;
+        this.ui.panels.offerItem(
+          'Dar pro krále',
+          `Král chce ${rarityName(min)} nebo lepší předmět. Vyber ho z batohu.`,
+          (i) => {
+            const it = s.inventory[i];
+            if (!it || it.rarity < min) return;
+            s.inventory[i] = null;
+            sfx('levelup');
+            this.ui.toast(`Král přijal: ${it.name}`, '#ffd76a');
+            sc.quests.complete(qq);
+            render();
+          },
+          'Odevzdat králi',
+          (it) => it.rarity >= min,
+        );
+      });
+      on('claim', () => {
+        const qq = r.quest as RoyalQuest | null;
+        if (!qq?.done) return;
+        if (!s.inventory.some((x) => !x)) return void this.ui.toast('Uvolni v batohu místo pro odměnu', '#ff8a7a');
+        const before = honorsOf(r.favor).length;
+        r.quest = null;
+        r.step++;
+        r.favor += qq.favor;
+        this.pay(qq);
+        const now = honorsOf(r.favor);
+        for (const h of now.slice(before)) {
+          this.ui.banner(`👑 ${h.name}`, h.perk);
+          sfx('levelup');
+        }
+        // the crown of Loppo comes with the last honour
+        if (r.favor >= 15 && !r.crown && s.inventory.some((x) => !x)) {
+          r.crown = true;
+          const crown = generateItem(s.maxFloor + 5, { rarity: 5, base: 'helmet', noCurse: true });
+          crown.name = 'Koruna Loppa';
+          addToInventory(s, crown);
+          this.ui.toast('Král ti daroval Korunu Loppa!', '#ff6a8a', crown);
+        }
+        sc.player.recalc();
+        bus.emit('stats');
+        saveGame(s);
+        render();
+      });
+    };
+    render();
+  }
+
   /** the quest log (from the pause menu, anywhere) */
   log() {
     const s = this.sc.save;
-    const active = villageOf(s).quests ?? [];
+    const royal = villageOf(s).royal?.quest;
+    const active = [...(royal ? [royal] : []), ...(villageOf(s).quests ?? [])];
     const d = el(`<div class="panel qlog"><div class="head"><h2>Úkoly</h2><button class="close">✕</button></div>
       <div class="body scroll" style="display:block">${
         active.length

@@ -280,11 +280,13 @@ Každé běžné patro má obvykle jednu až dvě náhodné události (na minima
 - **Velmi vzácné chvíle:** zlatá komnata plná pokladů, tajný strážce Aurex – Zlatý drak, zlatý portál do snového světa plného zlatých skřetů a zlatý déšť.
 
 ### Vesnice Loppo
-Domov hrdiny pod Šedými horami. Dostaneš se tam z pauzy (🏠 Domů do Loppa – ne uprostřed boje) a zpět bránou do kobek; patro pak začíná znovu od schodů. Na návsi stojí studna, Ilda (řekne, kdo z vesničanů ještě chybí) a osm domů. Dům se otevře, až se jeho majitel vrátí z kobek, a dál roste za investované zlato (3 úrovně):
+Domov hrdiny pod širým nebem na úpatí Šedých hor. Dostaneš se tam z pauzy (🏠 Domů do Loppa – ne uprostřed boje) a zpět do kobek vede brána ve zřícenině starého hradu (patro pak začíná znovu od schodů). Vesnici obklopuje les: dlážděné cesty se sbíhají na kulatém náměstí se studnou, na severu stojí zřícenina hradu a zámek krále Dobromila s nádvořím a fontánou, na západě hřbitov s kaplí a hrobkou zakladatelů, na jihu rybník s mólem, kachnami a loďkou, zahrady se zeleninou a bylinkami, tržní stánky, lampy, lavičky a stromy. Den a noc se řídí hodinami hráče: v noci svítí lampy a okna, poletují světlušky a hřbitovem bloudí duch. Terén se kreslí na pozadí hned po spuštění hry, takže cesta domů nic nezdrží.
+
+Ilda u studny řekne, kdo z vesničanů ještě chybí. Každý dům se otevře, až se jeho majitel vrátí z kobek, a dál roste za investované zlato (3 úrovně):
 
 | Budova | Kdo | Co umí |
 | --- | --- | --- |
-| Sklad | – | společný sklad: 42 / 84 / 126 míst |
+| Tvůj dům | – | chalupa → dům → statek; truhla na 42 / 84 / 126 předmětů, postel (plné zdraví, +10 % zkušeností na 3–5 pater, na statku i +5 % poškození), stěna s trofejemi |
 | Kovárna | kovář Bořek (od 3. patra) | kovadlina; v Loppu vyšší šance na vylepšení a levnější vylepšení a sokety |
 | Obchod | kupkyně Šárka (od 5.) | 9 / 12 / 15 předmětů, s úrovní lepší zboží |
 | Nástěnka úkolů | lovkyně Jitka (od 7.) | úkoly: 2 / 3 / 4 najednou, vyšší odměny |
@@ -293,6 +295,20 @@ Domov hrdiny pod Šedými horami. Dostaneš se tam z pauzy (🏠 Domů do Loppa 
 | Cvičiště | mistr Radovan (od 15.) | změna classy, +5 / +10 % zkušeností, silnější žoldák |
 | Chrám | kněžka Bohdana (od 20.) | požehnání na 3–5 pater (síla, život, štěstí), krocení kleteb |
 
+### Král Dobromil a královské úkoly
+Před zámkem stojí král Dobromil III. se stráží. Dává jeden královský úkol po druhém: dvanáct úkolů, které vyprávějí příběh království (krysy pod trůnem, ztracený královský posel, dar pro pokladnici, šampioni, koruna předků, dar na hradby, tajemství starého hradu, poddaní v okovech, hrobka královského děda, trhlina v říši, zkouška krále bez lektvarů, hlubiny království), a pak nekonečné královské zakázky. Některé úkoly se plní v kobkách, jiné u krále: odevzdáš mu vzácný předmět nebo daruješ zlato. Za každý úkol dostaneš zlato, předmět a body přízně. Přízeň přináší pocty s trvalými bonusy:
+
+| Pocta | Přízeň | Bonus |
+| --- | --- | --- |
+| Bronzová pečeť | 1 | +5 % zlata |
+| Stříbrná pečeť | 3 | +5 % zkušeností |
+| Zlatá pečeť | 6 | o úkol víc na nástěnce |
+| Řád lva | 10 | +10 % magického nálezu |
+| Koruna Loppa | 15 | +5 % poškození a královský dar – mýtická Koruna Loppa |
+
+### Hřbitov
+Hardcore hrdinové, kteří padli, mají na hřbitově u kaple vlastní hrob se svíčkou a náhrobkem (classa, úroveň, patro). Ostatní náhrobky patří vesničanům z minulých let.
+
 ### Úkoly
 Na nástěnce v Loppu visí úkoly od vesničanů: najdi ztraceného dobrodruha (čeká jako zajatec na určeném patře), přines artefakt strážce, otevři prokletou hrobku, poraz strážce bez lektvarů, najdi tajné místnosti, poraz šampiony nebo nestvůry, osvoboď zajatce, přečti zápisky, zavři trhlinu a pomsti se nemesis. Splněný úkol se vyzvedne na nástěnce (zlato, předmět, drahokam, runa nebo materiál). Přehled úkolů je v pauze.
 
@@ -300,7 +316,7 @@ Na nástěnce v Loppu visí úkoly od vesničanů: najdi ztraceného dobrodruha 
 - Dynamické osvětlení s blikajícími pochodněmi, minimapa s mlhou války, čísla poškození, částicové efekty a otřesy obrazovky.
 - Automatické ukládání do `localStorage`: při změně patra, každých 20 s a při odchodu z aplikace. K dispozici jsou 3 sloty pro různé postavy.
 - Přenos postavy mezi zařízeními nebo prohlížeči: v menu Postavy tlačítko Přenést vytvoří textový kód a Vložit kód ho na jiném zařízení načte do volného slotu.
-- Sklad (u obchodníků i v Loppu, 42–126 míst) pro předměty, které nechceš nosit ani prodat.
+- Sklad (u obchodníků i v tvém domě v Loppu, 42–126 míst) pro předměty, které nechceš nosit ani prodat.
 - Po smrti ukáže obrazovka, kdo zasadil poslední ránu a jak silnou, s tipem, jak se tomu příště vyhnout.
 - Smrt znamená ztrátu části zlata a zkušeností (podle obtížnosti 5–25 % zlata). Patro se pak vygeneruje znovu. V režimu Hardcore postava po smrti navždy zmizí.
 - Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání, automatické rozebírání slabých předmětů a úspornou grafiku (bez dynamického osvětlení, pro slabší telefony).

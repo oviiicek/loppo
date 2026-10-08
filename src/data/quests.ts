@@ -3,7 +3,7 @@
 // A finished quest pays at the board.
 // Lines addressed to the hero avoid gendered verb forms (the hero can be anyone).
 
-export type QuestType = 'lost' | 'artifact' | 'tomb' | 'nopotion' | 'secret' | 'elites' | 'kills' | 'rescue' | 'lore' | 'rift' | 'nemesis';
+export type QuestType = 'lost' | 'artifact' | 'tomb' | 'nopotion' | 'secret' | 'elites' | 'kills' | 'rescue' | 'lore' | 'rift' | 'nemesis' | 'deliver' | 'tribute' | 'depth';
 
 export interface Quest {
   id: number;
@@ -61,6 +61,7 @@ export const QUEST_COUNTER: Partial<Record<QuestType, string>> = {
   lore: 'lore',
   rift: 'rifts',
   nemesis: 'nemeses',
+  depth: 'maxFloor',
 };
 
 /** a new quest for the board (the floor is where the hero goes next) */
@@ -124,6 +125,9 @@ export function makeQuest(type: QuestType, floor: number, rewardMult: number): Q
       return q('Uzavřít trhlinu', '„Z hlubin se trhá sám svět. Najdi trhlinu, vstup do ní a zavři ji – portál se objeví na některém z dalších pater.“', 1, 1.8, 3, 'srune', f + rnd(1, 2));
     case 'nemesis':
       return q('Pomsta', '„Ten, kdo tě kdysi porazil, prý chodí po kobkách a chlubí se tím. Najdi ho a skonči to.“', 1, 2, 4, 'rune');
+    default:
+      // the king's own kinds of task never hang on the board
+      return q('Vyčisti kobky', '„Poraz 60 nestvůr.“', 60, 1, 2, 'stone');
   }
 }
 

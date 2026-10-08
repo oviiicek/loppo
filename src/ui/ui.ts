@@ -612,10 +612,9 @@ class UIManager {
         if (x < 0 || y < 0 || x >= m.w || y >= m.h) continue;
         const i = m.idx(x, y);
         if (!m.explored[i]) continue;
-        const t = m.d.grid[i];
-        if (t === T_FLOOR) ctx.fillStyle = '#6a5a4a';
-        else if (t === T_WALL) ctx.fillStyle = '#2c2a34';
-        else continue;
+        const col = m.mapColor(i);
+        if (!col) continue;
+        ctx.fillStyle = col;
         ctx.fillRect((x - x0) * cell - offX, (y - y0) * cell - offY, cell, cell);
       }
     const toMini = (wx: number, wy: number): [number, number] => [(wx / TS - x0) * cell - offX, (wy / TS - y0) * cell - offY];
@@ -690,7 +689,7 @@ class UIManager {
       } else if (it.kind === 'secret' && it.data.hinted) {
         ctx.strokeStyle = '#ffd76a';
         ctx.strokeRect(mx - 2.5, my - 2.5, 5, 5);
-      } else if (it.kind === 'vb' || it.kind === 'vilda') {
+      } else if (it.kind === 'vb' || it.kind === 'vilda' || it.kind === 'vking') {
         ctx.fillStyle = it.data.ruined ? '#7a7484' : '#ffd76a';
         ctx.fillRect(mx - 2, my - 2, 4, 4);
       }
@@ -730,7 +729,10 @@ class UIManager {
     const sc = this.scene;
     if (!sc || this.panel) return;
     const m = sc.map;
-    const p = el(`<div class="panel bigmap" style="width:min(96vw,1000px)"><div class="head"><h2>Mapa – patro ${sc.floor}</h2><span class="hint maplegend"><b style="color:#fff">●</b> ty &nbsp; <b style="color:#ffd23a">■</b> schody &nbsp; <b style="color:#c77dff">●</b> obchodník &nbsp; <b style="color:#e9b949">■</b> truhla &nbsp; <b style="color:#7cc8ff">■</b> svatyně / fontána / kovadlina &nbsp; <b style="color:#ff9ab0">●</b> klec &nbsp; <b style="color:#7dff9a">■</b> prokletá truhla &nbsp; <b style="color:#7dffcf">●</b> alchymista &nbsp; <b style="color:#ffd76a">◆</b> událost &nbsp; <b style="color:#ff3030">●</b> strážce${sc.nemesis?.spotted && !sc.nemesis.dead ? ' &nbsp; <b style="color:#ff5a8a">●</b> nemesis' : ''}</span><button class="close">✕</button></div>
+    const legend = sc.inVillage
+      ? '<b style="color:#fff">●</b> ty &nbsp; <b style="color:#ffd23a">■</b> vstup do kobek &nbsp; <b style="color:#ffd76a">■</b> budovy a lidé &nbsp; <b style="color:#ff6a8a">♛</b> král &nbsp; <b style="color:#7cc8ff">■</b> studna'
+      : null;
+    const p = el(`<div class="panel bigmap" style="width:min(96vw,1000px)"><div class="head"><h2>${sc.inVillage ? 'Mapa – Loppo' : `Mapa – patro ${sc.floor}`}</h2><span class="hint maplegend">${legend ?? ''}${legend ? '</span><span hidden>' : ''}<b style="color:#fff">●</b> ty &nbsp; <b style="color:#ffd23a">■</b> schody &nbsp; <b style="color:#c77dff">●</b> obchodník &nbsp; <b style="color:#e9b949">■</b> truhla &nbsp; <b style="color:#7cc8ff">■</b> svatyně / fontána / kovadlina &nbsp; <b style="color:#ff9ab0">●</b> klec &nbsp; <b style="color:#7dff9a">■</b> prokletá truhla &nbsp; <b style="color:#7dffcf">●</b> alchymista &nbsp; <b style="color:#ffd76a">◆</b> událost &nbsp; <b style="color:#ff3030">●</b> strážce${sc.nemesis?.spotted && !sc.nemesis.dead ? ' &nbsp; <b style="color:#ff5a8a">●</b> nemesis' : ''}</span><button class="close">✕</button></div>
       <div class="body" style="align-items:center;justify-content:center"><canvas></canvas></div></div>`);
     this.showOverlay(p, () => {});
     $('.close', p).addEventListener('click', () => this.closeOverlay());
@@ -748,9 +750,10 @@ class UIManager {
       for (let x = 0; x < m.w; x++) {
         const i = m.idx(x, y);
         if (!m.explored[i]) continue;
-        const t = m.d.grid[i];
-        ctx.fillStyle = t === T_FLOOR ? '#6a5a4a' : t === T_WALL ? '#2c2a34' : '#000';
-        if (t) ctx.fillRect(x * cell, y * cell, cell, cell);
+        const col = m.mapColor(i);
+        if (!col) continue;
+        ctx.fillStyle = col;
+        ctx.fillRect(x * cell, y * cell, cell, cell);
       }
     const dot = (wx: number, wy: number, col: string, r: number, square = false) => {
       const x = (wx / TS) * cell,
@@ -775,6 +778,9 @@ class UIManager {
       else if (it.kind === 'alchemist') dot(it.x, it.y, '#7dffcf', Math.max(3, cell));
       else if (it.kind === 'ev' && it.data.ev.mark) dot(it.x, it.y, it.data.ev.mark, Math.max(3, cell * 0.9));
       else if (it.kind === 'secret' && it.data.hinted) dot(it.x, it.y, '#ffd76a', Math.max(3, cell * 0.8), true);
+      else if (it.kind === 'vb' || it.kind === 'vilda') dot(it.x, it.y, it.data.ruined ? '#7a7484' : '#ffd76a', Math.max(2.5, cell * 0.8), true);
+      else if (it.kind === 'vking') dot(it.x, it.y, '#ff6a8a', Math.max(3.5, cell));
+      else if (it.kind === 'vwell') dot(it.x, it.y, '#7cc8ff', Math.max(2.5, cell * 0.8), true);
     }
     if (sc.boss && !sc.boss.dead && m.explored[m.idx(Math.floor(sc.boss.x / TS), Math.floor(sc.boss.y / TS))]) dot(sc.boss.x, sc.boss.y, '#ff3030', Math.max(4, cell * 1.2));
     const nem = sc.nemesis;

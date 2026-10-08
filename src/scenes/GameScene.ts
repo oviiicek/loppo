@@ -34,9 +34,9 @@ import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
 import { Nemesis, NEMESIS_MAX, nemesisName, nemesisTitle, victimOf, nemesisPower, nemesisLabel } from '../data/nemesis';
 import { Encounters, RiftKind } from '../game/encounters';
-import { Village } from '../game/village';
+import { Village, dayPhase, phaseName } from '../game/village';
 import { QuestLog } from '../game/quests';
-import { generateVillage } from '../systems/dungeon';
+import { generateVillage } from '../systems/villagemap';
 import { BUILDINGS, villageOf } from '../data/village';
 import { ClassId } from '../data/types';
 import { potionMult } from '../data/village';
@@ -189,6 +189,10 @@ export class GameScene extends Phaser.Scene {
   rift: RiftKind | null = null;
   /** the hero is home in Loppo (no monsters, the villagers' houses) */
   inVillage = false;
+  /** the colour of the darkness when it is not the biome's (the night sky over Loppo) */
+  darkColor: number | null = null;
+  /** how far the hero's own light reaches (a starry night in Loppo needs less of it) */
+  heroLight = 1;
   vil!: Village;
   /** quests from the notice board */
   quests!: QuestLog;
@@ -224,6 +228,8 @@ export class GameScene extends Phaser.Scene {
     this.floorKills = 0;
     this.deathAt = 0;
     this.darkness = 0.48;
+    this.darkColor = null;
+    this.heroLight = 1;
     this.revealedRooms = new Set<number>();
     this.mod = null;
     this.hazards = [];
@@ -324,7 +330,7 @@ export class GameScene extends Phaser.Scene {
     this.dark = this.add.renderTexture(0, 0, 64, 64).setOrigin(0).setDepth(D.dark);
     this.lightImg = this.make.image({ key: 'light', add: false }).setOrigin(0.5);
     this.hpBars = this.add.graphics().setDepth(D.bright + 5);
-    this.weather = new Weather(this, this.theme.style);
+    this.weather = new Weather(this, this.inVillage ? this.vil.weather : this.theme.style);
     this.targetMarker = this.add.image(0, 0, 'ring').setTint(0xff4040).setAlpha(0).setDepth(D.floorDeco + 2).setBlendMode(Phaser.BlendModes.ADD);
 
     // input
@@ -416,7 +422,7 @@ export class GameScene extends Phaser.Scene {
 
   /** the title card of the village */
   villageCardInfo() {
-    return { floor: this.floor, name: 'Loppo', region: 'Vesnice pod Šedými horami', color: '#ffd76a', top: 'Domov' };
+    return { floor: this.floor, name: 'Loppo', region: `Vesnice pod Šedými horami · ${phaseName(dayPhase())}`, color: '#ffd76a', top: 'Domov' };
   }
 
   /** the hero walks off the stairs onto the floor, then the floor is theirs */
@@ -1783,6 +1789,10 @@ export class GameScene extends Phaser.Scene {
       case 'vb':
       case 'vilda':
       case 'vwell':
+      case 'vking':
+      case 'vguard':
+      case 'vgrave':
+      case 'vsign':
         return this.vil.label(it);
       case 'ev':
         return this.enc.label(it);
@@ -1822,6 +1832,10 @@ export class GameScene extends Phaser.Scene {
       case 'vb':
       case 'vilda':
       case 'vwell':
+      case 'vking':
+      case 'vguard':
+      case 'vgrave':
+      case 'vsign':
         this.vil.interact(it);
         break;
       case 'stairs':
@@ -2669,7 +2683,7 @@ export class GameScene extends Phaser.Scene {
       oy = Math.floor(v.y) - 2;
     rt.setPosition(ox, oy);
     rt.clear();
-    rt.fill(this.theme.dark, Math.min(0.95, this.darkness + this.arenaDark * 0.4));
+    rt.fill(this.darkColor ?? this.theme.dark, Math.min(0.95, this.darkness + this.arenaDark * 0.4));
     const L = this.lightImg;
     const shrink = 1 - this.arenaDark * 0.55;
     const t = this.time.now / 1000;
@@ -2678,10 +2692,10 @@ export class GameScene extends Phaser.Scene {
     // all lights are drawn into one capture which is then erased from the darkness in a single pass
     rt.beginDraw();
     L.setAlpha(0.65);
-    L.setScale((210 * 2 * shrink) / 128);
+    L.setScale((210 * 2 * shrink * this.heroLight) / 128);
     rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
     L.setAlpha(1);
-    L.setScale((135 * 2 * shrink) / 128);
+    L.setScale((135 * 2 * shrink * this.heroLight) / 128);
     rt.batchDraw(L, p.x - ox, p.y - 6 - oy);
     for (const l of this.lamps) {
       const x = l.x - ox,

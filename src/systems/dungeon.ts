@@ -1,7 +1,6 @@
 import { RNG } from './rng';
 import { ENEMIES, EnemyDef, isBossFloor } from '../data/enemies';
 import { biomeForFloor } from '../data/biomes';
-import { PLOTS, VILLAGE_W, VILLAGE_H, VILLAGE_GATE, VILLAGE_WELL } from '../data/village';
 
 export const T_VOID = 0;
 export const T_FLOOR = 1;
@@ -1012,102 +1011,6 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
 }
 
 /** the square of Loppo: one big paved yard inside the old town walls, with room for eight houses */
-export function generateVillage(floor: number): Dungeon {
-  const W = VILLAGE_W,
-    H = VILLAGE_H;
-  const grid = new Uint8Array(W * H);
-  const roomId = new Int16Array(W * H).fill(-1);
-  const idx = (x: number, y: number) => y * W + x;
-  const cells: number[] = [];
-  for (let y = 3; y <= H - 4; y++)
-    for (let x = 3; x <= W - 4; x++) {
-      // the corners of the walls are rounded off a little
-      const cx = Math.min(x - 3, W - 4 - x),
-        cy = Math.min(y - 3, H - 4 - y);
-      if (cx + cy < 2) continue;
-      grid[idx(x, y)] = T_FLOOR;
-      roomId[idx(x, y)] = 0;
-      cells.push(idx(x, y));
-    }
-  // the gate into the dungeon in a niche of the north wall
-  const g = VILLAGE_GATE;
-  for (let x = g.x - 1; x <= g.x + 1; x++) {
-    grid[idx(x, g.y - 1)] = T_FLOOR;
-    roomId[idx(x, g.y - 1)] = 0;
-    cells.push(idx(x, g.y - 1));
-  }
-  for (let y = 1; y < H - 1; y++)
-    for (let x = 1; x < W - 1; x++) {
-      if (grid[idx(x, y)] !== T_VOID) continue;
-      let near = false;
-      for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1; dx++) if (grid[idx(x + dx, y + dy)] === T_FLOOR) near = true;
-      if (near) grid[idx(x, y)] = T_WALL;
-    }
-  const room: Room = { id: 0, x: 3, y: 3, w: W - 6, h: H - 6, cells, cx: Math.floor(W / 2), cy: Math.floor(H / 2), type: 'start', shape: 'rect' };
-  const objects: DObject[] = [];
-  const busy = new Set<number>();
-  // keep the houses, the gate, the well and the paths in front of them clear
-  for (const p of Object.values(PLOTS)) for (let dy = -3; dy <= 2; dy++) for (let dx = -2; dx <= 3; dx++) busy.add(idx(p.x + dx, p.y + dy));
-  for (let dy = -1; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) busy.add(idx(g.x + dx, g.y + dy));
-  const wl = VILLAGE_WELL;
-  for (let dy = -2; dy <= 2; dy++) for (let dx = -3; dx <= 4; dx++) busy.add(idx(wl.x + dx, wl.y + dy));
-  const put = (kind: string, x: number, y: number, data?: any) => {
-    objects.push({ kind, x, y, data });
-    busy.add(idx(x, y));
-  };
-  const front = (x: number, y: number) => grid[idx(x, y)] === T_WALL && grid[idx(x, y + 1)] === T_FLOOR;
-  // torches and banners of Loppo along the north wall
-  let k = 0;
-  for (let x = 2; x < W - 2; x++) {
-    for (let y = 1; y < 6; y++) {
-      if (!front(x, y)) continue;
-      if (Math.abs(x - g.x) === 2) put('torch', x, y);
-      else if (k++ % 4 === 0) put('torch', x, y);
-      else if (k % 4 === 2) put('banner', x, y, { color: k % 8 === 2 ? 'red' : 'blue' });
-      break;
-    }
-  }
-  // a red carpet from the gate to the well
-  objects.push({ kind: 'carpet', x: g.x - 1, y: g.y + 1, data: { w: 3, h: wl.y - g.y - 3, color: 'red' } });
-  // crates and barrels by the houses, a little greenery on the stones
-  const decor: [string, number, number][] = [
-    ['barrel', PLOTS.shop.x + 3, PLOTS.shop.y],
-    ['crate', PLOTS.shop.x + 3, PLOTS.shop.y - 1],
-    ['crate', PLOTS.stash.x - 2, PLOTS.stash.y],
-    ['barrel', PLOTS.stash.x - 2, PLOTS.stash.y - 1],
-    ['barrel', PLOTS.smithy.x + 3, PLOTS.smithy.y],
-    ['pot', PLOTS.lab.x + 3, PLOTS.lab.y],
-    ['pot', PLOTS.lab.x + 3, PLOTS.lab.y - 1],
-    ['crate', PLOTS.trainer.x - 2, PLOTS.trainer.y],
-  ];
-  for (const [kind, x, y] of decor) if (grid[idx(x, y)] === T_FLOOR) objects.push({ kind, x, y, data: { decor: true } });
-  for (const c of cells) {
-    if (busy.has(c)) continue;
-    const h = (c * 2654435761) >>> 0;
-    const roll = (h % 1000) / 1000;
-    if (roll < 0.03) objects.push({ kind: 'moss', x: c % W, y: Math.floor(c / W) });
-    else if (roll < 0.04) objects.push({ kind: 'puddle', x: c % W, y: Math.floor(c / W) });
-  }
-  void floor;
-  return {
-    floor,
-    w: W,
-    h: H,
-    grid,
-    roomId,
-    rooms: [room],
-    start: { x: g.x, y: g.y },
-    exit: { x: g.x, y: g.y - 1 },
-    secretWalls: [],
-    lockedDoors: [],
-    objects,
-    spawns: [],
-    bossRoom: null,
-    hasMerchant: false,
-    theme: 5,
-  };
-}
-
 // Simple binary heap keyed by priority
 class Heap {
   private items: number[] = [];

@@ -7,6 +7,7 @@ import { PET_ART } from './pets';
 import { GEMS, GEM_MAX_TIER } from '../data/gems';
 import { RUNES, RUNE_MAX_TIER } from '../data/runes';
 import { SPELL_RUNES } from '../data/spellrunes';
+import { buildVillageArt } from './village';
 
 // ---------------------------------------------------------------------------
 // Registry helpers
@@ -62,14 +63,14 @@ function epx2(src: HTMLCanvasElement, fw = src.width): HTMLCanvasElement {
   return c;
 }
 
-function addCanvas(key: string, c: HTMLCanvasElement, native = true) {
+export function addCanvas(key: string, c: HTMLCanvasElement, native = true) {
   if (native && isHiRes(key)) c = epx2(c);
   canvases.set(key, c);
   if (SCENE.textures.exists(key)) SCENE.textures.remove(key);
   SCENE.textures.addCanvas(key, c);
 }
 
-function addStrip(key: string, c: HTMLCanvasElement, fw: number, fh: number, n: number, upscale = true) {
+export function addStrip(key: string, c: HTMLCanvasElement, fw: number, fh: number, n: number, upscale = true) {
   if (upscale && isHiRes(key)) {
     c = epx2(c, fw);
     fw *= 2;
@@ -82,7 +83,7 @@ function addStrip(key: string, c: HTMLCanvasElement, fw: number, fh: number, n: 
 }
 
 // Make semi transparent pixels either fully opaque or transparent (crisp shapes).
-function crisp(c: HTMLCanvasElement, threshold = 110) {
+export function crisp(c: HTMLCanvasElement, threshold = 110) {
   const ctx = c.getContext('2d')!;
   const img = ctx.getImageData(0, 0, c.width, c.height);
   const d = img.data;
@@ -120,7 +121,7 @@ export function getCanvas(key: string) {
 // ---------------------------------------------------------------------------
 // Palettes
 // ---------------------------------------------------------------------------
-const OUT = '#16121c';
+export const OUT = '#16121c';
 
 // ---------------------------------------------------------------------------
 // TILES (16x16) – tileset strip used by the tilemap
@@ -1095,7 +1096,7 @@ function buildTileset() {
 // ---------------------------------------------------------------------------
 // HUMANOIDS (16x20, 6 frames: idle0, idle1, walk0..3)
 // ---------------------------------------------------------------------------
-const HEADS: Record<string, string[]> = {
+export const HEADS: Record<string, string[]> = {
   helm: [
     '................',
     '....oooooooo....',
@@ -1302,7 +1303,7 @@ function drawHumanoid(ctx: CanvasRenderingContext2D, ox: number, head: string, b
   }
 }
 
-function humanoidStrip(key: string, head: string, body: 'armor' | 'robe', pal: Record<string, string>, extra?: (ctx: CanvasRenderingContext2D, ox: number, f: number) => void) {
+export function humanoidStrip(key: string, head: string, body: 'armor' | 'robe', pal: Record<string, string>, extra?: (ctx: CanvasRenderingContext2D, ox: number, f: number) => void) {
   const [c, ctx] = canvas(16 * 6, 20);
   for (let f = 0; f < 6; f++) {
     drawHumanoid(ctx, f * 16, head, body, pal, f);
@@ -1407,7 +1408,7 @@ function skeletonStrip(key: string, pal: Record<string, string>, opts: { shield?
   addStrip(key, c, 16, 20, 6);
 }
 
-function creatureStrip(key: string, w: number, h: number, frames: number, draw: (ctx: CanvasRenderingContext2D, f: number) => void, doOutline = true) {
+export function creatureStrip(key: string, w: number, h: number, frames: number, draw: (ctx: CanvasRenderingContext2D, f: number) => void, doOutline = true) {
   const [c, ctx] = canvas(w * frames, h);
   for (let f = 0; f < frames; f++) {
     const [fc, fctx] = canvas(w, h);
@@ -1419,14 +1420,14 @@ function creatureStrip(key: string, w: number, h: number, frames: number, draw: 
   addStrip(key, c, w, h, frames);
 }
 
-function ell(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, col: string) {
+export function ell(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, col: string) {
   ctx.fillStyle = col;
   ctx.beginPath();
   ctx.ellipse(x, y, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2);
   ctx.fill();
 }
 
-function poly(ctx: CanvasRenderingContext2D, pts: number[], col: string) {
+export function poly(ctx: CanvasRenderingContext2D, pts: number[], col: string) {
   ctx.fillStyle = col;
   ctx.beginPath();
   ctx.moveTo(pts[0], pts[1]);
@@ -2955,7 +2956,7 @@ function buildObjects() {
   }
 }
 
-function iconCanvasSized(w: number, h: number, draw: Drawer, doOutline = true) {
+export function iconCanvasSized(w: number, h: number, draw: Drawer, doOutline = true) {
   const [c, ctx] = canvas(w + 2, h + 2);
   ctx.translate(1, 1);
   draw(ctx);
@@ -4170,364 +4171,6 @@ function buildEvents() {
 // ---------------------------------------------------------------------------
 // THE VILLAGE OF LOPPO: eight houses (and their ruins), the well, trees, lamps, Ilda
 // ---------------------------------------------------------------------------
-function buildVillageArt() {
-  const PL = '#e6d6b2',
-    PLD = '#c8b48c',
-    TB = '#5a3a22',
-    TBL = '#7a5232',
-    ST = '#8a8478',
-    STD = '#6a645a',
-    STL = '#a8a294',
-    DR = '#4a2e18',
-    DRL = '#6a4426',
-    GL = '#ffd76a',
-    GLL = '#fff2b0',
-    FR = '#3a2416';
-  /** a shingled roof seen from above and the front: rows of tiles, a lit ridge and a dark eave */
-  const roof = (c: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, col: string) => {
-    for (let y = 0; y < h; y++)
-      for (let x = 0; x < w; x++) {
-        const row = Math.floor(y / 3);
-        const seam = y % 3 === 2 || (x + (row % 2) * 2) % 5 === 0;
-        let k = seam ? -0.24 : 0;
-        if (y < 2) k = 0.18;
-        if (y >= h - 2) k = -0.38;
-        px(c, x0 + x, y0 + y, shade(col, k + (hash(x, y, 77) - 0.5) * 0.06));
-      }
-  };
-  const plaster = (c: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number) => {
-    rect(c, x0, y0, w, h, PL);
-    for (let k = 0; k < (w * h) / 18; k++) px(c, x0 + Math.floor(hash(k, x0, 3) * w), y0 + Math.floor(hash(y0, k, 4) * h), PLD);
-  };
-  const timber = (c: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number) => {
-    rect(c, x0, y0, w, 2, TB);
-    rect(c, x0, y0 + h - 2, w, 2, TB);
-    for (const x of [x0, x0 + w - 2, x0 + Math.floor(w / 2) - 1]) rect(c, x, y0, 2, h, TB);
-    // diagonal braces
-    for (let i = 0; i < Math.min(8, h - 4); i++) {
-      px(c, x0 + 2 + i, y0 + 2 + i, TBL);
-      px(c, x0 + w - 3 - i, y0 + 2 + i, TBL);
-    }
-  };
-  const stones = (c: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number) => {
-    rect(c, x0, y0, w, h, STD);
-    for (let r = 0; r * 4 < h; r++)
-      for (let k = -1; k * 7 < w; k++) {
-        const x = x0 + k * 7 + (r % 2 ? 3 : 0),
-          y = y0 + r * 4;
-        for (let yy = 0; yy < 3 && y + yy < y0 + h; yy++)
-          for (let xx = 0; xx < 6; xx++) {
-            const X = x + xx;
-            if (X < x0 || X >= x0 + w) continue;
-            px(c, X, y + yy, yy === 0 ? STL : shade(ST, (hash(X, y + yy, 9) - 0.5) * 0.12));
-          }
-      }
-  };
-  const door = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, glow?: string) => {
-    rect(c, x - 1, y - 1, w + 2, h + 1, FR);
-    rect(c, x, y, w, h, glow ?? DR);
-    if (!glow) {
-      for (let i = 2; i < w; i += 3) rect(c, x + i, y, 1, h, DRL);
-      px(c, x + w - 2, y + Math.floor(h / 2), '#e9b949');
-    } else {
-      rect(c, x, y + h - 3, w, 3, shade(glow, -0.4));
-      rect(c, x + 1, y + 1, w - 2, 2, shade(glow, 0.3));
-    }
-  };
-  const win = (c: CanvasRenderingContext2D, x: number, y: number, w = 7, h = 7, glass = GL) => {
-    rect(c, x, y, w, h, FR);
-    rect(c, x + 1, y + 1, w - 2, h - 2, glass);
-    px(c, x + 1, y + 1, glass === GL ? GLL : shade(glass, 0.4));
-    rect(c, x + Math.floor(w / 2), y + 1, 1, h - 2, FR);
-    rect(c, x + 1, y + Math.floor(h / 2), w - 2, 1, FR);
-  };
-  const sign = (c: CanvasRenderingContext2D, x: number, y: number, col: string, mark: (c: CanvasRenderingContext2D, x: number, y: number) => void) => {
-    rect(c, x, y, 10, 7, TB);
-    rect(c, x + 1, y + 1, 8, 5, col);
-    mark(c, x + 1, y + 1);
-  };
-  const base = (c: CanvasRenderingContext2D, x: number, y: number, w: number) => {
-    rect(c, x, y, w, 4, STD);
-    for (let k = 0; k < w; k += 5) rect(c, x + k, y, 4, 3, ST);
-  };
-  const house = (key: string, w: number, h: number, draw: (c: CanvasRenderingContext2D) => void) => addCanvas(key, iconCanvasSized(w, h, draw));
-
-  // the barn: plank walls, big doors with braces, a hay loft
-  house('vh_house_stash', 46, 40, (c) => {
-    roof(c, 0, 0, 46, 16, '#7a4a2a');
-    rect(c, 3, 16, 40, 20, '#8a5a32');
-    for (let x = 3; x < 43; x += 4) rect(c, x, 16, 1, 20, '#6a4222');
-    rect(c, 3, 16, 40, 2, TB);
-    // the loft opening
-    rect(c, 19, 18, 8, 5, FR);
-    for (let x = 20; x < 26; x += 2) px(c, x, 22, '#e8c860');
-    // double door with X braces
-    rect(c, 13, 24, 20, 12, FR);
-    rect(c, 14, 25, 9, 11, DR);
-    rect(c, 24, 25, 8, 11, DR);
-    for (let i = 0; i < 9; i++) {
-      px(c, 14 + i, 25 + i, DRL);
-      px(c, 22 - i, 25 + i, DRL);
-      px(c, 24 + Math.min(7, i), 25 + i, DRL);
-      px(c, 31 - Math.min(7, i), 25 + i, DRL);
-    }
-    base(c, 2, 36, 42);
-    sign(c, 34, 18, '#c8a070', (c, x, y) => rect(c, x + 2, y + 1, 4, 3, '#6a4222'));
-  });
-  // the smithy: stone walls, a chimney, the forge glowing through the door
-  house('vh_house_smithy', 46, 46, (c) => {
-    rect(c, 34, 0, 7, 14, STD);
-    rect(c, 34, 0, 7, 2, STL);
-    roof(c, 0, 6, 46, 16, '#4a4a56');
-    stones(c, 3, 22, 40, 20);
-    door(c, 17, 30, 12, 12, '#ff8a2a');
-    win(c, 6, 27, 7, 7, '#ffb060');
-    win(c, 33, 27, 7, 7, '#ffb060');
-    base(c, 2, 42, 42);
-    sign(c, 18, 23, '#ff9a3a', (c, x, y) => {
-      rect(c, x + 1, y + 1, 6, 2, '#3a3a44');
-      rect(c, x + 3, y + 3, 2, 2, '#3a3a44');
-    });
-  });
-  // the shop: plaster and timber, a striped awning over the counter window
-  house('vh_house_shop', 46, 42, (c) => {
-    roof(c, 0, 0, 46, 16, '#2a5aa0');
-    plaster(c, 3, 16, 40, 22);
-    timber(c, 3, 16, 40, 22);
-    door(c, 9, 25, 9, 13);
-    win(c, 27, 23, 12, 9);
-    // the awning
-    for (let x = 25; x < 42; x++) for (let y = 19; y < 23; y++) px(c, x, y, Math.floor((x - 25) / 3) % 2 ? '#eceaf4' : '#c83a3a');
-    rect(c, 25, 23, 17, 1, shade('#c83a3a', -0.4));
-    base(c, 2, 38, 42);
-    sign(c, 6, 17, '#ffd23a', (c, x, y) => {
-      rect(c, x + 2, y + 1, 4, 3, '#a8802a');
-      px(c, x + 3, y + 2, '#fff2b0');
-    });
-  });
-  // the hunter's lodge: logs, a mossy roof, antlers over the door
-  house('vh_house_board', 46, 42, (c) => {
-    roof(c, 0, 0, 46, 16, '#4a6a2a');
-    for (let k = 0; k < 9; k++) px(c, Math.floor(hash(k, 1, 2) * 46), Math.floor(hash(2, k, 3) * 13), '#7aaa3c');
-    for (let y = 16; y < 38; y += 3) {
-      rect(c, 3, y, 40, 3, y % 2 ? '#7a5232' : '#6a4426');
-      rect(c, 3, y + 2, 40, 1, '#4a2e18');
-      px(c, 3, y + 1, '#c8a070');
-      px(c, 42, y + 1, '#c8a070');
-    }
-    door(c, 19, 26, 9, 12);
-    win(c, 7, 24, 7, 7);
-    win(c, 33, 24, 7, 7);
-    // antlers
-    for (const [x, y] of [
-      [19, 21],
-      [20, 20],
-      [21, 21],
-      [26, 21],
-      [27, 20],
-      [28, 21],
-      [22, 22],
-      [25, 22],
-      [23, 22],
-      [24, 22],
-    ])
-      px(c, x, y, '#e8dcc0');
-    base(c, 2, 38, 42);
-  });
-  // the laboratory: plaster, a teal roof, green light in the windows, a round window
-  house('vh_house_lab', 46, 42, (c) => {
-    roof(c, 0, 0, 46, 16, '#1f6a6a');
-    plaster(c, 3, 16, 40, 22);
-    timber(c, 3, 16, 40, 22);
-    door(c, 19, 26, 9, 12);
-    win(c, 7, 23, 8, 8, '#5dff9a');
-    win(c, 32, 23, 8, 8, '#5dff9a');
-    ell(c, 23.5, 21, 3, 3, FR);
-    ell(c, 23.5, 21, 2, 2, '#b07dff');
-    // flasks on the sill
-    px(c, 8, 31, '#ff6a9a');
-    px(c, 10, 31, '#7dcfff');
-    px(c, 13, 31, '#ffe45c');
-    base(c, 2, 38, 42);
-  });
-  // the mage's tower: a round stone tower with a blue cone and a star
-  house('vh_house_tower', 32, 64, (c) => {
-    stones(c, 5, 22, 22, 38);
-    // roundness: darker sides
-    for (let y = 22; y < 60; y++) {
-      px(c, 5, y, shade(STD, -0.3));
-      px(c, 6, y, shade(STD, -0.15));
-      px(c, 26, y, shade(STD, -0.3));
-      px(c, 25, y, shade(STD, -0.15));
-    }
-    for (let y = 0; y < 24; y++) {
-      const half = Math.round(1 + (y * 14) / 23);
-      for (let x = 16 - half; x <= 15 + half; x++) px(c, x, y, x < 16 ? '#2a4a9a' : '#1e3a7a');
-    }
-    for (let x = 1; x < 31; x++) px(c, x, 23, '#16285a');
-    px(c, 15, 0, '#ffe45c');
-    px(c, 16, 0, '#ffe45c');
-    for (const [x, y] of [
-      [11, 8],
-      [19, 13],
-      [13, 17],
-    ])
-      px(c, x, y, '#ffe45c');
-    // arched windows and the door
-    rect(c, 13, 28, 6, 8, FR);
-    rect(c, 14, 29, 4, 7, '#c77dff');
-    px(c, 14, 29, '#f0d0ff');
-    rect(c, 9, 40, 4, 6, FR);
-    rect(c, 10, 41, 2, 5, GL);
-    door(c, 12, 50, 8, 10);
-    base(c, 4, 60, 24);
-  });
-  // the training ground: an open shed with a weapon rack
-  house('vh_house_trainer', 46, 40, (c) => {
-    roof(c, 0, 0, 46, 14, '#a02a2a');
-    rect(c, 3, 14, 40, 22, '#5a3a22');
-    rect(c, 6, 17, 34, 19, '#2a1e14');
-    for (const x of [3, 21, 41]) rect(c, x, 14, 2, 22, TBL);
-    // the rack: swords, an axe, a spear
-    rect(c, 8, 22, 28, 2, TBL);
-    for (const [x, col] of [
-      [10, '#d4dae2'],
-      [14, '#d4dae2'],
-      [18, '#9aa0aa'],
-      [26, '#d4dae2'],
-      [30, '#c8a070'],
-    ] as [number, string][]) {
-      rect(c, x, 18, 1, 14, col);
-      px(c, x - 1, 24, '#e9b949');
-      px(c, x + 1, 24, '#e9b949');
-    }
-    rect(c, 29, 18, 3, 3, '#9aa0aa');
-    base(c, 2, 36, 42);
-    sign(c, 34, 15, '#ff6a5a', (c, x, y) => {
-      for (let i = 0; i < 5; i++) {
-        px(c, x + 1 + i, y + i, '#eceaf4');
-        px(c, x + 5 - i, y + i, '#eceaf4');
-      }
-    });
-  });
-  // the chapel: white walls, a bell tower with a golden sign, a rose window
-  house('vh_house_temple', 46, 54, (c) => {
-    rect(c, 19, 0, 8, 14, '#eceaf4');
-    rect(c, 19, 0, 8, 2, '#c8a070');
-    rect(c, 21, 4, 4, 6, '#2a2a36');
-    ell(c, 23, 8, 1.5, 1.5, '#e9b949');
-    px(c, 23, 1, '#ffe45c');
-    roof(c, 0, 12, 46, 16, '#6a2a4a');
-    rect(c, 3, 28, 40, 22, '#eceaf4');
-    for (let k = 0; k < 40; k++) px(c, 3 + Math.floor(hash(k, 5, 6) * 40), 28 + Math.floor(hash(6, k, 7) * 22), '#d4d0e0');
-    ell(c, 23, 33, 4, 4, '#c8a070');
-    ell(c, 23, 33, 3, 3, '#ff6a9a');
-    px(c, 22, 32, '#7dcfff');
-    px(c, 24, 34, '#ffe45c');
-    px(c, 23, 33, '#ffffff');
-    // an arched door
-    rect(c, 19, 39, 9, 11, FR);
-    rect(c, 20, 40, 7, 10, '#8a5a32');
-    rect(c, 23, 40, 1, 10, '#5a3a22');
-    win(c, 8, 34, 6, 9, '#7dcfff');
-    win(c, 33, 34, 6, 9, '#ffb0d0');
-    base(c, 2, 50, 42);
-  });
-  // a house that monsters wrecked: broken walls, a charred beam, rubble
-  house('vh_ruins', 46, 30, (c) => {
-    stones(c, 3, 10, 12, 16);
-    stones(c, 30, 14, 13, 12);
-    stones(c, 15, 18, 15, 8);
-    rect(c, 3, 8, 3, 4, STD);
-    rect(c, 39, 10, 4, 6, STD);
-    for (let i = 0; i < 18; i++) rect(c, 10 + i, 6 + Math.floor(i / 3), 1, 2, i % 4 ? '#2a1e14' : '#4a2e18');
-    for (let k = 0; k < 30; k++) {
-      const x = 2 + Math.floor(hash(k, 3, 8) * 42),
-        y = 22 + Math.floor(hash(8, k, 9) * 6);
-      rect(c, x, y, 2, 2, hash(k, k, 2) < 0.5 ? STL : STD);
-    }
-  });
-  // the well in the middle of the square
-  house('vh_well', 26, 30, (c) => {
-    rect(c, 3, 2, 2, 18, TB);
-    rect(c, 21, 2, 2, 18, TB);
-    roof(c, 0, 0, 26, 6, '#7a4a2a');
-    rect(c, 5, 8, 16, 1, TBL);
-    rect(c, 12, 9, 1, 6, '#c8a070');
-    rect(c, 11, 14, 3, 3, '#6a4426');
-    ell(c, 13, 23, 12, 6, STD);
-    ell(c, 13, 22, 12, 5, ST);
-    ell(c, 13, 22, 9, 3, '#1a2a4a');
-    ell(c, 11, 21.5, 3, 1, '#3a5a8a');
-  });
-  // the notice board with the villagers' requests
-  house('vh_board', 18, 20, (c) => {
-    rect(c, 2, 4, 2, 16, TB);
-    rect(c, 14, 4, 2, 16, TB);
-    rect(c, 0, 2, 18, 11, '#7a5232');
-    rect(c, 1, 3, 16, 9, '#a07040');
-    for (const [x, y, w, h] of [
-      [2, 4, 5, 5],
-      [8, 4, 4, 4],
-      [12, 5, 4, 6],
-      [7, 8, 5, 4],
-    ])
-      rect(c, x, y, w, h, '#eee0b8');
-    for (const [x, y] of [
-      [3, 5],
-      [3, 7],
-      [9, 5],
-      [13, 7],
-      [8, 10],
-    ])
-      rect(c, x, y, 3, 1, '#8a7a5a');
-    px(c, 4, 4, '#c83a3a');
-    px(c, 10, 4, '#c83a3a');
-  });
-  // a training dummy
-  house('vh_dummy', 12, 22, (c) => {
-    rect(c, 5, 6, 2, 16, TB);
-    rect(c, 1, 9, 10, 2, TB);
-    ell(c, 6, 13, 3.5, 4, '#d8b860');
-    ell(c, 6, 4, 3, 3, '#c8a878');
-    px(c, 5, 4, '#2a1e14');
-    px(c, 7, 4, '#2a1e14');
-    rect(c, 4, 13, 4, 1, '#8a6a30');
-  });
-  // a street lantern
-  house('vh_lamp', 8, 26, (c) => {
-    rect(c, 3, 6, 2, 20, '#2a2a32');
-    rect(c, 1, 24, 6, 2, '#2a2a32');
-    rect(c, 1, 0, 6, 7, '#2a2a32');
-    rect(c, 2, 1, 4, 5, GL);
-    px(c, 2, 1, GLL);
-  });
-  // an old oak
-  house('vh_tree', 32, 38, (c) => {
-    rect(c, 13, 22, 6, 16, '#5a3a22');
-    rect(c, 13, 22, 2, 16, '#7a5232');
-    px(c, 12, 37, '#5a3a22');
-    px(c, 19, 37, '#5a3a22');
-    for (const [x, y, r, col] of [
-      [16, 14, 13, '#3d6a2a'],
-      [9, 16, 8, '#35602a'],
-      [23, 16, 8, '#35602a'],
-      [16, 9, 10, '#4a7a30'],
-      [12, 8, 5, '#5d8a34'],
-      [20, 11, 4, '#5d8a34'],
-    ] as [number, number, number, string][])
-      ell(c, x, y, r, r * 0.8, col);
-    for (let k = 0; k < 14; k++) px(c, 6 + Math.floor(hash(k, 4, 1) * 20), 4 + Math.floor(hash(1, k, 4) * 16), '#7aaa3c');
-  });
-  // Ilda, the old keeper of the seal, with her lantern
-  humanoidStrip('npc_ilda', 'hood', 'robe', { h: '#8a8a96', j: '#5a5a66', s: '#e8c8a8', d: '#b89878', e: '#1b1b2a', u: '#2a3a5a', c: '#2a3a5a', v: '#1a263e', w: '#3a4e74', a: '#c8a070', l: '#c8a070', b: '#1a1420', g: '#e8c8a8' }, (ctx, ox, f) => {
-    const bob = f === 1 || f === 3 || f === 5 ? 1 : 0;
-    rect(ctx, ox + 13, 11 + bob, 1, 3, '#3a3a44');
-    rect(ctx, ox + 12, 14 + bob, 3, 3, '#3a3a44');
-    px(ctx, ox + 13, 15 + bob, '#ffd76a');
-  });
-}
-
 export function buildAllTextures(scene: Phaser.Scene) {
   SCENE = scene;
   buildEvents();

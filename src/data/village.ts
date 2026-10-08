@@ -1,4 +1,5 @@
 import type { Quest } from './quests';
+import { RoyalState, royalStats } from './royal';
 
 // The village of Loppo above the dungeon: the hero's home. When the earth shook, monsters dragged
 // villagers down into the dungeon; each one the hero frees comes home and opens their workshop.
@@ -35,14 +36,14 @@ export interface BuildingDef {
 export const BUILDINGS: BuildingDef[] = [
   {
     id: 'stash',
-    name: 'Sklad',
+    name: 'Tvůj dům',
     who: null,
     rescue: 0,
-    desc: 'Truhly na předměty, které nechceš nosit ani prodat. Je společný pro celou výpravu.',
+    desc: 'Domov s truhlou na předměty, postelí k odpočinku a místem pro trofeje. Truhla je společná pro celou výpravu.',
     levels: [
-      { cost: 0, text: '42 míst ve skladu' },
-      { cost: 2500, text: '84 míst ve skladu' },
-      { cost: 12000, text: '126 míst ve skladu' },
+      { cost: 0, text: 'Chalupa: truhla na 42 předmětů, postel' },
+      { cost: 2500, text: 'Dům: truhla na 84 předmětů, odpočinek platí 5 pater' },
+      { cost: 12000, text: 'Statek: truhla na 126 předmětů, odpočinek dává i +5 % poškození' },
     ],
     color: '#c8a070',
     icon: 'chest_iron',
@@ -161,6 +162,10 @@ export interface VillageState {
   quests?: Quest[];
   /** what the board offers on this visit */
   offers?: Quest[];
+  /** the king's favour and task (see data/royal.ts) */
+  royal?: RoyalState;
+  /** a night in the hero's own bed: rested up to this floor */
+  rested?: { until: number; lv: number };
 }
 
 export function villageOf(s: { village?: VillageState }): VillageState {
@@ -213,7 +218,9 @@ export function runeMaxTier(s: { village?: VillageState }) {
 
 /** how many quests the board holds at once and how much more they pay */
 export function questSlots(s: { village?: VillageState }) {
-  return [0, 2, 3, 4][buildingLevel(s, 'board')] ?? 0;
+  const base = [0, 2, 3, 4][buildingLevel(s, 'board')] ?? 0;
+  // the king's golden seal makes room for one more
+  return base && (s.village?.royal?.favor ?? 0) >= 6 ? base + 1 : base;
 }
 export function questRewardMult(s: { village?: VillageState }) {
   return [1, 1, 1.25, 1.5][buildingLevel(s, 'board')] ?? 1;
@@ -260,24 +267,25 @@ export function villageStats(s: { village?: VillageState; floor: number }): Reco
   if (tr >= 3) add('xp', 5);
   const b = activeBlessing(s);
   if (b) for (const [k, v] of Object.entries(BLESSING_BY_ID[b.id].stats(b.lv ?? 1))) add(k, v);
+  for (const [k, v] of Object.entries(royalStats(s))) add(k, v);
+  const r = restedOf(s);
+  if (r) {
+    add('xp', 10);
+    if (r.lv >= 3) {
+      add('dmgPct', 5);
+      add('spellDmg', 5);
+    }
+  }
   return out;
 }
 
-// ---------------------------------------------------------------- the square of Loppo
-/** size of the village map (tiles) */
-export const VILLAGE_W = 46;
-export const VILLAGE_H = 32;
-/** where each house stands: the tile in the middle of its front row (the door) */
-export const PLOTS: Record<BuildingId, { x: number; y: number }> = {
-  stash: { x: 8, y: 10 },
-  smithy: { x: 15, y: 10 },
-  shop: { x: 30, y: 10 },
-  board: { x: 37, y: 10 },
-  lab: { x: 8, y: 22 },
-  tower: { x: 15, y: 22 },
-  trainer: { x: 30, y: 22 },
-  temple: { x: 37, y: 22 },
-};
-/** the gate down into the dungeon, the well in the middle and Ilda beside it */
-export const VILLAGE_GATE = { x: 22, y: 4 };
-export const VILLAGE_WELL = { x: 22, y: 16 };
+/** how many floors a night at home lasts */
+export function restFloors(s: { village?: VillageState }) {
+  return buildingLevel(s, 'stash') >= 2 ? 5 : 3;
+}
+
+/** the rest from the hero's own bed, while it lasts */
+export function restedOf(s: { village?: VillageState; floor: number }) {
+  const r = s.village?.rested;
+  return r && s.floor <= r.until ? r : null;
+}

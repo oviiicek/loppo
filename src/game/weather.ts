@@ -23,6 +23,9 @@ const LAYERS: Record<string, [string, Cfg, boolean][]> = {
     ['mote', { lifespan: { min: 5000, max: 8000 }, speedX: { min: -3, max: 3 }, speedY: { min: 3, max: 8 }, scale: { min: 0.4, max: 0.75 }, alpha: fade(0.5), tint: 0x9a9aa0, frequency: 380 }, false],
   ],
   abyss: [['mote', { lifespan: { min: 5000, max: 8000 }, speedX: { min: -6, max: 6 }, speedY: { min: -6, max: 4 }, scale: { min: 0.6, max: 1.25 }, alpha: flicker(0.9), tint: [0xb07dff, 0x7a4aff, 0xff7ad8], blendMode: 'ADD', frequency: 200 }, true]],
+  // Loppo by day: pollen and petals on the wind; by night: fireflies
+  meadow: [['pix', { lifespan: { min: 6000, max: 9000 }, speedX: { min: 3, max: 9 }, speedY: { min: -3, max: 3 }, scale: { min: 0.4, max: 0.8 }, alpha: fade(0.75), tint: [0xffffff, 0xfff4b0, 0xf8d0f0], frequency: 240 }, false]],
+  night: [['mote', { lifespan: { min: 3000, max: 6000 }, speedX: { min: -5, max: 5 }, speedY: { min: -5, max: 4 }, scale: { min: 0.35, max: 0.7 }, alpha: flicker(1), tint: [0xd8ff7a, 0xfff27a, 0xa8ff9a], blendMode: 'ADD', frequency: 260 }, true]],
 };
 
 export class Weather {

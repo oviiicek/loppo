@@ -2,8 +2,12 @@ import Phaser from 'phaser';
 import { Dungeon, T_FLOOR, T_WALL } from '../systems/dungeon';
 import { TILE, TILE_RES, themeForFloor } from '../gfx/textures';
 import { hash } from '../gfx/pixel';
+import { placeVillageGround } from '../gfx/groundLoader';
 
 export const TS = 16;
+
+/** the minimap colours of the village ground (by systems/villagemap.ts G codes) */
+const OUTDOOR_COLORS = ['#4a7a38', '#24421f', '#9a9488', '#8a6a48', '#b4ab9b', '#2f6a8a', '#b8a070', '#cfc6b4', '#5a4028', '#3e6a44', '#6e685e', '#8a6038'];
 
 // Wraps the dungeon grid: rendering, collision and path helpers.
 export class WorldMap {
@@ -113,7 +117,30 @@ export class WorldMap {
     return TILE.rock;
   }
 
+  /** the colour of a tile on the minimap and the big map (null = nothing to draw) */
+  mapColor(i: number): string | null {
+    const ground = (this.d as { ground?: Uint8Array }).ground;
+    if (ground) {
+      const g = ground[i];
+      // houses, trees and fences on walkable ground show as dark blocks
+      if (this.d.grid[i] !== 1 && g !== 1 && g !== 5) return '#2a2630';
+      return OUTDOOR_COLORS[g] ?? '#3f6a32';
+    }
+    const t = this.d.grid[i];
+    return t === 1 ? '#6a5a4a' : t === 2 ? '#2c2a34' : null;
+  }
+
+  /** the village under the open sky: painted ground, no walls, nothing to explore */
+  get outdoor() {
+    return !!(this.d as { ground?: Uint8Array }).ground;
+  }
+
   build(scene: Phaser.Scene) {
+    if (this.outdoor) {
+      placeVillageGround(scene, 0);
+      this.explored.fill(1);
+      return;
+    }
     const data: number[][] = [];
     for (let y = 0; y < this.h; y++) {
       const row: number[] = [];

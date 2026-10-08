@@ -837,3 +837,22 @@ Object.assign(dev, {
     return { name: e.name, hp: e.maxHp, id: e.id };
   },
 });
+import { royalOf, makeRoyalQuest } from './data/royal';
+Object.assign(dev, {
+  /** gives the hero the king's task of a step at once (and favour, if asked) */
+  royal(step?: number, favor?: number) {
+    const sc = (window as any).__scene;
+    const s = sc.save;
+    const r = royalOf(s);
+    if (favor !== undefined) r.favor = favor;
+    const q = makeRoyalQuest(step ?? r.step, s.maxFloor);
+    const key = (QUEST_COUNTER as any)[q.type];
+    if (key && key !== 'maxFloor') q.base = questCounter(s, key);
+    r.quest = q;
+    return { type: q.type, title: q.title, goal: q.goal, floor: q.floor, base: q.base, minRarity: q.minRarity };
+  },
+  royalInfo() {
+    const r = (window as any).__scene.save.village?.royal;
+    return r ? { favor: r.favor, step: r.step, quest: r.quest ? `${r.quest.type}:${r.quest.have}/${r.quest.goal}${r.quest.done ? '✔' : ''}` : null, crown: !!r.crown } : null;
+  },
+});

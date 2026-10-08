@@ -10,6 +10,7 @@ import { isBossFloor } from '../data/enemies';
 export function questCounter(s: SaveData, key: string): number {
   if (key === 'kills') return s.kills;
   if (key === 'lore') return s.lore?.length ?? 0;
+  if (key === 'maxFloor') return s.maxFloor;
   return ((s.stats ?? {}) as Record<string, number | undefined>)[key] ?? 0;
 }
 
@@ -26,8 +27,12 @@ export class QuestLog {
     this.sc = sc;
   }
 
+  /** the board's quests and the king's task */
   get list(): Quest[] {
-    return (villageOf(this.sc.save).quests ??= []);
+    const v = villageOf(this.sc.save);
+    const board = (v.quests ??= []);
+    const royal = v.royal?.quest;
+    return royal ? [...board, royal] : board;
   }
 
   /** quests that send the hero to this floor leave something here */
@@ -63,7 +68,7 @@ export class QuestLog {
     q.have = q.goal;
     const sc = this.sc;
     sfx('levelup');
-    sc.ui.toast(`📜 Úkol splněn: ${q.title}! Odměnu si vyzvedni na nástěnce v Loppu.`, '#9dff7a');
+    sc.ui.toast(`📜 Úkol splněn: ${q.title}! Odměnu si vyzvedni ${(q as { royal?: boolean }).royal ? 'u krále' : 'na nástěnce'} v Loppu.`, '#9dff7a');
     saveGame(sc.save);
     bus.emit('stats');
   }
