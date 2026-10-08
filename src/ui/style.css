@@ -1298,7 +1298,23 @@ img.px {
   height: 22px;
   image-rendering: pixelated;
 }
-/* the materials in a panel header (inventory) */
+/* the materials and the salvage button in a panel header (inventory) */
+.panel .head h2.nowrap {
+  white-space: nowrap;
+  flex: 1 0 auto;
+}
+.headacts {
+  flex: none;
+}
+.headacts .btn {
+  font-size: 16px;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+.invacts {
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .hfree {
   font-size: 15px;
   color: #a89c88;
@@ -1306,6 +1322,7 @@ img.px {
   white-space: nowrap;
 }
 .headmats {
+  flex: 0 1 auto;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
@@ -1326,6 +1343,10 @@ img.px {
   height: 20px;
 }
 @media (max-width: 760px) {
+  .headacts .btn {
+    font-size: 14px;
+    padding: 4px 7px;
+  }
   .headmats .mats {
     gap: 6px;
     font-size: 15px;

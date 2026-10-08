@@ -664,7 +664,7 @@ export class Panels {
       <div class="col" style="flex:1;min-width:0">
         <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv" data-idx="${i}`, '', undefined, better[i])).join('')}</div></div>
         ${mode === 'sell' ? `<div class="box">${this.matsHtml()}</div>` : ''}
-        <div class="row">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : '<button class="btn small" data-a="salvcommon">Rozebrat běžné předměty</button>'}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙ Kořist</button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}${mode === 'sell' ? `<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span>` : ''}</div>
+        <div class="row invacts">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : ''}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙ Kořist</button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}${mode === 'sell' ? `<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span>` : ''}</div>
       </div>
       <div class="col detail box scroll" style="width:min(300px,34%)"></div>`;
     // gold and materials sit in the header next to the title, so the bag gets the room
@@ -677,7 +677,16 @@ export class Panels {
         head.insertBefore(hm, $('.close', head));
       }
       hm.innerHTML = this.matsHtml();
-      $('h2', head).innerHTML = `Inventář <small class="hfree">volno ${freeSlots(s)}/${s.inventory.length}</small>`;
+      const h2 = $('h2', head);
+      h2.innerHTML = `Inventář <small class="hfree">volno ${freeSlots(s)}/${s.inventory.length}</small>`;
+      h2.classList.add('nowrap');
+      // salvaging the common items moves up too
+      let ha = head.querySelector<HTMLElement>('.headacts');
+      if (!ha) {
+        ha = el('<div class="headacts"></div>');
+        head.insertBefore(ha, $('.close', head));
+      }
+      ha.innerHTML = '<button class="btn small" data-a="salvcommon" title="Rozebrat běžné předměty">⚒ Rozebrat běžné</button>';
     }
     const detail = $('.detail', body);
     const renderDetail = () => {
@@ -861,7 +870,7 @@ export class Panels {
       sfx('ui');
       rerender();
     });
-    body.querySelector('[data-a=salvcommon]')?.addEventListener('click', () => {
+    p.querySelector('[data-a=salvcommon]')?.addEventListener('click', () => {
       let n = 0;
       s.inventory.forEach((it, i) => {
         if (it && !it.locked && it.rarity === 0 && !this.sc.loot.isUpgrade(it)) {
