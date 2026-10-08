@@ -5,10 +5,11 @@ import { D } from './fx';
 import { Item, Slot } from '../data/types';
 import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded, itemValue, PRIMAL } from '../data/items';
 import { SET_MIN_FLOOR } from '../data/sets';
-import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData, addGem, addRune } from '../systems/state';
+import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData, addGem, addRune, addSpellRune } from '../systems/state';
 import { gemIcon, gemName, parseGem, randomGem } from '../data/gems';
 import { parseRune, runeIcon, runeName, randomRune } from '../data/runes';
 import { discoverItem } from '../data/codex';
+import { SPELL_RUNES, SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
 import { sfx, settings, LootRule } from '../systems/audio';
 import { bus } from '../systems/events';
 import { iconURL } from '../gfx/textures';
@@ -24,7 +25,7 @@ export const MAT_INFO: Record<MatKey, { name: string; icon: string; color: strin
 };
 
 export interface Ground {
-  kind: 'item' | 'gold' | 'mat' | 'gem' | 'rune';
+  kind: 'item' | 'gold' | 'mat' | 'gem' | 'rune' | 'srune';
   item?: Item;
   mat?: MatKey;
   gem?: string;
@@ -100,6 +101,7 @@ export class Loot {
       if (f >= SET_MIN_FLOOR && Math.random() < 0.12) this.dropItem(generateSetItem(f + 1), x, y);
       for (let i = 0; i < 2; i++) this.dropRandomGem(x, y, 1);
       this.dropRandomRune(x, y, 1);
+      if (Math.random() < 0.3) this.dropSpellRune(x, y);
       for (let i = 0; i < 6; i++) this.dropGold(this.goldAmount(4), x, y);
       this.dropMat('stone', 2 + Math.floor(f / 10), x, y);
       this.dropMat('dust', 2 + Math.floor(f / 10), x, y);
@@ -120,6 +122,7 @@ export class Loot {
       this.dropItem(this.item(f, 1), x, y);
       if (Math.random() < (this.scene.player.d.specials.has('midas') ? 0.4 : 0.1)) this.dropRandomGem(x, y);
       if (Math.random() < 0.06) this.dropRandomRune(x, y);
+      if (Math.random() < 0.015) this.dropSpellRune(x, y);
       if (Math.random() < 0.35) this.dropItem(this.item(f), x, y);
       this.dropGold(this.goldAmount(2.5), x, y);
       if (Math.random() < 0.4) this.dropMat(Math.random() < 0.6 ? 'hpPotion' : 'mpPotion', 1, x, y);
@@ -145,6 +148,7 @@ export class Loot {
     for (let i = 0; i < 1 + Math.min(3, kills); i++) this.dropItem(this.item(f + 2, 2), x, y);
     for (let i = 0; i < 2 + Math.min(2, kills - 1); i++) this.dropRandomGem(x, y, 1);
     this.dropRandomRune(x, y, 1);
+    this.dropSpellRune(x, y);
     for (let i = 0; i < 8; i++) this.dropGold(this.goldAmount(3 + kills), x, y);
     this.dropMat('dust', 2 + Math.floor(f / 12), x, y);
     this.dropMat('stone', 1 + Math.floor(f / 15), x, y);
@@ -192,6 +196,7 @@ export class Loot {
     // gems: rare in wooden chests, a sure one in a guardian's chest
     if (Math.random() < ({ wood: 0.04, iron: 0.12, gold: 0.3, boss: 1 } as Record<string, number>)[tier]) this.dropRandomGem(x, y, tier === 'boss' ? 1 : 0);
     if (Math.random() < ({ wood: 0.02, iron: 0.06, gold: 0.18, boss: 0.5 } as Record<string, number>)[tier]) this.dropRandomRune(x, y, tier === 'boss' ? 1 : 0);
+    if (Math.random() < ({ wood: 0, iron: 0.015, gold: 0.06, boss: 0.25 } as Record<string, number>)[tier]) this.dropSpellRune(x, y);
   }
 
   private popTo(obj: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, x: number, y: number): [number, number] {
@@ -293,6 +298,18 @@ export class Loot {
     this.ground.push({ kind: 'rune', rune: key, amount: 1, x: tx, y: ty, sprite: s, beam, ready: sc.time.now + 400, dead: false });
   }
 
+  /** a spell rune (random kind unless given) */
+  dropSpellRune(x: number, y: number, id?: string) {
+    const sc = this.scene;
+    const def = id ? SPELL_RUNE_BY_ID[id] : SPELL_RUNES[Math.floor(Math.random() * SPELL_RUNES.length)];
+    if (!def) return;
+    const s = sc.add.image(x, y, spellRuneIcon(def.id)).setScale(0.6).setDepth(D.entityBase + y - 2);
+    const [tx, ty] = this.popTo(s, x, y);
+    const beam = sc.add.image(tx, ty + 2, 'beam').setOrigin(0.5, 1).setTint(Phaser.Display.Color.HexStringToColor(def.color).color).setAlpha(0.7).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow).setScale(0.8, 0.8);
+    sc.tweens.add({ targets: beam, alpha: 0.25, yoyo: true, repeat: -1, duration: 450 });
+    this.ground.push({ kind: 'srune', rune: def.id, amount: 1, x: tx, y: ty, sprite: s, beam, ready: sc.time.now + 400, dead: false });
+  }
+
   /** a random rune fitting the depth (bonus: grades above the usual) */
   dropRandomRune(x: number, y: number, bonus = 0) {
     this.dropRune(randomRune(this.scene.floor, bonus), x, y);
@@ -343,6 +360,12 @@ export class Loot {
       maxStat(p.save, 'bestGem', parseGem(g.gem!)?.tier ?? 1);
       sfx('pickup');
       sc.ui.loot(gemName(g.gem!), parseGem(g.gem!)?.def.color ?? '#fff', iconURL(gemIcon(g.gem!), 32));
+    } else if (g.kind === 'srune') {
+      addSpellRune(p.save, g.rune!);
+      sfx('levelup');
+      const def = SPELL_RUNE_BY_ID[g.rune!];
+      sc.ui.loot(def.name, def.color, iconURL(spellRuneIcon(def.id), 32));
+      sc.ui.toast(`✧ ${def.name}! Vsaď ji do kouzla v panelu kouzel.`, def.color);
     } else if (g.kind === 'rune') {
       addRune(p.save, g.rune!);
       sfx('pickup');

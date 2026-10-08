@@ -203,6 +203,19 @@ export class Combat {
       e.capBudget -= dmg;
     }
     dmg = Math.max(1, dmg);
+    // spells leave their element behind: fire burns, poison poisons, frost slows
+    if (o.spell && !o.dot && !o.fromAlly) {
+      if (el === 'fire') {
+        e.st.burnT = Math.max(e.st.burnT, 2.5);
+        e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.12);
+      } else if (el === 'poison') {
+        e.st.poisonT = Math.max(e.st.poisonT, 4);
+        e.st.poisonDps = Math.max(e.st.poisonDps, dmg * 0.15);
+      } else if (el === 'ice' && !e.boss) {
+        e.st.slowT = Math.max(e.st.slowT, 1.5);
+        e.st.slowMult = Math.min(e.st.slowT > 0 ? e.st.slowMult : 1, 0.7);
+      }
+    }
     e.hp -= dmg;
     // one blow cannot carry a guardian past a phase mark: every phase gets played out
     const mark = e.nextPhaseHp;

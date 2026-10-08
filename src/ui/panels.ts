@@ -33,7 +33,7 @@ import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR } from '../data/sets';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame, runePouch, addRune } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame, runePouch, addRune, addSpellRune } from '../systems/state';
 import { GEMS, GEM_TIERS, GEM_MAX_TIER, GEM_PLACE_NAME, GemPlace, gemPlace, gemEffect, gemIcon, gemName, parseGem, gemKey, maxSockets, drillCost, combineCost } from '../data/gems';
 import { PETS, PET_BY_ID, PetId, petLevel, petFloorsToNext, petBonusText, petTitle, PET_MAX_LEVEL, PET_FLOORS_PER_LEVEL } from '../data/pets';
 import { difficultyOf } from '../data/difficulty';
@@ -44,6 +44,7 @@ import { CURSE_BY_ID, curseStats } from '../data/curses';
 import { POWER_BY_ID, UNIQUE_BY_ID, UNIQUES } from '../data/uniques';
 import { discoverItem } from '../data/codex';
 import { RUNES, RUNE_TIERS, RUNE_MAX_TIER, parseRune, runeName, runeIcon, runeDesc, runeKey, runeSlots, runeSlotCount, runeCombineCost, RuneType } from '../data/runes';
+import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx, settings, saveSettings, LootRule } from '../systems/audio';
@@ -1476,6 +1477,24 @@ export class Panels {
         b.addEventListener('click', () => {
           sfx('ui');
           const a = b.dataset.a!;
+          if (a === 'srin') {
+            this.spellRunePicker(sp, () => {
+              this.spells(p);
+              this.ui.refreshSkills();
+            });
+            return;
+          }
+          if (a === 'srout') {
+            const r = s.spellRunes?.[sp.id];
+            if (r) {
+              addSpellRune(s, r);
+              delete s.spellRunes![sp.id];
+              saveGame(s);
+            }
+            this.spells(p);
+            this.ui.refreshSkills();
+            return;
+          }
           if (a === 'invest') {
             if (!canInvest(s, sp.id)) return;
             s.spellPoints--;
@@ -1554,7 +1573,49 @@ export class Panels {
       <div class="statline"><span>Odemčení</span><b>${locked ? '🔒 ' : ''}úroveň ${sp.lvl}</b></div>
       <div class="statline"><span>Stupeň</span><b class="rank">${locked ? '-' : rank + ' / ' + MAX_SPELL_RANK}</b></div>
       ${!locked ? `<div class="row" style="margin-top:8px"><button class="btn green" data-a="invest" ${canInvest(s, sp.id) ? '' : 'disabled'}>Vylepšit (+1 bod)</button></div>` : ''}
-      ${btns ? `<div class="hint" style="margin-top:8px">Přiřadit do slotu:</div><div class="row">${btns}</div>` : ''}`;
+      ${btns ? `<div class="hint" style="margin-top:8px">Přiřadit do slotu:</div><div class="row">${btns}</div>` : ''}
+      ${locked ? '' : this.spellRuneBoxHtml(sp)}`;
+  }
+
+  /** the rune slot of a spell: the rune in it (take it out) or the runes in the bag (set one) */
+  spellRuneBoxHtml(sp: SpellDef) {
+    const s = this.save;
+    const rune = s.spellRunes?.[sp.id];
+    const def = rune ? SPELL_RUNE_BY_ID[rune] : null;
+    const owned = Object.values(s.spellRuneBag ?? {}).reduce((a, b) => a + b, 0);
+    return `<div class="box srbox"><b style="color:#d08aff">Runa kouzla</b>${
+      def
+        ? `<div class="srrow"><img src="${iconURL(spellRuneIcon(def.id), 30)}"><div style="min-width:0"><div style="color:${def.color}">${esc(def.name)}</div><div class="lv2">${esc(def.desc)}</div></div></div><button class="btn small" data-a="srout">Vyjmout runu</button>`
+        : `<div class="hint">Runa změní, jak kouzlo funguje. Padají ze strážců, šampionů, nemesis a truhel.</div><button class="btn small purple" data-a="srin" ${owned ? '' : 'disabled'}>Vsadit runu (${owned} v batohu)</button>`
+    }</div>`;
+  }
+
+  /** choose a spell rune from the bag for a spell */
+  spellRunePicker(sp: SpellDef, after: () => void) {
+    const s = this.save;
+    const bag = s.spellRuneBag ?? {};
+    const ids = Object.keys(bag).filter((k) => bag[k] > 0 && SPELL_RUNE_BY_ID[k]);
+    const d = el(`<div class="panel small"><div class="head"><h2>Runa pro: ${esc(sp.name)}</h2><button class="close">✕</button></div><div style="padding:10px"><div class="gemlist">${ids
+      .map((k) => {
+        const r = SPELL_RUNE_BY_ID[k];
+        return `<button class="spcard gempick" data-sr="${k}"><img src="${iconURL(spellRuneIcon(k), 30)}"><div><div class="nm" style="color:${r.color}">${esc(r.name)} <span class="hint">×${bag[k]}</span></div><div class="lv2">${esc(r.desc)}</div></div></button>`;
+      })
+      .join('')}</div></div></div>`);
+    const close = this.ui.dialog(d);
+    $('.close', d).addEventListener('click', () => close());
+    d.querySelectorAll<HTMLElement>('[data-sr]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const k = b.dataset.sr!;
+        if (!bag[k]) return close();
+        addSpellRune(s, k, -1);
+        (s.spellRunes ??= {})[sp.id] = k;
+        sfx('upgrade');
+        this.ui.toast(`${SPELL_RUNE_BY_ID[k].name} → ${sp.name}`, SPELL_RUNE_BY_ID[k].color);
+        saveGame(s);
+        close();
+        after();
+      }),
+    );
   }
 
   // ------------------------------------------------------------------ MERCHANT

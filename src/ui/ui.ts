@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BOSS_PHASE_HP, BOSS_PHASES } from '../data/bossphases';
+import { SPELL_RUNE_BY_ID } from '../data/spellrunes';
 import type { GameScene, MerchantStock } from '../scenes/GameScene';
 import type { Enemy } from '../game/entities';
 import { iconURL, spellIcon } from '../gfx/textures';
@@ -370,6 +371,17 @@ class UIManager {
         img.src = spellIcon('plus', '#555555', 80);
         b.classList.add('empty');
       }
+      // a spell rune shows as a small coloured gem on the button
+      const rune = id ? s.spellRunes?.[id] : undefined;
+      let mark = b.querySelector<HTMLElement>('.srmark');
+      if (rune && SPELL_RUNE_BY_ID[rune]) {
+        if (!mark) {
+          mark = document.createElement('i');
+          mark.className = 'srmark';
+          b.appendChild(mark);
+        }
+        mark.style.background = SPELL_RUNE_BY_ID[rune].color;
+      } else mark?.remove();
     });
     const portrait = $('.portrait img', this.hud) as HTMLImageElement;
     portrait.src = iconURL('pl_' + s.cls, 64);

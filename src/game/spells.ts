@@ -1,3 +1,4 @@
+import { runeFx } from '../data/spellrunes';
 import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { SPELL_BY_ID, SpellDef, Fx } from '../data/spells';
@@ -78,14 +79,19 @@ export class Spells {
   }
 
   // -------------------------------------------------------------- casting
+  /** the spell rune set into a spell */
+  runeOf(sp: SpellDef) {
+    return this.p.save.spellRunes?.[sp.id];
+  }
+
   manaCost(sp: SpellDef) {
-    // arcaneFlow: spells cost less
-    return Math.round(sp.mana * (1 + 0.012 * this.p.save.level) * (this.p.d.specials.has('arcaneFlow') ? 0.7 : 1));
+    // arcaneFlow: spells cost less; a rune of power costs more
+    return Math.round(sp.mana * (1 + 0.012 * this.p.save.level) * (this.p.d.specials.has('arcaneFlow') ? 0.7 : 1) * (this.runeOf(sp) === 'power' ? 1.4 : 1));
   }
 
   cooldown(sp: SpellDef) {
     const rank = spellRank(this.p.save, sp.id);
-    return sp.cd * (1 - this.p.d.cdr / 100) * (1 - 0.02 * (rank - 1));
+    return sp.cd * (1 - this.p.d.cdr / 100) * (1 - 0.02 * (rank - 1)) * (this.runeOf(sp) === 'haste' ? 0.65 : 1);
   }
 
   tryCast(slot: number): boolean {
@@ -103,6 +109,16 @@ export class Spells {
     }
     p.mp -= cost;
     if (p.d.specials.has('arcaneFlow')) p.heal(p.d.maxHp * 0.03, false);
+    const rune = this.runeOf(sp);
+    if (rune === 'vamp') p.heal(p.d.maxHp * 0.04);
+    if (rune === 'echo' && Math.random() < 0.3) {
+      this.scene.time.delayedCall(350, () => {
+        if (!p.dead) {
+          this.scene.fx.number(p.x, p.y - 22, 'ozvěna!', '#c77dff');
+          this.execute(sp);
+        }
+      });
+    }
     // blood magic: every spell also costs a little health
     if (p.d.specials.has('bloodPrice')) p.hp = Math.max(1, p.hp - p.d.maxHp * 0.03);
     p.cds[slot] = this.cooldown(sp);
@@ -164,7 +180,9 @@ export class Spells {
     const col = Phaser.Display.Color.HexStringToColor(sp.color).color;
     sc.fx.burst(p.x, p.y - 8, col, 10);
     const rank = spellRank(p.save, sp.id);
-    for (const f of sp.fx) {
+    const rune = this.runeOf(sp);
+    for (const f0 of sp.fx) {
+      const f = runeFx(f0, rune);
       const run = () => this.runFx(sp, f, rank, col);
       if (f.delay && !['aoe', 'rain'].includes(f.t)) sc.time.delayedCall(f.delay * 1000, run);
       else run();

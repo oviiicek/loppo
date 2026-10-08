@@ -7,6 +7,7 @@ import { UNIQUES, UNIQUE_BY_ID } from './uniques';
 import { SETS } from './sets';
 import { GEMS, GEM_MAX_TIER, gemKey } from './gems';
 import { RUNES, RUNE_MAX_TIER, runeKey } from './runes';
+import { SPELL_RUNES } from './spellrunes';
 
 export interface Codex {
   /** uniques (ids) */
@@ -32,7 +33,7 @@ export const CODEX_TOTALS = {
   u: UNIQUES.length,
   s: SETS.reduce((a, d) => a + d.pieces.length, 0),
   b: BASES.length * RARITIES.length,
-  g: GEMS.length * GEM_MAX_TIER + RUNES.length * RUNE_MAX_TIER,
+  g: GEMS.length * GEM_MAX_TIER + RUNES.length * RUNE_MAX_TIER + SPELL_RUNES.length,
 };
 export const CODEX_TOTAL = CODEX_TOTALS.u + CODEX_TOTALS.s + CODEX_TOTALS.b + CODEX_TOTALS.g;
 
@@ -70,6 +71,11 @@ export function syncCodex(s: SaveData) {
   for (const it of items) if (it) discoverItem(s, it);
   for (const k of Object.keys(s.gems ?? {})) discoverStone(s, k);
   for (const k of Object.keys(s.runes ?? {})) discoverStone(s, k);
+  for (const k of [...Object.keys(s.spellRuneBag ?? {}), ...Object.values(s.spellRunes ?? {})]) discoverStone(s, 'spell:' + k);
 }
 
-export const ALL_STONES = [...GEMS.flatMap((g) => Array.from({ length: GEM_MAX_TIER }, (_, t) => gemKey(g.id, t + 1))), ...RUNES.flatMap((r) => Array.from({ length: RUNE_MAX_TIER }, (_, t) => runeKey(r.id, t + 1)))];
+export const ALL_STONES = [
+  ...GEMS.flatMap((g) => Array.from({ length: GEM_MAX_TIER }, (_, t) => gemKey(g.id, t + 1))),
+  ...RUNES.flatMap((r) => Array.from({ length: RUNE_MAX_TIER }, (_, t) => runeKey(r.id, t + 1))),
+  ...SPELL_RUNES.map((r) => 'spell:' + r.id),
+];

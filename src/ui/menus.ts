@@ -20,6 +20,7 @@ import { UNIQUES, POWER_BY_ID } from '../data/uniques';
 import { SETS, SET_COLOR } from '../data/sets';
 import { parseGem, gemIcon, gemName } from '../data/gems';
 import { runeIcon, runeName } from '../data/runes';
+import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
 
 type UIM = typeof UIType;
 
@@ -549,8 +550,9 @@ export class Menus {
       ).join('')}</table>`;
       const stones = ALL_STONES.map((k) => {
         const found = c.g.includes(k);
-        const ic = parseGem(k) ? gemIcon(k) : runeIcon(k);
-        return `<span class="cxp ${found ? 'found' : ''}" title="${found ? esc(parseGem(k) ? gemName(k) : runeName(k)) : '???'}"><img src="${iconURL(ic, 30)}"></span>`;
+        const sr = k.startsWith('spell:') ? SPELL_RUNE_BY_ID[k.slice(6)] : null;
+        const ic = sr ? spellRuneIcon(sr.id) : parseGem(k) ? gemIcon(k) : runeIcon(k);
+        return `<span class="cxp ${found ? 'found' : ''}" title="${found ? esc(sr ? sr.name : parseGem(k) ? gemName(k) : runeName(k)) : '???'}"><img src="${iconURL(ic, 30)}"></span>`;
       }).join('');
       body = `<div class="codexhead">Objeveno <b>${codexCount(s)}/${CODEX_TOTAL}</b> · unikáty ${c.u.length}/${CODEX_TOTALS.u} · kusy sad ${c.s.length}/${CODEX_TOTALS.s} · druhy předmětů ${c.b.length}/${CODEX_TOTALS.b} · drahokamy a runy ${c.g.length}/${CODEX_TOTALS.g}</div>
         <h3 class="cxh">Legendární unikáty</h3><div class="cxgrid">${uq}</div>

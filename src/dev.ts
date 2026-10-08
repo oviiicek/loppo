@@ -717,3 +717,12 @@ Object.assign(dev, {
   },
 });
 import { UNIQUE_BY_ID } from './data/uniques';
+Object.assign(dev, {
+  /** every spell rune into the bag */
+  spellRunes(n = 1) {
+    const s = (window as any).__scene.save;
+    s.spellRuneBag ??= {};
+    for (const id of ['echo', 'split', 'fire', 'frost', 'storm', 'venom', 'power', 'haste', 'vamp', 'pierce', 'seek', 'blast']) s.spellRuneBag[id] = (s.spellRuneBag[id] ?? 0) + n;
+    return true;
+  },
+});

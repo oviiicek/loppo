@@ -6,6 +6,7 @@ import { buildHeroStrip, HERO_W, HERO_H, HERO_FRAMES } from './heroes';
 import { PET_ART } from './pets';
 import { GEMS, GEM_MAX_TIER } from '../data/gems';
 import { RUNES, RUNE_MAX_TIER } from '../data/runes';
+import { SPELL_RUNES } from '../data/spellrunes';
 
 // ---------------------------------------------------------------------------
 // Registry helpers
@@ -3707,6 +3708,38 @@ function buildRunes() {
       }
       addCanvas(`rune_${r.id}_${t}`, c);
     }
+  // spell runes: a six-sided crystal plate of the rune's colour with a white glyph
+  const SG: Record<string, string[]> = {
+    echo: ['x...x', 'x.x.x', 'x.x.x', 'x.x.x', 'x...x'],
+    split: ['x.x.x', '.xxx.', '..x..', '..x..', '..x..'],
+    fire: GLYPHS.fire,
+    frost: GLYPHS.frost,
+    storm: GLYPHS.storm,
+    venom: GLYPHS.poison,
+    power: ['..x..', '.xxx.', 'xxxxx', '..x..', '..x..'],
+    haste: ['xx.xx', '.xx.x', '..xx.', '.xx.x', 'xx.xx'],
+    vamp: GLYPHS.leech,
+    pierce: ['x....', '.x...', '..xxx', '.x...', 'x....'],
+    seek: ['.xxx.', 'x...x', 'x.x.x', 'x...x', '.xxx.'],
+    blast: ['x.x.x', '.x.x.', 'x.x.x', '.x.x.', 'x.x.x'],
+  };
+  for (const r of SPELL_RUNES) {
+    const S = 15;
+    const [c, ctx] = canvas(S, S);
+    const dark = shade(r.color, -0.45),
+      light = shade(r.color, 0.35);
+    for (let y = 1; y < 14; y++)
+      for (let x = 1; x < 14; x++) {
+        // a hexagon: cut corners
+        const dy = Math.abs(y - 7);
+        if (Math.abs(x - 7) > 6 - Math.max(0, dy - 3)) continue;
+        px(ctx, x, y, y < 5 ? light : y > 10 ? dark : r.color);
+      }
+    const g = SG[r.id] ?? GLYPHS.fire;
+    for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) if (g[y][x] === 'x') px(ctx, 5 + x, 5 + y, '#ffffff');
+    outline(c, OUT);
+    addCanvas(`srune_${r.id}`, c);
+  }
   // an empty rune socket
   const [c, ctx] = canvas(15, 15);
   for (let y = 2; y < 13; y++) for (let x = 3; x < 12; x++) px(ctx, x, y, x === 3 || y === 2 ? '#1a1620' : '#2a2430');

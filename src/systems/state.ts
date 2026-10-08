@@ -70,6 +70,16 @@ export interface SaveData {
   merc?: MercState;
   /** everything ever found (see data/codex.ts) */
   codex?: Codex;
+  /** spell runes the hero carries (id: count) and the rune set into each spell (spell id: rune id) */
+  spellRuneBag?: Record<string, number>;
+  spellRunes?: Record<string, string>;
+}
+
+export function addSpellRune(s: SaveData, id: string, n = 1) {
+  if (n > 0) discoverStone(s, 'spell:' + id);
+  const b = (s.spellRuneBag ??= {});
+  b[id] = (b[id] ?? 0) + n;
+  if (b[id] <= 0) delete b[id];
 }
 
 export function gemPouch(s: SaveData): Record<string, number> {

@@ -1147,6 +1147,7 @@ export class GameScene extends Phaser.Scene {
     if (kills >= 10) this.loot.dropMat('stone', 1 + Math.floor(kills / 12), it.x, it.y);
     for (let i = 0; i < 1 + Math.floor(kills / 10); i++) this.loot.dropRandomGem(it.x, it.y);
     this.loot.dropRandomRune(it.x, it.y);
+    if (Math.random() < 0.3) this.loot.dropSpellRune(it.x, it.y);
     bumpStat(this.save, 'cursed');
     UI.toast(`Prokletí zlomeno! Poraženo ${kills} ${kills === 1 ? 'nestvůra' : kills > 1 && kills < 5 ? 'nestvůry' : 'nestvůr'}.`, '#9dff9a');
     bus.emit('stats');

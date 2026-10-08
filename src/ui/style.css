@@ -3542,3 +3542,31 @@ textarea.code {
 .cxno {
   color: #4a4456;
 }
+
+/* the rune slot of a spell */
+.srbox {
+  margin-top: 8px;
+}
+.srrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+.srrow img {
+  width: 30px;
+  height: 30px;
+  image-rendering: pixelated;
+}
+
+.skill .srmark {
+  position: absolute;
+  right: 6%;
+  top: 6%;
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  border: 1px solid #000;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+}
