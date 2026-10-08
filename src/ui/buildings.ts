@@ -1,4 +1,4 @@
-import { $, esc } from './ui';
+import { $, esc, keepScrollOn } from './ui';
 import type { UI as UIType } from './ui';
 import { iconURL } from '../gfx/textures';
 import { BUILDING_BY_ID, BuildingId, BLESSINGS, BLESSING_BY_ID, blessingFloors, activeBlessing, buildingLevel, villageOf, runeMaxTier, restFloors, restedOf, BUILDINGS } from '../data/village';
@@ -50,6 +50,8 @@ export class BuildingPanels {
   ui: UIM;
   constructor(ui: UIM) {
     this.ui = ui;
+    // a building's tab drawn anew (an upgrade bought, a potion brewed) stays scrolled where it was
+    keepScrollOn(this, ['potions', 'runes', 'blessings', 'curses', 'rest', 'trophies', 'upgrade']);
   }
 
   get P() {

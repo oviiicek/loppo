@@ -1,5 +1,5 @@
 import type { MerchantStock } from '../scenes/GameScene';
-import { $, el, esc } from './ui';
+import { $, el, esc, keepScrollOn } from './ui';
 import type { UI as UIType } from './ui';
 import { iconURL, spellIcon } from '../gfx/textures';
 import {
@@ -61,6 +61,8 @@ const EQUIP_RIGHT: Slot[] = ['off', 'amulet', 'bracer', 'belt', 'ring1', 'ring2'
 const EQUIP_TO: Partial<Record<Slot, string>> = { main: 'Do pravé ruky', off: 'Do levé ruky', ring1: 'Prsten 1', ring2: 'Prsten 2' };
 
 type MysteryId = 'weapon' | 'armor' | 'jewel' | 'any';
+/** how many mystery bags one merchant has */
+const MYSTERY_PER_MERCHANT = 4;
 const MYSTERY: { id: MysteryId; name: string; icon: string }[] = [
   { id: 'weapon', name: 'Zbraň tvého stylu', icon: 'ic_sword_t3' },
   { id: 'armor', name: 'Zbroj', icon: 'ic_chest_t3' },
@@ -86,6 +88,8 @@ export class Panels {
     window.addEventListener('resize', () =>
       requestAnimationFrame(() => this.ui.root?.querySelectorAll<HTMLElement>('.headmats').forEach((b) => b.parentElement && this.fitHead(b.parentElement))),
     );
+    // a panel drawn anew (a point added, an item upgraded) stays scrolled where it was
+    keepScrollOn(this, ['runes', 'gems', 'inventory', 'character', 'pets', 'merc', 'transmute', 'spells', 'merchant', 'forge', 'stash', 'classChange']);
   }
 
   private headSig = '';
@@ -2042,9 +2046,12 @@ export class Panels {
 
   curStock: MerchantStock | null = null;
 
+  /** a mystery bag costs well above what it gives on average, and every further bag from the same merchant
+   *  costs 40 % more than the one before */
   mysteryPrice(id: MysteryId) {
     const f = this.sc.floor;
-    return Math.round(160 * (1 + 0.18 * f) * (id === 'any' ? 0.75 : 1));
+    const bought = this.curStock?.mystery ?? 0;
+    return Math.round(520 * (1 + 0.18 * f) * (id === 'any' ? 0.8 : 1) * Math.pow(1.4, bought));
   }
 
   rollMystery(id: MysteryId): Item {
@@ -2106,14 +2113,15 @@ export class Panels {
     if (this.merchantTab === 'stash') return this.stash(p);
     const body = $('.body', p);
     const s = this.save;
+    const mysteryLeft = Math.max(0, MYSTERY_PER_MERCHANT - (stock.mystery ?? 0));
     body.innerHTML = `
       <div class="col" style="flex:1;min-width:0">
         <div class="hint">Zboží se u každého obchodníka liší. Klepni na předmět pro detail.</div>
         <div class="scroll" style="flex:1"><div class="grid">${stock.items.map((it, i) => this.slotHtml(it, `shop" data-idx="${i}`, '', buyPrice(it))).join('')}</div>
         ${stock.buyback?.length ? `<b style="color:#ffd76a;display:block;margin-top:8px">Zpětný odkup</b><div class="hint">Tvé prodané předměty – koupíš je zpět za stejnou cenu.</div><div class="grid">${stock.buyback.map((b, i) => this.slotHtml(b.it, `back" data-idx="${i}`, '', b.price)).join('')}</div>` : ''}
-        <div class="box" style="margin-top:8px"><b style="color:#ffd76a">Tajemné zboží</b> <span class="hint">předmět neznámé kvality, často vzácný nebo lepší</span>
+        <div class="box" style="margin-top:8px"><b style="color:#ffd76a">Tajemné zboží</b> <span class="hint">předmět neznámé kvality · ${mysteryLeft ? `zbývá ${mysteryLeft} z ${MYSTERY_PER_MERCHANT}, každý další dražší` : 'vyprodáno – další obchodník bude mít nové'}</span>
           <div class="mystery">${MYSTERY.map(
-            (m) => `<div class="myst"><div class="slot r2"><img src="${iconURL(m.icon, 64)}"><span class="q">?</span></div><div class="nm">${m.name}</div><button class="btn small green" data-myst="${m.id}" ${s.gold < this.mysteryPrice(m.id) ? 'disabled' : ''}>${this.mysteryPrice(m.id)} zl.</button></div>`,
+            (m) => `<div class="myst"><div class="slot r2"><img src="${iconURL(m.icon, 64)}"><span class="q">?</span></div><div class="nm">${m.name}</div><button class="btn small green" data-myst="${m.id}" ${!mysteryLeft || s.gold < this.mysteryPrice(m.id) ? 'disabled' : ''}>${mysteryLeft ? this.mysteryPrice(m.id).toLocaleString('cs-CZ') + ' zl.' : '—'}</button></div>`,
           ).join('')}</div>
         </div>
         <div class="box" style="margin-top:8px">${stock.mats
@@ -2185,7 +2193,7 @@ export class Panels {
       b.addEventListener('click', () => {
         const id = b.dataset.myst as MysteryId;
         const price = this.mysteryPrice(id);
-        if (s.gold < price) return;
+        if (s.gold < price || (stock.mystery ?? 0) >= MYSTERY_PER_MERCHANT) return;
         if (!s.inventory.some((x) => !x)) {
           this.ui.toast('Inventář je plný', '#ff8080');
           return;
@@ -2193,6 +2201,7 @@ export class Panels {
         const it = this.rollMystery(id);
         addToInventory(s, it);
         s.gold -= price;
+        stock.mystery = (stock.mystery ?? 0) + 1;
         maxStat(s, 'bestRarity', it.rarity);
         sfx(it.rarity >= 4 ? 'levelup' : it.rarity >= 3 ? 'chest' : 'coin');
         this.ui.toast(`${it.set ? 'Předmět sady' : RARITIES[it.rarity].name}: ${it.name}`, itemColor(it), it);

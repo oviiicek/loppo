@@ -7,7 +7,7 @@ import { BuffMods } from '../data/spells';
 import { BASE_BY_ID, itemTier } from '../data/items';
 import { bus } from '../systems/events';
 import { sfx } from '../systems/audio';
-import { ACTOR_SCALE } from '../gfx/textures';
+import { ACTOR_SCALE, WEAPON_SCALE } from '../gfx/textures';
 import { HERO_FRAMES, heroHand, heroHandB } from '../gfx/heroes';
 
 export interface Buff {
@@ -182,12 +182,12 @@ export class Player extends Actor {
     const main = this.save.equip.main;
     if (main) {
       const key = `wp_${main.base}_t${itemTier(main)}`;
-      this.weapon = this.scene.add.image(this.x, this.y, key).setOrigin(0.5, 0.85).setScale(ACTOR_SCALE);
+      this.weapon = this.scene.add.image(this.x, this.y, key).setOrigin(0.5, 0.85).setScale(WEAPON_SCALE);
     }
     const off = this.save.equip.off;
     if (off) {
       const key = `wp_${off.base}_t${itemTier(off)}`;
-      this.offhand = this.scene.add.image(this.x, this.y, key).setOrigin(0.5, off.base === 'shield' || off.base === 'orb' ? 0.5 : 0.85).setScale(ACTOR_SCALE);
+      this.offhand = this.scene.add.image(this.x, this.y, key).setOrigin(0.5, off.base === 'shield' || off.base === 'orb' ? 0.5 : 0.85).setScale(WEAPON_SCALE);
     }
   }
 
@@ -717,7 +717,7 @@ export class Player extends Actor {
         p.oy = 0.5;
         p.x = this.x + Math.cos(a) * 4;
         p.y = this.y - 6 + Math.sin(a) * 3 + bob;
-        this.weapon.setScale((this.swinging > 0 ? 0.85 + 0.15 * swingP : 1) * ACTOR_SCALE, ACTOR_SCALE);
+        this.weapon.setScale((this.swinging > 0 ? 0.85 + 0.15 * swingP : 1) * WEAPON_SCALE, WEAPON_SCALE);
         this.weapon.setFlipX(false);
       } else if (kind === 'magic') {
         const a = this.target ? this.aim : -Math.PI / 2 + 0.3 * f;
@@ -747,7 +747,7 @@ export class Player extends Actor {
         oy = ay + bhy * ACTOR_SCALE;
       const p: Placement = { x: ox, y: oy, rot: 0, ox: 0.5, oy: 0.5, depth: depth + 0.6 };
       if (offBase === 'shield') {
-        this.offhand.setScale(0.8 * ACTOR_SCALE);
+        this.offhand.setScale(0.9 * WEAPON_SCALE);
       } else if (offBase === 'orb') {
         p.y = oy - 4 + Math.sin(this.scene.time.now / 300) * 1.5;
       } else {

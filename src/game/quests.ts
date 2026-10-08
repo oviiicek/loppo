@@ -2,7 +2,7 @@ import type { GameScene } from '../scenes/GameScene';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
 import { saveGame, SaveData } from '../systems/state';
-import { Quest, QUEST_COUNTER } from '../data/quests';
+import { Quest, QUEST_COUNTER, makeTreasureMap, MAX_TREASURE_MAPS } from '../data/quests';
 import { villageOf } from '../data/village';
 import { isBossFloor } from '../data/enemies';
 
@@ -44,6 +44,7 @@ export class QuestLog {
       if (q.type === 'lost' && !isBossFloor(f)) sc.enc.placeLost(q);
       else if (q.type === 'tomb' && !isBossFloor(f)) sc.placeCursedChest(q.id);
       else if (q.type === 'rift' && !isBossFloor(f)) sc.enc.placePortal('rift', q.id);
+      else if (q.type === 'treasure' && !isBossFloor(f)) sc.enc.placeTreasure(q);
     }
   }
 
@@ -71,6 +72,33 @@ export class QuestLog {
     sc.ui.toast(`📜 Úkol splněn: ${q.title}! Odměnu si vyzvedni ${(q as { royal?: boolean }).royal ? 'u krále' : 'na nástěnce'} v Loppu.`, '#9dff7a');
     saveGame(sc.save);
     bus.emit('stats');
+  }
+
+  /** treasure maps the hero carries (not dug up yet) */
+  get maps(): Quest[] {
+    return this.list.filter((q) => q.type === 'treasure');
+  }
+
+  /** maybe a treasure map falls out (of a chest, a champion, a thief): a new side quest with a cross on a
+   *  floor below; true when one was found */
+  maybeMap(chance: number): boolean {
+    const sc = this.sc;
+    if (sc.rift || sc.inVillage || Math.random() >= chance || this.maps.length >= MAX_TREASURE_MAPS) return false;
+    const q = makeTreasureMap(sc.floor);
+    (villageOf(sc.save).quests ??= []).push(q);
+    sfx('chest');
+    sc.ui.toast(`🗺 Mapa pokladu! Křížek je zakreslen v ${q.floor}. patře – najdeš ji v deníku úkolů.`, '#ffd23a');
+    saveGame(sc.save);
+    bus.emit('quests');
+    return true;
+  }
+
+  /** a treasure was dug up: the map is used up */
+  removeMap(id: number) {
+    const v = villageOf(this.sc.save);
+    v.quests = (v.quests ?? []).filter((q) => q.id !== id);
+    saveGame(this.sc.save);
+    bus.emit('quests');
   }
 
   completeById(id: number) {

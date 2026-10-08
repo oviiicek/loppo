@@ -150,8 +150,10 @@ export abstract class Actor {
   syncSprite(moving: boolean) {
     const kx = this.knockX,
       ky = this.knockY;
-    this.sprite.setPosition(Math.round(this.x), Math.round(this.y + 3) - (this.flying ? 4 : 0) - Math.round(this.hop));
-    this.shadow.setPosition(Math.round(this.x), Math.round(this.y + 3));
+    // on the screen's pixel grid (finer than whole world pixels), in step with the camera
+    const sc = this.scene;
+    this.sprite.setPosition(sc.snap(this.x), sc.snap(this.y + 3 - this.hop) - (this.flying ? 4 : 0));
+    this.shadow.setPosition(sc.snap(this.x), sc.snap(this.y + 3));
     this.sprite.setDepth(D.entityBase + this.y + (this.flying ? 20 : 0));
     this.sprite.setFlipX(this.facing < 0);
     if (this.animated === 'humanoid') this.chooseAnim(moving);
@@ -483,8 +485,8 @@ export class Enemy extends Actor {
 
   syncSprite(moving: boolean) {
     super.syncSprite(moving);
-    if (this.roleIcon) this.roleIcon.setPosition(Math.round(this.x), Math.round(this.y - 20 * this.baseScale - 8 - this.hop)).setDepth(D.entityBase + this.y + 40);
-    if (this.corrupt && this.nameLabel) this.nameLabel.setPosition(Math.round(this.x), Math.round(this.y - 20 * this.baseScale - (this.roleIcon ? 13 : 5) - this.hop));
+    if (this.roleIcon) this.roleIcon.setPosition(this.scene.snap(this.x), this.scene.snap(this.y - 20 * this.baseScale - 8 - this.hop)).setDepth(D.entityBase + this.y + 40);
+    if (this.corrupt && this.nameLabel) this.nameLabel.setPosition(this.scene.snap(this.x), this.scene.snap(this.y - 20 * this.baseScale - (this.roleIcon ? 13 : 5) - this.hop));
   }
 
   get phaseCount() {

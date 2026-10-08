@@ -83,9 +83,9 @@ export const BUILDINGS: BuildingDef[] = [
     rescue: 7,
     desc: 'Úkoly od vesničanů. Za splnění zlato, předměty a materiál.',
     levels: [
-      { cost: 0, text: 'Až 2 úkoly zároveň' },
-      { cost: 6000, text: 'Až 3 úkoly zároveň, o 25 % vyšší odměny' },
-      { cost: 30000, text: 'Až 4 úkoly zároveň, o 50 % vyšší odměny' },
+      { cost: 0, text: 'Až 5 úkolů zároveň' },
+      { cost: 6000, text: 'Až 7 úkolů zároveň, o 25 % vyšší odměny' },
+      { cost: 30000, text: 'Až 10 úkolů zároveň, o 50 % vyšší odměny' },
     ],
     color: '#9dff7a',
     icon: 'page',
@@ -218,7 +218,7 @@ export function runeMaxTier(s: { village?: VillageState }) {
 
 /** how many quests the board holds at once and how much more they pay */
 export function questSlots(s: { village?: VillageState }) {
-  const base = [0, 2, 3, 4][buildingLevel(s, 'board')] ?? 0;
+  const base = [0, 5, 7, 10][buildingLevel(s, 'board')] ?? 0;
   // the king's golden seal makes room for one more
   return base && (s.village?.royal?.favor ?? 0) >= 6 ? base + 1 : base;
 }

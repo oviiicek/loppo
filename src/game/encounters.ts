@@ -36,7 +36,8 @@ export type EvType =
   | 'golden'
   | 'dragon'
   | 'dream'
-  | 'rain';
+  | 'rain'
+  | 'treasure';
 
 export type RiftKind = 'rift' | 'dream';
 
@@ -85,6 +86,8 @@ export class Encounters {
   rift: { kind: RiftKind; need: number; kills: number; t: number; total: number; guard: Enemy | null; cleared: boolean } | null = null;
   private callT = 0;
   private labelT = 0;
+  /** the names over people's heads (what they say goes above them) */
+  private names: Phaser.GameObjects.Text[] = [];
   /** a villager of Loppo already waits on this floor (a second captive is a stranger) */
   private villagerHere = false;
 
@@ -210,11 +213,15 @@ export class Encounters {
   /** a person standing on the floor: the sprite, its shadow and a name over the head */
   private person(key: string, x: number, y: number, name: string, color: string) {
     const sc = this.sc;
+    // a look that was never drawn (a tied-up variant) falls back to the free one, never to an empty square
+    if (!sc.textures.exists(key)) key = sc.textures.exists(key.replace(/_tied$/, '')) ? key.replace(/_tied$/, '') : 'npc_villager_tied';
     const s = sc.add.sprite(x, y + 6, key, 0).setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + y + 6);
     if (sc.anims.exists(key + '_idle')) s.play(key + '_idle');
     const sh = sc.add.image(x, y + 6, 'shadow').setDepth(D.floorDeco + 2);
     const t = sc.fx.label(x, y - 15, name, color, 6);
     t.setDepth(99980).setVisible(false);
+    this.names = this.names.filter((n) => n.active);
+    this.names.push(t);
     return { s, sh, t };
   }
 
@@ -233,6 +240,12 @@ export class Encounters {
   /** a short line spoken over someone's head */
   say(x: number, y: number, text: string, color = '#f0e6d0', ms = 2600) {
     const sc = this.sc;
+    // a name over the same head stays readable: the words go above it
+    for (const n of this.names) {
+      if (!n.active || !n.visible || Math.abs(n.x - x) > 40) continue;
+      const top = n.y - n.displayHeight;
+      if (y > top && y - 12 < n.y) y = top - 1;
+    }
     const t = sc.fx.label(x, y, text, color, 6, true);
     t.setDepth(99985);
     sc.tweens.add({ targets: t, y: y - 6, alpha: { from: 1, to: 0 }, delay: ms - 500, duration: 500, onComplete: () => t.destroy() });
@@ -274,6 +287,46 @@ export class Encounters {
   }
 
   // ================================================================== captives
+  /** the cross of a treasure map: a patch of loose earth somewhere far from the stairs */
+  placeTreasure(q: Quest) {
+    const sc = this.sc;
+    if (sc.interactables.some((i) => i.kind === 'ev' && i.data.ev.questId === q.id && !i.used)) return false;
+    const c = this.spot(14);
+    if (!c) return false;
+    const x = c.x * TS + 8,
+      y = c.y * TS + 8;
+    const s = this.prop('ev_dig', x, y + 7);
+    const g = this.glow(x, y + 2, 0xffd23a, 0.45, 0.22);
+    sc.tweens.add({ targets: g, alpha: 0.08, yoyo: true, repeat: -1, duration: 900 });
+    this.add(x, y + 3, { type: 'treasure', act: 'Kopat', mark: '#ffd23a', questId: q.id, glow: g }, s);
+    return true;
+  }
+
+  /** digging up the treasure of a map: the earth flies, a chest full of good things comes up */
+  private digTreasure(it: Interactable, ev: EvState) {
+    const sc = this.sc;
+    it.used = true;
+    const f = sc.floor;
+    sfx('chest');
+    sc.fx.shake(0.004, 200);
+    sc.fx.burst(it.x, it.y - 2, 0x8a6a40, 22, 'pix');
+    (it.sprite as Phaser.GameObjects.Image | undefined)?.setTexture('ev_dug');
+    (ev.glow as Phaser.GameObjects.Image | undefined)?.destroy();
+    sc.time.delayedCall(350, () => {
+      sc.fx.burst(it.x, it.y - 6, 0xffd23a, 26);
+      sc.loot.dropItem(generateItem(f + 2, { rarity: Math.random() < 0.3 ? 4 : 3, filter: sc.loot.bias() }), it.x, it.y);
+      sc.loot.dropItem(sc.loot.item(f + 1, 2), it.x, it.y);
+      for (let i = 0; i < 6; i++) sc.loot.dropGold(sc.loot.goldAmount(3), it.x, it.y);
+      sc.loot.dropRandomGem(it.x, it.y, 1);
+      if (Math.random() < 0.5) sc.loot.dropRandomRune(it.x, it.y);
+      if (Math.random() < 0.2) sc.loot.dropSpellRune(it.x, it.y);
+      sc.quests.removeMap(ev.questId);
+      bumpStat(sc.save, 'treasures');
+      sc.ui.toast('🗺 Poklad vykopán!', '#ffd23a');
+      bus.emit('stats');
+    });
+  }
+
   /** the lost adventurer of a quest, held captive somewhere on this floor */
   placeLost(q: Quest) {
     if (this.sc.interactables.some((i) => i.kind === 'ev' && i.data.ev.questId === q.id && !i.used)) return false;
@@ -1211,7 +1264,7 @@ export class Encounters {
         return;
       }
       if (e.nameLabel) {
-        e.nameLabel.setPosition(Math.round(e.x), Math.round(e.y - 15 * e.baseScale));
+        e.nameLabel.setPosition(sc.snap(e.x), sc.snap(e.y - 15 * e.baseScale));
         e.nameLabel.setVisible(Math.hypot(p.x - e.x, p.y - e.y) < 230);
       }
       if (!e.spotted && Math.hypot(p.x - e.x, p.y - e.y) < 140 && sc.map.los(e.x, e.y, p.x, p.y)) {
@@ -1740,6 +1793,8 @@ export class Encounters {
       case 'corpse':
       case 'runes':
         return this.readLore(it, ev);
+      case 'treasure':
+        return this.digTreasure(it, ev);
     }
   }
 
@@ -1778,7 +1833,7 @@ export class Encounters {
     if (this.rift) this.updateRift(dt);
     if (this.rainT > 0 || this.rainLeft > 0) this.updateRain(dt);
     // names over the event monsters follow them
-    for (const e of sc.enemies) if (e.tag && e.nameLabel && !e.dead) e.nameLabel.setPosition(Math.round(e.x), Math.round(e.y - 15 * e.baseScale));
+    for (const e of sc.enemies) if (e.tag && e.nameLabel && !e.dead) e.nameLabel.setPosition(sc.snap(e.x), sc.snap(e.y - 15 * e.baseScale));
     // the golden room is found the moment the hero steps in
     const g = this.golden;
     if (g && !g.found) {

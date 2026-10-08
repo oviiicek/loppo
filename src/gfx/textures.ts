@@ -20,6 +20,8 @@ const canvases = new Map<string, HTMLCanvasElement>();
 // Characters, monsters, allies and held weapons are smoothed to double resolution (EPX / Scale2x)
 // and drawn at half scale, so they match the double-detail tiles.
 export const ACTOR_SCALE = 0.5;
+/** weapons in hand are drawn at the actors' double detail but were as long as the hero is tall: held a size smaller */
+export const WEAPON_SCALE = ACTOR_SCALE * 0.7;
 const HI_RES = ['pl_', 'en_', 'al_', 'npc_', 'totem_', 'wp_'];
 // dungeon furniture gets the same treatment (placed with ACTOR_SCALE by the scenes)
 const PROP_KEYS = new Set(['torch', 'bookshelf', 'crate', 'barrel', 'pot', 'table', 'chair', 'bones', 'skull', 'stairs', 'stairs_up', 'door', 'door_open', 'goldpile', 'anvil', 'fountain', 'fountain_used', 'spikes', 'page', 'cage', 'cage_open']);
@@ -1634,7 +1636,7 @@ function buildEnemies() {
   humanoidStrip('en_lich', 'lich', 'robe', { a: '#e9b949', i: '#c77dff', s: '#e8e2cf', e: '#c77dff', c: '#3a1f5a', v: '#24123a', w: '#55307f', u: '#3a1f5a', l: '#e9b949', b: '#120a18', g: '#e8e2cf', d: '#b9b29c' });
   humanoidStrip('en_demon', 'demon', 'armor', { y: '#2a1a1a', s: '#b8281c', j: '#7a1810', d: '#7a1810', e: '#ffde3b', u: '#2a1a1a', c: '#3a2020', v: '#221010', w: '#5a3030', a: '#ff7a2a', l: '#111', p: '#3a2020', q: '#221010', b: '#111', g: '#b8281c' });
   humanoidStrip('npc_merchant', 'merchant', 'robe', { h: '#6a2c8a', a: '#e9b949', s: '#f1c39b', d: '#c98f6b', e: '#1b1b2a', y: '#d8d8e0', c: '#6a2c8a', v: '#4a1c62', w: '#8a44aa', u: '#6a2c8a', l: '#e9b949', b: '#3b2716', g: '#f1c39b' });
-  humanoidStrip('npc_alchemist', 'merchant', 'robe', { h: '#1f6a5a', a: '#7dffcf', s: '#f1c39b', d: '#c98f6b', e: '#1b1b2a', y: '#eceaf4', c: '#1f5a5a', v: '#123c3c', w: '#2f7a7a', u: '#1f5a5a', l: '#7dffcf', b: '#2a1e14', g: '#f1c39b' });
+  humanoidStrip('npc_alchemist', 'merchant', 'robe', ALCHEMIST);
   // the alchemist's cauldron: black iron, green brew
   {
     const [c, ctx] = canvas(16, 14);
@@ -4018,6 +4020,9 @@ function portalStrip(key: string, rim: string, mid: string, core: string, spark:
   );
 }
 
+/** Vanda the alchemist: a teal robe, glowing green trims */
+const ALCHEMIST = { h: '#1f6a5a', a: '#7dffcf', s: '#f1c39b', d: '#c98f6b', e: '#1b1b2a', y: '#eceaf4', c: '#1f5a5a', v: '#123c3c', w: '#2f7a7a', u: '#1f5a5a', l: '#7dffcf', b: '#2a1e14', g: '#f1c39b' };
+
 function buildEvents() {
   // the villagers of Loppo (and how they are found down below: tied up)
   const SK = '#f1c39b',
@@ -4046,6 +4051,8 @@ function buildEvents() {
     humanoidStrip(key, head, body, pal);
     humanoidStrip(key + '_tied', head, body, pal, ropes);
   }
+  // the alchemist is drawn with the village folk, only her tied-up look is made here
+  humanoidStrip('npc_alchemist_tied', 'merchant', 'robe', ALCHEMIST, ropes);
   // the necromancer in chains: a black hood, glowing green eyes
   const necro = { h: '#2a1e3a', j: '#16101e', s: '#c8c0b0', d: '#8a8478', e: '#5dff9a', u: '#2a1e3a', c: '#2a1e3a', v: '#16101e', w: '#3e2e56', a: '#5dff9a', l: '#5dff9a', b: '#0e0a14', g: '#c8c0b0' };
   humanoidStrip('npc_necro', 'hood', 'robe', necro);
@@ -4160,6 +4167,47 @@ function buildEvents() {
   };
   addCanvas('ev_obelisk', iconCanvasSized(12, 26, obelisk(true)));
   addCanvas('ev_obelisk_off', iconCanvasSized(12, 26, obelisk(false)));
+  // the cross of a treasure map: a low mound of loose earth with a red cross painted over it, a forgotten shovel
+  addCanvas(
+    'ev_dig',
+    iconCanvasSized(16, 10, (c) => {
+      ell(c, 8, 7, 7.5, 3, '#3a2a1c');
+      ell(c, 8, 6.5, 6.5, 2.6, '#6a4a2c');
+      ell(c, 7.5, 6, 4.5, 1.6, '#8a6440');
+      for (const [x, y] of [
+        [3, 7],
+        [12, 6],
+        [6, 8],
+        [10, 8],
+      ])
+        px(c, x, y, '#4a3420');
+      // the cross
+      line(c, 5, 4, 10, 8, '#c8282a');
+      line(c, 10, 4, 5, 8, '#c8282a');
+      line(c, 6, 4, 11, 8, '#ff4a3a');
+      line(c, 11, 4, 6, 8, '#e83a30');
+      // the shovel stuck in the earth
+      line(c, 13, 0, 13, 5, '#8a6a40');
+      rect(c, 12, 5, 3, 3, '#9aa0aa');
+      px(c, 12, 5, '#d4dae2');
+    }),
+  );
+  // dug up: a hole, the earth thrown aside
+  addCanvas(
+    'ev_dug',
+    iconCanvasSized(16, 10, (c) => {
+      ell(c, 8, 7, 7.5, 3, '#3a2a1c');
+      ell(c, 8, 7, 5, 2, '#140e0a');
+      ell(c, 8, 6.5, 3.5, 1.2, '#0a0706');
+      for (const [x, y] of [
+        [1, 6],
+        [2, 8],
+        [14, 7],
+        [13, 9],
+      ])
+        rect(c, x, y, 2, 1, '#6a4a2c');
+    }),
+  );
   // a wall of blood light across a doorway (drawn additively, 2 frames)
   creatureStrip(
     'ev_barrier',

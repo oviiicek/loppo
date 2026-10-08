@@ -30,7 +30,7 @@ import { createAllAnims } from '../gfx/anims';
 import { THEMES, themeForFloor, ACTOR_SCALE, isPropTex } from '../gfx/textures';
 import { hash } from '../gfx/pixel';
 import { areaForFloor } from '../data/biomes';
-import { Difficulty, difficultyOf } from '../data/difficulty';
+import { Difficulty, difficultyOf, POTION_CD } from '../data/difficulty';
 import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
 import { Nemesis, NEMESIS_MAX, nemesisName, nemesisTitle, victimOf, nemesisPower, nemesisLabel } from '../data/nemesis';
@@ -85,6 +85,8 @@ export interface MerchantStock {
   mats: { key: 'hpPotion' | 'mpPotion' | 'lockpick' | 'stone' | 'dust'; price: number; qty: number }[];
   // items the player sold here, newest first – can be bought back for the same price
   buyback?: { it: Item; price: number }[];
+  /** mystery bags bought from this merchant (each one costs more, and there are only a few) */
+  mystery?: number;
 }
 
 export interface FloorMod {
@@ -100,6 +102,8 @@ export interface FloorMod {
   eliteMult?: number;
   darkness?: number;
   chestBonus?: boolean;
+  /** potions of health do nothing and the hero does not regenerate */
+  noHeal?: boolean;
 }
 
 export const FLOOR_MODS: FloorMod[] = [
@@ -326,8 +330,12 @@ export class GameScene extends Phaser.Scene {
     // stay inside the map (everything beyond is rock anyway, no black border)
     cam.setBounds(0, 0, this.map.w * TS, this.map.h * TS);
     cam.setZoom(this.zoom);
-    cam.startFollow(this.player.sprite, true, 0.15, 0.15);
-    cam.setRoundPixels(true);
+    // the camera glides after the hero by itself (followCamera): Phaser's own follow floors the scroll to whole
+    // world pixels, so the hero jumped back and forth against the floor while walking
+    cam.setRoundPixels(false);
+    this.camX = this.player.x;
+    this.camY = this.player.y - 6;
+    this.followCamera(1);
     this.scale.on('resize', this.onResize, this);
 
     // darkness
@@ -487,6 +495,30 @@ export class GameScene extends Phaser.Scene {
   get placeName() {
     if (this.inVillage) return 'Loppo';
     return (this.floor > STORY_END ? 'Hlubina · ' : '') + this.theme.name;
+  }
+
+  /** where the camera looks (it trails the hero a little) */
+  camX = 0;
+  camY = 0;
+
+  /** a position on the screen's pixel grid (whole screen pixels at the current zoom) */
+  snap(v: number) {
+    const z = this.cameras.main.zoom;
+    return Math.round(v * z) / z;
+  }
+
+  /** the camera glides after the hero the same at any frame rate and sits on the screen's pixel grid; the
+   *  hero's place on the screen follows the rounded lag of the camera, so in a steady walk the hero stands
+   *  still on the screen and only the world moves (no flicker between two pixels) */
+  followCamera(dt: number) {
+    const cam = this.cameras.main;
+    const p = this.player;
+    const k = 1 - Math.exp(-dt * 10);
+    const ty = p.y - 6;
+    this.camX += (p.x - this.camX) * k;
+    this.camY += (ty - this.camY) * k;
+    cam.scrollX = this.snap(p.x) + this.snap(this.camX - p.x) - cam.width * cam.originX;
+    cam.scrollY = this.snap(ty) + this.snap(this.camY - ty) - cam.height * cam.originY;
   }
 
   computeZoom() {
@@ -1773,6 +1805,9 @@ export class GameScene extends Phaser.Scene {
     bus.emit('stats');
   }
 
+  /** seconds until a potion of each kind can be drunk again (a potion has to take effect first) */
+  potionCd = { hpPotion: 0, mpPotion: 0 };
+
   usePotion(kind: 'hpPotion' | 'mpPotion') {
     const p = this.player;
     if (p.dead || this.paused) return;
@@ -1782,6 +1817,13 @@ export class GameScene extends Phaser.Scene {
     }
     if (kind === 'hpPotion' && p.hp >= p.d.maxHp) return;
     if (kind === 'mpPotion' && p.mp >= p.d.maxMp) return;
+    if (this.potionCd[kind] > 0) return;
+    // a floor without healing lets no potion of health work
+    if (kind === 'hpPotion' && this.mod?.noHeal) {
+      UI.toast(`${this.mod.name}: lektvary zdraví tu nepomáhají`, '#ff8080');
+      return;
+    }
+    this.potionCd[kind] = POTION_CD[kind];
     this.save.mats[kind]--;
     bumpStat(this.save, 'potions');
     const brew = potionMult(this.save);
@@ -2491,10 +2533,13 @@ export class GameScene extends Phaser.Scene {
     }
     const dt = Math.min(0.05, dms / 1000);
     const p = this.player;
+    this.potionCd.hpPotion = Math.max(0, this.potionCd.hpPotion - dt);
+    this.potionCd.mpPotion = Math.max(0, this.potionCd.mpPotion - dt);
     this.weather?.update(this.cinematic ? 0 : Math.min(0.05, dms / 1000));
     if (this.cinematic) {
       // walking the stairs: the world holds still, the hero is moved by tweens, the light follows
       p.scriptedTick(dt, this.cinematicMove);
+      this.followCamera(dt);
       this.dark.setVisible(!settings.lowFx);
       if (!settings.lowFx) this.updateLighting(dt);
       UI.tick(dt);
@@ -2572,6 +2617,7 @@ export class GameScene extends Phaser.Scene {
       if (this.streak.t <= 0) this.endStreak();
       else UI.streak(this.streak.n, this.streak.t / STREAK_WINDOW);
     }
+    this.followCamera(dt);
     for (const pr of this.projectiles) pr.update(dt);
     if (this.projectiles.some((pr) => pr.dead)) this.projectiles = this.projectiles.filter((pr) => !pr.dead);
     this.spells.update(dt);

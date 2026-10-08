@@ -304,10 +304,10 @@ export class PetFollower {
     }
     const want = key + anim;
     if (this.sprite.anims.currentAnim?.key !== want) this.sprite.play(want, true);
-    this.sprite.setPosition(Math.round(this.x), Math.round(this.y + 2 - fly));
+    this.sprite.setPosition(this.scene.snap(this.x), this.scene.snap(this.y + 2 - fly));
     this.sprite.setFlipX(this.facing < 0);
     this.sprite.setDepth(D.entityBase + this.y + (this.def.flying ? 20 : 0));
-    this.shadow.setPosition(Math.round(this.x), Math.round(this.y + 2));
+    this.shadow.setPosition(this.scene.snap(this.x), this.scene.snap(this.y + 2));
     if (this.glow) this.glow.setPosition(this.x, this.y - fly - 4).setAlpha(0.38 + Math.sin(this.t * 5) * 0.08);
     if (this.lamp) {
       this.lamp.x = this.x;

@@ -361,60 +361,55 @@ img.px {
   transform-origin: left;
 }
 
-/* the optional task of the floor, under the floor name */
-.floorlbl .bounty {
-  display: none;
-  /* wider than the floor name, growing to the left */
-  width: 150px;
-  margin-left: calc(100% - 150px);
-  margin-top: 4px;
-  padding: 3px 5px 4px;
-  border: 1px solid #5a4630;
-  border-radius: 7px;
-  background: rgba(12, 9, 16, 0.74);
-  color: #e8dcc4;
-  font-size: 13px;
-  line-height: 1.1;
-  text-align: left;
-  transition: opacity 0.6s;
-}
-.floorlbl .bounty.on {
-  display: block;
-}
-.floorlbl .bounty.faded {
-  opacity: 0.4;
-}
-.bounty .bt {
-  display: flex;
-  justify-content: space-between;
+/* the quest chip under the floor name: the floor task's progress, the quest log on a tap */
+.floorlbl .qchip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-  color: #ffd76a;
-  font-size: 12px;
-  letter-spacing: 0.4px;
-}
-.bounty .bt span {
-  color: #fff;
-}
-.bounty .bb {
-  height: 4px;
-  margin-top: 3px;
-  border-radius: 2px;
-  background: #2a2030;
+  margin-top: 4px;
+  padding: 2px 8px 3px 4px;
+  border: 1px solid #5a4630;
+  border-radius: 12px;
+  background: rgba(12, 9, 16, 0.78);
+  color: #e8dcc4;
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: auto;
+  cursor: pointer;
   overflow: hidden;
 }
-.bounty .bb i {
-  display: block;
-  height: 100%;
+/* the floor task's progress as a thin line along the bottom */
+.floorlbl .qchip::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: var(--qp, 0%);
   background: linear-gradient(90deg, #c8962a, #ffd76a);
 }
-.bounty.done {
+.qchip img {
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+}
+.qchip .qn {
+  color: #fff;
+}
+.qchip .qn:empty {
+  display: none;
+}
+.qchip.done {
   border-color: #4a8a4a;
 }
-.bounty.done .bt {
+.qchip.done .qn {
   color: #9dff9a;
 }
-.bounty.done .bb i {
-  background: linear-gradient(90deg, #3fae5a, #9dff9a);
+/* a side quest's reward is waiting */
+.qchip.claim {
+  border-color: #9dff7a;
+  box-shadow: 0 0 6px rgba(157, 255, 122, 0.45);
 }
 .topbtns {
   position: absolute;
@@ -637,6 +632,12 @@ img.px {
   height: 40px;
   margin: 4px;
   image-rendering: pixelated;
+}
+.potion .cd {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
 }
 .potion .cnt {
   position: absolute;
@@ -4115,6 +4116,27 @@ textarea.code {
 }
 .qlog {
   width: min(94vw, 640px);
+}
+/* the quest log's sections and the main quest's golden card */
+.qsect {
+  display: block;
+  margin: 8px 0 4px;
+  color: #ffd76a;
+  font-size: 19px;
+}
+.qsect:first-child {
+  margin-top: 0;
+}
+.qcard.qmain {
+  border-color: #8a6a3a;
+  background: linear-gradient(#221a10, #161210);
+}
+.qcard.qmain .qbar i {
+  background: linear-gradient(#ffd76a, #b8862a);
+}
+.qwhere {
+  color: #9dff7a;
+  font-size: 15px;
 }
 
 /* the bestiary */

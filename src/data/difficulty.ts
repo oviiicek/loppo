@@ -39,12 +39,12 @@ export const DIFFICULTIES: Difficulty[] = [
   {
     id: 'normal',
     name: 'Normální',
-    desc: 'Vyvážená výzva, tak jak je hra navržená.',
+    desc: 'Pořádná výzva: nestvůry vydrží a bolí, lektvary nejsou samospásné.',
     color: '#e9d27a',
-    enemyHp: 1,
-    enemyDmg: 1,
+    enemyHp: 1.2,
+    enemyDmg: 1.22,
     enemySpeed: 1,
-    elite: 1,
+    elite: 1.25,
     xp: 1,
     gold: 1,
     mf: 0,
@@ -56,10 +56,10 @@ export const DIFFICULTIES: Difficulty[] = [
     name: 'Těžká',
     desc: 'Odolnější a silnější nepřátelé a víc šampionů. Za to víc zkušeností, zlata a lepší kořist.',
     color: '#ff9a4a',
-    enemyHp: 1.35,
-    enemyDmg: 1.3,
+    enemyHp: 1.6,
+    enemyDmg: 1.55,
     enemySpeed: 1.05,
-    elite: 1.4,
+    elite: 1.6,
     xp: 1.25,
     gold: 1.25,
     mf: 25,
@@ -71,10 +71,10 @@ export const DIFFICULTIES: Difficulty[] = [
     name: 'Noční můra',
     desc: 'Pro zkušené: nepřátelé vydrží skoro dvakrát víc a bolí mnohem víc. Odměny jsou ale největší.',
     color: '#ff5a72',
-    enemyHp: 1.8,
-    enemyDmg: 1.6,
+    enemyHp: 2.2,
+    enemyDmg: 1.95,
     enemySpeed: 1.1,
-    elite: 1.9,
+    elite: 2.3,
     xp: 1.6,
     gold: 1.6,
     mf: 50,
@@ -100,3 +100,6 @@ export function difficultyLines(d: Difficulty): string[] {
   lines.push(`Smrt: −${Math.round(d.goldLoss * 100)} % zlata`);
   return lines;
 }
+
+/** seconds before another potion of the same kind can be drunk (a potion has to take effect first) */
+export const POTION_CD = { hpPotion: 4, mpPotion: 3 };

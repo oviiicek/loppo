@@ -87,7 +87,8 @@ export class Loot {
 
   goldAmount(mult = 1) {
     const f = this.scene.floor;
-    return Math.max(1, Math.round((2 + f * 1.6 + Math.random() * (3 + f)) * mult * this.goldMult));
+    // gold is scarcer than it used to be (the merchants' wares and the forge are meant to be choices)
+    return Math.max(1, Math.round((2 + f * 1.6 + Math.random() * (3 + f)) * 0.68 * mult * this.goldMult));
   }
 
   enemyDrops(e: Enemy) {
@@ -130,23 +131,26 @@ export class Loot {
       if (Math.random() < 0.5) this.dropItem(this.item(f + 1, 1), x, y);
       this.dropMat('dust', 1 + Math.floor(f / 15), x, y);
       if (Math.random() < 0.5) this.dropMat('lockpick', 1, x, y);
+      // a thief often carries somebody's treasure map
+      this.scene.quests.maybeMap(0.3);
       return;
     }
     if (e.elite) {
+      this.scene.quests.maybeMap(0.03);
       this.dropItem(this.item(f, 1), x, y);
       if (Math.random() < (this.scene.player.d.specials.has('midas') ? 0.4 : 0.1)) this.dropRandomGem(x, y);
       if (Math.random() < 0.06) this.dropRandomRune(x, y);
       if (Math.random() < 0.015) this.dropSpellRune(x, y);
       if (Math.random() < 0.35) this.dropItem(this.item(f), x, y);
       this.dropGold(this.goldAmount(2.5), x, y);
-      if (Math.random() < 0.4) this.dropMat(Math.random() < 0.6 ? 'hpPotion' : 'mpPotion', 1, x, y);
+      if (Math.random() < 0.28) this.dropMat(Math.random() < 0.6 ? 'hpPotion' : 'mpPotion', 1, x, y);
       if (Math.random() < 0.25) this.dropMat('stone', 1, x, y);
       return;
     }
     const minion = e.isMinion ? 0.35 : 1;
     if (Math.random() < 0.11 * minion) this.dropItem(this.item(f), x, y);
     if (Math.random() < 0.4 * minion) this.dropGold(this.goldAmount(), x, y);
-    if (Math.random() < 0.04 * minion * potMult) this.dropMat(Math.random() < 0.65 ? 'hpPotion' : 'mpPotion', 1, x, y);
+    if (Math.random() < 0.026 * minion * potMult) this.dropMat(Math.random() < 0.65 ? 'hpPotion' : 'mpPotion', 1, x, y);
     if (Math.random() < 0.018 * minion) this.dropMat('lockpick', 1, x, y);
     if (Math.random() < 0.03 * minion) this.dropMat('stone', 1, x, y);
     if (Math.random() < 0.02 * minion) this.dropMat('dust', 1, x, y);
@@ -203,7 +207,7 @@ export class Loot {
       this.dropItem(it, x, y);
     }
     for (let i = 0; i < 3; i++) this.dropGold(this.goldAmount(goldMult / 3), x, y);
-    if (Math.random() < 0.35 * potMult) this.dropMat(Math.random() < 0.6 ? 'hpPotion' : 'mpPotion', 1, x, y);
+    if (Math.random() < 0.24 * potMult) this.dropMat(Math.random() < 0.6 ? 'hpPotion' : 'mpPotion', 1, x, y);
     if (Math.random() < (tier === 'wood' ? 0.15 : 0.3)) this.dropMat('lockpick', 1, x, y);
     if (Math.random() < (tier === 'wood' ? 0.2 : 0.5)) this.dropMat('stone', tier === 'gold' || tier === 'boss' ? 2 : 1, x, y);
     if (tier !== 'wood' && Math.random() < 0.5) this.dropMat('dust', tier === 'gold' || tier === 'boss' ? 2 : 1, x, y);
@@ -211,6 +215,8 @@ export class Loot {
     if (Math.random() < ({ wood: 0.04, iron: 0.12, gold: 0.3, boss: 1 } as Record<string, number>)[tier]) this.dropRandomGem(x, y, tier === 'boss' ? 1 : 0);
     if (Math.random() < ({ wood: 0.02, iron: 0.06, gold: 0.18, boss: 0.5 } as Record<string, number>)[tier]) this.dropRandomRune(x, y, tier === 'boss' ? 1 : 0);
     if (Math.random() < ({ wood: 0, iron: 0.015, gold: 0.06, boss: 0.25 } as Record<string, number>)[tier]) this.dropSpellRune(x, y);
+    // now and then an old treasure map lies among the things
+    this.scene.quests.maybeMap(({ wood: 0.015, iron: 0.04, gold: 0.08, boss: 0.1 } as Record<string, number>)[tier] ?? 0);
   }
 
   private popTo(obj: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, x: number, y: number): [number, number] {

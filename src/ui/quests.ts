@@ -1,6 +1,9 @@
-import { $, el, esc } from './ui';
+import { $, el, esc, keepScrollOn } from './ui';
 import type { UI as UIType } from './ui';
-import { Quest, questOffers, rewardText, QUEST_COUNTER } from '../data/quests';
+import { Quest, questOffers, rewardText, QUEST_COUNTER, MAX_TREASURE_MAPS } from '../data/quests';
+import { CHAPTERS } from '../data/story';
+import { STORY_BOSSES } from '../data/enemies';
+import { storyOf, SaveData } from '../systems/state';
 import { villageOf, questSlots, questRewardMult } from '../data/village';
 import { generateItem } from '../data/items';
 import { addToInventory, saveGame, addRune, addSpellRune } from '../systems/state';
@@ -16,11 +19,35 @@ import { royalOf, makeRoyalQuest, RoyalQuest, HONORS, honorsOf, kingGreeting, ra
 
 type UIM = typeof UIType;
 
+/** the hero's main quest: the next story guardian, the chapter it closes and the way down to it */
+export function mainQuest(s: SaveData): { title: string; sub: string; text: string; have: number; goal: number } {
+  const st = storyOf(s);
+  const next = STORY_BOSSES.find((b) => !st.seen.includes(b.outro));
+  if (!next)
+    return {
+      title: 'Nekonečná hlubina',
+      sub: 'po konci příběhu',
+      text: "Nyx'thar padl a pečeť znovu drží. Pod dnem podsvětí se ale otvírají další a další patra – jak hluboko dojdeš?",
+      have: s.maxFloor,
+      goal: 0,
+    };
+  const ch = CHAPTERS.filter((c) => c.floor <= next.floor).pop() ?? CHAPTERS[0];
+  const last = next === STORY_BOSSES[STORY_BOSSES.length - 1];
+  return {
+    title: `${ch.small}: ${ch.big}`,
+    sub: `${next.floor}. patro`,
+    text: `Sestup do ${next.floor}. patra a poraz: ${next.name} – ${next.title}.${last ? ' Tam, na dně podsvětí, rozhodneš o osudu Loppa.' : ' Cestou hledej stránky Elařina deníku – leží na začátku každé desítky pater.'}`,
+    have: Math.min(s.maxFloor, next.floor),
+    goal: next.floor,
+  };
+}
+
 /** the notice board in Loppo and the quest log */
 export class QuestPanels {
   ui: UIM;
   constructor(ui: UIM) {
     this.ui = ui;
+    keepScrollOn(this, ['board']);
   }
 
   get sc() {
@@ -30,19 +57,22 @@ export class QuestPanels {
   /** a quest's card: who asks, the story, the progress and the reward */
   card(q: Quest, actions: string, taken = true) {
     const pct = q.goal > 1 ? Math.round((q.have / q.goal) * 100) : q.done ? 100 : 0;
+    const reward = q.type === 'treasure' ? 'zakopaný poklad – předměty, zlato a drahokamy' : rewardText(q.reward);
     return `<div class="qcard ${q.done ? 'done' : ''}"><div class="qtop"><b>${esc(q.title)}</b><span class="hint">${esc(q.giver)}</span></div>
       <div class="qtext">${esc(q.text)}</div>
       ${!taken ? '' : q.goal > 1 ? `<div class="qbar"><i style="width:${pct}%"></i><span>${q.have}/${q.goal}</span></div>` : q.done ? '<div class="qok">✔ Splněno</div>' : ''}
-      <div class="qrew">Odměna: ${esc(rewardText(q.reward))}</div>${actions}</div>`;
+      <div class="qrew">Odměna: ${esc(reward)}</div>${actions}</div>`;
   }
 
   /** the board: quests taken (with the reward to collect) and what the villagers ask for now */
   board(p: HTMLElement) {
     const s = this.sc.save;
     const v = villageOf(s);
-    const active = (v.quests ??= []);
+    const all = (v.quests ??= []);
+    // treasure maps are the hero's own: not on the board and not counted against its slots
+    const active = all.filter((q) => q.type !== 'treasure');
     const slots = questSlots(s);
-    if (!v.offers?.length) v.offers = questOffers(active, s.floor, questRewardMult(s), !!s.nemeses?.length);
+    if (!v.offers?.length) v.offers = questOffers(active, s.floor, questRewardMult(s), !!s.nemeses?.length, 5);
     const offers = v.offers;
     const body = $('.body', p);
     body.innerHTML = `<div class="col" style="flex:1;min-width:0"><b style="color:#9dff7a">Přijaté úkoly ${active.length}/${slots}</b><div class="scroll" style="flex:1">${
@@ -63,7 +93,7 @@ export class QuestPanels {
         const q = offers.splice(+b.dataset.take!, 1)[0];
         const key = QUEST_COUNTER[q.type];
         if (key) q.base = questCounter(s, key);
-        active.push(q);
+        all.push(q);
         sfx('ui');
         this.ui.toast(`Přijat úkol: ${q.title}`, '#9dff7a');
         saveGame(s);
@@ -74,7 +104,7 @@ export class QuestPanels {
       b.addEventListener('click', () => {
         const q = active[+b.dataset.drop!];
         this.ui.confirm('Vzdát úkol?', `„${q.title}“ zmizí z tvého deníku.`, () => {
-          active.splice(active.indexOf(q), 1);
+          all.splice(all.indexOf(q), 1);
           saveGame(s);
           this.board(p);
         }, 'Vzdát', 'Ponechat');
@@ -85,7 +115,7 @@ export class QuestPanels {
         const q = active[+b.dataset.claim!];
         if (!q?.done) return;
         if (!s.inventory.some((x) => !x)) return void this.ui.toast('Uvolni v batohu místo pro odměnu', '#ff8a7a');
-        active.splice(active.indexOf(q), 1);
+        all.splice(all.indexOf(q), 1);
         this.pay(q);
         this.board(p);
       }),
@@ -219,17 +249,38 @@ export class QuestPanels {
     render();
   }
 
-  /** the quest log (from the pause menu, anywhere) */
+  /** the quest log (the chip under the floor's name, the pause menu): the story's main quest, the floor's task
+   *  and every side quest the hero carries */
   log() {
-    const s = this.sc.save;
-    const royal = villageOf(s).royal?.quest;
-    const active = [...(royal ? [royal] : []), ...(villageOf(s).quests ?? [])];
-    const d = el(`<div class="panel qlog"><div class="head"><h2>Úkoly</h2><button class="close">✕</button></div>
-      <div class="body scroll" style="display:block">${
-        active.length
-          ? active.map((q) => this.card(q, '')).join('')
-          : `<div class="hint">${villageOf(s).lv.board ? 'Nemáš žádný úkol. Úkoly visí na nástěnce v Loppu.' : 'Úkoly rozdává lovkyně Jitka u nástěnky v Loppu – nejdřív ji ale musíš najít v kobkách.'}</div>`
-      }</div></div>`);
+    const sc = this.sc;
+    const s = sc.save;
+    const v = villageOf(s);
+    const royal = v.royal?.quest;
+    const maps = (v.quests ?? []).filter((q) => q.type === 'treasure');
+    const side = [...(royal ? [royal] : []), ...(v.quests ?? []).filter((q) => q.type !== 'treasure')];
+    const main = mainQuest(s);
+    const b = !sc.inVillage && !sc.rift ? sc.bounty : null;
+    const bar = (have: number, goal: number, label: string) => `<div class="qbar"><i style="width:${Math.round(Math.min(1, have / Math.max(1, goal)) * 100)}%"></i><span>${label}</span></div>`;
+    const mainHtml = `<div class="qcard qmain"><div class="qtop"><b>${esc(main.title)}</b><span class="hint">${esc(main.sub)}</span></div><div class="qtext">${esc(main.text)}</div>${main.goal ? bar(main.have, main.goal, `patro ${main.have}/${main.goal}`) : ''}</div>`;
+    const bountyHtml = b
+      ? `<div class="qcard ${b.done ? 'done' : ''}"><div class="qtop"><b>${esc(b.text)}</b><span class="hint">${sc.floor}. patro</span></div>${
+          b.done ? '<div class="qok">✔ Splněno – odměna padla k tvým nohám</div>' : bar(b.have, b.goal, b.kind === 'explore' ? `${b.have} %` : `${b.have}/${b.goal}`)
+        }<div class="qrew">Odměna: předmět, zlato a materiál, hned na místě</div></div>`
+      : `<div class="hint">${sc.inVillage ? 'Doma žádný úkol patra není.' : 'Tohle patro žádný úkol nemá.'}</div>`;
+    const where = (q: Quest) => (q.done ? `<div class="qwhere">Odměnu si vyzvedni ${q === royal ? 'u krále' : 'na nástěnce'} v Loppu.</div>` : '');
+    const sideHtml = side.length
+      ? side.map((q) => this.card(q, where(q))).join('')
+      : `<div class="hint">${v.lv.board ? 'Žádný vedlejší úkol. Vezmi si nějaký na nástěnce v Loppu – můžeš jich nést víc najednou.' : 'Vedlejší úkoly rozdává lovkyně Jitka u nástěnky v Loppu – nejdřív ji ale musíš najít v kobkách.'}</div>`;
+    const mapsHtml = maps.length
+      ? maps.map((q) => this.card(q, `<div class="qwhere">${q.floor <= sc.floor && !sc.inVillage ? 'Poklad je na tomhle patře nebo dál – na mapě svítí zlatý křížek.' : `Poklad čeká v ${q.floor}. patře.`}</div>`)).join('')
+      : `<div class="hint">Žádnou mapu pokladu nemáš. Občas leží v truhle nebo ji nosí šampion či zloděj (najednou uneseš ${MAX_TREASURE_MAPS}).</div>`;
+    const d = el(`<div class="panel qlog"><div class="head"><h2>Deník úkolů</h2><button class="close">✕</button></div>
+      <div class="body scroll" style="display:block">
+        <b class="qsect">⭐ Hlavní úkol</b>${mainHtml}
+        <b class="qsect">✦ Úkol patra</b>${bountyHtml}
+        <b class="qsect">📜 Vedlejší úkoly <span class="hint">${side.length}</span></b>${sideHtml}
+        <b class="qsect">🗺 Mapy pokladů <span class="hint">${maps.length}/${MAX_TREASURE_MAPS}</span></b>${mapsHtml}
+      </div></div>`);
     const close = this.ui.dialog(d);
     $('.close', d).addEventListener('click', () => close());
   }

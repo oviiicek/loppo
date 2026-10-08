@@ -6,7 +6,7 @@ import { mercTraining } from '../data/village';
 import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy } from './entities';
 import { D, EL_COLOR } from './fx';
-import { ACTOR_SCALE } from '../gfx/textures';
+import { ACTOR_SCALE, WEAPON_SCALE } from '../gfx/textures';
 import { heroHand, heroHandB } from '../gfx/heroes';
 import { MercState, MercDef, MERC_BY_ROLE, mercStats, MercStats, mercLook } from '../data/mercs';
 import { BASE_BY_ID, itemTier } from '../data/items';
@@ -85,11 +85,11 @@ export class Mercenary extends Actor {
     this.shieldImg?.destroy();
     const w = this.state.equip.weapon;
     const base = w ? w.base : this.def.weapon;
-    this.weapon = this.scene.add.image(this.x, this.y, `wp_${base}_t${w ? itemTier(w) : 0}`).setOrigin(0.5, 0.85).setScale(ACTOR_SCALE);
+    this.weapon = this.scene.add.image(this.x, this.y, `wp_${base}_t${w ? itemTier(w) : 0}`).setOrigin(0.5, 0.85).setScale(WEAPON_SCALE);
     if (this.def.shield) {
       const a = this.state.equip.armor;
       const tier = a && a.base === 'shield' ? itemTier(a) : 0;
-      this.shieldImg = this.scene.add.image(this.x, this.y, `wp_shield_t${tier}`).setScale(0.8 * ACTOR_SCALE);
+      this.shieldImg = this.scene.add.image(this.x, this.y, `wp_shield_t${tier}`).setScale(0.9 * WEAPON_SCALE);
     }
   }
 
@@ -501,7 +501,7 @@ export class Mercenary extends Actor {
       const want = this.spriteKey + (moving ? '_walkA' : '_idleA');
       if (this.sprite.anims.currentAnim?.key !== want) this.sprite.play(want, true);
     }
-    this.ring.setPosition(Math.round(this.x), Math.round(this.y + 3)).setVisible(this.sprite.visible);
+    this.ring.setPosition(this.scene.snap(this.x), this.scene.snap(this.y + 3)).setVisible(this.sprite.visible);
     this.placeWeapons();
   }
 

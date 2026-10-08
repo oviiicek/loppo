@@ -3,7 +3,7 @@
 // A finished quest pays at the board.
 // Lines addressed to the hero avoid gendered verb forms (the hero can be anyone).
 
-export type QuestType = 'lost' | 'artifact' | 'tomb' | 'nopotion' | 'secret' | 'elites' | 'kills' | 'rescue' | 'lore' | 'rift' | 'nemesis' | 'deliver' | 'tribute' | 'depth';
+export type QuestType = 'lost' | 'artifact' | 'tomb' | 'nopotion' | 'secret' | 'elites' | 'kills' | 'rescue' | 'lore' | 'rift' | 'nemesis' | 'deliver' | 'tribute' | 'depth' | 'treasure';
 
 export interface Quest {
   id: number;
@@ -50,7 +50,33 @@ export function nextBossFloor(floor: number) {
 }
 
 /** quest types that are floor bound (they place something on a floor) */
-export const FLOOR_QUESTS: QuestType[] = ['lost', 'tomb', 'rift'];
+export const FLOOR_QUESTS: QuestType[] = ['lost', 'tomb', 'rift', 'treasure'];
+
+/** treasure maps the hero can carry at once (the board's slots do not count them) */
+export const MAX_TREASURE_MAPS = 3;
+
+/** a floor where a treasure can be buried: not a guardian's floor and not a camp */
+function digFloor(f: number) {
+  while (f % 10 === 0 || f % 10 === 5) f++;
+  return f;
+}
+
+/** a treasure map found in the dungeon: a cross on one of the next floors (dug up on the spot, no claiming) */
+export function makeTreasureMap(floor: number): Quest {
+  const at = digFloor(Math.max(1, floor) + rnd(1, 3));
+  return {
+    id: Date.now() + Math.floor(Math.random() * 1e6),
+    type: 'treasure',
+    giver: 'Mapa pokladu',
+    title: `Poklad v ${at}. patře`,
+    text: `Na zažloutlé mapě je křížkem označené místo v ${at}. patře. Najdi ho (na mapě ho uvidíš zlatě) a vykopej, co tam kdosi zakopal.`,
+    floor: at,
+    goal: 1,
+    have: 0,
+    done: false,
+    reward: { gold: 0, rarity: 3, extra: 'gem' },
+  };
+}
 
 /** the counter a counting quest follows (see stats in the save) */
 export const QUEST_COUNTER: Partial<Record<QuestType, string>> = {

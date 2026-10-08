@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BOSS_PHASE_HP, BOSS_PHASES } from '../data/bossphases';
 import { SPELL_RUNE_BY_ID } from '../data/spellrunes';
 import type { GameScene, MerchantStock } from '../scenes/GameScene';
+import { POTION_CD } from '../data/difficulty';
 import type { Enemy } from '../game/entities';
 import { iconURL, spellIcon } from '../gfx/textures';
 import { SPELL_BY_ID } from '../data/spells';
@@ -24,6 +25,75 @@ import { storyOf } from '../systems/state';
 import { FS_HELP, autoFullscreen, fsActive, fsButtonHTML, fsSupported, isStandalone, onFullscreenChange, syncFsButtons, toggleFullscreen } from './fullscreen';
 
 export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
+
+/** every element under a root keyed by its tag, classes and order (the same layout drawn anew gets the same keys) */
+function layoutKeys(root: HTMLElement): [string, HTMLElement][] {
+  const seen = new Map<string, number>();
+  const out: [string, HTMLElement][] = [];
+  root.querySelectorAll<HTMLElement>('*').forEach((e) => {
+    const k = e.tagName + '.' + e.className;
+    const n = seen.get(k) ?? 0;
+    seen.set(k, n + 1);
+    out.push([k + '#' + n, e]);
+  });
+  return out;
+}
+
+/** how far the scrolled boxes under a root are scrolled; the returned function puts them back once the root
+ *  is drawn anew (adding a point or upgrading an item must not throw the list back to its top) */
+export function keepScroll(root: HTMLElement): () => void {
+  const saved = new Map<string, number>();
+  for (const [k, e] of layoutKeys(root)) if (e.scrollTop > 0) saved.set(k, e.scrollTop);
+  if (!saved.size) return () => {};
+  return () => {
+    for (const [k, e] of layoutKeys(root)) {
+      const t = saved.get(k);
+      if (t) e.scrollTop = t;
+    }
+  };
+}
+
+/** wraps the methods of a panel family that draw into a given panel (an HTMLElement argument): drawn anew on
+ *  the same tab, the panel keeps its scroll positions (another tab starts at the top) */
+export function keepScrollOn(obj: object, names: string[]) {
+  const o = obj as Record<string, unknown>;
+  const tabOf = (h: HTMLElement) => h.querySelector<HTMLElement>('.tab.on')?.dataset.tab ?? '';
+  for (const name of names) {
+    const orig = o[name] as (...a: unknown[]) => unknown;
+    if (typeof orig !== 'function') continue;
+    o[name] = function (this: unknown, ...args: unknown[]) {
+      const host = args.find((a): a is HTMLElement => a instanceof HTMLElement);
+      if (!host) return orig.apply(obj, args);
+      const tab = tabOf(host);
+      // what is on screen belongs to the tab it was drawn for
+      const same = (host.dataset.drawnTab ?? tab) === tab;
+      const restore = same ? keepScroll(host) : null;
+      const r = orig.apply(obj, args);
+      const after = tabOf(host);
+      host.dataset.drawnTab = after;
+      if (restore && after === tab) restore();
+      return r;
+    };
+  }
+}
+
+/** the tap that opened an overlay (HUD buttons react on touch) must not also click what now lies under the
+ *  finger (the minimap opens the map with its close button on the same spot): clicks count only after a
+ *  touch inside the overlay (keyboard and pad clicks always count) */
+export function guardGhostClick(ov: HTMLElement) {
+  let touched = false;
+  ov.addEventListener('pointerdown', () => (touched = true), true);
+  ov.addEventListener(
+    'click',
+    (e) => {
+      if (!touched && e.isTrusted && e.detail > 0) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    },
+    true,
+  );
+}
 
 export function el(html: string): HTMLElement {
   const t = document.createElement('template');
@@ -74,6 +144,10 @@ class UIManager {
     bus.on('buffs', () => this.renderBuffs());
     bus.on('codex', (name: string) => this.toast(`📖 Nový záznam v kodexu: ${name}`, '#ffc24a'));
     bus.on('equip', () => this.refreshSkills());
+    // the quest chip follows new maps and finished quests
+    const chip = () => this.scene && this.hud && this.bounty(this.scene.bounty);
+    bus.on('quests', chip);
+    bus.on('stats', chip);
     document.addEventListener(
       'pointerdown',
       () => {
@@ -250,7 +324,7 @@ class UIManager {
         </div>
       </div>
       <div class="minimap"><canvas width="124" height="124"></canvas></div>
-      <div class="floorlbl"><div class="fl"></div><div class="bounty"></div></div>
+      <div class="floorlbl"><div class="fl"></div><div class="qchip" title="Deník úkolů"><img src="${iconURL('page', 32)}"><span class="qt">Úkoly</span><span class="qn"></span></div></div>
       <div class="topbtns">
         ${fsSupported() && !isStandalone() ? `<div class="rbtn fs" data-a="fs" data-fs="icon" title="Celá obrazovka (F)">${fsButtonHTML('icon')}</div>` : ''}
         <div class="rbtn spellsbtn" data-a="spells" title="Kouzla (K)"><img src="${spellbookIcon()}" alt="Kouzla"><span class="badge sp"></span></div>
@@ -313,6 +387,13 @@ class UIManager {
       sfx('ui');
       this.bigMap();
     });
+    // the quest chip under the floor's name opens the quest log
+    $('.qchip', hud).addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (this.panel || !this.scene || this.scene.player.dead) return;
+      sfx('ui');
+      this.quests.log();
+    });
     const act = $('.action', hud);
     act.style.pointerEvents = 'auto';
     act.addEventListener('pointerdown', (e) => {
@@ -347,7 +428,7 @@ class UIManager {
     });
     // potions and bag
     const mk = (cls: string, icon: string, cx: number, cy: number, size: number, fn: () => void, withCount = true) => {
-      const b = el(`<div class="potion ${cls}"><img src="${iconURL(icon, 48)}">${withCount ? '<span class="cnt">0</span>' : ''}</div>`);
+      const b = el(`<div class="potion ${cls}"><img src="${iconURL(icon, 48)}">${withCount ? '<div class="cd"></div><span class="cnt">0</span>' : ''}</div>`);
       b.style.width = b.style.height = size + 'px';
       b.style.right = cx - size / 2 + 'px';
       b.style.bottom = cy - size / 2 + 'px';
@@ -538,6 +619,12 @@ class UIManager {
     // potions
     $('.php .cnt', hud).textContent = String(s.mats.hpPotion);
     $('.pmp .cnt', hud).textContent = String(s.mats.mpPotion);
+    // a potion takes effect before the next one can be drunk: the button darkens and clears like a spell
+    for (const [sel, kind] of [['.php', 'hpPotion'], ['.pmp', 'mpPotion']] as const) {
+      const cd = sc.potionCd[kind];
+      const pct = cd > 0 ? Math.min(1, cd / POTION_CD[kind]) * 360 : 0;
+      ($(sel + ' .cd', hud) as HTMLElement).style.background = pct ? `conic-gradient(rgba(0,0,0,.7) ${pct}deg, transparent ${pct}deg)` : '';
+    }
     // skills cooldown
     hud.querySelectorAll<HTMLElement>('.skill').forEach((b) => {
       const i = +b.dataset.i!;
@@ -650,11 +737,13 @@ class UIManager {
     };
     for (const it of sc.interactables) {
       if ((it.kind === 'stairs' || it.kind === 'merchant') && m.explored[m.idx(it.tx, it.ty)]) edgeArrow(it.x, it.y, it.kind === 'stairs' ? '#ffd23a' : '#c77dff');
+      // the cross of a treasure map is known before the place is seen
+      else if (it.kind === 'ev' && !it.used && it.data.ev.type === 'treasure') edgeArrow(it.x, it.y, '#ffd23a');
     }
     // interactables
     for (const it of sc.interactables) {
       if (it.used && it.kind !== 'stairs') continue;
-      if (!m.explored[m.idx(it.tx, it.ty)]) continue;
+      if (!m.explored[m.idx(it.tx, it.ty)] && !(it.kind === 'ev' && it.data.ev.type === 'treasure')) continue;
       const [mx, my] = toMini(it.x, it.y);
       if (it.kind === 'stairs') {
         ctx.fillStyle = '#ffd23a';
@@ -776,7 +865,7 @@ class UIManager {
       }
     };
     for (const it of sc.interactables) {
-      if (!m.explored[m.idx(it.tx, it.ty)]) continue;
+      if (!m.explored[m.idx(it.tx, it.ty)] && !(it.kind === 'ev' && !it.used && it.data.ev.type === 'treasure')) continue;
       if (it.kind === 'stairs') dot(it.x, it.y, '#ffd23a', Math.max(3, cell), true);
       else if (it.used) continue;
       else if (it.kind === 'merchant') dot(it.x, it.y, '#c77dff', Math.max(3, cell));
@@ -1071,19 +1160,19 @@ class UIManager {
   }
 
   /** the optional task of the floor, under the minimap */
+  /** the quest chip under the floor's name: the floor task's progress at a glance (the whole log on a tap) */
   bounty(b: Bounty | null) {
     if (!this.hud) return;
-    const el2 = $('.floorlbl .bounty', this.hud);
-    el2.classList.toggle('on', !!b);
-    if (!b) return;
-    const frac = Math.min(1, b.have / b.goal);
-    const count = b.kind === 'explore' ? `${b.have} %` : `${b.have}/${b.goal}`;
-    el2.classList.toggle('done', b.done);
-    el2.innerHTML = `<div class="bt">${b.done ? '✔ Úkol splněn' : '✦ Úkol patra'}<span>${b.done ? '' : count}</span></div><div class="bx">${esc(b.text)}</div><div class="bb"><i style="width:${Math.round(frac * 100)}%"></i></div>`;
-    if (b.done) {
-      clearTimeout((el2 as any)._t);
-      (el2 as any)._t = setTimeout(() => el2.classList.add('faded'), 6000);
-    } else el2.classList.remove('faded');
+    const chip = $('.floorlbl .qchip', this.hud);
+    const s = this.scene?.save;
+    const v = s?.village;
+    // a finished side quest waiting for its reward, or a treasure map not dug up yet
+    const claim = !!(v?.quests?.some((q) => q.done) || v?.royal?.quest?.done);
+    chip.classList.toggle('claim', claim);
+    chip.classList.toggle('done', !!b?.done);
+    $('.qn', chip).textContent = !b ? '' : b.done ? '✔' : b.kind === 'explore' ? `${b.have} %` : `${b.have}/${b.goal}`;
+    const bar = (b && !b.done ? Math.min(1, b.have / b.goal) : 0) * 100;
+    chip.style.setProperty('--qp', `${bar}%`);
   }
 
   /** progress of a floor event (the cursed chest) at the top of the screen */
@@ -1144,6 +1233,7 @@ class UIManager {
         onClose?.();
       }
     });
+    guardGhostClick(ov);
     this.root.appendChild(ov);
     this.panel = ov;
     if (pause) this.pauseGame();
@@ -1195,6 +1285,7 @@ class UIManager {
     if (prev) prev.style.display = 'none';
     const ov = el('<div class="overlay" style="z-index:70"></div>');
     ov.appendChild(content);
+    guardGhostClick(ov);
     this.root.appendChild(ov);
     if (!prev) this.pauseGame();
     let open = true;
@@ -1216,6 +1307,7 @@ class UIManager {
     if (wasOpen) prev!.style.display = 'none';
     const ov = el('<div class="overlay" style="z-index:70"></div>');
     ov.appendChild(p);
+    guardGhostClick(ov);
     this.root.appendChild(ov);
     if (!wasOpen) this.pauseGame();
     const done = (ok: boolean) => {
