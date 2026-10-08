@@ -64,6 +64,9 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'gem1', name: 'Klenotník', desc: 'Vsaď první drahokam do soketu', reward: { gold: 500, stone: 2 }, check: (s) => (st(s).gemsSet ?? 0) >= 1 },
   { id: 'gem4', name: 'Dokonalý lesk', desc: 'Získej dokonalý drahokam', reward: { gold: 8000, dust: 4 }, check: (s) => (st(s).bestGem ?? 0) >= 4 },
   { id: 'gem5', name: 'Královský klenot', desc: 'Získej královský drahokam', reward: { gold: 60000, attr: 3 }, check: (s) => (st(s).bestGem ?? 0) >= 5 },
+  // the mercenary
+  { id: 'merc1', name: 'Parťák', desc: 'Najmi si žoldáka', reward: { gold: 500, stone: 2 }, check: (s) => !!s.merc },
+  { id: 'merc3', name: 'Dobře vyzbrojený', desc: 'Obsaď žoldákovi všechny tři sloty vybavení', reward: { gold: 4000, dust: 3 }, check: (s) => !!s.merc && ['weapon', 'armor', 'jewel'].every((k) => !!(s.merc!.equip as any)[k]) },
   // nemeses
   { id: 'nemesis1', name: 'Pomsta', desc: 'Poraz svého nemesis', reward: { gold: 5000, dust: 4 }, check: (s) => (st(s).nemeses ?? 0) >= 1 },
   { id: 'nemesis5', name: 'Nikdo mi neuteče', desc: 'Poraz 5 nemesis', reward: { gold: 60000, attr: 4 }, check: (s) => (st(s).nemeses ?? 0) >= 5 },

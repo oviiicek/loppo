@@ -238,7 +238,7 @@ class UIManager {
           <div class="bar hp"><div class="fill"></div><div class="fill shieldfill" style="background:rgba(160,210,255,.55);transform:scaleX(0)"></div><div class="txt"></div></div>
           <div class="bar mp"><div class="fill"></div><div class="txt"></div></div>
           <div class="xprow"><span class="lv">LV 1</span><div class="bar xp"><div class="fill"></div></div></div>
-          <div class="meta"><span><img src="${iconURL('ic_gold', 24)}"> <b class="gold">0</b></span><span class="kills"></span></div>
+          <div class="meta"><span><img src="${iconURL('ic_gold', 24)}"> <b class="gold">0</b></span><span class="kills"></span><span class="mercchip" title="Žoldák"><img><i><b></b></i></span></div>
           <div class="buffs"></div>
         </div>
       </div>
@@ -286,6 +286,14 @@ class UIManager {
       });
     });
     $('.topbtns', hud).style.pointerEvents = 'auto';
+    // the mercenary's chip: its health; a tap opens its panel
+    const chip = $('.mercchip', hud);
+    chip.style.pointerEvents = 'auto';
+    chip.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      sfx('ui');
+      this.openPanel('merc');
+    });
     $('.minimap', hud).addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       sfx('ui');
@@ -535,6 +543,17 @@ class UIManager {
       const t = $('.bt', b);
       if (bf) t.textContent = Math.ceil(bf.t).toString();
     });
+    // the mercenary
+    const mc = $('.mercchip', hud);
+    const merc = sc.merc;
+    mc.classList.toggle('on', !!merc);
+    if (merc) {
+      const img = $('img', mc) as HTMLImageElement;
+      const want = iconURL(merc.spriteKey, 32);
+      if (img.getAttribute('src') !== want) img.setAttribute('src', want);
+      ($('b', mc) as HTMLElement).style.transform = `scaleX(${merc.down ? 0 : Math.max(0, merc.hp / merc.maxHp)})`;
+      mc.classList.toggle('down', merc.down);
+    }
     // boss
     if (this.bossRef) {
       const b = this.bossRef;

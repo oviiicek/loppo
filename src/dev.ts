@@ -659,3 +659,27 @@ Object.assign(dev, {
     return true;
   },
 });
+Object.assign(dev, {
+  /** hires a mercenary for free */
+  merc(role = 'tank') {
+    const sc = (window as any).__scene;
+    sc.save.gold += 1e6;
+    return sc.hireMerc(role, 1e6);
+  },
+  mercInfo() {
+    const sc = (window as any).__scene;
+    const m = sc.merc;
+    if (!m) return null;
+    return { role: m.def.role, name: m.state.name, hp: Math.round(m.hp), max: m.maxHp, dmg: Math.round(m.s.dmg), down: m.down, target: m.target?.name ?? null, dist: Math.round(Math.hypot(m.x - sc.player.x, m.y - sc.player.y)), order: m.state.order, equip: Object.fromEntries(Object.entries(m.state.equip).map(([k, v]: any) => [k, v?.base ?? null])) };
+  },
+});
+Object.assign(dev, {
+  /** puts an item of a base, level and rarity into the bag (returns its bag index) */
+  item(base = 'sword', ilvl = 10, rarity = 2) {
+    const s = (window as any).__scene.save;
+    const at = s.inventory.findIndex((x: unknown) => !x);
+    if (at < 0) return -1;
+    s.inventory[at] = generateItem(ilvl, { base, rarity });
+    return at;
+  },
+});

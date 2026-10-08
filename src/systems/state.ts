@@ -1,4 +1,5 @@
 import type { Nemesis } from '../data/nemesis';
+import type { MercState } from '../data/mercs';
 import { ATTR_KEYS, AttrKey, ClassId, Item, Slot, StatKey, Stats } from '../data/types';
 import { DEFAULT_DIFFICULTY } from '../data/difficulty';
 import { CLASS_BY_ID } from '../data/classes';
@@ -61,6 +62,8 @@ export interface SaveData {
   heroName?: string;
   /** champions that killed the hero and wait for them deeper down */
   nemeses?: Nemesis[];
+  /** the hired companion (its role, name, gear and order) */
+  merc?: MercState;
 }
 
 export function gemPouch(s: SaveData): Record<string, number> {

@@ -32,10 +32,11 @@ import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR } from '../data/sets';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame } from '../systems/state';
 import { GEMS, GEM_TIERS, GEM_MAX_TIER, GEM_PLACE_NAME, GemPlace, gemPlace, gemEffect, gemIcon, gemName, parseGem, gemKey, maxSockets, drillCost, combineCost } from '../data/gems';
 import { PETS, PET_BY_ID, PetId, petLevel, petFloorsToNext, petBonusText, petTitle, PET_MAX_LEVEL, PET_FLOORS_PER_LEVEL } from '../data/pets';
 import { difficultyOf } from '../data/difficulty';
+import { MERCS, MERC_BY_ROLE, MERC_SLOTS, MERC_ORDERS, MercSlot, MercRole, MercOrder, mercFits, mercSlotFor, mercPrice, mercLook, mercStats } from '../data/mercs';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -79,6 +80,7 @@ export class Panels {
     else if (name === 'spells') this.spells();
     else if (name === 'pets') this.pets();
     else if (name === 'gems') this.gems();
+    else if (name === 'merc') this.merc();
   }
 
   frame(title: string, tabs: { id: string; label: string }[] = [], active = '') {
@@ -874,6 +876,164 @@ export class Panels {
     );
     renderDetail();
     if (!host) this.ui.showOverlay(p, () => {});
+  }
+
+  // ------------------------------------------------------------------ MERCENARY
+  /** what is selected in the mercenary panel: one of its slots or an item in the bag */
+  mercSel: { slot?: MercSlot; idx?: number } | null = null;
+
+  merc(host?: HTMLElement) {
+    const p = host ?? this.frame('Žoldák');
+    const body = $('.body', p);
+    const s = this.save;
+    const m = s.merc;
+    const price = mercPrice(s.level);
+    const fmt = (v: number) => Math.round(v).toLocaleString('cs-CZ');
+    if (!m) {
+      this.mercSel = null;
+      body.innerHTML = `<div class="col" style="flex:1;min-width:0">
+        <div class="hint">Najmi si parťáka, který s tebou půjde do hlubin. Má vlastní tři sloty na vybavení, roste s tvou úrovní a poslouchá jednoduché rozkazy. Najmutí stojí <b style="color:#ffd76a">${fmt(price)} zlata</b> (máš ${fmt(s.gold)}).</div>
+        <div class="scroll" style="flex:1"><div class="mercgrid">${MERCS.map(
+          (d) => `<div class="merccard" style="--mc:${d.color}"><img src="${iconURL('pl_' + mercLook(d, s.cls), 64)}"><div class="mtxt"><div class="nm">${esc(d.title)}</div><div class="lv2">${esc(d.desc)}</div><div class="lv2 sk">${esc(d.skill)}</div></div><button class="btn green small" data-hire="${d.role}" ${s.gold < price ? 'disabled' : ''}>Najmout</button></div>`,
+        ).join('')}</div></div></div>`;
+      body.querySelectorAll<HTMLElement>('[data-hire]').forEach((b) =>
+        b.addEventListener('click', () => {
+          if (!this.sc.hireMerc(b.dataset.hire as MercRole, price)) return;
+          sfx('levelup');
+          const nm = s.merc!.name;
+          this.ui.toast(`${nm} se k tobě přidává!`, MERC_BY_ROLE[s.merc!.role].color);
+          this.merc(p);
+        }),
+      );
+      if (!host) this.ui.showOverlay(p, () => {});
+      return;
+    }
+    const def = MERC_BY_ROLE[m.role];
+    const ms = this.sc.merc?.s ?? mercStats(m, s.level, derive(s).maxHp);
+    const live = this.sc.merc;
+    const fits = s.inventory.map((it) => !!it && !!mercSlotFor(m.role, it));
+    const sel = this.mercSel;
+    const selItem = sel?.slot ? m.equip[sel.slot] : sel?.idx !== undefined ? s.inventory[sel.idx] : null;
+    let detail = `<div class="hint">Vyber předmět z batohu (svítí ty, které ${esc(m.name)} unese) nebo jeho slot.</div>`;
+    if (selItem) {
+      const slot = sel?.slot ?? mercSlotFor(m.role, selItem);
+      const acts = sel?.slot ? `<button class="btn small" data-ma="off">Sundat do batohu</button>` : slot ? `<button class="btn green small" data-ma="give">Dát žoldákovi</button>` : `<span class="hint">Tohle ${esc(m.name)} nepoužije.</span>`;
+      detail = this.itemDetailHtml(selItem, acts);
+    }
+    body.innerHTML = `
+      <div class="col detail box scroll mercinfo">
+        <div class="merchead"><img src="${iconURL('pl_' + mercLook(def, s.cls), 64)}"><div><div style="font-size:24px;color:${def.color}">${esc(m.name)}</div><div class="hint">${esc(def.title)} • úroveň ${s.level}${live?.down ? ' • <span style="color:#ff8a7a">vyřazen z boje</span>' : ''}</div></div></div>
+        <div class="mercstats">
+          <div class="statline"><span>Zdraví</span><b>${fmt(live && !live.down ? live.hp : ms.maxHp)}/${fmt(ms.maxHp)}</b></div>
+          <div class="statline"><span>Poškození</span><b>${fmt(ms.dmg)}</b></div>
+          ${def.role === 'healer' ? `<div class="statline"><span>Léčení</span><b>${fmt(ms.heal)}</b></div>` : ''}
+          <div class="statline"><span>Brnění</span><b>${fmt(ms.armor)}</b></div>
+          <div class="statline"><span>Kritický</span><b>${Math.round(ms.crit)} %</b></div>
+          ${ms.block ? `<div class="statline"><span>Blok</span><b>${Math.round(ms.block)} %</b></div>` : ''}
+        </div>
+        <p class="hint" style="margin:4px 0">${esc(def.skill)}</p>
+        <div class="orn"><span>Rozkaz</span></div>
+        <div class="mercorders">${MERC_ORDERS.map((o) => `<button class="btn small ${m.order === o.id ? 'green' : ''}" data-ord="${o.id}">${o.name}</button>`).join('')}</div>
+        <div class="hint">${esc(m.name)} ${MERC_ORDERS.find((o) => o.id === m.order)!.desc}.</div>
+        <div class="row" style="margin-top:8px;justify-content:center"><button class="btn small" data-ma="change">Vyměnit…</button><button class="btn red small" data-ma="dismiss">Propustit</button></div>
+      </div>
+      <div class="col" style="flex:1;min-width:0">
+        <div class="orn"><span>Vybavení žoldáka</span></div>
+        <div class="mercslots">${MERC_SLOTS.map((sl) => `<div class="mslotwrap"><span class="hint">${sl.name}</span>${this.slotHtml(m.equip[sl.id], `mslot ${sel?.slot === sl.id ? 'sel' : ''}" data-ms="${sl.id}`)}</div>`).join('')}</div>
+        <div class="mercdet box">${detail}</div>
+        <div class="orn"><span>Batoh</span></div>
+        <div class="scroll" style="flex:1;min-height:60px"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `minv ${fits[i] ? 'fits' : it ? 'dim' : ''} ${sel?.idx === i ? 'sel' : ''}" data-idx="${i}`)).join('')}</div></div>
+      </div>`;
+    const redraw = () => this.merc(p);
+    body.querySelectorAll<HTMLElement>('[data-ms]').forEach((c) =>
+      c.addEventListener('click', () => {
+        sfx('ui');
+        const sl = c.dataset.ms as MercSlot;
+        this.mercSel = m.equip[sl] ? { slot: sl } : null;
+        redraw();
+      }),
+    );
+    body.querySelectorAll<HTMLElement>('.minv').forEach((c) =>
+      c.addEventListener('click', () => {
+        const i = +c.dataset.idx!;
+        if (!s.inventory[i]) return;
+        sfx('ui');
+        this.mercSel = { idx: i };
+        redraw();
+      }),
+    );
+    body.querySelectorAll<HTMLElement>('[data-ord]').forEach((b) =>
+      b.addEventListener('click', () => {
+        sfx('ui');
+        this.sc.setMercOrder(b.dataset.ord as MercOrder);
+        redraw();
+      }),
+    );
+    body.querySelector('[data-ma=give]')?.addEventListener('click', () => {
+      const i = sel?.idx;
+      if (i === undefined) return;
+      const it = s.inventory[i];
+      const slot = it ? mercSlotFor(m.role, it) : null;
+      if (!it || !slot || !mercFits(m.role, slot, it)) return;
+      const old = m.equip[slot] ?? null;
+      m.equip[slot] = it;
+      s.inventory[i] = old;
+      this.mercSel = { slot };
+      sfx('upgrade');
+      this.afterMercGear();
+      redraw();
+    });
+    body.querySelector('[data-ma=off]')?.addEventListener('click', () => {
+      const sl = sel?.slot;
+      if (!sl || !m.equip[sl]) return;
+      const at = s.inventory.findIndex((x) => !x);
+      if (at < 0) {
+        this.ui.toast('Batoh je plný', '#ff8a7a');
+        return;
+      }
+      s.inventory[at] = m.equip[sl]!;
+      m.equip[sl] = null;
+      this.mercSel = { idx: at };
+      sfx('ui');
+      this.afterMercGear();
+      redraw();
+    });
+    body.querySelector('[data-ma=dismiss]')?.addEventListener('click', () =>
+      this.ui.confirm('Propustit žoldáka?', `${m.name} odejde a jeho vybavení se vrátí do batohu. Peníze za najmutí se nevracejí.`, () => {
+        this.sc.dismissMerc();
+        this.mercSel = null;
+        redraw();
+      }, 'Propustit', 'Zpět'),
+    );
+    body.querySelector('[data-ma=change]')?.addEventListener('click', () => {
+      // choosing another role: the hire cards, with this one leaving when a new one is hired
+      const d = el(`<div class="panel"><div class="head"><h2>Jiný žoldák</h2><button class="close">✕</button></div><div class="body"><div class="col" style="flex:1;min-width:0"><div class="hint">${esc(m.name)} odejde (vybavení se vrátí do batohu) a místo něj přijde nový parťák za <b style="color:#ffd76a">${fmt(price)} zlata</b>.</div><div class="scroll" style="flex:1"><div class="mercgrid">${MERCS.filter((x) => x.role !== m.role)
+        .map((x) => `<div class="merccard" style="--mc:${x.color}"><img src="${iconURL('pl_' + mercLook(x, s.cls), 64)}"><div class="mtxt"><div class="nm">${esc(x.title)}</div><div class="lv2">${esc(x.desc)}</div></div><button class="btn green small" data-hire="${x.role}" ${s.gold < price ? 'disabled' : ''}>Najmout</button></div>`)
+        .join('')}</div></div></div></div></div>`);
+      const close = this.ui.dialog(d);
+      $('.close', d).addEventListener('click', () => close());
+      d.querySelectorAll<HTMLElement>('[data-hire]').forEach((b) =>
+        b.addEventListener('click', () => {
+          if (!this.sc.hireMerc(b.dataset.hire as MercRole, price)) return;
+          sfx('levelup');
+          this.ui.toast(`${s.merc!.name} se k tobě přidává!`, MERC_BY_ROLE[s.merc!.role].color);
+          close();
+          this.mercSel = null;
+          redraw();
+        }),
+      );
+    });
+    if (!host) this.ui.showOverlay(p, () => {});
+  }
+
+  /** the mercenary's gear changed: new numbers and a new weapon in its hand */
+  afterMercGear() {
+    const live = this.sc.merc;
+    if (live) {
+      live.recalc();
+      live.makeWeapons();
+    }
+    saveGame(this.save);
   }
 
   // ------------------------------------------------------------------ SPELLS

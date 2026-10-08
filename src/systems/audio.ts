@@ -165,6 +165,12 @@ export function sfx(name: string) {
       noise(0.35, 0.12, 900, 0, 'bandpass');
       tone('sine', 220, 520, 0.3, 0.06);
       break;
+    case 'shout':
+      // the tank's battle cry
+      tone('sawtooth', 160, 110, 0.28, 0.09);
+      tone('square', 240, 170, 0.22, 0.05, 0.02);
+      noise(0.2, 0.06, 700);
+      break;
     case 'pet':
       // a happy little chirp
       tone('sine', 880, 1320, 0.08, 0.07);

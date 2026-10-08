@@ -12,6 +12,8 @@ import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloo
 import { CHAPTERS, noteForFloor } from '../data/story';
 import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf } from '../systems/state';
 import { PetFollower } from '../game/pet';
+import { Mercenary } from '../game/merc';
+import { MercRole, MERC_BY_ROLE, randomMercName, MercOrder } from '../data/mercs';
 import { Weather } from '../game/weather';
 import { PET_BY_ID, PetId, petTitle, cagePetFor, cageChance, petLevel } from '../data/pets';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
@@ -204,6 +206,7 @@ export class GameScene extends Phaser.Scene {
     this.mod = null;
     this.hazards = [];
     this.pet = null;
+    this.merc = null;
     this.lastHit = null;
     this.cursed = null;
     this.bounty = null;
@@ -254,8 +257,9 @@ export class GameScene extends Phaser.Scene {
     this.placePetCage();
     this.placeCursedChest();
     this.rollBounty();
-    // the pet comes down the stairs right after the hero (shown in arrive)
+    // the pet and the mercenary come down the stairs right after the hero (shown in arrive)
     this.spawnPet(ux, uy + 4, false);
+    this.spawnMerc(ux, uy + 4, false);
 
     // camera
     const cam = this.cameras.main;
@@ -1127,8 +1131,80 @@ export class GameScene extends Phaser.Scene {
     this.pet.setVisible(visible);
   }
 
-  /** the pet hops off the stairs after the hero */
+  // ---------------------------------------------------------------- mercenary
+  merc: Mercenary | null = null;
+
+  spawnMerc(x: number, y: number, visible = true) {
+    this.merc?.destroyVisuals();
+    this.merc = null;
+    const st = this.save.merc;
+    if (!st || !MERC_BY_ROLE[st.role]) return;
+    this.merc = new Mercenary(this, st, x, y);
+    this.merc.setVisible(visible);
+  }
+
+  /** hires a mercenary of a role (the old one leaves; its gear goes back to the bag) */
+  hireMerc(role: MercRole, price: number) {
+    const s = this.save;
+    if (s.gold < price) return false;
+    s.gold -= price;
+    const old = s.merc;
+    if (old) this.returnMercGear();
+    const def = MERC_BY_ROLE[role];
+    s.merc = { role, name: randomMercName(def), equip: {}, order: old?.order ?? 'attack' };
+    const p = this.player;
+    const spot = this.map.randomFloorNear(p.x - p.facing * 14, p.y + 3, 14) ?? [p.x, p.y];
+    this.spawnMerc(spot[0], spot[1]);
+    this.fx.burst(spot[0], spot[1] - 6, 0xffffff, 14, 'puff');
+    this.fx.ring(spot[0], spot[1] - 4, 24, 0x6dff7a, 400);
+    sfx('summon');
+    bus.emit('stats');
+    saveGame(s);
+    return true;
+  }
+
+  /** the mercenary leaves (its gear goes back to the bag, or to the floor when the bag is full) */
+  dismissMerc() {
+    if (!this.save.merc) return;
+    this.returnMercGear();
+    if (this.merc) this.fx.burst(this.merc.x, this.merc.y - 6, 0xffffff, 12, 'puff');
+    this.merc?.destroyVisuals();
+    this.merc = null;
+    delete this.save.merc;
+    bus.emit('stats');
+    saveGame(this.save);
+  }
+
+  private returnMercGear() {
+    const m = this.save.merc;
+    if (!m) return;
+    for (const it of Object.values(m.equip)) {
+      if (!it) continue;
+      const at = this.save.inventory.findIndex((x) => !x);
+      if (at >= 0) this.save.inventory[at] = it;
+      else this.loot.dropItem(it, this.player.x, this.player.y);
+    }
+    m.equip = {};
+  }
+
+  setMercOrder(o: MercOrder) {
+    if (!this.save.merc) return;
+    this.save.merc.order = o;
+    if (this.merc) this.merc.target = null;
+    saveGame(this.save);
+  }
+
+  /** the pet hops off the stairs after the hero (and the mercenary follows) */
   petArrives() {
+    const m = this.merc;
+    const u0 = this.upStairs;
+    if (m && u0) {
+      m.x = u0.x + 6;
+      m.y = u0.y + 4;
+      m.setVisible(true);
+      m.sprite.setAlpha(0);
+      this.tweens.add({ targets: m.sprite, alpha: 1, duration: 300 });
+    }
     const pet = this.pet;
     const u = this.upStairs;
     if (!pet || !u) return;
@@ -1286,6 +1362,16 @@ export class GameScene extends Phaser.Scene {
     let best: Actor = p;
     let bd = Math.hypot(p.x - e.x, p.y - e.y);
     if (p.stealthed) bd = 9999;
+    // the mercenary: a taunted monster goes for it, others when it stands closer than the hero
+    const m = this.merc;
+    if (m && !m.dead && !m.down) {
+      const d = Math.hypot(m.x - e.x, m.y - e.y);
+      if (e.tauntT > 0 && d < 160) return m;
+      if (d < bd - 10 && d < 60) {
+        bd = d;
+        best = m;
+      }
+    }
     for (const a of this.allies) {
       if (a.dead || a.flying) continue;
       const d = Math.hypot(a.x - e.x, a.y - e.y);
@@ -1856,6 +1942,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (this.pet) this.tweens.add({ targets: [this.pet.sprite, this.pet.shadow], alpha: 0, duration: 500 });
+    if (this.merc) this.merc.setVisible(false);
     saveGame(this.save);
     this.currentAction = null;
     UI.setAction(null);
@@ -1996,6 +2083,7 @@ export class GameScene extends Phaser.Scene {
     for (const a of this.allies) a.update(dt);
     if (this.allies.some((a) => a.dead)) this.allies = this.allies.filter((a) => !a.dead);
     if (this.pet && !p.dead) this.pet.update(dt);
+    this.merc?.update(dt);
     if (this.cursed && !p.dead) this.updateCursed(dt);
     if (this.streak.t > 0) {
       this.streak.t -= dt;
@@ -2122,6 +2210,17 @@ export class GameScene extends Phaser.Scene {
       g.fillRect(x - 1, y - 1, w + 2, 3);
       g.fillStyle(0x52ff8f, 1);
       g.fillRect(x, y, Math.round((w * a.hp) / a.maxHp), 1);
+    }
+    // the mercenary's health (when hurt) and the time until a knocked-out one gets up
+    const m = this.merc;
+    if (m && !m.dead && m.sprite.visible && (m.hp < m.maxHp || m.down)) {
+      const w = 14;
+      const x = Math.round(m.x - w / 2),
+        y = Math.round(m.y - 22);
+      g.fillStyle(0x000000, 0.7);
+      g.fillRect(x - 1, y - 1, w + 2, 3);
+      g.fillStyle(m.down ? 0x8a8a8a : 0x52ff8f, 1);
+      g.fillRect(x, y, Math.round(w * (m.down ? 1 - m.downT / 35 : m.hp / m.maxHp)), 1);
     }
   }
 

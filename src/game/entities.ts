@@ -94,6 +94,9 @@ export abstract class Actor {
     return this.st.stunT > 0;
   }
 
+  /** a monster's blow lands on this actor (allies and the mercenary take it; the hero goes through Combat) */
+  takeDamage(_amount: number) {}
+
   get speedMult() {
     return this.st.slowT > 0 ? this.st.slowMult : 1;
   }
@@ -212,6 +215,8 @@ export class Enemy extends Actor {
   summoner: Enemy | null = null;
   /** a named champion that once killed the hero */
   nemesis: Nemesis | null = null;
+  /** seconds it must keep attacking the mercenary who taunted it */
+  tauntT = 0;
 
   constructor(scene: GameScene, def: EnemyDef, x: number, y: number, floor: number, elite: boolean, roomId: number, affix?: string | null) {
     super(scene, x, y, def.sprite);
@@ -359,6 +364,7 @@ export class Enemy extends Actor {
       }
     }
     if (this.hpBarT > 0) this.hpBarT -= dt;
+    if (this.tauntT > 0) this.tauntT -= dt;
     // knockback
     if (Math.abs(this.knockX) + Math.abs(this.knockY) > 0.5) {
       const [nx, ny] = this.flying ? [this.x + this.knockX * dt, this.y + this.knockY * dt] : this.scene.map.move(this.x, this.y, this.knockX * dt, this.knockY * dt, this.r);
@@ -689,7 +695,7 @@ export class Enemy extends Actor {
         if (this.eliteAffix === 'upíří') this.hp = Math.min(this.maxHp, this.hp + this.dmg * 0.5);
         if (this.eliteAffix === 'mrazivý') sc.player.chill(1.5);
       } else {
-        (target as Ally).takeDamage(this.dmg);
+        target.takeDamage(this.dmg);
       }
     }
   }
@@ -1048,6 +1054,12 @@ export class Projectile {
           this.kill();
           return true;
         }
+      }
+      const m = sc.merc;
+      if (m && !m.dead && !m.down && Math.abs(m.x - this.x) < 6 && Math.abs(m.y - 6 - this.y) < 9) {
+        m.takeDamage(this.o.dmg);
+        this.kill();
+        return true;
       }
     }
     return false;
