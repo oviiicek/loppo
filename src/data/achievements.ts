@@ -81,6 +81,16 @@ export const ACHIEVEMENTS: Achievement[] = [
   // nemeses
   { id: 'nemesis1', name: 'Pomsta', desc: 'Poraz svého nemesis', reward: { gold: 5000, dust: 4 }, check: (s) => (st(s).nemeses ?? 0) >= 1 },
   { id: 'nemesis5', name: 'Nikdo mi neuteče', desc: 'Poraz 5 nemesis', reward: { gold: 60000, attr: 4 }, check: (s) => (st(s).nemeses ?? 0) >= 5 },
+  // dungeon events
+  { id: 'rescue1', name: 'Zachránce', desc: 'Osvoboď zajatce v kobkách', reward: { gold: 800, lockpick: 2 }, check: (s) => (st(s).rescued ?? 0) >= 1 },
+  { id: 'village', name: 'Loppo žije', desc: 'Přiveď domů všech sedm ztracených vesničanů', reward: { gold: 40000, attr: 4 }, check: (s) => Object.keys(s.village?.lv ?? {}).length >= 8 },
+  { id: 'rift1', name: 'Zavírač trhlin', desc: 'Uzavři trhlinu', reward: { gold: 3000, stone: 3 }, check: (s) => (st(s).rifts ?? 0) >= 1 },
+  { id: 'rift10', name: 'Strážce hranic', desc: 'Uzavři 10 trhlin', reward: { gold: 40000, attr: 3 }, check: (s) => (st(s).rifts ?? 0) >= 10 },
+  { id: 'arena1', name: 'Krev za krev', desc: 'Přijmi krvavou výzvu', reward: { gold: 2000, dust: 3 }, check: (s) => (st(s).arenas ?? 0) >= 1 },
+  { id: 'lore10', name: 'Kronikář', desc: 'Přečti 10 zápisků z hlubin', reward: { gold: 3000, dust: 3 }, check: (s) => (s.lore?.length ?? 0) >= 10 },
+  { id: 'lore30', name: 'Strážce paměti', desc: 'Přečti 30 zápisků z hlubin', reward: { gold: 25000, attr: 2 }, check: (s) => (s.lore?.length ?? 0) >= 30 },
+  { id: 'wtf', name: 'Tohle mi nikdo neuvěří', desc: 'Zažij něco, co se stává jednou za sto pater', reward: { gold: 10000, attr: 2 }, check: (s) => (st(s).wtf ?? 0) >= 1 },
+  { id: 'brawl', name: 'Smějící se třetí', desc: 'Buď u rvačky dvou smeček nestvůr', reward: { gold: 1000 }, check: (s) => (st(s).brawls ?? 0) >= 1 },
 ];
 
 export function achievementReward(r: Achievement['reward']) {

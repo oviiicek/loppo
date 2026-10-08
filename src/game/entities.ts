@@ -219,6 +219,11 @@ export class Enemy extends Actor {
   tauntT = 0;
   /** a wandering adventurer who chose to fight the hero */
   rivalFoe = false;
+  /** side in a brawl between two packs (0 = none) and whether the hero joined in against it */
+  faction = 0;
+  heroHit = false;
+  /** what an event made of this monster (a captive's guard, a ghost's murderer, an arena fighter …) */
+  tag: string | null = null;
 
   constructor(scene: GameScene, def: EnemyDef, x: number, y: number, floor: number, elite: boolean, roomId: number, affix?: string | null) {
     super(scene, x, y, def.sprite);
@@ -352,6 +357,11 @@ export class Enemy extends Actor {
 
   onDot(amount: number) {
     this.scene.combat.damageEnemy(this, amount, { dot: true, el: this.st.burnT > 0 ? 'fire' : 'poison' });
+  }
+
+  /** a blow of another monster (only in a brawl between two packs) */
+  takeDamage(amount: number) {
+    if (this.faction) this.scene.combat.damageEnemy(this, amount, { fromAlly: true, noCrit: true });
   }
 
   update(dt: number) {

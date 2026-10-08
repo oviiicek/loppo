@@ -65,6 +65,10 @@ export interface Dungeon {
   spawns: Spawn[];
   bossRoom: Room | null;
   hasMerchant: boolean;
+  /** a rift or a dream: a small floor of its own (see game/encounters.ts) */
+  rift?: 'rift' | 'dream';
+  /** tileset override (index into THEMES) */
+  theme?: number;
 }
 
 const DIRS = [
@@ -79,11 +83,13 @@ export function eliteChanceFor(floor: number) {
   return Math.min(0.16, 0.05 + floor * 0.004);
 }
 
-export function generateDungeon(floor: number, seed: number, opts: { forceMerchant?: boolean } = {}): Dungeon {
+export function generateDungeon(floor: number, seed: number, opts: { forceMerchant?: boolean; rift?: 'rift' | 'dream' } = {}): Dungeon {
   const r = new RNG(seed);
-  const boss = isBossFloor(floor);
-  const W = Math.min(46 + floor * 3, 130);
-  const H = Math.min(34 + floor * 2, 96);
+  const rift = opts.rift;
+  const boss = !rift && isBossFloor(floor);
+  // a rift is a small, crowded floor; a dream is small and full of treasure
+  const W = rift ? 52 : Math.min(46 + floor * 3, 130);
+  const H = rift ? 38 : Math.min(34 + floor * 2, 96);
   const grid = new Uint8Array(W * H);
   const roomId = new Int16Array(W * H).fill(-1);
   const idx = (x: number, y: number) => y * W + x;
@@ -235,7 +241,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   }
 
   // ------------------------------------------------------------ place rooms
-  const targetRooms = Math.min(7 + Math.floor(floor * 0.7), 34);
+  const targetRooms = rift ? 9 : Math.min(7 + Math.floor(floor * 0.7), 34);
   let bossRoom: Room | null = null;
   if (boss) {
     // big arena placed first, at a random edge region
@@ -336,7 +342,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   // vault: a leaf room (only one connection)
   const leaves = rooms.filter((rm) => rm.type === 'normal' && adj[rm.id].length === 1 && rm.cells.length <= 100);
   let vault: Room | null = null;
-  if (leaves.length && r.chance(0.4)) {
+  if (leaves.length && !rift && r.chance(0.4)) {
     vault = r.pick(leaves);
     vault.type = 'vault';
   }
@@ -611,7 +617,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
 
   // ------------------------------------------------------------ secret rooms
   const secretWalls: { x: number; y: number }[] = [];
-  const nSecret = r.chance(0.55 + Math.min(0.3, floor * 0.01)) ? (r.chance(0.25) ? 2 : 1) : 0;
+  const nSecret = rift ? 0 : r.chance(0.55 + Math.min(0.3, floor * 0.01)) ? (r.chance(0.25) ? 2 : 1) : 0;
   for (let k = 0; k < nSecret; k++) {
     for (let t = 0; t < 300; t++) {
       const host = r.pick(rooms.filter((rm) => ['normal', 'exit', 'library', 'den', 'start'].includes(rm.type)));
@@ -697,16 +703,18 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     return rm;
   };
   let hasMerchant = false;
-  if (opts.forceMerchant || r.chance(0.42)) {
-    hasMerchant = !!take('merchant');
+  if (!rift) {
+    if (opts.forceMerchant || r.chance(0.42)) {
+      hasMerchant = !!take('merchant');
+    }
+    if (r.chance(0.5)) take('treasure');
+    if (r.chance(0.35)) take('shrine');
+    if (r.chance(0.3)) take('fountain');
+    if (r.chance(0.28)) take('forge');
+    if (r.chance(0.35)) take('den');
+    if (r.chance(0.3)) take('library');
+    if (floor > 8 && r.chance(0.3)) take('treasure');
   }
-  if (r.chance(0.5)) take('treasure');
-  if (r.chance(0.35)) take('shrine');
-  if (r.chance(0.3)) take('fountain');
-  if (r.chance(0.28)) take('forge');
-  if (r.chance(0.35)) take('den');
-  if (r.chance(0.3)) take('library');
-  if (floor > 8 && r.chance(0.3)) take('treasure');
 
   // ------------------------------------------------------------ objects
   const objects: DObject[] = [];
@@ -748,12 +756,12 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   const start = { x: startRoom.cx, y: startRoom.cy };
   occupied.add(idx(start.x, start.y));
   let exit = { x: exitRoom.cx, y: exitRoom.cy };
-  if (!bossRoom) put('stairs', exit.x, exit.y);
-  else {
+  if (bossRoom) {
     exit = { x: bossRoom.cx, y: bossRoom.cy - 2 >= bossRoom.y ? bossRoom.cy - 2 : bossRoom.cy };
     occupied.add(idx(exit.x, exit.y));
     occupied.add(idx(bossRoom.cx, bossRoom.cy));
-  }
+  } else if (!rift) put('stairs', exit.x, exit.y);
+  else occupied.add(idx(exit.x, exit.y));
 
   // locked doors
   for (const d of lockedDoors) put('door', d.x, d.y);
@@ -920,7 +928,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   }
 
   // spike traps in corridors and some rooms (never near the start)
-  if (floor >= 2) {
+  if (floor >= 2 && rift !== 'dream') {
     const trapChance = Math.min(0.025, 0.008 + floor * 0.0008);
     for (const c of corridorCells) {
       const x = c % W,
@@ -941,7 +949,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   // ------------------------------------------------------------ enemies
   const spawns: Spawn[] = [];
   const pool = ENEMIES.filter((e) => e.minFloor <= floor && e.weight > 0);
-  const eliteChance = eliteChanceFor(floor);
+  const eliteChance = eliteChanceFor(floor) * (rift ? 2 : 1);
   // every biome (50 floors) favours its own monsters; the dungeon also changes its crowd every 10 floors
   const BIOME_FAVOURITES: string[][][] = [
     [
@@ -969,7 +977,9 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     // secret rooms hold treasure, not monsters (they stay hidden until found)
     if (rm.type === 'secret') count = 0;
     if (rm.type === 'treasure') count = Math.round(count * 0.7);
-    count = Math.min(count, 10);
+    if (rift === 'rift') count = Math.round(count * 1.6 + 1);
+    if (rift === 'dream') count = 0;
+    count = Math.min(count, rift ? 14 : 10);
     // groups: often similar enemies together
     const main = pickEnemy();
     for (let k = 0; k < count; k++) {
@@ -980,7 +990,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   }
   // corridor wanderers
   for (const c of corridorCells) {
-    if (r.chance(0.022)) {
+    if (rift !== 'dream' && r.chance(0.022)) {
       const x = c % W,
         y = Math.floor(c / W);
       if (Math.hypot(x - start.x, y - start.y) < 10) continue;
@@ -995,7 +1005,9 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   }
   // mimics are objects: handled by the scene
 
-  return { floor, w: W, h: H, grid, roomId, rooms, start, exit, secretWalls, lockedDoors, objects, spawns, bossRoom, hasMerchant };
+  // a rift lies in a twisted other place: the abyss (or the forge, for those already in the abyss); the dream is made of ice and light
+  const theme = rift === 'rift' ? (biomeForFloor(floor) === 4 ? 3 : 4) : rift === 'dream' ? 2 : undefined;
+  return { floor, w: W, h: H, grid, roomId, rooms, start, exit, secretWalls, lockedDoors, objects, spawns, bossRoom, hasMerchant, rift, theme };
 }
 
 // Simple binary heap keyed by priority

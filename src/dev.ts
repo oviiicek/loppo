@@ -733,3 +733,59 @@ Object.assign(dev, {
     return { talents: sc.save.talents, specials: [...d.specials].join(','), armor: d.armor, hp: d.maxHp, crit: d.crit, elemPct: d.elemPct };
   },
 });
+Object.assign(dev, {
+  /** places an event on the running floor and returns where it is */
+  ev(kind: string) {
+    const sc = (window as any).__scene;
+    const before = sc.interactables.length;
+    const ok = sc.enc.placeKind(kind);
+    const it = sc.interactables.slice(before).find((i: any) => i.kind === 'ev') ?? sc.interactables[sc.interactables.length - 1];
+    return { ok, x: it?.x, y: it?.y, type: it?.data?.ev?.type, n: sc.interactables.length - before };
+  },
+  /** the hero stands right below an event (or another interactable kind) */
+  goTo(type: string) {
+    const sc = (window as any).__scene;
+    const it = sc.interactables.find((i: any) => !i.used && ((i.kind === 'ev' && i.data.ev.type === type) || i.kind === type));
+    if (!it) return null;
+    const p = sc.player;
+    for (const [dx, dy] of [[0, 10], [0, 14], [10, 6], [-10, 6], [0, -10]]) {
+      if (!sc.map.collides(it.x + dx, it.y + dy, p.r)) {
+        p.x = it.x + dx;
+        p.y = it.y + dy;
+        break;
+      }
+    }
+    sc.map.revealAround(p.x, p.y, 10);
+    return { x: it.x, y: it.y, label: sc.actionLabel(it) };
+  },
+  /** what the events of the floor are and their state */
+  evInfo() {
+    const sc = (window as any).__scene;
+    const enc = sc.enc;
+    return {
+      events: sc.interactables.filter((i: any) => i.kind === 'ev').map((i: any) => ({ type: i.data.ev.type, used: !!i.used })),
+      brawl: enc.brawl ? { started: enc.brawl.started, done: enc.brawl.done, alive: enc.brawl.members.filter((e: any) => !e.dead).length, f1: enc.brawl.members.filter((e: any) => !e.dead && e.faction === 1).length, f2: enc.brawl.members.filter((e: any) => !e.dead && e.faction === 2).length } : null,
+      arena: enc.arena ? { wave: enc.arena.wave, alive: enc.arena.alive.filter((e: any) => !e.dead).length, sealed: enc.arena.sealed.length } : null,
+      rift: enc.rift ? { kind: enc.rift.kind, kills: enc.rift.kills, need: enc.rift.need, guard: !!enc.rift.guard, cleared: enc.rift.cleared, t: enc.rift.t } : null,
+      fates: sc.save.fates,
+      fateNow: enc.fateNow ? { kind: enc.fateNow.kind, done: !!enc.fateNow.done, foe: enc.fateNow.foe?.name } : null,
+      village: sc.save.village,
+      lore: sc.save.lore,
+      golden: enc.golden,
+      secret: enc.secret ? enc.secret.name : null,
+      rival: sc.rival ? { name: sc.rival.state.name, ally: sc.rivalAlly } : null,
+      floorRift: sc.rift,
+      enemies: sc.enemies.length,
+    };
+  },
+  /** kills every monster of a tag (or all) as if the hero did it */
+  killTagged(tag?: string) {
+    const sc = (window as any).__scene;
+    let n = 0;
+    for (const e of [...sc.enemies]) if (!e.dead && (!tag || e.tag === tag || (tag === 'brawl1' && e.faction === 1))) {
+      sc.combat.killEnemy(e);
+      n++;
+    }
+    return n;
+  },
+});

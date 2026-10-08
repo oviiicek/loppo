@@ -1388,6 +1388,65 @@ export class Panels {
 
   // ------------------------------------------------------------------ WANDERING ADVENTURER
   /** meeting an adventurer: their words and what the hero can answer */
+  /** someone met in the dungeon speaks; the hero answers with one of the choices */
+  talk(o: { title: string; sub?: string; portrait?: string; line: string; choices: { id: string; label: string; cls?: string; disabled?: boolean }[] }, onPick: (choice: string) => void) {
+    const img = o.portrait ? iconURL(o.portrait, 64) : '';
+    const d = el(`<div class="panel small rivaltalk evtalk"><div class="head"><h2>${esc(o.title)}</h2></div>
+      <div class="rtbody">${img ? `<img src="${img}">` : ''}<div style="min-width:0">${o.sub ? `<div class="hint">${esc(o.sub)}</div>` : ''}<p class="rtline">${o.line.startsWith('„') ? esc(o.line) : `„${esc(o.line)}“`}</p></div></div>
+      <div class="row rtbtns">${o.choices.map((c) => `<button class="btn ${c.cls ?? ''}" data-rc="${c.id}" ${c.disabled ? 'disabled' : ''}>${esc(c.label)}</button>`).join('')}</div></div>`);
+    const close = this.ui.dialog(d);
+    d.querySelectorAll<HTMLButtonElement>('[data-rc]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (b.disabled) return;
+        sfx('ui');
+        close();
+        onPick(b.dataset.rc!);
+      }),
+    );
+  }
+
+  /** a letter found on the dead or words cut into a wall */
+  note(title: string, text: string, kind: 'note' | 'wall', after?: () => void) {
+    const d = el(`<div class="panel small lorenote ${kind}"><div class="head"><h2>${esc(title)}</h2></div>
+      <div class="lorebody"><p>${esc(text)}</p></div>
+      <div class="row rtbtns"><button class="btn green" data-a="ok">Zavřít</button></div></div>`);
+    const close = this.ui.dialog(d);
+    $('[data-a=ok]', d).addEventListener('click', () => {
+      sfx('ui');
+      close();
+      after?.();
+    });
+  }
+
+  /** picks an item of the bag to give away (the altar of change) */
+  offerItem(title: string, hint: string, onPick: (idx: number) => void) {
+    const s = this.save;
+    const d = el(`<div class="panel offerpick"><div class="head"><h2>${esc(title)}</h2><button class="close">✕</button></div>
+      <div class="body"><div class="col" style="flex:1;min-width:0"><div class="hint">${esc(hint)}</div>
+        <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `oinv" data-idx="${i}`)).join('')}</div></div></div>
+        <div class="col detail box scroll" style="width:min(300px,40%)"><p class="hint">Vyber předmět z batohu.</p></div></div></div>`);
+    const close = this.ui.dialog(d);
+    $('.close', d).addEventListener('click', () => close());
+    const detail = $('.detail', d);
+    d.querySelectorAll<HTMLElement>('.slot.oinv').forEach((sl) =>
+      sl.addEventListener('click', () => {
+        const i = +sl.dataset.idx!;
+        const it = s.inventory[i];
+        if (!it) return;
+        sfx('ui');
+        d.querySelectorAll('.slot').forEach((x) => x.classList.remove('sel'));
+        sl.classList.add('sel');
+        detail.scrollTop = 0;
+        detail.innerHTML = this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn gold" data-a="give" ${it.locked ? 'disabled' : ''}>${it.locked ? 'Zamčený předmět' : 'Položit na oltář'}</button></div>`);
+        $('[data-a=give]', detail).addEventListener('click', () => {
+          if (it.locked) return;
+          close();
+          onPick(i);
+        });
+      }),
+    );
+  }
+
   rivalTalk(r: Mercenary, mood: RivalMood, line: string, level: number, toll: number, onPick: (choice: string) => void) {
     const opts: [string, string, string][] =
       mood === 'friendly'

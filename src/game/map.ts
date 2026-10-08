@@ -123,7 +123,7 @@ export class WorldMap {
     // tile art has double resolution; layers are scaled down onto the 16px world grid
     const R = TILE_RES;
     this.map = scene.make.tilemap({ data, tileWidth: R, tileHeight: R });
-    const ts = this.map.addTilesetImage('tiles', 'tiles_' + themeForFloor(this.d.floor), R, R, 0, 0)!;
+    const ts = this.map.addTilesetImage('tiles', 'tiles_' + (this.d.theme ?? themeForFloor(this.d.floor)), R, R, 0, 0)!;
     this.layer = this.map.createLayer(0, ts, 0, 0)!;
     this.layer.setDepth(0).setScale(TS / R);
     // fog of war: black tiles removed as the player explores (just below the darkness overlay)
@@ -381,6 +381,20 @@ export class WorldMap {
         }
     }
     return changed;
+  }
+
+  /** the whole floor (but not its secret rooms) appears on the map */
+  revealAll() {
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++) {
+        const i = this.idx(x, y);
+        if (this.explored[i]) continue;
+        let show = this.openFloor(x, y);
+        if (!show && this.d.grid[i] === T_WALL) for (let yy = y - 1; yy <= y + 1 && !show; yy++) for (let xx = x - 1; xx <= x + 1 && !show; xx++) show = this.openFloor(xx, yy);
+        if (!show) continue;
+        this.explored[i] = 1;
+        this.clearFog(x, y);
+      }
   }
 
   clearFog(x: number, y: number) {

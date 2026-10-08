@@ -223,6 +223,8 @@ export class Combat {
       }
     }
     e.hp -= dmg;
+    // a monster in a brawl that the hero hits turns on the hero
+    if (!o.fromAlly && e.faction) e.heroHit = true;
     // one blow cannot carry a guardian past a phase mark: every phase gets played out
     const mark = e.nextPhaseHp;
     if (mark !== null && e.hp < mark) e.hp = Math.max(1, mark - 0.5);

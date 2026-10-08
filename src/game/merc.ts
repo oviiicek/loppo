@@ -46,6 +46,8 @@ export class Mercenary extends Actor {
   /** a seasoned adventurer has more health and shrugs off part of every blow */
   hpMult = 1;
   dmgTaken = 1;
+  /** rarity of the gift a companion of one floor leaves at the stairs (random when missing) */
+  giftRarity?: number;
   private roamTime = 0;
 
   constructor(scene: GameScene, st: MercState, x: number, y: number) {

@@ -33,6 +33,8 @@ import { Difficulty, difficultyOf } from '../data/difficulty';
 import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
 import { Nemesis, NEMESIS_MAX, nemesisName, nemesisTitle, victimOf, nemesisPower, nemesisLabel } from '../data/nemesis';
+import { Encounters, RiftKind } from '../game/encounters';
+import { ClassId } from '../data/types';
 
 /** seconds between kills that keep a kill streak going */
 const STREAK_WINDOW = 2.6;
@@ -175,13 +177,18 @@ export class GameScene extends Phaser.Scene {
   private floorTiles = 0;
   /** a cursed chest challenge in progress */
   cursed: { it: Interactable; t: number; total: number; waveT: number; spawned: Enemy[] } | null = null;
+  /** random events of the floor (captives, altars, ghosts, portals, brawls, the arena …) */
+  enc!: Encounters;
+  /** this floor is a rift or a dream behind a portal */
+  rift: RiftKind | null = null;
 
   constructor() {
     super('Game');
   }
 
-  init(data: { save: SaveData }) {
+  init(data: { save: SaveData; rift?: RiftKind }) {
     this.save = data.save;
+    this.rift = data.rift ?? null;
     this.floor = this.save.floor;
     this.diff = difficultyOf(this.save);
     this.enemies = [];
@@ -225,11 +232,14 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const save = this.save;
+    const rift = this.rift;
     // pity: guarantee merchants regularly
     const forceMerchant = save.merchantPity >= 3;
-    this.dungeon = generateDungeon(this.floor, (Math.random() * 1e9) | 0, { forceMerchant });
-    if (this.dungeon.hasMerchant) save.merchantPity = 0;
-    else save.merchantPity++;
+    this.dungeon = generateDungeon(this.floor, (Math.random() * 1e9) | 0, { forceMerchant, rift: rift ?? undefined });
+    if (!rift) {
+      if (this.dungeon.hasMerchant) save.merchantPity = 0;
+      else save.merchantPity++;
+    }
 
     this.map = new WorldMap(this.dungeon);
     this.map.build(this);
@@ -239,6 +249,7 @@ export class GameScene extends Phaser.Scene {
     this.spells = new Spells(this);
     this.loot = new Loot(this);
     this.bossAI = new BossAI(this);
+    this.enc = new Encounters(this);
     this.createAnims();
 
     // the hero arrives down the stairs from the floor above and steps off them (see arrive)
@@ -250,26 +261,35 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, ux, uy, save);
     // ~25 % of regular floors get a random modifier
     const forced = (window as any).__forceMod as string | undefined; // dev testing hook
-    this.mod = forced
-      ? FLOOR_MODS.find((m) => m.id === forced) ?? null
-      : !isBossFloor(this.floor) && this.floor > 1 && Math.random() < 0.25
-        ? FLOOR_MODS[Math.floor(Math.random() * FLOOR_MODS.length)]
-        : null;
-    this.darkness = this.theme.darkness;
+    this.mod = rift
+      ? null
+      : forced
+        ? FLOOR_MODS.find((m) => m.id === forced) ?? null
+        : !isBossFloor(this.floor) && this.floor > 1 && Math.random() < 0.25
+          ? FLOOR_MODS[Math.floor(Math.random() * FLOOR_MODS.length)]
+          : null;
+    this.darkness = rift === 'dream' ? 0.16 : this.theme.darkness;
     if (this.mod?.darkness) this.darkness = this.mod.darkness;
     this.placeObjects();
     this.lamps.push({ x: ux, y: uy, r: 56, flicker: 0 });
-    this.placeStoryPage();
+    if (!rift) this.placeStoryPage();
     this.spawnEnemies();
-    this.placePetCage();
-    this.placeCursedChest();
-    this.placeAlchemist();
-    this.rollBounty();
+    if (!rift) {
+      this.placePetCage();
+      this.placeCursedChest();
+      this.placeAlchemist();
+      this.rollBounty();
+    }
     // the pet and the mercenary come down the stairs right after the hero (shown in arrive)
     this.spawnPet(ux, uy + 4, false);
     this.spawnMerc(ux, uy + 4, false);
     syncCodex(this.save);
-    this.spawnRival();
+    if (!rift) this.spawnRival();
+    else this.rival = null;
+    // what else happens on this floor (a rift has its own rules)
+    if (rift) this.enc.setupRift(rift);
+    else this.enc.place();
+    UI.hideEventBar();
 
     // camera
     const cam = this.cameras.main;
@@ -328,8 +348,11 @@ export class GameScene extends Phaser.Scene {
       if (ci > 0 && !st.seen.includes('ch' + (ci + 1))) queue.push('ch' + (ci + 1));
     }
     const story = storyBossForFloor(this.floor);
-    const sub =
-      story && !st.seen.includes(story.outro)
+    const sub = this.rift === 'rift'
+      ? 'Trhlina: poraz nestvůry, přivolej strážce a zavři ji'
+      : this.rift === 'dream'
+        ? 'Snový svět: sbírej poklady, než se probudíš'
+        : story && !st.seen.includes(story.outro)
         ? `Zde čeká ${story.name} – ${story.title}`
         : isBossFloor(this.floor)
           ? 'Patro strážce – připrav se!'
@@ -419,7 +442,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   get theme() {
-    return THEMES[themeForFloor(this.floor)];
+    return THEMES[this.dungeon?.theme ?? themeForFloor(this.floor)];
   }
 
   /** biome name for the HUD (the endless depths below the story say so) */
@@ -759,8 +782,10 @@ export class GameScene extends Phaser.Scene {
       if (m?.enemyHp) e.maxHp = e.hp = Math.round(e.maxHp * m.enemyHp);
       if (m?.enemyDmg) e.dmg *= m.enemyDmg;
     }
-    this.spawnThief();
-    this.spawnNemesis();
+    if (!this.rift) {
+      this.spawnThief();
+      this.spawnNemesis();
+    }
     const br = this.dungeon.bossRoom;
     if (br) {
       const story = storyBossForFloor(this.floor);
@@ -915,6 +940,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (e.nemesis) this.nemesisDefeated(e);
     if (e.rivalFoe) this.rivalDefeated(e);
+    this.enc.onKill(e);
   }
 
   // ---------------------------------------------------------------- nemesis
@@ -1530,6 +1556,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   pickEnemyTarget(e: Enemy): Actor {
+    // two packs at war go for each other first
+    if (e.faction) {
+      const foe = this.enc.brawlTarget(e);
+      if (foe) return foe;
+    }
     const p = this.player;
     let best: Actor = p;
     let bd = Math.hypot(p.x - e.x, p.y - e.y);
@@ -1695,7 +1726,9 @@ export class GameScene extends Phaser.Scene {
   actionLabel(it: Interactable): string {
     switch (it.kind) {
       case 'stairs':
-        return `Sestoupit (patro ${this.floor + 1})`;
+        return it.data.portal ? `Projít portálem (patro ${this.floor + 1})` : `Sestoupit (patro ${this.floor + 1})`;
+      case 'ev':
+        return this.enc.label(it);
       case 'door':
         return `Odemknout (paklíče: ${this.save.mats.lockpick})`;
       case 'chest':
@@ -1730,7 +1763,11 @@ export class GameScene extends Phaser.Scene {
     const p = this.player;
     switch (it.kind) {
       case 'stairs':
-        UI.confirm(`Sestoupit do patra ${this.floor + 1}?`, 'Hra se uloží. Zpět se vrátit nelze.', () => this.nextFloor());
+        if (it.data.portal) UI.confirm(`Projít portálem do patra ${this.floor + 1}?`, 'Hra se uloží. Zpět se vrátit nelze.', () => this.nextFloor(), 'Projít', 'Ještě ne');
+        else UI.confirm(`Sestoupit do patra ${this.floor + 1}?`, 'Hra se uloží. Zpět se vrátit nelze.', () => this.nextFloor());
+        break;
+      case 'ev':
+        this.enc.interact(it);
         break;
       case 'door':
       case 'chest':
@@ -1909,6 +1946,14 @@ export class GameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- boss
   onBossAggro(b: Enemy) {
+    if (b.tag === 'secret') return this.enc.secretAggro(b);
+    if (b.tag === 'riftGuard') {
+      sfx('boss');
+      UI.showBoss(b);
+      UI.banner('Strážce trhliny', 'Poraz ho a trhlina se zavře');
+      this.fx.shake(0.006, 300);
+      return;
+    }
     if (b.story) {
       void this.storyBossIntro(b);
       return;
@@ -2031,6 +2076,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   onBossKilled(b: Enemy) {
+    if (b.tag === 'secret') return this.enc.secretKilled(b);
+    if (b.tag === 'riftGuard') return this.enc.riftCleared(b);
     if (b.story) {
       void this.storyBossDefeated(b);
       return;
@@ -2127,6 +2174,61 @@ export class GameScene extends Phaser.Scene {
     this.scene.restart({ save: this.save });
   }
 
+  /** through a portal into a rift (or a dream): the floor is left behind */
+  enterRift(kind: RiftKind) {
+    if (this.descending || this.player.dead) return;
+    this.descending = true;
+    this.cinematic = true;
+    this.currentAction = null;
+    UI.setAction(null);
+    UI.joy = [0, 0];
+    const p = this.player;
+    p.target = null;
+    p.invulnT = 99;
+    this.targetMarker.setAlpha(0);
+    const gold = kind === 'dream';
+    sfx('stairs');
+    this.fx.ring(p.x, p.y - 6, 44, gold ? 0xffd23a : 0xb07dff, 700);
+    this.fx.burst(p.x, p.y - 8, gold ? 0xffd23a : 0xb07dff, 30, 'puff');
+    this.tweens.add({ targets: [p.sprite, p.shadow], alpha: 0, duration: 650 });
+    if (this.pet) this.tweens.add({ targets: [this.pet.sprite, this.pet.shadow], alpha: 0, duration: 500 });
+    if (this.merc) this.merc.setVisible(false);
+    const cam = this.cameras.main;
+    cam.zoomTo(this.zoom * 1.3, 900, 'Sine.easeIn');
+    this.time.delayedCall(380, () => cam.fadeOut(480, gold ? 255 : 30, gold ? 230 : 0, gold ? 160 : 50));
+    saveGame(this.save);
+    this.time.delayedCall(900, () => {
+      const info = this.floorCardInfo();
+      UI.floorCard({ ...info, name: gold ? 'Snový svět' : 'Trhlina', region: gold ? 'Zlatý sen · jen chvíli' : 'Zkřivený svět · mimo čas', color: gold ? '#ffd23a' : '#c77dff' }, '', true);
+      this.scene.restart({ save: this.save, rift: kind });
+    });
+  }
+
+  /** someone met in the dungeon walks with the hero for the rest of the floor (and leaves a gift at the stairs) */
+  joinCompanion(name: string, look: ClassId, role: MercRole, line: string, giftRarity: number) {
+    const old = this.rival;
+    if (old && !old.dead) {
+      old.dead = true;
+      old.destroyVisuals();
+    }
+    const p = this.player;
+    const spot = this.map.randomFloorNear(p.x - p.facing * 16, p.y + 3, 16) ?? [p.x, p.y];
+    const st: MercState = { role, name, equip: {}, order: 'attack', look, temp: true };
+    const r = new Mercenary(this, st, spot[0], spot[1]);
+    r.hpMult = 2.5;
+    r.dmgTaken = 0.5;
+    r.recalc(true);
+    r.giftRarity = giftRarity;
+    this.rival = r;
+    this.rivalAlly = true;
+    this.rivalMet = true;
+    this.rivalMood = 'friendly';
+    this.fx.burst(spot[0], spot[1] - 6, 0xffffff, 14, 'puff');
+    this.fx.ring(spot[0], spot[1] - 4, 24, 0x9dff9d, 400);
+    sfx('summon');
+    UI.toast(`${name}: „${line}“`, '#c8d8ff');
+  }
+
   /** walk onto the stairs and down into the dark; the title card of the next floor covers the loading */
   nextFloor() {
     if (this.descending) return;
@@ -2135,7 +2237,7 @@ export class GameScene extends Phaser.Scene {
     // an adventurer who came along says goodbye with a gift
     const ally = this.rival;
     if (ally && this.rivalAlly && !ally.dead) {
-      const gift = generateItem(this.floor + 2, { rarity: Math.random() < 0.25 ? 4 : 3, filter: this.loot.bias() });
+      const gift = generateItem(this.floor + 2, { rarity: ally.giftRarity ?? (Math.random() < 0.25 ? 4 : 3), filter: this.loot.bias() });
       if (addToInventory(this.save, gift)) UI.toast(`${ally.state.name}: „Díky za společnou cestu! Tohle si vezmi.“ (${gift.name})`, '#9dff9d');
       ally.leave();
     }
@@ -2315,6 +2417,7 @@ export class GameScene extends Phaser.Scene {
     this.updateTraps(dt);
     this.updateHazards(dt);
     this.updateNemesis();
+    this.enc.update(dt);
 
     // shrine buffs
     if (this.shrineBuffs.length) {

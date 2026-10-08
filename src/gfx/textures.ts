@@ -21,7 +21,7 @@ export const ACTOR_SCALE = 0.5;
 const HI_RES = ['pl_', 'en_', 'al_', 'npc_', 'totem_', 'wp_'];
 // dungeon furniture gets the same treatment (placed with ACTOR_SCALE by the scenes)
 const PROP_KEYS = new Set(['torch', 'bookshelf', 'crate', 'barrel', 'pot', 'table', 'chair', 'bones', 'skull', 'stairs', 'stairs_up', 'door', 'door_open', 'goldpile', 'anvil', 'fountain', 'fountain_used', 'spikes', 'page', 'cage', 'cage_open']);
-const PROP_PREFIX = ['banner_', 'shrine_', 'chest_', 'torch_', 'deco_'];
+const PROP_PREFIX = ['banner_', 'shrine_', 'chest_', 'torch_', 'deco_', 'ev_'];
 export const isPropTex = (key: string) => PROP_KEYS.has(key) || PROP_PREFIX.some((p) => key.startsWith(p));
 const isHiRes = (key: string) => HI_RES.some((p) => key.startsWith(p)) || isPropTex(key);
 
@@ -3801,8 +3801,319 @@ function buildPets() {
   creatureStrip('cage_open', 22, 22, 1, cage(true), false);
 }
 
+// ---------------------------------------------------------------------------
+// DUNGEON EVENTS: villagers (free and tied up), people with a choice, altars, portals, the blood obelisk,
+// lore on the walls and on the dead
+// ---------------------------------------------------------------------------
+/** ropes over a humanoid frame (the captive bobs with its breath, the ropes with it) */
+function ropes(ctx: CanvasRenderingContext2D, ox: number, f: number) {
+  const bob = f === 1 || f === 3 || f === 5 ? 1 : 0;
+  const R = '#c8a060',
+    RD = '#7a5a30';
+  for (const y of [10, 12]) {
+    rect(ctx, ox + 3, y + bob, 10, 1, R);
+    px(ctx, ox + 3, y + bob, RD);
+    px(ctx, ox + 12, y + bob, RD);
+  }
+  px(ctx, ox + 7, 11 + bob, RD);
+  rect(ctx, ox + 4, 17, 8, 1, R);
+  px(ctx, ox + 8, 17, RD);
+}
+
+/** iron chains over a humanoid frame */
+function chains(ctx: CanvasRenderingContext2D, ox: number, f: number) {
+  const bob = f === 1 || f === 3 || f === 5 ? 1 : 0;
+  for (let x = 2; x < 14; x++) px(ctx, ox + x, 11 + bob, x % 2 ? '#9aa0aa' : '#4a4e56');
+  for (let x = 4; x < 12; x++) px(ctx, ox + x, 17, x % 2 ? '#9aa0aa' : '#4a4e56');
+  // the chain runs to the wall behind
+  px(ctx, ox + 1, 10 + bob, '#4a4e56');
+  px(ctx, ox + 14, 10 + bob, '#4a4e56');
+}
+
+function portalStrip(key: string, rim: string, mid: string, core: string, spark: string) {
+  creatureStrip(
+    key,
+    20,
+    26,
+    4,
+    (ctx, f) => {
+      // a standing oval: dark rim stones, a swirling inside
+      ell(ctx, 10, 13, 9.5, 12.5, '#2a2430');
+      ell(ctx, 10, 13, 8, 11, rim);
+      ell(ctx, 10, 13, 6.5, 9.5, mid);
+      const a0 = (f / 4) * Math.PI * 2;
+      for (let k = 0; k < 3; k++) {
+        const a = a0 + (k * Math.PI * 2) / 3;
+        for (let t = 0; t < 7; t++) {
+          const r = 1 + t * 0.85;
+          const x = 10 + Math.cos(a + t * 0.55) * r * 0.75;
+          const y = 13 + Math.sin(a + t * 0.55) * r * 1.05;
+          px(ctx, Math.round(x), Math.round(y), t < 3 ? spark : core);
+        }
+      }
+      ell(ctx, 10, 13, 2, 3, core);
+      px(ctx, 10, 13, spark);
+      // rim stones
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        px(ctx, Math.round(10 + Math.cos(a) * 8.8), Math.round(13 + Math.sin(a) * 11.8), '#5a5466');
+      }
+    },
+    true,
+  );
+}
+
+function buildEvents() {
+  // the villagers of Loppo (and how they are found down below: tied up)
+  const SK = '#f1c39b',
+    SD = '#c98f6b',
+    EY = '#1b1b2a';
+  const people: [string, string, 'armor' | 'robe', Record<string, string>][] = [
+    // the smith: bald, leather apron, strong bare arms
+    ['npc_smith', 'bald', 'armor', { s: '#e0a878', d: '#b07850', i: '#f4c89a', e: EY, a: '#6b3a1a', u: '#e0a878', c: '#6b4a2b', v: '#4e321c', w: '#8a6040', l: '#2a1e14', p: '#3a3a46', q: '#2a2a34', b: '#2a1e14', g: '#e0a878' }],
+    // the trader: a golden headscarf, a wine-red dress
+    ['npc_trader', 'hood', 'robe', { h: '#c8962a', j: '#8a6418', s: SK, d: SD, e: EY, u: '#8a2a3a', c: '#8a2a3a', v: '#5e1a26', w: '#b03a4e', a: '#e9b949', l: '#e9b949', b: '#3b2716', g: SK }],
+    // the hunter: a green hood, leather and a quiver strap
+    ['npc_hunter', 'hood', 'armor', { h: '#3f6a2a', j: '#2a4a1c', s: SK, d: SD, e: EY, u: '#5a3e22', c: '#6b5030', v: '#4a3620', w: '#8a6a40', a: '#c8a060', l: '#3a2a18', p: '#4a5a32', q: '#36442a', b: '#2a1e14', g: SK }],
+    // the mage: a tall blue hat and a white beard
+    ['npc_mage', 'wizard', 'robe', { h: '#2a4a9a', i: '#5a7ad0', a: '#e9b949', s: SK, e: EY, y: '#eceaf4', d: SD, u: '#2a4a9a', c: '#2a4a9a', v: '#1a2e66', w: '#4a6ac0', l: '#e9b949', b: '#1a1420', g: SK }],
+    // the weapons master: a steel helmet, red tabard
+    ['npc_trainer', 'helm', 'armor', { h: '#9aa0aa', j: '#5a5e68', i: '#d4dae2', s: SK, d: SD, e: EY, u: '#9aa0aa', c: '#a02a2a', v: '#6a1a1a', w: '#c84a3a', a: '#e9b949', l: '#3a2a18', p: '#4a4e56', q: '#34363e', b: '#2a1e14', g: '#9aa0aa' }],
+    // the priestess: white and gold
+    ['npc_priest', 'hood', 'robe', { h: '#eceaf4', j: '#b8b4c8', s: SK, d: SD, e: EY, u: '#eceaf4', c: '#eceaf4', v: '#b8b4c8', w: '#ffffff', a: '#e9b949', l: '#e9b949', b: '#8a7a5a', g: SK }],
+    // a stranger in plain clothes (two looks)
+    ['npc_villager', 'merchant', 'armor', { h: '#6b4a2b', a: '#8a6040', s: SK, d: SD, e: EY, y: '#6b4a2b', u: '#7a6a4a', c: '#7a6a4a', v: '#5a4a32', w: '#9a8a62', l: '#3a2a18', p: '#4a4038', q: '#36302a', b: '#2a1e14', g: SK }],
+    ['npc_villager2', 'bald', 'robe', { s: SK, d: SD, i: '#ffe0c0', e: EY, a: '#3a5a8a', u: '#3a5a8a', c: '#3a5a8a', v: '#26406a', w: '#5a7aaa', l: '#c8a060', b: '#2a1e14', g: SK }],
+    // the knight who asks for a potion (a red stain on the armour)
+    ['npc_knight', 'paladin', 'armor', { r: '#c83a3a', h: '#b8c0cc', j: '#6a7280', i: '#e8eef4', a: '#e9b949', s: SK, d: SD, e: EY, u: '#b8c0cc', c: '#8a96a8', v: '#c83a3a', w: '#b8c0cc', l: '#3a2a18', p: '#6a7280', q: '#4a5260', b: '#2a1e14', g: '#b8c0cc' }],
+  ];
+  for (const [key, head, body, pal] of people) {
+    humanoidStrip(key, head, body, pal);
+    humanoidStrip(key + '_tied', head, body, pal, ropes);
+  }
+  // the necromancer in chains: a black hood, glowing green eyes
+  const necro = { h: '#2a1e3a', j: '#16101e', s: '#c8c0b0', d: '#8a8478', e: '#5dff9a', u: '#2a1e3a', c: '#2a1e3a', v: '#16101e', w: '#3e2e56', a: '#5dff9a', l: '#5dff9a', b: '#0e0a14', g: '#c8c0b0' };
+  humanoidStrip('npc_necro', 'hood', 'robe', necro);
+  humanoidStrip('npc_necro_tied', 'hood', 'robe', necro, chains);
+  // a restless ghost: a pale hooded figure (drawn see-through by the scene)
+  humanoidStrip('npc_ghost', 'hood', 'robe', { h: '#cfe8ff', j: '#8ab8e0', s: '#e8f4ff', d: '#a8c8e8', e: '#2a4a7a', u: '#cfe8ff', c: '#b8d8f8', v: '#8ab8e0', w: '#e8f4ff', a: '#ffffff', l: '#ffffff', b: '#8ab8e0', g: '#e8f4ff' });
+
+  // altars 16x18: blood, change, fate (and a spent one)
+  const altar = (top: (c: CanvasRenderingContext2D) => void, stone: string, rune: string) => (c: CanvasRenderingContext2D) => {
+    rect(c, 1, 15, 14, 3, shade(stone, -0.35));
+    rect(c, 2, 8, 12, 8, stone);
+    rect(c, 2, 8, 12, 1, shade(stone, 0.25));
+    rect(c, 2, 8, 2, 8, shade(stone, 0.12));
+    rect(c, 12, 9, 2, 7, shade(stone, -0.2));
+    rect(c, 1, 6, 14, 3, shade(stone, 0.1));
+    rect(c, 1, 6, 14, 1, shade(stone, 0.35));
+    // a rune on the front
+    rect(c, 7, 10, 2, 4, rune);
+    px(c, 6, 11, rune);
+    px(c, 9, 12, rune);
+    top(c);
+  };
+  addCanvas(
+    'ev_altar_blood',
+    iconCanvasSized(
+      16,
+      18,
+      altar(
+        (c) => {
+          // a bowl full of blood, drips over the edge
+          ell(c, 8, 5, 5, 2, '#4a4040');
+          ell(c, 8, 4.6, 4, 1.4, '#a01020');
+          px(c, 6, 4, '#ff4a5a');
+          rect(c, 3, 7, 1, 3, '#a01020');
+          rect(c, 12, 7, 1, 2, '#a01020');
+        },
+        '#4a3a3e',
+        '#ff3a4a',
+      ),
+    ),
+  );
+  addCanvas(
+    'ev_altar_gift',
+    iconCanvasSized(
+      16,
+      18,
+      altar(
+        (c) => {
+          // a golden orb floating over a white slab
+          ell(c, 8, 2.5, 2.6, 2.6, '#e9b949');
+          px(c, 7, 1, '#fff6c0');
+          px(c, 8, 2, '#fff6c0');
+          rect(c, 5, 5, 6, 1, '#c8962a');
+        },
+        '#c8c4d4',
+        '#e9b949',
+      ),
+    ),
+  );
+  addCanvas(
+    'ev_altar_fate',
+    iconCanvasSized(
+      16,
+      18,
+      altar(
+        (c) => {
+          // two dice on purple stone
+          rect(c, 3, 2, 4, 4, '#eceaf4');
+          px(c, 4, 3, '#1a1420');
+          px(c, 6, 5, '#1a1420');
+          rect(c, 9, 3, 4, 3, '#eceaf4');
+          px(c, 10, 4, '#a01020');
+          px(c, 12, 4, '#a01020');
+        },
+        '#4a3a6a',
+        '#c77dff',
+      ),
+    ),
+  );
+  addCanvas(
+    'ev_altar_used',
+    iconCanvasSized(
+      16,
+      18,
+      altar(() => {}, '#4a4955', '#2a2932'),
+    ),
+  );
+
+  // portals: the purple rift and the golden dream
+  portalStrip('ev_portal', '#6a3aaa', '#3a1a6a', '#c77dff', '#f6e6ff');
+  portalStrip('ev_portal_gold', '#c8962a', '#7a5a1a', '#ffd23a', '#fffbe0');
+
+  // the blood obelisk (and the spent one) 12x26
+  const obelisk = (lit: boolean) => (c: CanvasRenderingContext2D) => {
+    const st = lit ? '#3a2e34' : '#3e3d48',
+      hi = lit ? '#5a4650' : '#5a5966';
+    rect(c, 0, 22, 12, 4, shade(st, -0.3));
+    poly(c, [2, 22, 4, 2, 6, 0, 8, 2, 10, 22], st);
+    poly(c, [2, 22, 4, 2, 6, 0, 6, 22], hi);
+    if (lit) {
+      for (const [x, y] of [
+        [6, 6],
+        [5, 9],
+        [7, 11],
+        [6, 14],
+        [5, 17],
+        [7, 19],
+      ])
+        px(c, x, y, '#ff3a4a');
+      rect(c, 5, 7, 2, 1, '#ff8a9a');
+    }
+  };
+  addCanvas('ev_obelisk', iconCanvasSized(12, 26, obelisk(true)));
+  addCanvas('ev_obelisk_off', iconCanvasSized(12, 26, obelisk(false)));
+  // a wall of blood light across a doorway (drawn additively, 2 frames)
+  creatureStrip(
+    'ev_barrier',
+    16,
+    16,
+    2,
+    (ctx, f) => {
+      for (let x = 0; x < 16; x++) {
+        const hgt = 10 + Math.round(Math.sin(x * 0.9 + f * 1.7) * 3);
+        for (let y = 16 - hgt; y < 16; y++) px(ctx, x, y, y < 16 - hgt + 2 ? '#ff8a9a' : (x + y + f) % 3 ? '#c81a2a' : '#ff3a4a');
+      }
+    },
+    false,
+  );
+  // runes cut into a wall, glowing faintly
+  addCanvas(
+    'ev_runes',
+    iconCanvasSized(
+      14,
+      8,
+      (c) => {
+        const G = '#ffd76a';
+        for (const [x, y, w, h] of [
+          [1, 1, 1, 5],
+          [1, 1, 3, 1],
+          [5, 1, 1, 6],
+          [5, 4, 2, 1],
+          [8, 2, 1, 4],
+          [8, 2, 2, 1],
+          [11, 1, 1, 5],
+          [11, 3, 2, 1],
+          [12, 5, 1, 1],
+        ])
+          rect(c, x, y, w, h, G);
+      },
+      false,
+    ),
+  );
+  // a dead adventurer: bones, a rusty helmet and a backpack (and the searched one)
+  const corpse = (searched: boolean) => (c: CanvasRenderingContext2D) => {
+    const B = '#e8e2cf',
+      BD = '#b9b29c';
+    // skull in a helmet
+    ell(c, 3.5, 6, 2.6, 2.4, B);
+    rect(c, 1, 3, 5, 2, '#6a6e78');
+    px(c, 3, 6, '#1a1420');
+    // ribs and the spine
+    rect(c, 6, 6, 7, 1, BD);
+    for (const x of [7, 9, 11]) rect(c, x, 4, 1, 5, B);
+    // legs
+    rect(c, 13, 5, 5, 1, B);
+    rect(c, 13, 7, 4, 1, B);
+    if (!searched) {
+      // the backpack with a rolled letter
+      rect(c, 8, 8, 6, 4, '#7a5230');
+      rect(c, 8, 8, 6, 1, '#a07040');
+      rect(c, 10, 9, 2, 1, '#4e321c');
+      rect(c, 14, 9, 3, 2, '#eee0b8');
+    } else rect(c, 9, 9, 4, 2, '#4e321c');
+  };
+  addCanvas('ev_corpse', iconCanvasSized(18, 12, corpse(false)));
+  addCanvas('ev_corpse_done', iconCanvasSized(18, 12, corpse(true)));
+  // the demon in a bottle (2 frames: it bangs on the glass)
+  creatureStrip(
+    'ev_bottle',
+    12,
+    18,
+    2,
+    (ctx, f) => {
+      rect(ctx, 1, 15, 10, 3, '#4a4955');
+      rect(ctx, 1, 15, 10, 1, '#6a6976');
+      ell(ctx, 6, 10, 4.5, 5, '#5a7a9a');
+      ell(ctx, 6, 10, 3.6, 4.2, '#2a3a4a');
+      rect(ctx, 5, 2, 3, 4, '#5a7a9a');
+      rect(ctx, 5, 1, 3, 1, '#8a5a30');
+      // the imp inside
+      const dx = f ? 1 : 0;
+      ell(ctx, 6 + dx, 10, 1.8, 2.2, '#e0301c');
+      px(ctx, 5 + dx, 9, '#ffde3b');
+      px(ctx, 7 + dx, 9, '#ffde3b');
+      px(ctx, 4 + dx, 7, '#e0301c');
+      px(ctx, 8 + dx, 7, '#e0301c');
+      // the glint of the glass
+      px(ctx, 3, 8, '#cfe8ff');
+      px(ctx, 3, 9, '#cfe8ff');
+    },
+    true,
+  );
+  // playing cards on the skeletons' table
+  addCanvas(
+    'ev_cards',
+    iconCanvasSized(
+      10,
+      5,
+      (c) => {
+        rect(c, 0, 1, 3, 4, '#eceaf4');
+        rect(c, 4, 0, 3, 4, '#eceaf4');
+        rect(c, 7, 1, 3, 4, '#a01020');
+        px(c, 1, 2, '#a01020');
+        px(c, 5, 1, '#1a1420');
+      },
+      false,
+    ),
+  );
+}
+
 export function buildAllTextures(scene: Phaser.Scene) {
   SCENE = scene;
+  buildEvents();
   buildTileset();
   buildClassSprites();
   buildEnemies();

@@ -1,5 +1,7 @@
 import type { Nemesis } from '../data/nemesis';
 import type { MercState } from '../data/mercs';
+import type { VillageState } from '../data/village';
+import type { Fate } from '../data/fates';
 import { CURSE_BY_ID } from '../data/curses';
 import { Codex, discoverItem, discoverStone } from '../data/codex';
 import { TALENT_BY_ID, TALENT_CLASS, TalentCond, talentPoints } from '../data/talents';
@@ -49,7 +51,7 @@ export interface SaveData {
   playTime: number;
   stash?: (Item | null)[];
   slot?: number;
-  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number; rivals?: number; transmutes?: number };
+  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number; rivals?: number; transmutes?: number; rescued?: number; events?: number; rifts?: number; lore?: number; wtf?: number; brawls?: number; arenas?: number };
   achievements?: string[];
   story?: StoryState;
   /** combat difficulty (index into DIFFICULTIES, normal when missing) */
@@ -79,6 +81,12 @@ export interface SaveData {
   talents?: Record<string, number>;
   /** the second class of a multiclass hero (from level 100) */
   multi?: ClassId;
+  /** the home village: its buildings and what the villagers keep for the hero */
+  village?: VillageState;
+  /** choices made in the dungeon that come back later */
+  fates?: Fate[];
+  /** lore read in the dungeon (letters, inscriptions) */
+  lore?: string[];
 }
 
 /** a talent counts when it belongs to the hero's class (or the second class of a multiclass hero) */

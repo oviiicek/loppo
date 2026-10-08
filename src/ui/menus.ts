@@ -13,6 +13,7 @@ import { areaForFloor } from '../data/biomes';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
 import { fsButtonHTML, isStandalone } from './fullscreen';
 import { CHRONICLE_ORDER, CUTSCENE_BY_ID } from '../data/story';
+import { LORE, LORE_BY_ID } from '../data/lore';
 import { ENEMY_BY_ID } from '../data/enemies';
 import { cleanName } from '../data/nemesis';
 import { codexOf, codexCount, CODEX_TOTAL, CODEX_TOTALS, ALL_STONES } from '../data/codex';
@@ -501,6 +502,16 @@ export class Menus {
             : '<div class="hint">Zatím tu nic není.</div>'
         }
         <div class="hint" style="margin-top:6px">Další stránky deníku leží na každém desátém patře.</div>
+        <h3 class="chronh">Zápisky z hlubin <span class="hint">${(sc.save.lore ?? []).filter((id) => LORE_BY_ID[id]).length}/${LORE.length}</span></h3>
+        ${
+          (sc.save.lore ?? []).filter((id) => LORE_BY_ID[id]).length
+            ? (sc.save.lore ?? [])
+                .map((id) => LORE_BY_ID[id])
+                .filter(Boolean)
+                .map((l) => `<button class="btn chron lore" data-lore="${l.id}" style="display:block;width:100%;text-align:left;margin-bottom:6px;white-space:normal">${l.kind === 'wall' ? '🪨' : '✉️'} ${esc(l.title)}</button>`)
+                .join('')
+            : '<div class="hint">Dopisy padlých dobrodruhů a nápisy na zdech najdeš v kobkách.</div>'
+        }
       </div></div>`);
     this.ui.showOverlay(p, () => {});
     $('.close', p).addEventListener('click', () => this.ui.closeOverlay());
@@ -508,6 +519,11 @@ export class Menus {
       const b = (e.target as HTMLElement).closest<HTMLElement>('.chron');
       if (!b) return;
       sfx('ui');
+      if (b.dataset.lore) {
+        const l = LORE_BY_ID[b.dataset.lore];
+        if (l) this.ui.panels.note(l.title, l.text, l.kind);
+        return;
+      }
       const c = CUTSCENE_BY_ID[b.dataset.id!];
       // guardian dialogues happen in the dungeon; the chronicle shows them over their biome
       const id = b.dataset.id!;
@@ -598,6 +614,11 @@ export class Menus {
         ['🧪', 'Vypitých lektvarů', n(st.potions)],
         ['🐾', 'Osvobozených mazlíčků', `${s.pets?.owned.length ?? 0}/${PETS.length}`],
         ['🗡️', 'Poražených nemesis', n(st.nemeses)],
+        ['🪢', 'Zachráněných zajatců', n(st.rescued)],
+        ['🌀', 'Uzavřených trhlin', n(st.rifts)],
+        ['🩸', 'Krvavých výzev', n(st.arenas)],
+        ['📜', 'Přečtených zápisků', `${s.lore?.length ?? 0}/${LORE.length}`],
+        ['✨', 'Neuvěřitelných chvil', n(st.wtf)],
         ['⚰️', 'Smrtí', n(st.deaths)],
       ];
       body = `<div class="statgrid">${tiles.map(([ic, lb, vl, col]) => `<div class="stattile"><span class="ic">${ic}</span><span><span class="lb">${lb}</span><br><b class="vl" ${col ? `style="color:${col}"` : ''}>${esc(vl)}</b></span></div>`).join('')}</div>`;
