@@ -136,6 +136,8 @@ export interface Item {
   runes?: (string | null)[];
   /** a curse: a big bonus with a drawback (id in CURSES) */
   curse?: string;
+  /** a curse tamed at the temple: part of its bonus, none of its price */
+  tamed?: boolean;
   /** the named legendary this item is (id in UNIQUES) */
   unique?: string;
   // rolled base values

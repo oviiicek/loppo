@@ -83,7 +83,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'nemesis5', name: 'Nikdo mi neuteče', desc: 'Poraz 5 nemesis', reward: { gold: 60000, attr: 4 }, check: (s) => (st(s).nemeses ?? 0) >= 5 },
   // dungeon events
   { id: 'rescue1', name: 'Zachránce', desc: 'Osvoboď zajatce v kobkách', reward: { gold: 800, lockpick: 2 }, check: (s) => (st(s).rescued ?? 0) >= 1 },
-  { id: 'village', name: 'Loppo žije', desc: 'Přiveď domů všech sedm ztracených vesničanů', reward: { gold: 40000, attr: 4 }, check: (s) => Object.keys(s.village?.lv ?? {}).length >= 8 },
+  { id: 'village', name: 'Loppo žije', desc: 'Přiveď domů všech sedm ztracených vesničanů', reward: { gold: 40000, attr: 4 }, check: (s) => Object.values(s.village?.lv ?? {}).filter((x) => (x ?? 0) >= 1).length >= 8 },
   { id: 'rift1', name: 'Zavírač trhlin', desc: 'Uzavři trhlinu', reward: { gold: 3000, stone: 3 }, check: (s) => (st(s).rifts ?? 0) >= 1 },
   { id: 'rift10', name: 'Strážce hranic', desc: 'Uzavři 10 trhlin', reward: { gold: 40000, attr: 3 }, check: (s) => (st(s).rifts ?? 0) >= 10 },
   { id: 'arena1', name: 'Krev za krev', desc: 'Přijmi krvavou výzvu', reward: { gold: 2000, dust: 3 }, check: (s) => (st(s).arenas ?? 0) >= 1 },

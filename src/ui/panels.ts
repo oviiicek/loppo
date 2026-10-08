@@ -49,6 +49,7 @@ import { TALENT_TREES, TALENT_GATE, TalentDef, COND_NAME, spentIn, canLearn, tal
 import { MULTI_LEVEL, MULTI_COST, MULTI_TALENT_CAP, multiTitle } from '../data/multiclass';
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
+import { stashSize, respecMult, forgeMods, buildingLevel } from '../data/village';
 import { sfx, settings, saveSettings, LootRule } from '../systems/audio';
 import { bus } from '../systems/events';
 
@@ -178,11 +179,15 @@ export class Panels {
     if (it.curse && CURSE_BY_ID[it.curse]) {
       const c = CURSE_BY_ID[it.curse];
       const cs = curseStats(it.curse, it.ilvl);
-      h += `<div class="curse"><b>☠ Prokletí: ${esc(c.name)}</b>${Object.entries(cs.bonus)
-        .map(([k, v]) => `<div class="cbon">${formatStat(k as any, v as number)}</div>`)
-        .join('')}${Object.entries(cs.malus)
-        .map(([k, v]) => `<div class="cmal">${formatStat(k as any, v as number)}</div>`)
-        .join('')}${c.malusText ? `<div class="cmal">${esc(c.malusText)}</div>` : ''}</div>`;
+      h += it.tamed
+        ? `<div class="curse tamed"><b>☠ Zkrocené prokletí: ${esc(c.name)}</b>${Object.entries(cs.bonus)
+            .map(([k, v]) => `<div class="cbon">${formatStat(k as any, Math.round((v as number) * 0.6))}</div>`)
+            .join('')}<div class="hint">Kletba je zkrocená: zbyla jí část síly a žádná daň.</div></div>`
+        : `<div class="curse"><b>☠ Prokletí: ${esc(c.name)}</b>${Object.entries(cs.bonus)
+            .map(([k, v]) => `<div class="cbon">${formatStat(k as any, v as number)}</div>`)
+            .join('')}${Object.entries(cs.malus)
+            .map(([k, v]) => `<div class="cmal">${formatStat(k as any, v as number)}</div>`)
+            .join('')}${c.malusText ? `<div class="cmal">${esc(c.malusText)}</div>` : ''}</div>`;
     }
     if (socketLines && runeSlotCount(it)) {
       for (const r of runeSlots(it)) h += r ? `<div class="aff" style="color:${parseRune(r)?.def.color}">ᚱ ${runeName(r)}: ${runeDesc(r)}</div>` : `<div class="aff" style="color:#9a94a8">ᚱ Volný runový soket</div>`;
@@ -1242,6 +1247,9 @@ export class Panels {
   /** bag indices put into the cauldron */
   brew: number[] = [];
 
+  /** transmuting in Loppo's laboratory (not at a wandering alchemist) */
+  villageLab = false;
+
   transmute(host?: HTMLElement) {
     const p = host ?? this.frame('Alchymista – transmutace');
     const body = $('.body', p);
@@ -1253,7 +1261,9 @@ export class Panels {
     const r = items[0]?.rarity ?? -1;
     const full = items.length === TRANSMUTE_N;
     const cost = r >= 0 ? transmuteCost(r, f) : 0;
-    const odds = r >= 0 ? transmuteOdds(r).outcomes : [];
+    // the grand laboratory in Loppo never fails
+    const noFail = this.villageLab && buildingLevel(s, 'lab') >= 3;
+    const odds = r >= 0 ? transmuteOdds(r, noFail).outcomes : [];
     const pct = (x: number) => (x >= 0.01 ? Math.round(x * 100) + ' %' : (x * 100).toLocaleString('cs-CZ', { maximumFractionDigits: 2 }) + ' %');
     body.innerHTML = `
       <div class="col detail box scroll" style="width:min(320px,40%)">
@@ -1321,7 +1331,7 @@ export class Panels {
         s.inventory[i] = null;
       }
       this.brew = [];
-      const res = transmute(used, f);
+      const res = transmute(used, f, Math.random, noFail);
       const at = s.inventory.findIndex((x) => !x);
       s.inventory[at] = res;
       const news = discoverItem(s, res);
@@ -1703,7 +1713,7 @@ export class Panels {
     const s = this.save;
     const ranks = (s.talents ??= {});
     const total = talentPoints(s.level);
-    const respec = Math.round(150 * s.level * (1 + s.level / 40));
+    const respec = Math.round(150 * s.level * (1 + s.level / 40) * respecMult(s));
     if (!s.multi) this.talentTree = 'main';
     const second = this.talentTree === 'multi' && !!s.multi;
     const branches = TALENT_TREES[second ? s.multi! : s.cls];
@@ -1998,6 +2008,23 @@ export class Panels {
   }
 
   // ------------------------------------------------------------------ FORGE (upgrade / enchant)
+  /** the forge in Loppo's smithy (better than an anvil in the dungeon once the smithy grows) */
+  villageForge = false;
+
+  upCost(it: Item) {
+    const c = upgradeCost(it);
+    if (!this.villageForge) return c;
+    const m = forgeMods(this.save);
+    return { ...c, gold: Math.round(c.gold * m.cost), stones: Math.max(1, Math.round(c.stones * m.cost)), chance: Math.min(1, c.chance + m.chance) };
+  }
+
+  drCost(it: Item) {
+    const c = drillCost(it);
+    if (!this.villageForge) return c;
+    const m = forgeMods(this.save);
+    return { ...c, gold: Math.round(c.gold * m.cost), stones: Math.max(1, Math.round(c.stones * m.cost)) };
+  }
+
   forgeSel: { from: 'inv'; idx: number } | { from: 'eq'; slot: Slot } | null = null;
 
   forge(host?: HTMLElement) {
@@ -2027,13 +2054,13 @@ export class Panels {
         detail.innerHTML = '<p class="hint">Vyber předmět k vylepšení nebo očarování.</p>';
         return;
       }
-      const uc = upgradeCost(it);
+      const uc = this.upCost(it);
       const ec = enchantCost(it);
       const canUp = it.upgrade < MAX_UPGRADE && s.gold >= uc.gold && s.mats.stone >= uc.stones;
       const canEn = s.gold >= ec.gold && s.mats.dust >= ec.dust;
       const nSock = it.sockets?.length ?? 0;
       const maxS = maxSockets(BASE_BY_ID[it.base].cat);
-      const dc = drillCost(it);
+      const dc = this.drCost(it);
       const canDrill = nSock < maxS && s.gold >= dc.gold && s.mats.stone >= dc.stones;
       detail.innerHTML =
         this.itemDetailHtml(it, '', false, true) +
@@ -2048,7 +2075,7 @@ export class Panels {
         <button class="btn purple" data-a="en" ${canEn ? '' : 'disabled'}>Očarovat</button></div>` +
         this.rerollBoxHtml(it);
       detail.querySelector('[data-a=up]')?.addEventListener('click', () => {
-        const c = upgradeCost(it);
+        const c = this.upCost(it);
         if (s.gold < c.gold || s.mats.stone < c.stones || it.upgrade >= MAX_UPGRADE) return;
         s.gold -= c.gold;
         s.mats.stone -= c.stones;
@@ -2071,7 +2098,7 @@ export class Panels {
         }),
       );
       detail.querySelector('[data-a=drill]')?.addEventListener('click', () => {
-        const c = drillCost(it);
+        const c = this.drCost(it);
         if (s.gold < c.gold || s.mats.stone < c.stones || (it.sockets?.length ?? 0) >= maxSockets(BASE_BY_ID[it.base].cat)) return;
         s.gold -= c.gold;
         s.mats.stone -= c.stones;
@@ -2138,8 +2165,9 @@ export class Panels {
   stash(host: HTMLElement) {
     const body = $('.body', host);
     const s = this.save;
-    if (!s.stash) s.stash = new Array(STASH_SIZE).fill(null);
-    while (s.stash.length < STASH_SIZE) s.stash.push(null);
+    const size = stashSize(s);
+    if (!s.stash) s.stash = new Array(size).fill(null);
+    while (s.stash.length < size) s.stash.push(null);
     const st = s.stash;
     body.innerHTML = `
       <div class="col" style="flex:1;min-width:0">
@@ -2147,7 +2175,7 @@ export class Panels {
         <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `sinv" data-idx="${i}`)).join('')}</div></div>
       </div>
       <div class="col" style="flex:1;min-width:0">
-        <b style="color:#ffd76a">Úložiště (${st.filter(Boolean).length}/${STASH_SIZE})</b>
+        <b style="color:#ffd76a">Úložiště (${st.filter(Boolean).length}/${size})</b>
         <div class="scroll" style="flex:1"><div class="grid">${st.map((it, i) => this.slotHtml(it, `sst" data-idx="${i}`)).join('')}</div></div>
       </div>
       <div class="col detail box scroll" style="width:min(280px,32%)"></div>`;
@@ -2156,7 +2184,7 @@ export class Panels {
       const sel = this.stashSel;
       const it = sel ? (sel.from === 'inv' ? s.inventory[sel.idx] : st[sel.idx]) : null;
       if (!it || !sel) {
-        detail.innerHTML = '<p class="hint">Úložiště je u každého obchodníka stejné. Ulož si sem předměty, které nechceš nosit, ale nechceš je ani prodat.</p>';
+        detail.innerHTML = '<p class="hint">Sklad je společný: stejný ve skladu v Loppu i u každého obchodníka v kobkách. Ulož si sem předměty, které nechceš nosit, ale nechceš je ani prodat. Větší sklad postavíš v Loppu.</p>';
         return;
       }
       detail.scrollTop = 0;

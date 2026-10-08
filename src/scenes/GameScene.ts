@@ -34,7 +34,12 @@ import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
 import { Nemesis, NEMESIS_MAX, nemesisName, nemesisTitle, victimOf, nemesisPower, nemesisLabel } from '../data/nemesis';
 import { Encounters, RiftKind } from '../game/encounters';
+import { Village } from '../game/village';
+import { QuestLog } from '../game/quests';
+import { generateVillage } from '../systems/dungeon';
+import { BUILDINGS, villageOf } from '../data/village';
 import { ClassId } from '../data/types';
+import { potionMult } from '../data/village';
 
 /** seconds between kills that keep a kill streak going */
 const STREAK_WINDOW = 2.6;
@@ -181,14 +186,20 @@ export class GameScene extends Phaser.Scene {
   enc!: Encounters;
   /** this floor is a rift or a dream behind a portal */
   rift: RiftKind | null = null;
+  /** the hero is home in Loppo (no monsters, the villagers' houses) */
+  inVillage = false;
+  vil!: Village;
+  /** quests from the notice board */
+  quests!: QuestLog;
 
   constructor() {
     super('Game');
   }
 
-  init(data: { save: SaveData; rift?: RiftKind }) {
+  init(data: { save: SaveData; rift?: RiftKind; village?: boolean }) {
     this.save = data.save;
     this.rift = data.rift ?? null;
+    this.inVillage = !!data.village;
     this.floor = this.save.floor;
     this.diff = difficultyOf(this.save);
     this.enemies = [];
@@ -235,8 +246,8 @@ export class GameScene extends Phaser.Scene {
     const rift = this.rift;
     // pity: guarantee merchants regularly
     const forceMerchant = save.merchantPity >= 3;
-    this.dungeon = generateDungeon(this.floor, (Math.random() * 1e9) | 0, { forceMerchant, rift: rift ?? undefined });
-    if (!rift) {
+    this.dungeon = this.inVillage ? generateVillage(this.floor) : generateDungeon(this.floor, (Math.random() * 1e9) | 0, { forceMerchant, rift: rift ?? undefined });
+    if (!rift && !this.inVillage) {
       if (this.dungeon.hasMerchant) save.merchantPity = 0;
       else save.merchantPity++;
     }
@@ -250,18 +261,21 @@ export class GameScene extends Phaser.Scene {
     this.loot = new Loot(this);
     this.bossAI = new BossAI(this);
     this.enc = new Encounters(this);
+    this.vil = new Village(this);
+    this.quests = new QuestLog(this);
     this.createAnims();
 
     // the hero arrives down the stairs from the floor above and steps off them (see arrive)
     const s = this.dungeon.start;
     const ux = s.x * TS + 8,
       uy = s.y * TS + 8;
-    this.add.image(ux, uy, 'stairs_up').setScale(ACTOR_SCALE).setDepth(D.floorDeco);
+    // (in the village the hero comes up through the gate, drawn by the village itself)
+    if (!this.inVillage) this.add.image(ux, uy, 'stairs_up').setScale(ACTOR_SCALE).setDepth(D.floorDeco);
     this.upStairs = { x: ux, y: uy };
     this.player = new Player(this, ux, uy, save);
     // ~25 % of regular floors get a random modifier
     const forced = (window as any).__forceMod as string | undefined; // dev testing hook
-    this.mod = rift
+    this.mod = rift || this.inVillage
       ? null
       : forced
         ? FLOOR_MODS.find((m) => m.id === forced) ?? null
@@ -272,9 +286,10 @@ export class GameScene extends Phaser.Scene {
     if (this.mod?.darkness) this.darkness = this.mod.darkness;
     this.placeObjects();
     this.lamps.push({ x: ux, y: uy, r: 56, flicker: 0 });
-    if (!rift) this.placeStoryPage();
+    const home = this.inVillage;
+    if (!rift && !home) this.placeStoryPage();
     this.spawnEnemies();
-    if (!rift) {
+    if (!rift && !home) {
       this.placePetCage();
       this.placeCursedChest();
       this.placeAlchemist();
@@ -284,11 +299,15 @@ export class GameScene extends Phaser.Scene {
     this.spawnPet(ux, uy + 4, false);
     this.spawnMerc(ux, uy + 4, false);
     syncCodex(this.save);
-    if (!rift) this.spawnRival();
+    if (!rift && !home) this.spawnRival();
     else this.rival = null;
-    // what else happens on this floor (a rift has its own rules)
+    // what else happens on this floor (a rift has its own rules, the village is home)
     if (rift) this.enc.setupRift(rift);
-    else this.enc.place();
+    else if (home) this.vil.place();
+    else {
+      this.enc.place();
+      this.quests.placeFloorQuests();
+    }
     UI.hideEventBar();
 
     // camera
@@ -342,13 +361,16 @@ export class GameScene extends Phaser.Scene {
     const save = this.save;
     const st = storyOf(save);
     const queue: string[] = [];
-    if (!st.seen.includes('prolog')) queue.push('prolog');
-    if (this.floor <= STORY_END) {
+    if (!st.seen.includes('prolog') && !this.inVillage) queue.push('prolog');
+    if (this.floor <= STORY_END && !this.inVillage) {
       const ci = Math.min(CHAPTERS.length - 1, Math.floor((this.floor - 1) / 50));
       if (ci > 0 && !st.seen.includes('ch' + (ci + 1))) queue.push('ch' + (ci + 1));
     }
     const story = storyBossForFloor(this.floor);
-    const sub = this.rift === 'rift'
+    const homeCount = BUILDINGS.filter((b) => b.who && (villageOf(save).lv[b.id] ?? 0) > 0).length;
+    const sub = this.inVillage
+      ? `Domov · zachráněno ${homeCount} ze ${BUILDINGS.filter((b) => b.who).length} vesničanů`
+      : this.rift === 'rift'
       ? 'Trhlina: poraz nestvůry, přivolej strážce a zavři ji'
       : this.rift === 'dream'
         ? 'Snový svět: sbírej poklady, než se probudíš'
@@ -374,7 +396,7 @@ export class GameScene extends Phaser.Scene {
       if (!this.sys.isActive() && !this.sys.isPaused()) return;
     }
     if (!cardUp) {
-      UI.floorCard(this.floorCardInfo(), sub);
+      UI.floorCard(this.inVillage ? this.villageCardInfo() : this.floorCardInfo(), sub);
       await UI.holdFloorCard(hold);
     }
     if (!this.sys.isActive() && !this.sys.isPaused()) return;
@@ -389,6 +411,11 @@ export class GameScene extends Phaser.Scene {
     const a = areaForFloor(floor);
     const range = a.to === Infinity ? `hloubka ${floor - STORY_END}` : `patra ${a.from}–${a.to}`;
     return { floor, name: a.name, region: `${th.title} · ${range}`, color: th.glow[0] };
+  }
+
+  /** the title card of the village */
+  villageCardInfo() {
+    return { floor: this.floor, name: 'Loppo', region: 'Vesnice pod Šedými horami', color: '#ffd76a', top: 'Domov' };
   }
 
   /** the hero walks off the stairs onto the floor, then the floor is theirs */
@@ -447,6 +474,7 @@ export class GameScene extends Phaser.Scene {
 
   /** biome name for the HUD (the endless depths below the story say so) */
   get placeName() {
+    if (this.inVillage) return 'Loppo';
     return (this.floor > STORY_END ? 'Hlubina · ' : '') + this.theme.name;
   }
 
@@ -586,6 +614,8 @@ export class GameScene extends Phaser.Scene {
       case 'barrel':
       case 'pot': {
         const s = add(o.kind);
+        // the village's crates are just furniture
+        if (o.data?.decor) break;
         if (this.theme.propTint) s.setTint(this.theme.propTint);
         this.interactables.push({ kind: 'breakable', x: px, y: py + 4, tx: o.x, ty: o.y, sprite: s, data: { what: o.kind } });
         break;
@@ -782,7 +812,7 @@ export class GameScene extends Phaser.Scene {
       if (m?.enemyHp) e.maxHp = e.hp = Math.round(e.maxHp * m.enemyHp);
       if (m?.enemyDmg) e.dmg *= m.enemyDmg;
     }
-    if (!this.rift) {
+    if (!this.rift && !this.inVillage) {
       this.spawnThief();
       this.spawnNemesis();
     }
@@ -1077,11 +1107,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- cursed chest
-  /** a rare black chest: whoever opens it must hold out against waves of monsters for 30 seconds */
-  placeCursedChest() {
-    if (this.floor < 4 || isBossFloor(this.floor)) return;
+  /** a rare black chest: whoever opens it must hold out against waves of monsters for 30 seconds
+   * (a quest's cursed tomb is one for sure) */
+  placeCursedChest(questId?: number) {
+    if (!questId && (this.floor < 4 || isBossFloor(this.floor))) return;
     const forced = (window as any).__forceCursed; // dev testing hook
-    if (!forced && Math.random() > 0.12) return;
+    if (!forced && !questId && Math.random() > 0.12) return;
+    if (questId && this.interactables.some((i) => i.kind === 'cursed' && i.data.quest === questId)) return;
     const c = this.freeSpot(10);
     if (!c) return;
     const px = c.x * TS + 8,
@@ -1090,9 +1122,9 @@ export class GameScene extends Phaser.Scene {
     const glow = this.add.image(px, py, 'glow').setTint(0x7dff9a).setAlpha(0.3).setScale(1.1).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
     this.trackGlow(glow, c.x, c.y);
     this.tweens.add({ targets: glow, alpha: 0.1, yoyo: true, repeat: -1, duration: 1100 });
-    const label = this.fx.label(px, py - 11, 'Prokletá truhla', '#9dff9a', 6);
+    const label = this.fx.label(px, py - 11, questId ? 'Prokletá hrobka' : 'Prokletá truhla', '#9dff9a', 6);
     label.setDepth(99980);
-    this.interactables.push({ kind: 'cursed', x: px, y: py + 4, tx: c.x, ty: c.y, sprite: s, data: { room: c.room, glow, label } });
+    this.interactables.push({ kind: 'cursed', x: px, y: py + 4, tx: c.x, ty: c.y, sprite: s, data: { room: c.room, glow, label, quest: questId } });
     this.lamps.push({ x: px, y: py, r: 44, flicker: 2 });
   }
 
@@ -1175,6 +1207,7 @@ export class GameScene extends Phaser.Scene {
     this.loot.dropRandomRune(it.x, it.y);
     if (Math.random() < 0.3) this.loot.dropSpellRune(it.x, it.y);
     bumpStat(this.save, 'cursed');
+    if (it.data.quest) this.quests.completeById(it.data.quest);
     UI.toast(`Prokletí zlomeno! Poraženo ${kills} ${kills === 1 ? 'nestvůra' : kills > 1 && kills < 5 ? 'nestvůry' : 'nestvůr'}.`, '#9dff9a');
     bus.emit('stats');
   }
@@ -1689,11 +1722,13 @@ export class GameScene extends Phaser.Scene {
     if (kind === 'mpPotion' && p.mp >= p.d.maxMp) return;
     this.save.mats[kind]--;
     bumpStat(this.save, 'potions');
+    const brew = potionMult(this.save);
+    this.quests.onPotion();
     if (kind === 'hpPotion') {
-      p.heal((p.d.maxHp * 0.45 + 30) * (p.d.specials.has('weakPotions') ? 0.5 : 1));
+      p.heal((p.d.maxHp * 0.45 + 30) * (p.d.specials.has('weakPotions') ? 0.5 : 1) * brew);
       this.fx.burst(p.x, p.y - 6, 0xff5050, 12);
     } else {
-      p.mp = Math.min(p.d.maxMp, p.mp + p.d.maxMp * 0.6 + 20);
+      p.mp = Math.min(p.d.maxMp, p.mp + (p.d.maxMp * 0.6 + 20) * brew);
       this.fx.burst(p.x, p.y - 6, 0x4aa3ff, 12);
     }
     sfx('heal');
@@ -1726,7 +1761,12 @@ export class GameScene extends Phaser.Scene {
   actionLabel(it: Interactable): string {
     switch (it.kind) {
       case 'stairs':
+        if (it.data.village) return `Do kobek (patro ${this.floor})`;
         return it.data.portal ? `Projít portálem (patro ${this.floor + 1})` : `Sestoupit (patro ${this.floor + 1})`;
+      case 'vb':
+      case 'vilda':
+      case 'vwell':
+        return this.vil.label(it);
       case 'ev':
         return this.enc.label(it);
       case 'door':
@@ -1762,8 +1802,14 @@ export class GameScene extends Phaser.Scene {
   interact(it: Interactable) {
     const p = this.player;
     switch (it.kind) {
+      case 'vb':
+      case 'vilda':
+      case 'vwell':
+        this.vil.interact(it);
+        break;
       case 'stairs':
-        if (it.data.portal) UI.confirm(`Projít portálem do patra ${this.floor + 1}?`, 'Hra se uloží. Zpět se vrátit nelze.', () => this.nextFloor(), 'Projít', 'Ještě ne');
+        if (it.data.village) UI.confirm(`Sestoupit do kobek?`, `Pokračuješ patrem ${this.floor}, které začneš od schodů.`, () => this.nextFloor(true), 'Sestoupit', 'Ještě ne');
+        else if (it.data.portal) UI.confirm(`Projít portálem do patra ${this.floor + 1}?`, 'Hra se uloží. Zpět se vrátit nelze.', () => this.nextFloor(), 'Projít', 'Ještě ne');
         else UI.confirm(`Sestoupit do patra ${this.floor + 1}?`, 'Hra se uloží. Zpět se vrátit nelze.', () => this.nextFloor());
         break;
       case 'ev':
@@ -1795,6 +1841,7 @@ export class GameScene extends Phaser.Scene {
         UI.openForge();
         break;
       case 'alchemist':
+        UI.panels.villageLab = false;
         UI.panels.transmute();
         break;
       case 'shrine': {
@@ -1947,6 +1994,7 @@ export class GameScene extends Phaser.Scene {
   // ---------------------------------------------------------------- boss
   onBossAggro(b: Enemy) {
     if (b.tag === 'secret') return this.enc.secretAggro(b);
+    if (!b.tag) this.quests.onBossAggro();
     if (b.tag === 'riftGuard') {
       sfx('boss');
       UI.showBoss(b);
@@ -2078,6 +2126,7 @@ export class GameScene extends Phaser.Scene {
   onBossKilled(b: Enemy) {
     if (b.tag === 'secret') return this.enc.secretKilled(b);
     if (b.tag === 'riftGuard') return this.enc.riftCleared(b);
+    this.quests.onBossKilled();
     if (b.story) {
       void this.storyBossDefeated(b);
       return;
@@ -2174,6 +2223,42 @@ export class GameScene extends Phaser.Scene {
     this.scene.restart({ save: this.save });
   }
 
+  /** home to Loppo (from the pause menu): the floor will start again from its stairs */
+  goToVillage() {
+    if (this.descending || this.player.dead || this.inVillage) return;
+    this.descending = true;
+    this.cinematic = true;
+    this.currentAction = null;
+    UI.setAction(null);
+    UI.joy = [0, 0];
+    const p = this.player;
+    p.target = null;
+    p.invulnT = 99;
+    this.targetMarker.setAlpha(0);
+    sfx('stairs');
+    this.fx.ring(p.x, p.y - 6, 40, 0xffd76a, 600);
+    this.fx.burst(p.x, p.y - 8, 0xffd76a, 24);
+    const cam = this.cameras.main;
+    cam.zoomTo(this.zoom * 1.2, 900, 'Sine.easeIn');
+    this.time.delayedCall(300, () => cam.fadeOut(500, 0, 0, 0));
+    saveGame(this.save);
+    this.time.delayedCall(850, () => {
+      UI.floorCard(this.villageCardInfo(), '', true);
+      this.scene.restart({ save: this.save, village: true });
+    });
+  }
+
+  /** whether the hero may go home now (not in the middle of a fight, not in a rift) */
+  canGoHome(): string | null {
+    if (this.inVillage) return 'Už jsi doma';
+    if (this.rift) return 'Z trhliny cesta domů nevede';
+    if (this.boss && !this.boss.dead && this.boss.aggro) return 'Uprostřed souboje se strážcem se domů nedostaneš';
+    if (this.cursed || this.enc.arena) return 'Nejdřív dokonči výzvu';
+    const p = this.player;
+    if (this.enemies.some((e) => !e.dead && e.aggro && Math.hypot(e.x - p.x, e.y - p.y) < 180)) return 'Nestvůry jsou ti v patách – nejdřív se jich zbav';
+    return null;
+  }
+
   /** through a portal into a rift (or a dream): the floor is left behind */
   enterRift(kind: RiftKind) {
     if (this.descending || this.player.dead) return;
@@ -2230,7 +2315,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** walk onto the stairs and down into the dark; the title card of the next floor covers the loading */
-  nextFloor() {
+  /** (stay: from the village back down to the floor the hero left, no floor further) */
+  nextFloor(stay = false) {
     if (this.descending) return;
     this.descending = true;
     this.cinematic = true;
@@ -2247,11 +2333,11 @@ export class GameScene extends Phaser.Scene {
       nem.met = (nem.met ?? 0) + 1;
       nem.next = this.floor + 3;
     }
-    this.save.floor = this.floor + 1;
+    this.save.floor = this.floor + (stay ? 0 : 1);
     this.save.maxFloor = Math.max(this.save.maxFloor, this.save.floor);
     // the pet goes down with the hero and grows with every few floors
     const pets = petsOf(this.save);
-    if (pets.active) {
+    if (pets.active && !stay) {
       const before = petLevel(pets, pets.active);
       pets.floors[pets.active] = (pets.floors[pets.active] ?? 0) + 1;
       const after = petLevel(pets, pets.active);
@@ -2309,7 +2395,7 @@ export class GameScene extends Phaser.Scene {
         cam.zoomTo(this.zoom * 1.2, 1000, 'Sine.easeInOut');
         this.time.delayedCall(380, () => cam.fadeOut(520, 0, 0, 0));
         this.time.delayedCall(940, () => {
-          UI.floorCard(this.floorCardInfo(this.floor + 1), '', true);
+          UI.floorCard(this.floorCardInfo(this.floor + (stay ? 0 : 1)), '', true);
           this.scene.restart({ save: this.save });
         });
       },
@@ -2418,6 +2504,8 @@ export class GameScene extends Phaser.Scene {
     this.updateHazards(dt);
     this.updateNemesis();
     this.enc.update(dt);
+    this.quests.update(dt);
+    if (this.inVillage) this.vil.update(dt);
 
     // shrine buffs
     if (this.shrineBuffs.length) {

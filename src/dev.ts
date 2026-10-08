@@ -789,3 +789,38 @@ Object.assign(dev, {
     return n;
   },
 });
+Object.assign(dev, {
+  /** home to Loppo at once (no checks) */
+  village() {
+    const sc = (window as any).__scene;
+    sc.goToVillage();
+    return true;
+  },
+  /** every building of the village at a level (0 = ruins) */
+  buildAll(lv = 1) {
+    const sc = (window as any).__scene;
+    const v = (sc.save.village ??= { lv: {}, pity: 0 });
+    for (const id of ['stash', 'smithy', 'shop', 'board', 'lab', 'tower', 'trainer', 'temple']) v.lv[id] = id === 'stash' ? Math.max(1, lv) : lv;
+    return v.lv;
+  },
+  /** the quests taken and offered */
+  questInfo() {
+    const sc = (window as any).__scene;
+    const v = sc.save.village ?? {};
+    return { quests: (v.quests ?? []).map((q: any) => `${q.type}:${q.have}/${q.goal}${q.done ? '✔' : ''}@${q.floor}`), offers: (v.offers ?? []).map((q: any) => q.type) };
+  },
+});
+import { makeQuest, QUEST_COUNTER } from './data/quests';
+import { questCounter } from './game/quests';
+Object.assign(dev, {
+  /** takes a quest of a type at once (as if from the board) */
+  quest(type: string) {
+    const sc = (window as any).__scene;
+    const v = (sc.save.village ??= { lv: {}, pity: 0 });
+    const q = makeQuest(type as any, sc.floor, 1);
+    const key = (QUEST_COUNTER as any)[type];
+    if (key) q.base = questCounter(sc.save, key);
+    (v.quests ??= []).push(q);
+    return { type: q.type, floor: q.floor, goal: q.goal, title: q.title };
+  },
+});

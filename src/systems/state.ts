@@ -1,6 +1,6 @@
 import type { Nemesis } from '../data/nemesis';
 import type { MercState } from '../data/mercs';
-import type { VillageState } from '../data/village';
+import { VillageState, villageStats } from '../data/village';
 import type { Fate } from '../data/fates';
 import { CURSE_BY_ID } from '../data/curses';
 import { Codex, discoverItem, discoverStone } from '../data/codex';
@@ -365,7 +365,7 @@ export function gearStats(s: SaveData): { stats: Stats; specials: Set<string> } 
     const st = itemStats(it);
     for (const [k, v] of Object.entries(st)) add(k as StatKey, v as number);
     it.specials.forEach((x) => specials.add(x));
-    const curse = it.curse ? CURSE_BY_ID[it.curse] : null;
+    const curse = it.curse && !it.tamed ? CURSE_BY_ID[it.curse] : null;
     if (curse?.special) specials.add(curse.special);
   }
   const cdef = CLASS_BY_ID[s.cls];
@@ -381,6 +381,8 @@ export function gearStats(s: SaveData): { stats: Stats; specials: Set<string> } 
     if (tl.stats) for (const [k, v] of Object.entries(tl.stats)) add(k as StatKey, (v as number) * rank);
     if (tl.special) specials.add(tl.special);
   }
+  // what the village gives: the trainer's lessons, the temple's blessing
+  for (const [k, v] of Object.entries(villageStats(s))) add(k as StatKey, v);
   // the pet that travels with the hero
   const pet = s.pets?.active ? PET_BY_ID[s.pets.active] : null;
   if (pet) for (const [k, v] of Object.entries(pet.stats(petLevel(s.pets!, pet.id)))) add(k as StatKey, v as number);

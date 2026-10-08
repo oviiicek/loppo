@@ -2,6 +2,7 @@
 // uses its role's skill (taunt, heals, a volley of arrows, a frost wave), can be hurt by monsters and is
 // knocked out at zero health (it gets up again after a while, or on the next floor).
 import Phaser from 'phaser';
+import { mercTraining } from '../data/village';
 import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy } from './entities';
 import { D, EL_COLOR } from './fx';
@@ -68,6 +69,12 @@ export class Mercenary extends Actor {
     const p = this.scene.player;
     const frac = this.maxHp > 1 ? this.hp / this.maxHp : 1;
     this.s = mercStats(this.state, p.save.level, p.d.maxHp);
+    // the hired mercenary trains at Loppo's training ground (wandering adventurers do not)
+    if (!this.state.temp) {
+      const t = mercTraining(p.save);
+      this.s.dmg *= t;
+      this.s.maxHp = Math.round(this.s.maxHp * t);
+    }
     this.maxHp = Math.round(this.s.maxHp * this.hpMult);
     this.hp = full ? this.maxHp : Math.max(1, Math.round(this.maxHp * frac));
   }

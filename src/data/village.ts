@@ -1,3 +1,5 @@
+import type { Quest } from './quests';
+
 // The village of Loppo above the dungeon: the hero's home. When the earth shook, monsters dragged
 // villagers down into the dungeon; each one the hero frees comes home and opens their workshop.
 // The buildings then grow with the gold the hero invests in them.
@@ -38,9 +40,9 @@ export const BUILDINGS: BuildingDef[] = [
     rescue: 0,
     desc: 'Truhly na předměty, které nechceš nosit ani prodat. Je společný pro celou výpravu.',
     levels: [
-      { cost: 0, text: '40 míst ve skladu' },
-      { cost: 2500, text: '80 míst ve skladu' },
-      { cost: 12000, text: '120 míst ve skladu' },
+      { cost: 0, text: '42 míst ve skladu' },
+      { cost: 2500, text: '84 míst ve skladu' },
+      { cost: 12000, text: '126 míst ve skladu' },
     ],
     color: '#c8a070',
     icon: 'chest_iron',
@@ -53,8 +55,8 @@ export const BUILDINGS: BuildingDef[] = [
     desc: 'Vylepšování, očarování, přehazování vlastností a vrtání soketů.',
     levels: [
       { cost: 0, text: 'Kovadlina: vylepšování, očarování, sokety' },
-      { cost: 4000, text: 'Výheň: vylepšení má o 10 % větší šanci na úspěch' },
-      { cost: 20000, text: 'Mistrovská kovárna: vylepšení a sokety o 25 % levnější' },
+      { cost: 4000, text: 'Výheň: vylepšení v Loppu má o 10 % větší šanci na úspěch' },
+      { cost: 20000, text: 'Mistrovská kovárna: vylepšení a sokety v Loppu o 25 % levnější' },
     ],
     color: '#ff9a3a',
     icon: 'anvil',
@@ -68,7 +70,7 @@ export const BUILDINGS: BuildingDef[] = [
     levels: [
       { cost: 0, text: '9 předmětů v nabídce' },
       { cost: 5000, text: '12 předmětů, častěji vzácné zboží' },
-      { cost: 25000, text: '15 předmětů, šance na legendární zboží' },
+      { cost: 25000, text: '15 předmětů, občas i legendární' },
     ],
     color: '#ffd23a',
     icon: 'npc_trader',
@@ -94,9 +96,9 @@ export const BUILDINGS: BuildingDef[] = [
     rescue: 9,
     desc: 'Transmutace pěti předmětů v lepší a výroba lektvarů.',
     levels: [
-      { cost: 0, text: 'Transmutace a levnější lektvary' },
-      { cost: 8000, text: 'Silnější lektvary (léčí o 25 % víc)' },
-      { cost: 35000, text: 'Transmutace o 10 % úspěšnější' },
+      { cost: 0, text: 'Transmutace a lektvary za 70 % ceny' },
+      { cost: 8000, text: 'Silnější lektvary: všechny léčí o 25 % víc' },
+      { cost: 35000, text: 'Transmutace v Loppu se už nikdy nezdaří' },
     ],
     color: '#7dffcf',
     icon: 'cauldron',
@@ -109,8 +111,8 @@ export const BUILDINGS: BuildingDef[] = [
     desc: 'Runy do zbraní, runy kouzel a zapomenutí talentů.',
     levels: [
       { cost: 0, text: 'Prodej run 1. a 2. stupně' },
-      { cost: 10000, text: 'Prodej run do 3. stupně a run kouzel' },
-      { cost: 40000, text: 'Runy do 4. stupně, zapomenutí talentů za polovic' },
+      { cost: 10000, text: 'Runy do 3. stupně a runy kouzel' },
+      { cost: 40000, text: 'Runy do 4. stupně, zapomenutí talentů všude za polovic' },
     ],
     color: '#c77dff',
     icon: 'npc_mage',
@@ -134,11 +136,11 @@ export const BUILDINGS: BuildingDef[] = [
     name: 'Chrám',
     who: { name: 'Bohdana', trade: 'kněžka', key: 'npc_priest', fem: true, thanks: 'Světlo tě provází, poutníku. Modlila jsem se za záchranu a přišla. V Loppu znovu zapálím chrámové svíce – požehnám ti a sejmu kletby.' },
     rescue: 20,
-    desc: 'Požehnání na další patra a snímání kleteb z předmětů.',
+    desc: 'Požehnání na další patra a krocení kleteb: prokletý předmět si nechá část síly a ztratí svou daň.',
     levels: [
-      { cost: 0, text: 'Požehnání na 3 patra' },
+      { cost: 0, text: 'Požehnání na 3 patra a krocení kleteb' },
       { cost: 15000, text: 'Silnější požehnání' },
-      { cost: 50000, text: 'Požehnání na 5 pater, snímání kleteb za polovic' },
+      { cost: 50000, text: 'Požehnání na 5 pater, krocení kleteb za polovic' },
     ],
     color: '#fff2a8',
     icon: 'npc_priest',
@@ -153,10 +155,12 @@ export interface VillageState {
   lv: Partial<Record<BuildingId, number>>;
   /** floors since a villager due for rescue was last seen (makes the next captive likelier) */
   pity: number;
-  /** blessing of the temple: its kind and the floor it lasts to */
-  blessing?: { id: string; until: number };
-  /** quests (see data/quests.ts) */
-  quests?: unknown[];
+  /** blessing of the temple: its kind, the floor it lasts to and how strong the temple was */
+  blessing?: { id: string; until: number; lv?: number };
+  /** quests taken at the notice board (see data/quests.ts) */
+  quests?: Quest[];
+  /** what the board offers on this visit */
+  offers?: Quest[];
 }
 
 export function villageOf(s: { village?: VillageState }): VillageState {
@@ -174,3 +178,106 @@ export function villagerDue(s: { village?: VillageState }, floor: number): Build
   const v = villageOf(s);
   return BUILDINGS.find((b) => b.who && b.rescue <= floor && !v.lv[b.id]) ?? null;
 }
+
+// ---------------------------------------------------------------- what the buildings give
+/** room in the stash */
+export function stashSize(s: { village?: VillageState }) {
+  return 42 * Math.max(1, buildingLevel(s, 'stash'));
+}
+
+/** the village smithy is better than an anvil in the dungeon */
+export function forgeMods(s: { village?: VillageState }) {
+  const lv = buildingLevel(s, 'smithy');
+  return { chance: lv >= 2 ? 0.1 : 0, cost: lv >= 3 ? 0.75 : 1 };
+}
+
+/** potions of the laboratory heal more (everywhere) */
+export function potionMult(s: { village?: VillageState }) {
+  return buildingLevel(s, 'lab') >= 2 ? 1.25 : 1;
+}
+
+/** forgetting talents is cheaper once the mage tower is grand */
+export function respecMult(s: { village?: VillageState }) {
+  return buildingLevel(s, 'tower') >= 3 ? 0.5 : 1;
+}
+
+/** how many items the village shop offers */
+export function shopSize(s: { village?: VillageState }) {
+  return [9, 9, 12, 15][buildingLevel(s, 'shop')] ?? 9;
+}
+
+/** the highest rune grade the mage sells */
+export function runeMaxTier(s: { village?: VillageState }) {
+  return [0, 2, 3, 4][buildingLevel(s, 'tower')] ?? 0;
+}
+
+/** how many quests the board holds at once and how much more they pay */
+export function questSlots(s: { village?: VillageState }) {
+  return [0, 2, 3, 4][buildingLevel(s, 'board')] ?? 0;
+}
+export function questRewardMult(s: { village?: VillageState }) {
+  return [1, 1, 1.25, 1.5][buildingLevel(s, 'board')] ?? 1;
+}
+
+/** the mercenary trained at the village's training ground */
+export function mercTraining(s: { village?: VillageState }) {
+  return buildingLevel(s, 'trainer') >= 3 ? 1.2 : 1;
+}
+
+export interface BlessingDef {
+  id: string;
+  name: string;
+  desc: (lv: number) => string;
+  stats: (lv: number) => Record<string, number>;
+  color: string;
+}
+
+export const BLESSINGS: BlessingDef[] = [
+  { id: 'might', name: 'Požehnání síly', desc: (lv) => `+${lv >= 2 ? 15 : 10} % poškození`, stats: (lv) => ({ dmgPct: lv >= 2 ? 15 : 10, spellDmg: lv >= 2 ? 15 : 10 }), color: '#ff8a5a' },
+  { id: 'life', name: 'Požehnání života', desc: (lv) => `+${lv >= 2 ? 15 : 10} % zdraví a obnova`, stats: (lv) => ({ hpPct: lv >= 2 ? 15 : 10, hpRegen: lv >= 2 ? 3 : 2 }), color: '#ff6aa0' },
+  { id: 'luck', name: 'Požehnání štěstí', desc: (lv) => `+${lv >= 2 ? 50 : 30} % magického nálezu a zlata`, stats: (lv) => ({ magicFind: lv >= 2 ? 50 : 30, gold: lv >= 2 ? 50 : 30 }), color: '#52ff8f' },
+];
+export const BLESSING_BY_ID = Object.fromEntries(BLESSINGS.map((b) => [b.id, b])) as Record<string, BlessingDef>;
+
+/** floors a blessing of the temple lasts */
+export function blessingFloors(s: { village?: VillageState }) {
+  return buildingLevel(s, 'temple') >= 3 ? 5 : 3;
+}
+
+/** the blessing still upon the hero (null when it ran out) */
+export function activeBlessing(s: { village?: VillageState; floor: number }) {
+  const b = s.village?.blessing;
+  if (!b || s.floor > b.until || !BLESSING_BY_ID[b.id]) return null;
+  return b;
+}
+
+/** permanent and temporary bonuses of the village (they count like gear) */
+export function villageStats(s: { village?: VillageState; floor: number }): Record<string, number> {
+  const out: Record<string, number> = {};
+  const add = (k: string, v: number) => (out[k] = (out[k] ?? 0) + v);
+  const tr = buildingLevel(s, 'trainer');
+  if (tr >= 2) add('xp', 5);
+  if (tr >= 3) add('xp', 5);
+  const b = activeBlessing(s);
+  if (b) for (const [k, v] of Object.entries(BLESSING_BY_ID[b.id].stats(b.lv ?? 1))) add(k, v);
+  return out;
+}
+
+// ---------------------------------------------------------------- the square of Loppo
+/** size of the village map (tiles) */
+export const VILLAGE_W = 46;
+export const VILLAGE_H = 32;
+/** where each house stands: the tile in the middle of its front row (the door) */
+export const PLOTS: Record<BuildingId, { x: number; y: number }> = {
+  stash: { x: 8, y: 10 },
+  smithy: { x: 15, y: 10 },
+  shop: { x: 30, y: 10 },
+  board: { x: 37, y: 10 },
+  lab: { x: 8, y: 22 },
+  tower: { x: 15, y: 22 },
+  trainer: { x: 30, y: 22 },
+  temple: { x: 37, y: 22 },
+};
+/** the gate down into the dungeon, the well in the middle and Ilda beside it */
+export const VILLAGE_GATE = { x: 22, y: 4 };
+export const VILLAGE_WELL = { x: 22, y: 16 };

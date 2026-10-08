@@ -14,6 +14,7 @@ import { BuildingDef, BUILDING_BY_ID, villageOf, villagerDue } from '../data/vil
 import { LoreEntry, pickLore, GHOSTS, GhostDef } from '../data/lore';
 import { FATES, FATE_BY_ID, FateDef, Fate, FATE_LINES, WISHES, fateDueIn } from '../data/fates';
 import { biomeForFloor } from '../data/biomes';
+import type { Quest } from '../data/quests';
 
 // Random things that happen on a floor: a villager held captive, altars that ask for a price, a ghost
 // with a story, a portal into a rift, monsters at war with each other, a blood arena, people whose fate
@@ -272,15 +273,25 @@ export class Encounters {
   }
 
   // ================================================================== captives
-  /** a villager of Loppo (or a stranger) tied up, with monsters around */
-  placeCaptive(villager: BuildingDef | null) {
+  /** the lost adventurer of a quest, held captive somewhere on this floor */
+  placeLost(q: Quest) {
+    if (this.sc.interactables.some((i) => i.kind === 'ev' && i.data.ev.questId === q.id && !i.used)) return false;
+    return this.placeCaptive(null, q);
+  }
+
+  /** a villager of Loppo (or a stranger, or someone a quest is looking for) tied up, with monsters around */
+  placeCaptive(villager: BuildingDef | null, quest?: Quest) {
     const sc = this.sc;
     const c = this.spot(villager ? 8 : 10);
     if (!c) return false;
     const x = c.x * TS + 8,
       y = c.y * TS + 8;
     const who = villager?.who;
-    const stranger = who ? null : pick(STRANGERS);
+    const stranger = who
+      ? null
+      : quest
+        ? { name: quest.name ?? 'Ztracený dobrodruh', key: quest.fem ? 'npc_villager2' : 'npc_villager', gift: 'quest', line: 'Někdo mě hledá? Doma na mě čekají? Díky za záchranu! Hned se vracím do Loppa.' }
+        : pick(STRANGERS);
     const key = who ? who.key : stranger!.key;
     const name = who ? `${who.name} (${who.trade})` : stranger!.name;
     const n = this.person(key + '_tied', x, y, name, '#ffd76a');
@@ -296,8 +307,10 @@ export class Encounters {
       guards,
       n,
       // now and then a "captive" is a shapeshifter waiting for a fool
-      trap: !villager && f >= 10 && Math.random() < 0.1,
+      trap: !villager && !quest && f >= 10 && Math.random() < 0.1,
+      questId: quest?.id,
     };
+    if (quest) ev.mark = '#9dff7a';
     this.add(x, y + 4, ev, n.s);
     sc.lamps.push({ x, y, r: 50, flicker: 1 });
     return true;
@@ -343,7 +356,8 @@ export class Encounters {
     const st = ev.stranger;
     sc.ui.panels.talk({ title: st.name, portrait: st.key, line: st.line, choices: [{ id: 'ok', label: 'Ať se ti daří', cls: 'green' }] }, () => {
       leave();
-      this.strangerGift(it, st.gift);
+      if (ev.questId) sc.quests.completeById(ev.questId);
+      else this.strangerGift(it, st.gift);
     });
   }
 
@@ -690,8 +704,9 @@ export class Encounters {
   }
 
   // ================================================================== portals
-  placePortal(kind: RiftKind) {
+  placePortal(kind: RiftKind, questId?: number) {
     const sc = this.sc;
+    if (questId && sc.interactables.some((i) => i.kind === 'ev' && i.data.ev.questId === questId)) return false;
     const c = this.spot(10);
     if (!c) return false;
     const x = c.x * TS + 8,
@@ -704,7 +719,7 @@ export class Encounters {
     const name = kind === 'dream' ? 'Zlatý portál' : 'Trhlina';
     const t = sc.fx.label(x, y - 18, name, kind === 'dream' ? '#ffd23a' : '#d0a8ff', 6);
     t.setDepth(99980).setVisible(false);
-    this.add(x, y + 4, { type: kind === 'dream' ? 'dream' : 'portal', act: kind === 'dream' ? 'Vstoupit do zlatého portálu' : 'Vstoupit do trhliny', mark: kind === 'dream' ? '#ffd23a' : '#b07dff', label: t }, s);
+    this.add(x, y + 4, { type: kind === 'dream' ? 'dream' : 'portal', act: kind === 'dream' ? 'Vstoupit do zlatého portálu' : 'Vstoupit do trhliny', mark: kind === 'dream' ? '#ffd23a' : '#b07dff', label: t, questId }, s);
     sc.lamps.push({ x, y, r: 64, flicker: 1 });
     return true;
   }

@@ -424,8 +424,9 @@ export function itemStats(it: Item): Stats {
   socketStats(it, base.cat, s);
   if (it.curse) {
     const c = curseStats(it.curse, it.ilvl);
-    for (const [k, v] of Object.entries(c.bonus)) add(k as StatKey, v as number);
-    for (const [k, v] of Object.entries(c.malus)) add(k as StatKey, v as number);
+    // a tamed curse keeps 60 % of its bonus and loses its price
+    for (const [k, v] of Object.entries(c.bonus)) add(k as StatKey, it.tamed ? Math.round((v as number) * 0.6) : (v as number));
+    if (!it.tamed) for (const [k, v] of Object.entries(c.malus)) add(k as StatKey, v as number);
   }
   return s;
 }

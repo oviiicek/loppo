@@ -12,6 +12,8 @@ import { bus } from '../systems/events';
 import { sfx, unlockAudio, startMusic, settings } from '../systems/audio';
 import { Panels } from './panels';
 import { Menus } from './menus';
+import { BuildingPanels } from './buildings';
+import { QuestPanels } from './quests';
 import { Pad } from './gamepad';
 import type { Bounty } from '../scenes/GameScene';
 import { TS } from '../game/map';
@@ -52,6 +54,9 @@ class UIManager {
   panel: HTMLElement | null = null;
   panels = new Panels(this);
   menus = new Menus(this);
+  /** the buildings of Loppo and the notice board's quests */
+  buildings = new BuildingPanels(this);
+  quests = new QuestPanels(this);
   /** controller support (movement, buttons, menu navigation) */
   pad = new Pad(this);
   private tickT = 0;
@@ -181,13 +186,13 @@ class UIManager {
   private fcard: { el: HTMLElement; shown: number; floor: number; skip: boolean } | null = null;
 
   /** black full-screen card with the floor number and the name of its area (covers the walk down and the loading) */
-  floorCard(c: { floor: number; name: string; region: string; color: string }, sub = '', instant = false) {
+  floorCard(c: { floor: number; name: string; region: string; color: string; top?: string }, sub = '', instant = false) {
     this.fcard?.el.remove();
     const el = document.createElement('div');
     // over an already black screen it must cover the new floor at once
     el.className = 'floorcard' + (instant ? ' now' : '');
     el.style.setProperty('--fc', c.color);
-    el.innerHTML = `<div class="fc-in"><div class="fc-floor">Patro ${c.floor}</div><div class="fc-rule"><i></i></div><div class="fc-name"></div><div class="fc-region"></div><div class="fc-sub"></div></div>`;
+    el.innerHTML = `<div class="fc-in"><div class="fc-floor">${c.top ?? `Patro ${c.floor}`}</div><div class="fc-rule"><i></i></div><div class="fc-name"></div><div class="fc-region"></div><div class="fc-sub"></div></div>`;
     $('.fc-name', el).textContent = c.name;
     $('.fc-region', el).textContent = c.region;
     const fc = { el, shown: performance.now(), floor: c.floor, skip: false };
@@ -505,7 +510,7 @@ class UIManager {
     $('.lv', hud).textContent = `LV ${s.level}`;
     ($('.bar.xp .fill', hud) as HTMLElement).style.transform = `scaleX(${Math.min(1, s.xp / xpForLevel(s.level))})`;
     $('.gold', hud).textContent = s.gold.toLocaleString('cs-CZ');
-    $('.floorlbl .fl', hud).textContent = `Patro ${sc.floor} · ${sc.placeName}${sc.mod ? ' · ' + sc.mod.name : ''}`;
+    $('.floorlbl .fl', hud).textContent = sc.inVillage ? 'Loppo · domov' : `Patro ${sc.floor} · ${sc.placeName}${sc.rift ? (sc.rift === 'dream' ? ' · sen' : ' · trhlina') : ''}${sc.mod ? ' · ' + sc.mod.name : ''}`;
     // low hp vignette
     const vig = $('.vignette', hud);
     vig.classList.toggle('low', hpF < 0.3 && !p.dead);
@@ -685,6 +690,9 @@ class UIManager {
       } else if (it.kind === 'secret' && it.data.hinted) {
         ctx.strokeStyle = '#ffd76a';
         ctx.strokeRect(mx - 2.5, my - 2.5, 5, 5);
+      } else if (it.kind === 'vb' || it.kind === 'vilda') {
+        ctx.fillStyle = it.data.ruined ? '#7a7484' : '#ffd76a';
+        ctx.fillRect(mx - 2, my - 2, 4, 4);
       }
     }
     for (const e of sc.enemies) {
@@ -1147,10 +1155,12 @@ class UIManager {
   }
 
   openMerchant(stock: MerchantStock) {
+    this.panels.villageForge = false;
     this.panels.merchant(stock);
   }
 
   openForge() {
+    this.panels.villageForge = false;
     this.panels.forge();
   }
 
