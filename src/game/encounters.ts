@@ -247,7 +247,8 @@ export class Encounters {
   private floorPool(melee = false) {
     const ids = [...new Set(this.sc.dungeon.spawns.map((s) => s.id))].filter((id) => {
       const d = ENEMY_BY_ID[id];
-      return d && d.behavior !== 'thief' && d.behavior !== 'mimic' && (!melee || MELEE.has(d.behavior));
+      // a brawl is for plain fighters (special powers aim at the hero)
+      return d && d.behavior !== 'thief' && d.behavior !== 'mimic' && !d.thing && (!melee || (MELEE.has(d.behavior) && !d.ability));
     });
     if (ids.length) return ids;
     return melee ? ['skeleton'] : ['skeleton', 'skelArcher'];
@@ -743,7 +744,7 @@ export class Encounters {
   placeBrawl() {
     const sc = this.sc;
     const pool = this.floorPool(true);
-    const all = Object.values(ENEMY_BY_ID).filter((d) => MELEE.has(d.behavior) && d.minFloor <= sc.floor && d.weight > 0).map((d) => d.id);
+    const all = Object.values(ENEMY_BY_ID).filter((d) => MELEE.has(d.behavior) && !d.ability && d.minFloor <= sc.floor && d.weight > 0).map((d) => d.id);
     const a = pick(pool);
     const others = all.filter((id) => id !== a);
     if (!others.length) return false;

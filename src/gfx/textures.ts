@@ -8,6 +8,7 @@ import { GEMS, GEM_MAX_TIER } from '../data/gems';
 import { RUNES, RUNE_MAX_TIER } from '../data/runes';
 import { SPELL_RUNES } from '../data/spellrunes';
 import { buildVillageArt } from './village';
+import { buildMonsters } from './monsters';
 
 // ---------------------------------------------------------------------------
 // Registry helpers
@@ -1262,6 +1263,28 @@ export const HEADS: Record<string, string[]> = {
     '...osyddddyso...',
     '....osssssso....',
   ],
+  ghoul: [
+    '................',
+    '.....oooooo.....',
+    '....osssssso....',
+    '...osssssssso...',
+    '.oosddssssddsoo.',
+    '.osseesssseesso.',
+    '..ossssddsssso..',
+    '...osyoyyoyso...',
+    '....oossssoo....',
+  ],
+  witch: [
+    '.......oo.......',
+    '......ohho......',
+    '.....ohhjho.....',
+    '....ohhhhhho....',
+    '...ohaaaaaaho...',
+    'ohhhhhhhhhhhhhho',
+    '...ossessesso...',
+    '...osssddssso...',
+    '....osssssso....',
+  ],
   merchant: [
     '................',
     '.....oooooo.....',
@@ -1358,7 +1381,26 @@ const SKEL_BODY_C = [
   '....sso.........',
 ];
 
-function skeletonStrip(key: string, pal: Record<string, string>, opts: { shield?: boolean; sword?: boolean; bow?: boolean; crown?: boolean; hood?: string; cape?: string } = {}) {
+export interface SkelOpts {
+  shield?: boolean;
+  sword?: boolean;
+  bow?: boolean;
+  crown?: boolean;
+  hood?: string;
+  cape?: string;
+  /** a helmet of this colour */
+  helm?: string;
+  /** a breastplate of this colour */
+  plate?: string;
+  /** a tall kite shield of this colour (instead of the round one) */
+  kite?: string;
+  /** a staff topped with an orb of this colour */
+  staff?: string;
+  /** a heavy crossbow */
+  crossbow?: boolean;
+}
+
+export function skeletonStrip(key: string, pal: Record<string, string>, opts: SkelOpts = {}) {
   const [c, ctx] = canvas(16 * 6, 20);
   const p = { o: OUT, ...pal };
   for (let f = 0; f < 6; f++) {
@@ -1382,6 +1424,44 @@ function skeletonStrip(key: string, pal: Record<string, string>, opts: { shield?
       rect(ctx, ox + 4, 0 + bob, 8, 3, opts.hood);
       rect(ctx, ox + 3, 2 + bob, 1, 5, opts.hood);
       rect(ctx, ox + 12, 2 + bob, 1, 5, opts.hood);
+    }
+    if (opts.plate) {
+      // a breastplate over the ribs
+      const pc = opts.plate;
+      rect(ctx, ox + 5, 9 + bob, 6, 4, pc);
+      rect(ctx, ox + 5, 9 + bob, 6, 1, shade(pc, 0.3));
+      rect(ctx, ox + 7, 10 + bob, 2, 2, shade(pc, -0.25));
+      rect(ctx, ox + 5, 12 + bob, 6, 1, shade(pc, -0.35));
+    }
+    if (opts.helm) {
+      // a pot helmet with cheek guards and a nasal
+      const hc = opts.helm;
+      rect(ctx, ox + 4, 0 + bob, 8, 3, hc);
+      rect(ctx, ox + 5, 0 + bob, 5, 1, shade(hc, 0.35));
+      rect(ctx, ox + 3, 2 + bob, 1, 4, shade(hc, -0.2));
+      rect(ctx, ox + 12, 2 + bob, 1, 4, shade(hc, -0.2));
+      rect(ctx, ox + 7, 3 + bob, 2, 2, hc);
+    }
+    if (opts.staff) {
+      line(ctx, ox + 14, 4 + bob, ox + 14, 18, '#6a4a2a');
+      circle(ctx, ox + 14, 2 + bob, 1, opts.staff);
+      px(ctx, ox + 14, 2 + bob, '#ffffff');
+    }
+    if (opts.crossbow) {
+      // a heavy crossbow held across the body
+      rect(ctx, ox + 8, 11 + bob, 7, 1, '#6a4a2a');
+      line(ctx, ox + 13, 8 + bob, ox + 15, 11 + bob, '#9aa3ad');
+      line(ctx, ox + 15, 11 + bob, ox + 13, 14 + bob, '#9aa3ad');
+      line(ctx, ox + 13, 9 + bob, ox + 13, 13 + bob, '#d8d0c0');
+      px(ctx, ox + 15, 11 + bob, '#e8e2cf');
+    }
+    if (opts.kite) {
+      // a tall kite shield with a pale cross
+      const kc = opts.kite;
+      poly(ctx, [ox + 0, 9 + bob, ox + 6, 9 + bob, ox + 6, 14 + bob, ox + 3, 17 + bob, ox + 0, 14 + bob], kc);
+      rect(ctx, ox + 0, 9 + bob, 6, 1, shade(kc, 0.35));
+      rect(ctx, ox + 3, 10 + bob, 1, 5, '#e8e2cf');
+      rect(ctx, ox + 1, 11 + bob, 4, 1, '#e8e2cf');
     }
     if (opts.shield) {
       circle(ctx, ox + 3, 13 + bob, 3, '#6b4423');
@@ -2968,7 +3048,7 @@ export function iconCanvasSized(w: number, h: number, draw: Drawer, doOutline = 
 // ---------------------------------------------------------------------------
 // PROJECTILES & FX
 // ---------------------------------------------------------------------------
-function glowBall(key: string, r: number, inner: string, outer: string, frames = 2) {
+export function glowBall(key: string, r: number, inner: string, outer: string, frames = 2) {
   const s = r * 2 + 4;
   const [c, ctx] = canvas(s * frames, s);
   for (let f = 0; f < frames; f++) {
@@ -3066,6 +3146,24 @@ function buildProjectiles() {
   glowBall('pr_soul', 4, '#d8fff0', '#4ad6a0');
   glowBall('pr_blood', 3, '#ffb0b0', '#c0101a');
   glowBall('pr_ice_ball', 4, '#e0f8ff', '#3aa8e0');
+  // monster spells: a curse, a twist of the mind, a bolt of slowed time
+  glowBall('pr_curse', 3, '#e0ffb0', '#8a2ad6');
+  glowBall('pr_mind', 4, '#ffd8f4', '#ff4ac8');
+  glowBall('pr_time', 4, '#fff6c8', '#3a7aff');
+  simple('pr_web', 9, 9, (c) => {
+    c.strokeStyle = 'rgba(240,240,236,0.95)';
+    c.lineWidth = 1;
+    c.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI;
+      c.moveTo(4.5 + Math.cos(a) * 4, 4.5 + Math.sin(a) * 4);
+      c.lineTo(4.5 - Math.cos(a) * 4, 4.5 - Math.sin(a) * 4);
+    }
+    c.stroke();
+    c.beginPath();
+    c.arc(4.5, 4.5, 2.4, 0, Math.PI * 2);
+    c.stroke();
+  });
   glowBall('fx_orbit', 4, '#f0d8ff', '#8a5cff');
 
   // light gradient (for darkness erase)
@@ -4178,6 +4276,7 @@ export function buildAllTextures(scene: Phaser.Scene) {
   buildTileset();
   buildClassSprites();
   buildEnemies();
+  buildMonsters();
   buildPets();
   buildGems();
   buildRunes();

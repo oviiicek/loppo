@@ -20,6 +20,10 @@ export interface BuffMods {
   onHitFire?: boolean;
   range?: number;
   novaPulse?: number; // periodic nova every second with this multiplier
+  // monsters' curses on the hero
+  dmgTaken?: number; // % more damage taken
+  healCut?: number; // % less healing
+  confuse?: boolean; // the controls are reversed
 }
 
 export type FxType =

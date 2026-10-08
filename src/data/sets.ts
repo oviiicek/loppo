@@ -92,6 +92,21 @@ export const SETS: SetDef[] = [
     ],
   },
   {
+    id: 'thorns',
+    name: 'Hradba trnů',
+    pieces: [
+      { base: 'helmet', name: 'Trnitá přilba' },
+      { base: 'chest', name: 'Trnitý krunýř' },
+      { base: 'shield', name: 'Trnitý štít' },
+      { base: 'bracer', name: 'Trnitý náramek' },
+    ],
+    bonuses: [
+      { n: 2, stats: { thornsPct: 15, armorPct: 15 } },
+      { n: 3, stats: { thorns: 60 }, specials: ['thornAura'] },
+      { n: 4, stats: { thornsPct: 20 }, specials: ['thornArmor', 'thornNova'] },
+    ],
+  },
+  {
     id: 'goblin',
     name: 'Poklad skřetího krále',
     pieces: [

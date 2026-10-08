@@ -84,6 +84,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   // dungeon events
   { id: 'rescue1', name: 'Zachránce', desc: 'Osvoboď zajatce v kobkách', reward: { gold: 800, lockpick: 2 }, check: (s) => (st(s).rescued ?? 0) >= 1 },
   { id: 'village', name: 'Loppo žije', desc: 'Přiveď domů všech sedm ztracených vesničanů', reward: { gold: 40000, attr: 4 }, check: (s) => Object.values(s.village?.lv ?? {}).filter((x) => (x ?? 0) >= 1).length >= 8 },
+  { id: 'corrupt1', name: 'Co to sakra je?', desc: 'Poraz zkaženou nestvůru', reward: { gold: 2000, dust: 3 }, check: (s) => (st(s).corrupted ?? 0) >= 1 },
+  { id: 'corrupt10', name: 'Očista', desc: 'Poraz 10 zkažených nestvůr', reward: { gold: 25000, attr: 3 }, check: (s) => (st(s).corrupted ?? 0) >= 10 },
+  { id: 'priority50', name: 'Nejdřív ty!', desc: 'Zabij 50 nestvůr se znamením nad hlavou (léčitele, nekromanty, vyvolávače…)', reward: { gold: 3000, stone: 3 }, check: (s) => (st(s).priority ?? 0) >= 50 },
+  { id: 'thorns100', name: 'Ježek', desc: 'Zabij 100 nestvůr trny', reward: { gold: 4000, attr: 1 }, check: (s) => (st(s).thornKills ?? 0) >= 100 },
   { id: 'royal1', name: 'Ve službách koruny', desc: 'Splň královský úkol', reward: { gold: 1500, dust: 2 }, check: (s) => (s.village?.royal?.step ?? 0) >= 1 },
   { id: 'royal15', name: 'Koruna Loppa', desc: 'Získej nejvyšší poctu krále Dobromila', reward: { gold: 60000, attr: 5 }, check: (s) => (s.village?.royal?.favor ?? 0) >= 15 },
   { id: 'rift1', name: 'Zavírač trhlin', desc: 'Uzavři trhlinu', reward: { gold: 3000, stone: 3 }, check: (s) => (st(s).rifts ?? 0) >= 1 },

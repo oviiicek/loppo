@@ -172,6 +172,7 @@ export const AFFIXES: AffixDef[] = [
   { key: 'crit', label: 'Šance na kritický zásah', pct: true, base: 2, perLevel: 0.12, cats: [...WEAPONS, ...JEWEL, 'helmet', 'offhand'], suffix: 'přesnosti', weight: 6, cap: 20 },
   { key: 'critDmg', label: 'Kritické poškození', pct: true, base: 10, perLevel: 1.2, cats: [...WEAPONS, 'amulet', 'ring'], suffix: 'zabijáka', weight: 5 },
   { key: 'lifesteal', label: 'Vysávání života', pct: true, base: 1, perLevel: 0.06, cats: [...WEAPONS, 'ring', 'amulet'], suffix: 'upíra', weight: 4, cap: 8 },
+  { key: 'manasteal', label: 'Vysávání many', pct: true, base: 1, perLevel: 0.05, cats: [...WEAPONS, 'ring', 'amulet', 'offhand'], suffix: 'pijavice', weight: 3, cap: 6 },
   { key: 'manaOnHit', label: 'Mana za zásah', base: 1, perLevel: 0.15, cats: [...WEAPONS, 'ring', 'offhand'], suffix: 'ozvěny', weight: 4 },
   { key: 'hpRegen', label: 'Obnova HP/s', base: 0.5, perLevel: 0.2, cats: [...ARMOR, ...JEWEL], suffix: 'obnovy', weight: 6 },
   { key: 'mpRegen', label: 'Obnova many/s', base: 0.3, perLevel: 0.08, cats: [...JEWEL, 'helmet', 'offhand'], suffix: 'meditace', weight: 5 },
@@ -181,6 +182,7 @@ export const AFFIXES: AffixDef[] = [
   { key: 'gold', label: 'Nalezené zlato', pct: true, base: 8, perLevel: 0.6, cats: [...JEWEL, 'belt', 'boots'], suffix: 'bohatství', weight: 4 },
   { key: 'magicFind', label: 'Šance na lepší kořist', pct: true, base: 5, perLevel: 0.4, cats: [...JEWEL, 'helmet'], suffix: 'štěstí', weight: 4 },
   { key: 'thorns', label: 'Trny (odraz poškození)', base: 3, perLevel: 1.2, cats: ['chest', 'shield', 'pants', 'bracer'], suffix: 'trnů', weight: 4 },
+  { key: 'thornsPct', label: 'Odraz přijatého poškození', pct: true, base: 3, perLevel: 0.1, cats: ['chest', 'shield', 'helmet', 'bracer', 'pants'], suffix: 'odvety', weight: 3, cap: 12 },
   { key: 'dodge', label: 'Úhyb', pct: true, base: 2, perLevel: 0.08, cats: ['boots', 'pants', 'chest', 'ring'], suffix: 'stínu', weight: 4, cap: 10 },
   { key: 'fire', label: 'Ohnivé poškození', base: 2, perLevel: 0.8, cats: [...WEAPONS, 'ring', 'bracer'], suffix: 'plamenů', weight: 4 },
   { key: 'ice', label: 'Mrazivé poškození', base: 2, perLevel: 0.8, cats: [...WEAPONS, 'ring', 'bracer'], suffix: 'mrazu', weight: 4 },
@@ -263,7 +265,7 @@ export function newUid() {
 }
 
 // keys that keep one decimal place; everything else is rounded to whole numbers
-const DECIMAL_KEYS = new Set<StatKey>(['hpRegen', 'mpRegen', 'lifesteal', 'manaOnHit']);
+const DECIMAL_KEYS = new Set<StatKey>(['hpRegen', 'mpRegen', 'lifesteal', 'manasteal', 'manaOnHit']);
 
 export function affixValue(def: { key?: StatKey; base: number; perLevel: number; cap?: number }, ilvl: number, mult: number, r: RNG) {
   let v = (def.base + def.perLevel * ilvl) * mult * r.float(0.75, 1.15);

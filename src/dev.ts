@@ -856,3 +856,57 @@ Object.assign(dev, {
     return r ? { favor: r.favor, step: r.step, quest: r.quest ? `${r.quest.type}:${r.quest.have}/${r.quest.goal}${r.quest.done ? '✔' : ''}` : null, crown: !!r.crown } : null;
   },
 });
+Object.assign(dev, {
+  /** monsters of a kind next to the hero (awake) */
+  spawn(id = 'necromancer', n = 1, dx = 60, elite = false) {
+    const sc = (window as any).__scene;
+    const p = sc.player;
+    const out: { id: number; name: string; hp: number }[] = [];
+    for (let i = 0; i < n; i++) {
+      const s = sc.map.randomFloorNear(p.x + dx, p.y, 20) ?? [p.x + dx, p.y];
+      const e = sc.spawnEnemy(id, s[0], s[1], elite, -1);
+      e.aggro = true;
+      out.push({ id: e.id, name: e.name, hp: Math.round(e.maxHp) });
+    }
+    return out;
+  },
+  /** turns the nearest monster (or a new one of a kind) into a corrupted one */
+  corrupt(id?: string) {
+    const sc = (window as any).__scene;
+    const p = sc.player;
+    let e = id ? sc.spawnEnemy(id, p.x + 70, p.y, false, -1) : sc.nearestEnemy(p.x, p.y, 400, false);
+    if (!e) return null;
+    e.makeCorrupt();
+    return { name: e.name, hp: e.maxHp, affixes: e.affixes };
+  },
+  /** what lives on this floor */
+  floorInfo() {
+    const sc = (window as any).__scene;
+    const count: Record<string, number> = {};
+    for (const e of sc.enemies) if (!e.dead) count[e.def.id] = (count[e.def.id] ?? 0) + 1;
+    return { floor: sc.floor, families: sc.dungeon.families, corrupt: sc.enemies.filter((e: any) => e.corrupt && !e.dead).map((e: any) => e.name), count };
+  },
+  /** a monster's power state (by id from spawn) */
+  powerInfo(id: number) {
+    const e = (window as any).__scene.enemies.find((x: any) => x.id === id);
+    if (!e) return null;
+    const { bat, eating, targets, ...pw } = e.pw;
+    return { name: e.name, hp: Math.round(e.hp), maxHp: Math.round(e.maxHp), dead: e.dead, aggro: e.aggro, pw, bless: e.blessT, haste: e.hasteT, mshield: Math.round(e.mshield), fed: e.fed, aim: e.aimT, leap: !!e.leap, inWall: e.inWall, bat: !!bat, eating: !!eating };
+  },
+});
+Object.assign(dev, {
+  /** every piece of a set straight onto the hero */
+  equipSet(id = 'thorns', ilvl = 30) {
+    const sc = (window as any).__scene;
+    const s = sc.save;
+    for (let i = 0; i < 4; i++) {
+      const it = generateSetItem(ilvl, id, i);
+      const cat = BASE_BY_ID[it.base].cat;
+      const slot = cat === 'shield' || cat === 'offhand' ? 'off' : cat === 'ring' ? 'ring1' : cat.startsWith('weapon') ? 'main' : cat;
+      s.equip[slot] = it;
+    }
+    sc.player.recalc();
+    const d = sc.player.d;
+    return { thorns: d.thorns, thornsPct: d.thornsPct, armor: d.armor, specials: [...d.specials] };
+  },
+});

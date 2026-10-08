@@ -263,6 +263,10 @@ img.px {
   position: relative;
   overflow: hidden;
 }
+.buff.curse {
+  border-color: #ff3a4a;
+  box-shadow: 0 0 4px #ff3a4a;
+}
 .buff img {
   width: 100%;
   height: 100%;

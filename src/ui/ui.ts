@@ -795,8 +795,9 @@ class UIManager {
     box.innerHTML = '';
     for (const b of sc.player.buffs) {
       const sp = SPELL_BY_ID[b.id];
-      const icon = sp ? spellIcon(sp.icon, sp.color, 48) : spellIcon('star', '#ffffff', 48);
-      box.appendChild(el(`<div class="buff" data-id="${b.id}" title="${esc(b.name)}"><img src="${icon}"><span class="bt"></span></div>`));
+      const col = '#' + b.color.toString(16).padStart(6, '0');
+      const icon = b.glyph ? spellIcon(b.glyph, col, 48) : sp ? spellIcon(sp.icon, sp.color, 48) : spellIcon('star', '#ffffff', 48);
+      box.appendChild(el(`<div class="buff${b.debuff ? ' curse' : ''}" data-id="${b.id}" title="${esc(b.name)}"><img src="${icon}"><span class="bt"></span></div>`));
     }
     for (const b of sc.shrineBuffs) {
       const col = '#' + b.color.toString(16).padStart(6, '0');

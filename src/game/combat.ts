@@ -7,6 +7,7 @@ import { parseRune, RUNE_CHANCE, RuneType } from '../data/runes';
 import { sfx, vibrate } from '../systems/audio';
 import { bus } from '../systems/events';
 import { elemMult, masteryPct } from '../data/bestiary';
+import { PRIORITY_ROLES } from '../data/enemies';
 
 /** what to call a hit without a monster behind it (on the death screen) */
 const EL_CAUSE: Record<string, string> = { phys: 'neznámý úder', fire: 'oheň', ice: 'mráz', lightning: 'blesk', poison: 'jed', holy: 'svaté světlo', shadow: 'stín' };
@@ -24,6 +25,10 @@ export interface HitOpts {
   ky?: number;
   silent?: boolean;
   execute?: boolean;
+  /** a single shot (a swarm dodges these) */
+  single?: boolean;
+  /** the hero's thorns: no crits, no armour in the way */
+  thorns?: boolean;
 }
 
 const EL_TEXT: Record<string, string> = {
@@ -200,8 +205,8 @@ export class Combat {
     if (!o.fromAlly && !e.boss) dmg *= 1 + masteryPct(p.save, e.def.id) / 100;
     // the hero's mastery of an element (talents)
     if (!o.fromAlly) dmg *= 1 + (p.d.elemPct[el] ?? 0) / 100;
-    // armour only vs physical
-    if (el === 'phys') dmg *= 1 - e.armor / (e.armor + 120);
+    // armour only vs physical (thorns go around it)
+    if (el === 'phys' && !o.thorns) dmg *= 1 - e.armor / (e.armor + 120);
     if (o.fromAlly && p.save.cls === 'necro') dmg *= 1.3;
     if (el === 'lightning' && p.save.cls === 'shaman') dmg *= 1.2;
     // a story guardian loses at most ~6.5 % of a stage per second (with a 10 % burst reserve); damage beyond
@@ -216,6 +221,15 @@ export class Combat {
       e.capBudget -= dmg;
     }
     dmg = Math.max(1, dmg);
+    // any touch breaks an illusion
+    if (e.illusion) {
+      sc.fx.number(e.x, e.y - 16, 'iluze', '#ffb8f0');
+      this.killEnemy(e);
+      return 0;
+    }
+    // the powers of the families: guardians, ghosts, mana shields, swarms, adaptation …
+    dmg = sc.powers.incoming(e, dmg, o, el);
+    if (dmg <= 0) return 0;
     // a champion's shield of light soaks the blow first
     if (e.shieldHp > 0) {
       const soak = Math.min(e.shieldHp, dmg);
@@ -254,7 +268,7 @@ export class Combat {
     e.hpBarT = 3;
     if (!e.aggro) e.aggro = true;
     // knockback (bosses resist)
-    if ((o.kx || o.ky) && !e.boss) {
+    if ((o.kx || o.ky) && !e.boss && e.def.behavior !== 'static') {
       const l = Math.hypot(o.kx ?? 0, o.ky ?? 0) || 1;
       const k = o.isAttack ? 40 : 60;
       e.knockX += ((o.kx ?? 0) / l) * k;
@@ -267,7 +281,7 @@ export class Combat {
     if (!o.silent || crit) {
       const txt = Math.round(dmg).toString();
       // a weak spot hit shows big, a resisted one dim
-      const col = crit ? '#ffd23a' : o.dot ? '#c8a8a8' : em < 1 ? '#8a8494' : EL_TEXT[el] ?? '#fff';
+      const col = crit ? '#ffd23a' : o.thorns ? '#c8ff6a' : o.dot ? '#c8a8a8' : em < 1 ? '#8a8494' : EL_TEXT[el] ?? '#fff';
       sc.fx.number(e.x, e.y - 14 * e.baseScale, crit ? txt + '!' : txt, col, crit || (em > 1 && !o.dot));
     }
     if (crit) {
@@ -278,23 +292,22 @@ export class Combat {
         sc.freeze(0.05);
       }
     }
-    // lifesteal / mana on hit
-    if (!o.fromAlly) {
+    // life and mana steal (capped per second, see Player.leech) and mana on hit
+    if (!o.fromAlly && !o.thorns) {
       let ls = (p.d.lifesteal + (o.lifesteal ?? 0)) / 100;
+      let ms = p.d.manasteal / 100;
       if (o.spell && !o.lifesteal) ls *= 0.35;
-      if (o.dot) ls *= 0.2;
-      if (ls > 0) p.heal(dmg * ls, false);
+      if (o.spell) ms *= 0.35;
+      if (o.dot) {
+        ls *= 0.2;
+        ms *= 0.2;
+      }
+      if (ls > 0 || ms > 0) p.leech(dmg * ls, dmg * ms);
       if (o.isAttack && p.d.manaOnHit) p.mp = Math.min(p.d.maxMp, p.mp + p.d.manaOnHit);
       if (o.isAttack && !o.dot) this.onHitProcs(e, dmg);
     }
     // a mirrored champion sends part of the hero's blow back
-    if (!o.fromAlly && !o.dot && !this.reflecting && e.affixes.includes('zrcadlový') && !sc.player.dead) {
-      this.reflecting = true;
-      this.cause = `${e.name} – odraz`;
-      this.causeFoe = e;
-      this.damagePlayer(dmg * 0.15, null, el, false);
-      this.reflecting = false;
-    }
+    if (!o.fromAlly && !o.dot && !o.thorns && e.affixes.includes('zrcadlový')) this.reflectToHero(e, dmg * 0.15, el, 'odraz');
     if (e.hp <= 0) {
       // a story guardian with stages left changes instead of dying
       if (e.story && e.phase < e.phaseCount - 1) {
@@ -309,15 +322,35 @@ export class Combat {
         sc.fx.burst(e.x, e.y - 8, 0xfff2a8, 20);
         sc.fx.number(e.x, e.y - 22, 'vstává!', '#fff2a8', true);
         sfx('summon');
-      } else this.killEnemy(e);
+      } else {
+        if (o.thorns) bumpStat(p.save, 'thornKills');
+        this.killEnemy(e);
+      }
     }
     return dmg;
   }
 
+  /** a monster sends part of a blow back at the hero (mirrored champions, crystal golems) */
+  reflectToHero(e: Enemy, amount: number, el: Element, label: string) {
+    const sc = this.scene;
+    if (this.reflecting || sc.player.dead || amount <= 0) return;
+    this.reflecting = true;
+    this.cause = `${e.name} – ${label}`;
+    this.causeFoe = e;
+    this.damagePlayer(amount, null, el, false);
+    this.reflecting = false;
+    if (label === 'krystal') {
+      sc.fx.beam(e.x, e.y - 10, sc.player.x, sc.player.y - 6, 0x9ff8ff, 1.5, 220);
+      sc.fx.burst(e.x, e.y - 10, 0x9ff8ff, 6);
+    }
+  }
+
   killEnemy(e: Enemy) {
     if (e.dead) return;
-    e.dead = true;
     const sc = this.scene;
+    // an illusion just fades
+    if (e.illusion) return sc.powers.vanish(e, 0xff8ae0);
+    e.dead = true;
     const p = sc.player;
     sfx('enemyDie');
     sc.fx.burst(e.x, e.y - 6, 0xd8d0c0, 10, 'puff');
@@ -331,11 +364,26 @@ export class Combat {
       sc.freeze(0.07);
     }
     if (e.boss) sc.freeze(0.12);
+    if (e.corrupt) {
+      sc.fx.ring(e.x, e.y - 6, 60, 0x9a2aff, 700);
+      sc.fx.burst(e.x, e.y - 8, 0x9a2aff, 30, 'puff');
+      sc.fx.burst(e.x, e.y - 8, 0xffffff, 16);
+      sc.fx.shake(0.008, 300);
+      sc.freeze(0.12);
+    }
+    e.aura?.destroy();
+    e.aura = null;
     // death animation
     const spr = e.sprite;
     sc.tweens.add({ targets: spr, alpha: 0, scaleY: spr.scaleY * 0.2, angle: (Math.random() - 0.5) * 60, duration: 260, onComplete: () => e.destroyVisuals() });
     sc.tweens.add({ targets: e.shadow, alpha: 0, duration: 260 });
     e.nameLabel?.destroy();
+    e.roleIcon?.setVisible(false);
+    // portals and eggs give a little experience and nothing else
+    if (e.def.thing) {
+      sc.gainXp(Math.round(e.xp * sc.diff.xp));
+      return;
+    }
     // rewards
     const xpMult = 1 + p.d.xp / 100 + sc.shrineBuffs.reduce((a, b) => a + (b.xp ?? 0), 0) + (sc.mod?.xp ?? 0);
     const gained = Math.round(e.xp * xpMult * sc.diff.xp);
@@ -381,6 +429,9 @@ export class Combat {
         m.aggro = true;
       }
     }
+    sc.powers.onDeath(e);
+    if (e.def.role && PRIORITY_ROLES.includes(e.def.role)) bumpStat(p.save, 'priority');
+    if (e.corrupt) sc.onCorruptKilled(e);
     if (e.boss) sc.onBossKilled(e);
     if (e.def.behavior === 'thief') {
       bumpStat(p.save, 'thieves');
@@ -435,15 +486,21 @@ export class Combat {
     else if (!isDot) dmg *= 1 - Math.min(0.5, d.armor / (d.armor + 200 + 25 * floor));
     // a curse of glass: every blow hurts more
     if (d.specials.has('fragile')) dmg *= 1.25;
+    // a dark priest's mark of vulnerability
+    const taken = p.buffs.reduce((a, b) => a + (b.mods.dmgTaken ?? 0), 0);
+    if (taken) dmg *= 1 + taken / 100;
     // stone skin: standing still
     if (d.specials.has('stoneSkin') && Math.hypot(sc.moveVec[0], sc.moveVec[1]) < 0.1) dmg *= 0.7;
     if (!isDot && d.specials.has('frostArmor') && Math.random() < 0.15) sc.spells.nova(p.x, p.y, 55, p.weaponHit() * 0.8, 'ice', { freeze: 1.2 });
-    // thorns
-    if (src && src instanceof Enemy && !isDot) {
-      const thornsPct = p.buffs.reduce((a, b) => a + (b.mods.thornsPct ?? 0), 0);
-      const reflect = d.thorns + (amount * thornsPct) / 100;
-      if (reflect > 0) this.damageEnemy(src, reflect, { el: 'phys', noCrit: true, silent: false });
-      if (d.specials.has('thornNova') && Math.random() < 0.1) sc.spells.nova(p.x, p.y, 50, p.weaponHit() * 1.5, 'phys', {});
+    // thorns: the attacker gets part of the blow back (with a thorn aura also the one who shot or cast it)
+    const melee = src instanceof Enemy ? src : null;
+    const thornFoe = melee ?? (d.specials.has('thornAura') && causeFoe && !causeFoe.dead && !causeFoe.boss ? causeFoe : null);
+    if (thornFoe && !isDot) {
+      let reflect = d.thorns + (amount * d.thornsPct) / 100;
+      if (d.specials.has('thornArmor')) reflect *= 1 + d.armor / 400;
+      if (!melee) reflect *= 0.5;
+      if (reflect > 0) this.damageEnemy(thornFoe, reflect, { el: 'phys', noCrit: true, thorns: true });
+      if (melee && d.specials.has('thornNova') && Math.random() < 0.1) sc.spells.nova(p.x, p.y, 50, p.weaponHit() * 1.5, 'phys', {});
     }
     if (d.specials.has('ghostStep') && !isDot) {
       if (p.ghostStepT <= 0) {

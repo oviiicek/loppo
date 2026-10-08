@@ -33,7 +33,7 @@ import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR } from '../data/sets';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame, runePouch, addRune, addSpellRune, freeTalentPoints, multiTalentSpent, heroTitle } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame, runePouch, addRune, addSpellRune, freeTalentPoints, multiTalentSpent, heroTitle, LEECH_CAP } from '../systems/state';
 import { GEMS, GEM_TIERS, GEM_MAX_TIER, GEM_PLACE_NAME, GemPlace, gemPlace, gemEffect, gemIcon, gemName, parseGem, gemKey, maxSockets, drillCost, combineCost } from '../data/gems';
 import { PETS, PET_BY_ID, PetId, petLevel, petFloorsToNext, petBonusText, petTitle, PET_MAX_LEVEL, PET_FLOORS_PER_LEVEL } from '../data/pets';
 import { difficultyOf } from '../data/difficulty';
@@ -925,13 +925,15 @@ export class Panels {
       ['Brnění', String(d.armor)],
       ['Úhyb', fmt(Math.round(d.dodge * 10) / 10) + ' %'],
       ['Blok', fmt(d.block) + ' %'],
-      ['Vysávání života', fmt(d.lifesteal) + ' %'],
+      ['Vysávání života', fmt(d.lifesteal) + ` % (max ${LEECH_CAP.hp} % HP/s)`],
+      ['Vysávání many', fmt(d.manasteal) + ` % (max ${LEECH_CAP.mp} % many/s)`],
       ['Rychlost pohybu', Math.round((d.move / 72) * 100) + ' %'],
       ['Snížení přebíjení', fmt(d.cdr) + ' %'],
       ['Nalezené zlato', '+' + fmt(d.gold) + ' %'],
       ['Lepší kořist', '+' + fmt(d.magicFind) + ' %'],
       ['Zkušenosti', '+' + fmt(d.xp) + ' %'],
       ['Trny', fmt(d.thorns)],
+      ['Odraz poškození', fmt(d.thornsPct) + ' %'],
     ];
     if (d.elem.fire) st.push(['Ohnivé poškození', '+' + fmt(d.elem.fire)]);
     if (d.elem.ice) st.push(['Mrazivé poškození', '+' + fmt(d.elem.ice)]);

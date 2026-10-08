@@ -649,6 +649,7 @@ export function generateVillage(floor: number): VillageMap {
     bossRoom: null,
     hasMerchant: false,
     theme: 5,
+    families: ['undead', 'vermin'],
     ground,
   };
 }

@@ -1,5 +1,6 @@
 import { RNG } from './rng';
-import { ENEMIES, EnemyDef, isBossFloor } from '../data/enemies';
+import { isBossFloor } from '../data/enemies';
+import { FAMILIES, familiesFor, familyFodder, familyMembers, makePack } from '../data/families';
 import { biomeForFloor } from '../data/biomes';
 
 export const T_VOID = 0;
@@ -69,6 +70,8 @@ export interface Dungeon {
   rift?: 'rift' | 'dream';
   /** tileset override (index into THEMES) */
   theme?: number;
+  /** the two monster families of the floor */
+  families: [string, string];
 }
 
 const DIRS = [
@@ -947,26 +950,13 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   }
 
   // ------------------------------------------------------------ enemies
+  // every area of ten floors belongs to two monster families; each room holds a pack of one of them
+  // (sometimes a guest family from elsewhere in the dungeon for a surprise)
   const spawns: Spawn[] = [];
-  const pool = ENEMIES.filter((e) => e.minFloor <= floor && e.weight > 0);
   const eliteChance = eliteChanceFor(floor) * (rift ? 2 : 1);
-  // every biome (50 floors) favours its own monsters; the dungeon also changes its crowd every 10 floors
-  const BIOME_FAVOURITES: string[][][] = [
-    [
-      ['skeleton', 'bat', 'slime', 'goblin', 'skelArcher'],
-      ['skeleton', 'skelArcher', 'ghost', 'zombie', 'darkMage', 'cultist'],
-      ['goblin', 'orc', 'slime', 'spider', 'bat'],
-      ['cultist', 'darkMage', 'imp', 'zombie', 'ghost'],
-      ['skeleton', 'zombie', 'golem', 'wraith', 'darkMage'],
-    ],
-    [['spider', 'bat', 'slime', 'mushroom', 'troll', 'goblin', 'orc', 'golem']],
-    [['frostWolf', 'iceGolem', 'wraith', 'ghost', 'skeleton', 'skelArcher']],
-    [['hellhound', 'magmaGolem', 'imp', 'cultist', 'orc', 'darkMage']],
-    [['voidEye', 'shade', 'ghost', 'wraith', 'darkMage', 'cultist']],
-  ];
-  const biome = BIOME_FAVOURITES[biomeForFloor(floor)];
-  const fav = biome[Math.floor(((floor - 1) % 50) / 10) % biome.length];
-  const pickEnemy = (): EnemyDef => r.weighted(pool, (e) => e.weight * (floor - e.minFloor < 6 ? 1.3 : 1) * (fav.includes(e.id) ? 2.5 : 1));
+  const fams = familiesFor(floor, rift);
+  const guests = Object.keys(FAMILIES).filter((id) => !fams.includes(id) && familyFodder(FAMILIES[id], floor).length > 0 && familyMembers(FAMILIES[id], floor).length >= 3);
+  const pickFamily = () => FAMILIES[guests.length && r.chance(0.08) ? r.pick(guests) : r.chance(0.65) ? fams[0] : fams[1]];
   for (const rm of rooms) {
     if (['start', 'merchant', 'shrine', 'fountain', 'forge', 'boss', 'closet'].includes(rm.type)) continue;
     const cells = freeFloor(rm).filter((c) => Math.hypot((c % W) - start.x, Math.floor(c / W) - start.y) > 8);
@@ -980,21 +970,27 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     if (rift === 'rift') count = Math.round(count * 1.6 + 1);
     if (rift === 'dream') count = 0;
     count = Math.min(count, rift ? 14 : 10);
-    // groups: often similar enemies together
-    const main = pickEnemy();
-    for (let k = 0; k < count; k++) {
+    if (count <= 0) continue;
+    for (const slot of makePack(pickFamily(), floor, count, r)) {
       const c = r.pick(cells);
-      const e = r.chance(0.55) ? main : pickEnemy();
-      spawns.push({ id: e.id, x: c % W, y: Math.floor(c / W), elite: r.chance(eliteChance), room: rm.id });
+      const x0 = c % W,
+        y0 = Math.floor(c / W);
+      const elite = slot.n === 1 && r.chance(eliteChance);
+      for (let k = 0; k < slot.n; k++) {
+        // a crowd stands together
+        const near = k === 0 ? c : r.pick(cells.filter((o) => Math.abs((o % W) - x0) <= 2 && Math.abs(Math.floor(o / W) - y0) <= 2)) ?? c;
+        spawns.push({ id: slot.id, x: near % W, y: Math.floor(near / W), elite, room: rm.id });
+      }
     }
   }
-  // corridor wanderers
+  // corridor wanderers: foot soldiers of the floor's main family
+  const wanderers = familyFodder(FAMILIES[fams[0]], floor).filter((d) => !d.group);
   for (const c of corridorCells) {
-    if (rift !== 'dream' && r.chance(0.022)) {
+    if (rift !== 'dream' && wanderers.length && r.chance(0.022)) {
       const x = c % W,
         y = Math.floor(c / W);
       if (Math.hypot(x - start.x, y - start.y) < 10) continue;
-      spawns.push({ id: r.chance(0.5) ? 'bat' : pickEnemy().id, x, y, elite: false, room: -1 });
+      spawns.push({ id: r.weighted(wanderers, (d) => d.weight).id, x, y, elite: false, room: -1 });
     }
   }
   // keep the total manageable (performance on phones and pacing)
@@ -1007,7 +1003,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
 
   // a rift lies in a twisted other place: the abyss (or the forge, for those already in the abyss); the dream is made of ice and light
   const theme = rift === 'rift' ? (biomeForFloor(floor) === 4 ? 3 : 4) : rift === 'dream' ? 2 : undefined;
-  return { floor, w: W, h: H, grid, roomId, rooms, start, exit, secretWalls, lockedDoors, objects, spawns, bossRoom, hasMerchant, rift, theme };
+  return { floor, w: W, h: H, grid, roomId, rooms, start, exit, secretWalls, lockedDoors, objects, spawns, bossRoom, hasMerchant, rift, theme, families: fams };
 }
 
 /** the square of Loppo: one big paved yard inside the old town walls, with room for eight houses */

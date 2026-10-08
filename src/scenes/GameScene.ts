@@ -6,9 +6,10 @@ import { Player } from '../game/player';
 import { Enemy, Ally, Projectile, ProjOpts, Actor, THIEF_ESCAPE } from '../game/entities';
 import { Combat } from '../game/combat';
 import { Spells } from '../game/spells';
+import { Powers } from '../game/powers';
 import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
-import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END } from '../data/enemies';
+import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END, corruptName } from '../data/enemies';
 import { CHAPTERS, noteForFloor } from '../data/story';
 import { SaveData, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory } from '../systems/state';
 import { PetFollower } from '../game/pet';
@@ -196,6 +197,8 @@ export class GameScene extends Phaser.Scene {
   vil!: Village;
   /** quests from the notice board */
   quests!: QuestLog;
+  /** the special powers of the monster families */
+  powers!: Powers;
 
   constructor() {
     super('Game');
@@ -264,6 +267,7 @@ export class GameScene extends Phaser.Scene {
     this.computeZoom();
     this.fx = new FX(this, this.zoom);
     this.combat = new Combat(this);
+    this.powers = new Powers(this);
     this.spells = new Spells(this);
     this.loot = new Loot(this);
     this.bossAI = new BossAI(this);
@@ -823,6 +827,7 @@ export class GameScene extends Phaser.Scene {
       this.spawnThief();
       this.spawnNemesis();
     }
+    this.maybeCorrupt();
     const br = this.dungeon.bossRoom;
     if (br) {
       const story = storyBossForFloor(this.floor);
@@ -840,6 +845,38 @@ export class GameScene extends Phaser.Scene {
   }
 
   thief: Enemy | null = null;
+
+  /** now and then one monster of a floor is corrupted: a rare, dark and much stronger version of itself */
+  maybeCorrupt() {
+    if (this.inVillage || this.floor < 4) return;
+    const forced = (window as any).__forceCorrupt; // dev testing hook
+    const chance = Math.min(0.2, 0.08 + this.floor * 0.0015) * (this.rift ? 2 : 1);
+    if (!forced && Math.random() > chance) return;
+    const st = this.dungeon.start;
+    const pool = this.enemies.filter((e) => !e.dead && !e.boss && !e.def.thing && !e.isMinion && !e.nemesis && !e.tag && !e.def.group && !['thief', 'mimic', 'static'].includes(e.def.behavior) && Math.hypot(e.x / TS - st.x, e.y / TS - st.y) > (forced ? 4 : 14));
+    pool.sort((a, b) => Math.hypot(a.x / TS - st.x, a.y / TS - st.y) - Math.hypot(b.x / TS - st.x, b.y / TS - st.y));
+    const e = forced ? pool[0] : pool[Math.floor(Math.random() * pool.length)];
+    e?.makeCorrupt();
+  }
+
+  /** the first look at a corrupted monster */
+  onCorruptSpotted(e: Enemy) {
+    sfx('boss');
+    this.fx.shake(0.008, 400);
+    this.cameras.main.flash(300, 90, 20, 140);
+    this.freeze(0.15);
+    this.fx.ring(e.x, e.y - 8, 70, 0x9a2aff, 700);
+    this.fx.burst(e.x, e.y - 8, 0x9a2aff, 24, 'puff');
+    UI.banner(`☠ ${corruptName(e.def)}!`, `Zkažená nestvůra · pětinásobné zdraví · ${e.affixes.join(', ')} · jistá vzácná kořist`);
+    e.nameLabel = this.fx.label(e.x, e.y - 20, `☠ ${corruptName(e.def)}`, '#c88aff', 6);
+    e.nameLabel.setDepth(99980);
+  }
+
+  onCorruptKilled(_e: Enemy) {
+    bumpStat(this.save, 'corrupted');
+    sfx('levelup');
+    UI.toast('☠ Zkáza zahnána – zkažená nestvůra nechala bohatou kořist!', '#c88aff');
+  }
 
   // a treasure goblin hides on some floors (much more often during a gold rush)
   spawnThief() {
@@ -1591,7 +1628,7 @@ export class GameScene extends Phaser.Scene {
     let best: Enemy | null = null,
       bd = range;
     for (const e of this.enemies) {
-      if (e.dead || (exclude && exclude.has(e.id))) continue;
+      if (e.dead || e.inWall || e.invuln || (exclude && exclude.has(e.id))) continue;
       if (e.def.behavior === 'mimic' && !e.aggro) continue;
       const d = Math.hypot(e.x - x, e.y - y) - e.r * e.baseScale;
       if (d >= bd) continue;
@@ -1652,7 +1689,9 @@ export class GameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- projectiles
   spawnEnemyProjectile(x: number, y: number, angle: number, sprite: string, dmg: number, el: Element, speed: number, srcName?: string, srcFoe?: Enemy) {
-    this.projectiles.push(new Projectile(this, { x, y, angle, speed, sprite, dmg, el, owner: 'enemy', range: 260, srcName, srcFoe }));
+    const pr = new Projectile(this, { x, y, angle, speed, sprite, dmg, el, owner: 'enemy', range: 260, srcName, srcFoe });
+    this.projectiles.push(pr);
+    return pr;
   }
 
   spawnAllyProjectile(x: number, y: number, angle: number, sprite: string, dmg: number, el: Element) {
@@ -2480,6 +2519,11 @@ export class GameScene extends Phaser.Scene {
       mx /= ml;
       my /= ml;
     }
+    // a mind mage's confusion turns the controls around
+    if (p.buffs.some((b) => b.mods.confuse)) {
+      mx = -mx;
+      my = -my;
+    }
     this.moveVec = [mx, my];
 
     if (!p.dead) p.update(dt, mx, my);
@@ -2514,6 +2558,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     for (const e of this.enemies) e.update(dt);
+    this.powers.update(dt);
     this.separate();
     if (this.enemies.some((e) => e.dead)) this.enemies = this.enemies.filter((e) => !e.dead);
     for (const a of this.allies) a.update(dt);
@@ -2604,8 +2649,8 @@ export class GameScene extends Phaser.Scene {
           const push = (min - d) * 0.5;
           const nx = dx / d,
             ny = dy / d;
-          if (!a.boss) [a.x, a.y] = this.map.move(a.x, a.y, -nx * push, -ny * push, a.r);
-          if (!b.boss) [b.x, b.y] = this.map.move(b.x, b.y, nx * push, ny * push, b.r);
+          if (!a.boss && a.def.behavior !== 'static') [a.x, a.y] = this.map.move(a.x, a.y, -nx * push, -ny * push, a.r);
+          if (!b.boss && b.def.behavior !== 'static') [b.x, b.y] = this.map.move(b.x, b.y, nx * push, ny * push, b.r);
         }
       }
     }
@@ -2618,7 +2663,10 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) {
       if (e.dead || e.boss) continue;
       const thief = e.def.behavior === 'thief' && e.spotted;
-      if (e.hp >= e.maxHp && !e.elite && !thief) continue;
+      // a sniper's red line: it follows the target, then locks and flashes before the shot
+      if (e.aimT > 0) this.drawAim(g, e);
+      const shielded = e.mshieldMax > 0 && e.aggro;
+      if (e.hp >= e.maxHp && !e.elite && !thief && !shielded && !e.corrupt) continue;
       if (e.x < v.x - 20 || e.x > v.right + 20 || e.y < v.y - 20 || e.y > v.bottom + 20) continue;
       if (!thief && !this.map.explored[this.map.idx(Math.floor(e.x / TS), Math.floor(e.y / TS))]) continue;
       if (thief) {
@@ -2638,8 +2686,15 @@ export class GameScene extends Phaser.Scene {
       g.fillRect(x - 1, y - 1, w + 2, 4);
       g.fillStyle(0x3a0b0b, 1);
       g.fillRect(x, y, w, 2);
-      g.fillStyle(e.elite ? 0xffa020 : 0xe0242c, 1);
+      g.fillStyle(e.corrupt ? 0xb03aff : e.elite ? 0xffa020 : 0xe0242c, 1);
       g.fillRect(x, y, Math.max(0, Math.round((w * e.hp) / e.maxHp)), 2);
+      // a mana shield: a second, blue bar above the health
+      if (e.mshieldMax > 0) {
+        g.fillStyle(0x000000, 0.75);
+        g.fillRect(x - 1, y - 4, w + 2, 3);
+        g.fillStyle(0x5ab0ff, 1);
+        g.fillRect(x, y - 3, Math.max(0, Math.round((w * e.mshield) / e.mshieldMax)), 1);
+      }
     }
     for (const a of this.allies) {
       if (a.dead || a.def.totem || a.hp >= a.maxHp) continue;
@@ -2662,6 +2717,20 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(m.down ? 0x8a8a8a : 0x52ff8f, 1);
       g.fillRect(x, y, Math.round(w * (m.down ? 1 - m.downT / 35 : m.hp / m.maxHp)), 1);
     }
+  }
+
+  /** the red aiming line of a sniper (up to the first wall) */
+  drawAim(g: Phaser.GameObjects.Graphics, e: Enemy) {
+    const x0 = e.x,
+      y0 = e.y - 7;
+    const cx = Math.cos(e.aimA),
+      cy = Math.sin(e.aimA);
+    let len = 0;
+    while (len < 240 && !this.map.isSolidPx(x0 + cx * (len + 4), y0 + cy * (len + 4) + 4)) len += 4;
+    const locked = e.aimT <= 0.35;
+    const flash = locked && Math.floor(this.time.now / 60) % 2 === 0;
+    g.lineStyle(locked ? 1.5 : 1, flash ? 0xffffff : 0xff3030, locked ? 0.9 : 0.35 + (1.7 - e.aimT) * 0.25);
+    g.lineBetween(x0, y0, x0 + cx * len, y0 + cy * len);
   }
 
   /** 0..1: how far a guardian's darkness has closed in around the hero */

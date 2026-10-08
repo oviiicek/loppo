@@ -152,11 +152,24 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   - hůl a hůlka vystřelují magické střely.
 - Útoky jsou vidět: zbraň se máchá nebo míří a šípy letí.
 - Dvě jednoruční zbraně se střídají v útoku a dávají +15 % rychlosti útoku.
-- Kritické zásahy, úhyb, blok štítem, brnění, vysávání života, trny a elementální poškození (oheň, mráz, blesk, jed).
+- Kritické zásahy, úhyb, blok štítem, brnění, vysávání života a many, trny a elementální poškození (oheň, mráz, blesk, jed).
+- **Vysávání s limitem:** vysávání života a many léčí z rozdaného poškození, ale nejvýš 8 % maximálního zdraví a 10 % many za sekundu – hrdina nemůže být nesmrtelný.
+- **Trny jako styl boje:** pevné trny i odraz části přijatého poškození (nový atribut na zbroji, štítu, helmě a náramku) se vrací útočníkům a jdou přes jejich brnění. Sada Hradba trnů (helma, krunýř, štít, náramek) a unikáty Ostnatý krunýř (brnění zesiluje trny), Trnová koruna a Ježek (trny zasáhnou i střelce a každou sekundu nestvůry těsně u hrdiny) z toho dělají celý build.
 - Stavy nepřátel: zpomalení, omráčení, zmrazení, hoření, otrava, krvácení, zranitelnost.
-- Nepřátelé (23 typů, každé prostředí má své) s vlastním chováním: na blízko, střelci, kouzelníci, nájezdníci, vyvolávači, slizy, které se dělí, létající, přízraky procházející zdmi a mimikové.
+- **Nestvůry (přes 60 druhů) v rodinách:** každá oblast deseti pater patří dvěma rodinám a každá místnost má smečku jedné z nich (občas host odjinud):
+  - Nemrtví: kostlivec → kostěný lučištník (drží odstup a couvá) → zombie → kostěný rytíř (ochránce) → kostěný mág → nekromant (oživuje padlé) → kostěný odstřelovač (dlouho míří, obrovský zásah) → duch (zbraně jím procházejí, kouzla ho trhají) → kostěný obr → temný mág → stín (útočí ze zdí) → strážce Kostěný král,
+  - Pavouci: malý pavouk → jedovatý pavouk → pavouk tkadlec (lepkavé sítě) → výbušný pavouk → pavoučí strážce → Pavoučí matka (klade vejce) → strážkyně Pavoučí královna,
+  - Ghúlové: ghúl (skáče na kořist), morový ghúl (jedovatý mrak), hladový ghúl (žere mrtvé a sílí), alfa ghúl (řev přivolá smečku), mutovaný ghúl (náhodná mutace),
+  - Golemové: kamenný (extrémní pancíř, pomalý), rozbitý (rozpadne se na dva menší), krystalový (odráží magii), lávový (hořící stopa), bouřný (elektrické výboje),
+  - Kult: kultista, prokletá čarodějnice (kletby rozkladu a únavy), temný kněz (žehná smečce, hrdinu označí zranitelností), krvavá čarodějnice (obětuje zdraví ostatních), portálový mág (portály s nestvůrami), iluzionista (tři falešné kopie), časový mág (zrychlí nestvůry, zpomalí čas hrdinovi), mág mysli (obrátí ovládání), lovec mágů (skočí k hrdinovi po každém kouzlu),
+  - Upíři: netopýří roj (jednotlivá kouzla ho minou), vampýr (teleport, sání krve, proměna v netopýry), vampýrský lord (krvavé louže, silné vysávání),
+  - Prázdnota: manová bestie (druhý ukazatel – štít z many), požírač buffů (krade posílení), zrcadlový démon (kopíruje kouzlo hrdiny), adaptivní monstrum (získává odolnost vůči opakovanému druhu poškození),
+  - a dál zelenokožci (goblin šaman léčí, ork berserkr odhazuje), jeskynní havěť, mráz a peklo.
+- **Znamení nad hlavou:** nestvůry, které je třeba zabít první (léčitel, křísitel, vyvolávač, ochránce, odstřelovač, posilovač, zaklínač), nesou nad hlavou barevnou značku.
+- **Kletby na hrdinu:** zranitelnost, kletba rozkladu (méně léčení), kletba únavy (pomalejší útoky), zpomalený čas a zmatení (obrácené ovládání) – vidět v liště posílení s červeným rámečkem.
+- **Zkažené nestvůry:** velmi vzácně se objeví černofialová zkažená verze nestvůry – pětinásobné zdraví, tři náhodné vlastnosti šampionů, temná aura a vždy dobrá kořist (aspoň epický předmět, drahokam, runa, materiály).
 - **Šampioni** mají vlastnosti, které jsou vidět na jejich záři: rychlý, obrněný, upíří, výbušný, mrazivý, ohnivý (hořící stopa), elektrický (blesky), léčitel, teleportér, vyvolávač a hlouběji i zuřivý, jedovatý, štítonoš, magnetický (přitahuje hrdinu), zrcadlový (vrací část poškození) a nesmrtelný (jednou vstane z mrtvých). Od 25. patra mívají dvě vlastnosti, od 60. až tři a od 120. vždy tři – každá navíc jim přidá zdraví a zkušenosti.
-- **Bestiář:** každý druh nestvůry má slabiny a odolnosti vůči živlům (slabina = poškození ×1,5, odolnost = ×0,6; přízrak třeba odolává zbraním, ale bojí se svatého světla). Zabíjením se bestiář plní: po 10 zabitích ukáže slabiny, po 25 kořist, po 50 a 100 dá mistrovství (+5 / +10 % poškození proti tomu druhu). Najdeš ho v Úspěších.
+- **Bestiář:** každý druh nestvůry má slabiny a odolnosti vůči živlům (slabina = poškození ×1,5, odolnost = ×0,6; duch se třeba bojí svatého světla) a je seřazený podle rodin s popisem role. Zabíjením se bestiář plní: po 10 zabitích ukáže slabiny, po 25 kořist, po 50 a 100 dá mistrovství (+5 / +10 % poškození proti tomu druhu). Najdeš ho v Úspěších.
 - **Fáze strážců:** při 70, 40 a 10 % zdraví strážce změní chování – naučí se nové útoky (bodce, kříže, novy, pavučiny, vysávání), promění arénu (hořící zem, padající kamení, temnota, která zužuje světlo) a v posledních 10 % zuří a útočí rychleji. Ukazatel zdraví má značky fází.
 - **Série zabití:** rychle po sobě poražené nestvůry tvoří sérii; od 5 zabití dá na konci bonusové zkušenosti.
 - Vyvolaní spojenci (kostlivci, golemové, vlci, medvěd, ent, elementál…) a totemy.

@@ -25,3 +25,45 @@ export function areaForFloor(floor: number): { name: string; from: number; to: n
   const i = Math.floor((f - 1) / AREA_FLOORS);
   return { name: AREA_NAMES[Math.floor(i / 5)][i % 5], from: i * AREA_FLOORS + 1, to: (i + 1) * AREA_FLOORS };
 }
+
+// Monster families (see families.ts)
+/** the two families of each area of ten floors (25 areas of the story; the endless depths repeat them) */
+const AREA_FAMILIES: [string, string][] = [
+  // the dungeon
+  ['undead', 'vermin'],
+  ['greenskin', 'spider'],
+  ['ghoul', 'vampire'],
+  ['undead', 'golem'],
+  ['cult', 'void'],
+  // the caves
+  ['vermin', 'greenskin'],
+  ['spider', 'vermin'],
+  ['ghoul', 'golem'],
+  ['spider', 'vermin'],
+  ['spider', 'ghoul'],
+  // the ice
+  ['frost', 'undead'],
+  ['golem', 'frost'],
+  ['frost', 'vampire'],
+  ['undead', 'vampire'],
+  ['cult', 'frost'],
+  // the forge
+  ['hell', 'golem'],
+  ['golem', 'hell'],
+  ['greenskin', 'golem'],
+  ['cult', 'hell'],
+  ['hell', 'vampire'],
+  // the void
+  ['void', 'cult'],
+  ['void', 'vampire'],
+  ['cult', 'void'],
+  ['void', 'undead'],
+  ['void', 'hell'],
+];
+
+/** the families met on a floor (a rift has its own twisted crowd) */
+export function familiesFor(floor: number, rift?: 'rift' | 'dream'): [string, string] {
+  if (rift === 'rift') return floor > 4 * BIOME_FLOORS && floor <= BIOME_COUNT * BIOME_FLOORS ? ['hell', 'golem'] : ['void', 'hell'];
+  const f = ((Math.max(1, floor) - 1) % (BIOME_FLOORS * BIOME_COUNT)) + 1;
+  return AREA_FAMILIES[Math.floor((f - 1) / AREA_FLOORS)] ?? AREA_FAMILIES[0];
+}

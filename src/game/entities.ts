@@ -3,7 +3,9 @@ import type { GameScene } from '../scenes/GameScene';
 import { D, EL_COLOR } from './fx';
 import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
-import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase } from '../data/enemies';
+import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, PRIORITY_ROLES, corruptName } from '../data/enemies';
+import type { PowerState } from './powers';
+import { sfx } from '../systems/audio';
 import { ArenaKind, BOSS_PHASE_HP } from '../data/bossphases';
 import type { Nemesis } from '../data/nemesis';
 import { Element } from '../data/types';
@@ -83,6 +85,8 @@ export abstract class Actor {
   animated: 'humanoid' | 'loop' | 'static';
   baseScale = 1;
   dotTick = 0;
+  /** height above the ground (a leap) */
+  hop = 0;
 
   constructor(scene: GameScene, x: number, y: number, key: string) {
     this.scene = scene;
@@ -146,7 +150,7 @@ export abstract class Actor {
   syncSprite(moving: boolean) {
     const kx = this.knockX,
       ky = this.knockY;
-    this.sprite.setPosition(Math.round(this.x), Math.round(this.y + 3) - (this.flying ? 4 : 0));
+    this.sprite.setPosition(Math.round(this.x), Math.round(this.y + 3) - (this.flying ? 4 : 0) - Math.round(this.hop));
     this.shadow.setPosition(Math.round(this.x), Math.round(this.y + 3));
     this.sprite.setDepth(D.entityBase + this.y + (this.flying ? 20 : 0));
     this.sprite.setFlipX(this.facing < 0);
@@ -245,6 +249,52 @@ export class Enemy extends Actor {
   heroHit = false;
   /** what an event made of this monster (a captive's guard, a ghost's murderer, an arena fighter …) */
   tag: string | null = null;
+  /** what its special power is doing (see Powers) */
+  pw: PowerState = {};
+  /** a dark priest's blessing and a time mage's haste (seconds left) */
+  blessT = 0;
+  hasteT = 0;
+  /** an illusionist's copy (any touch breaks it, it gives nothing) and the illusionist */
+  illusion = false;
+  master: Enemy | null = null;
+  /** raised by a necromancer (it falls to dust for good) */
+  risen = false;
+  /** a corrupted monster: rare, black and purple, far stronger, rich loot */
+  corrupt = false;
+  /** a shield of mana over the health (a second bar) */
+  mshield = 0;
+  mshieldMax = 0;
+  /** what made a mutated ghoul different */
+  mutation: string | null = null;
+  /** corpses a hungry ghoul has eaten */
+  fed = 0;
+  /** a sniper's aim: seconds left and the direction */
+  aimT = 0;
+  aimA = 0;
+  /** a leap through the air (ghouls) */
+  leap: { t: number; dur: number; x0: number; y0: number; x1: number; y1: number } | null = null;
+  leapCd = 1;
+  leapPending = false;
+  /** a lurker hidden inside a wall, out of reach */
+  inWall = false;
+  /** which way a monster backing away slides */
+  strafe = 1;
+  strafeT = 0;
+  /** the sign above a pack member the hero should kill first */
+  roleIcon: Phaser.GameObjects.Image | null = null;
+  /** the dark pool under a corrupted monster and the timer of its wisps */
+  aura: Phaser.GameObjects.Image | null = null;
+  wispT = 0;
+
+  /** speed and attack rate: blessed, hastened or fed on a stolen buff */
+  get haste() {
+    return (this.hasteT > 0 ? 1.4 : 1) * (this.blessT > 0 ? 1.25 : 1) * (this.pw.stolen ? 1.25 : 1);
+  }
+
+  /** damage of its blows: blessed or fed on a stolen buff */
+  get might() {
+    return (this.blessT > 0 ? 1.35 : 1) * (this.pw.stolen ? 1.4 : 1);
+  }
 
   constructor(scene: GameScene, def: EnemyDef, x: number, y: number, floor: number, elite: boolean, roomId: number, affix?: string | null) {
     super(scene, x, y, def.sprite);
@@ -267,7 +317,7 @@ export class Enemy extends Actor {
     this.armor = enemyArmor(def.armor ?? 0, floor);
     this.r = def.radius ?? 5;
     this.name = def.name;
-    this.flying = def.behavior === 'erratic' || def.behavior === 'ghost';
+    this.flying = def.behavior === 'erratic' || def.behavior === 'ghost' || def.behavior === 'lurker';
     this.atkT = Math.random() * def.atkCd;
     let sc = def.scale ?? 1;
     if (elite) {
@@ -295,6 +345,56 @@ export class Enemy extends Actor {
     this.setScale(sc);
     if (def.behavior === 'mimic') this.aggro = true;
     if (def.behavior === 'thief') this.sprite.preFX?.addGlow(0xffd23a, 3, 0, false, 0.1, 16);
+    if (def.role && PRIORITY_ROLES.includes(def.role) && scene.textures.exists('en_role_' + def.role)) this.roleIcon = scene.add.image(x, y, 'en_role_' + def.role).setScale(ACTOR_SCALE);
+    scene.powers?.init(this);
+  }
+
+  /** a corrupted monster: five times the health, three random traits, black and purple, rich loot */
+  makeCorrupt() {
+    const sc = this.scene;
+    const def = this.def;
+    const floor = sc.floor;
+    const dif = sc.diff;
+    this.corrupt = true;
+    this.elite = true;
+    // three traits of any depth (a champion's undying rise and summoning stay out: five times the health is enough)
+    const pool = AFFIX_IDS.filter((a) => a !== 'nesmrtelný' && a !== 'vyvolávač');
+    const list: string[] = [];
+    while (list.length < 3) {
+      const a = pool[Math.floor(Math.random() * pool.length)];
+      if (!list.includes(a)) list.push(a);
+    }
+    this.affixes = list;
+    this.affTimers = {};
+    this.eliteAffix = list[0];
+    this.maxHp = this.hp = Math.round(def.hp * enemyHpScale(floor) * 5 * (dif?.enemyHp ?? 1));
+    this.dmg = def.dmg * enemyDmgScale(floor) * 1.6;
+    this.speed = def.speed * 1.1 * (dif?.enemySpeed ?? 1) * (list.includes('rychlý') ? 1.45 : 1);
+    this.armor = enemyArmor(def.armor ?? 0, floor) * 1.5 + (list.includes('obrněný') ? 20 : 0);
+    this.xp = Math.round(def.xp * enemyXpScale(floor) * 12);
+    if (this.mshieldMax > 0) this.mshieldMax = this.mshield = this.maxHp * 0.8;
+    this.name = `${corruptName(def)} (${list.join(', ')})`;
+    this.setScale((def.scale ?? 1) * 1.4);
+    this.baseTint = 0x9a6ac0;
+    this.sprite.setTint(this.baseTint);
+    this.sprite.preFX?.clear();
+    this.sprite.preFX?.addGlow(0x9a2aff, 4, 0, false, 0.1, 14);
+    this.aura = sc.add.image(this.x, this.y + 2, 'disc').setTint(0x4a0a8a).setAlpha(0.6).setScale((this.r * this.baseScale * 6) / 256, (this.r * this.baseScale * 3) / 256).setDepth(D.floorDeco + 3);
+  }
+
+  /** the corruption smokes around it */
+  private corruptTick(dt: number) {
+    const sc = this.scene;
+    this.aura?.setPosition(this.x, this.y + 2);
+    this.wispT -= dt;
+    if (this.wispT <= 0) {
+      this.wispT = 0.12;
+      sc.fx.burst(this.x + (Math.random() - 0.5) * 12 * this.baseScale, this.y - 4 - Math.random() * 12 * this.baseScale, Math.random() < 0.55 ? 0x8a2aff : 0x1a0a2a, 1, 'puff');
+    }
+    if (!this.spotted && this.aggro) {
+      this.spotted = true;
+      sc.onCorruptSpotted(this);
+    }
   }
 
   makeBoss(boss: BossDef, tier: number, floor: number) {
@@ -371,6 +471,20 @@ export class Enemy extends Actor {
     super.destroyVisuals();
     this.nameLabel?.destroy();
     this.nameLabel = null;
+    this.roleIcon?.destroy();
+    this.roleIcon = null;
+    this.aura?.destroy();
+    this.aura = null;
+    if (this.pw.bat) {
+      for (const im of this.pw.bat.imgs) im.destroy();
+      this.pw.bat = undefined;
+    }
+  }
+
+  syncSprite(moving: boolean) {
+    super.syncSprite(moving);
+    if (this.roleIcon) this.roleIcon.setPosition(Math.round(this.x), Math.round(this.y - 20 * this.baseScale - 8 - this.hop)).setDepth(D.entityBase + this.y + 40);
+    if (this.corrupt && this.nameLabel) this.nameLabel.setPosition(Math.round(this.x), Math.round(this.y - 20 * this.baseScale - (this.roleIcon ? 13 : 5) - this.hop));
   }
 
   get phaseCount() {
@@ -426,6 +540,7 @@ export class Enemy extends Actor {
       this.scene.bossAI.update(this, dt);
       return;
     }
+    if (this.corrupt) this.corruptTick(dt);
     if (this.affixes.length && this.aggro) this.affixTick(dt);
     if (this.dead) return;
     this.ai(dt);
@@ -613,14 +728,20 @@ export class Enemy extends Actor {
 
   ai(dt: number) {
     const sc = this.scene;
-    if (this.def.behavior === 'thief') return this.thiefAI(dt);
+    const def = this.def;
+    if (def.behavior === 'thief') return this.thiefAI(dt);
+    if (def.behavior === 'static') {
+      // portals and eggs: only their power works
+      sc.powers.act(this, dt, 999, false);
+      if (!this.dead) this.syncSprite(false);
+      return;
+    }
     const target = sc.pickEnemyTarget(this);
     const tx = target.x,
       ty = target.y;
     const dx = tx - this.x,
       dy = ty - this.y;
     const dist = Math.hypot(dx, dy);
-    const def = this.def;
     const seesPlayer = dist < 150 && (this.flying || sc.map.los(this.x, this.y, tx, ty));
     if (!this.aggro) {
       if (seesPlayer && !sc.player.stealthed && dist < 120) {
@@ -641,9 +762,28 @@ export class Enemy extends Actor {
       return;
     }
     this.atkT -= dt;
+    if (this.leapCd > 0) this.leapCd -= dt;
     let moving = false;
-    const spd = this.speed * this.speedMult;
+    const spd = this.speed * this.speedMult * this.haste;
     this.facing = dx >= 0 ? 1 : -1;
+    if (this.leap) return this.leapStep(dt);
+    // the special power gets the first word (casting, roaring, eating, a cloud of bats …)
+    if (sc.powers.act(this, dt, dist, seesPlayer)) {
+      if (!this.dead && !this.pw.eating) this.syncSprite(false);
+      return;
+    }
+    if (this.dead) return;
+    // a sniper takes its time
+    if (this.aimT > 0) return this.aimStep(dt, target, seesPlayer);
+    const b = def.behavior;
+    // a spider about to burst
+    if (this.pw.fuse !== undefined) {
+      this.pw.fuse -= dt;
+      this.sprite.setScale(this.baseScale * ACTOR_SCALE * (1 + (0.6 - Math.max(0, this.pw.fuse)) * 0.6));
+      this.sprite.setTint(Math.floor(sc.time.now / 80) % 2 ? 0xffffff : 0xff5a2a);
+      if (this.pw.fuse <= 0) sc.powers.detonate(this);
+      return;
+    }
 
     // windup → attack
     if (this.windup > 0) {
@@ -658,17 +798,26 @@ export class Enemy extends Actor {
       this.x = nx;
       this.y = ny;
       if (Math.hypot(sc.player.x - this.x, sc.player.y - this.y) < this.r + 6) {
-        sc.combat.damagePlayer(this.dmg * 1.2, this);
+        sc.combat.damagePlayer(this.dmg * this.might * 1.2, this);
+        if (def.ability === 'berserk') this.shove(sc.player, 240);
         this.charging = 0;
       }
       if (hit) this.charging = 0;
       this.syncSprite(true);
       return;
     }
+    if (b === 'lurker') return this.lurkerStep(dt, target, dist, spd);
+    if (b === 'bomber' && seesPlayer && dist < 22) {
+      this.pw.fuse = 0.6;
+      sc.fx.number(this.x, this.y - 14, '!', '#ff7a2a', true);
+      this.syncSprite(false);
+      return;
+    }
 
-    const ranged = def.behavior === 'ranged' || def.behavior === 'caster' || def.behavior === 'summoner';
+    const kiting = b === 'kiter' || b === 'support' || b === 'sniper';
+    const ranged = b === 'ranged' || b === 'caster' || b === 'summoner' || kiting;
     const inRange = dist <= def.range + this.r + 4 && (this.flying || seesPlayer || dist < 20);
-    if (def.behavior === 'summoner') {
+    if (b === 'summoner') {
       this.summonT -= dt;
       if (this.summonT <= 0 && sc.enemies.length < 90) {
         this.summonT = 7;
@@ -684,7 +833,17 @@ export class Enemy extends Actor {
         }
       }
     }
-    if (def.behavior === 'charger' && dist < 90 && dist > 30 && seesPlayer && this.chargeT <= 0) {
+    // ghouls leap at their prey
+    if ((b === 'leaper' || this.mutation === 'skákavý') && seesPlayer && dist > 40 && dist < 120 && this.leapCd <= 0) {
+      this.leapCd = 3.5 + Math.random() * 1.5;
+      this.leapPending = true;
+      this.windup = 0.35;
+      this.sprite.setTint(0xffd0a0);
+      this.hitFlash = 0.35;
+      this.syncSprite(false);
+      return;
+    }
+    if (b === 'charger' && dist < 90 && dist > 30 && seesPlayer && this.chargeT <= 0) {
       this.chargeT = 4 + Math.random() * 2;
       this.chargeDir = [dx / dist, dy / dist];
       this.sprite.setTint(0xff8080);
@@ -695,14 +854,35 @@ export class Enemy extends Actor {
       return;
     }
     this.chargeT -= dt;
+    const atkCd = (def.atkCd * (this.affixes.includes('rychlý') ? 0.75 : 1)) / this.haste;
+
+    // archers, snipers and those who work on their pack keep their distance
+    if (kiting) {
+      const keep = b === 'sniper' ? 120 : b === 'support' ? 100 : Math.min(80, def.range * 0.65);
+      if (seesPlayer && dist < keep) moving = this.backOff(dx, dy, dist, spd, dt);
+      else if (!seesPlayer || dist > def.range) moving = this.approach(dx, dy, dist, spd, dt, seesPlayer);
+      if (seesPlayer && dist <= def.range + 4 && this.atkT <= 0) {
+        this.atkT = atkCd;
+        if (b === 'sniper') {
+          this.aimT = 1.7;
+          this.aimA = Math.atan2(ty - 6 - (this.y - 7), tx - this.x);
+          this.syncSprite(false);
+          return;
+        }
+        this.windup = 0.3;
+        this.lunge(dx / dist, dy / dist);
+      }
+      this.syncSprite(moving);
+      return;
+    }
 
     if (inRange && (!ranged || seesPlayer)) {
-      if (ranged && dist < 40 && def.behavior !== 'summoner') {
+      if (ranged && dist < 40 && b !== 'summoner') {
         // back off a bit
         moving = this.stepToward(-dx / dist, -dy / dist, spd * 0.7, dt);
       }
       if (this.atkT <= 0) {
-        this.atkT = def.atkCd * (this.affixes.includes('rychlý') ? 0.75 : 1);
+        this.atkT = atkCd;
         this.windup = ranged ? 0.35 : 0.3;
         this.lunge(dx / dist, dy / dist);
       }
@@ -711,7 +891,7 @@ export class Enemy extends Actor {
       let dir: [number, number] | null = null;
       if (this.flying || seesPlayer) dir = [dx / (dist || 1), dy / (dist || 1)];
       else dir = sc.map.flowDir(this.x, this.y);
-      if (def.behavior === 'erratic') {
+      if (b === 'erratic') {
         this.erraticT -= dt;
         if (this.erraticT <= 0) {
           this.erraticT = 0.3 + Math.random() * 0.4;
@@ -727,11 +907,114 @@ export class Enemy extends Actor {
     this.syncSprite(moving);
   }
 
+  /** steps away from the target, sliding sideways when something is in the way */
+  private backOff(dx: number, dy: number, dist: number, spd: number, dt: number) {
+    this.strafeT -= dt;
+    if (this.strafeT <= 0) {
+      this.strafeT = 1.2 + Math.random();
+      if (Math.random() < 0.4) this.strafe = -this.strafe;
+    }
+    const mx = -dx / dist + (-dy / dist) * this.strafe * 0.6,
+      my = -dy / dist + (dx / dist) * this.strafe * 0.6;
+    const l = Math.hypot(mx, my) || 1;
+    const moved = this.stepToward(mx / l, my / l, spd * 0.9, dt);
+    if (!moved) {
+      this.strafe = -this.strafe;
+      this.strafeT = 0.8;
+    }
+    return moved;
+  }
+
+  private approach(dx: number, dy: number, dist: number, spd: number, dt: number, sees: boolean) {
+    const dir = this.flying || sees ? [dx / (dist || 1), dy / (dist || 1)] : this.scene.map.flowDir(this.x, this.y);
+    if (!dir) return false;
+    const l = Math.hypot(dir[0], dir[1]) || 1;
+    return this.stepToward(dir[0] / l, dir[1] / l, spd, dt);
+  }
+
+  /** a sniper aims (the red line follows the target until the last moment), then one heavy bolt */
+  private aimStep(dt: number, target: Actor, sees: boolean) {
+    this.aimT -= dt;
+    if (!sees) {
+      this.aimT = 0;
+      this.atkT = 1;
+    } else {
+      if (this.aimT > 0.35) this.aimA = Math.atan2(target.y - 6 - (this.y - 7), target.x - this.x);
+      if (this.aimT <= 0) {
+        const pr = this.scene.spawnEnemyProjectile(this.x, this.y - 7, this.aimA, 'arrow', this.dmg * this.might * 3.2, 'phys', 430, this.name, this);
+        pr.sprite.setScale(1.6);
+        pr.maxRange = 320;
+        sfx('bow');
+        this.lunge(-Math.cos(this.aimA), -Math.sin(this.aimA));
+      }
+    }
+    this.syncSprite(false);
+  }
+
+  /** flying through the air at the end of a leap */
+  private leapStep(dt: number) {
+    const sc = this.scene;
+    const L = this.leap!;
+    L.t += dt;
+    const k = Math.min(1, L.t / L.dur);
+    const nx = L.x0 + (L.x1 - L.x0) * k,
+      ny = L.y0 + (L.y1 - L.y0) * k;
+    if (!sc.map.collides(nx, ny, this.r)) {
+      this.x = nx;
+      this.y = ny;
+    }
+    this.hop = Math.sin(k * Math.PI) * 14;
+    if (k >= 1) {
+      this.leap = null;
+      this.hop = 0;
+      sc.fx.burst(this.x, this.y, 0xb8a888, 6, 'puff');
+      const p = sc.player;
+      const d = Math.hypot(p.x - this.x, p.y - this.y);
+      if (d < 18 && !p.dead) {
+        sc.combat.damagePlayer(this.dmg * this.might * 1.3, this);
+        this.shove(p, 90);
+      }
+      this.atkT = Math.max(this.atkT, 0.4);
+    }
+    this.syncSprite(true);
+  }
+
+  /** a lurker drifts through walls, strikes out of them and hides again */
+  private lurkerStep(dt: number, target: Actor, dist: number, spd: number) {
+    const sc = this.scene;
+    this.inWall = sc.map.isSolidPx(this.x, this.y);
+    this.sprite.setAlpha(this.inWall ? 0.4 : 1);
+    const dx = target.x - this.x,
+      dy = target.y - this.y;
+    let moving = false;
+    if ((this.pw.t2 ?? 0) > 0) {
+      // after a strike it backs away into the stone
+      if (!this.inWall || dist < 40) moving = this.stepToward(-dx / (dist || 1), -dy / (dist || 1), spd * 0.8, dt);
+    } else if (dist <= this.def.range + 4) {
+      if (this.atkT <= 0) {
+        this.atkT = this.def.atkCd / this.haste;
+        this.windup = 0.4;
+        this.sprite.setTint(0xff6aff);
+        this.hitFlash = 0.4;
+        this.lunge(dx / (dist || 1), dy / (dist || 1));
+      }
+    } else moving = this.stepToward(dx / (dist || 1), dy / (dist || 1), spd, dt);
+    this.syncSprite(moving);
+  }
+
+  /** a heavy blow throws the target back */
+  shove(t: Actor, force: number) {
+    const d = Math.hypot(t.x - this.x, t.y - this.y) || 1;
+    t.knockX += ((t.x - this.x) / d) * force;
+    t.knockY += ((t.y - this.y) / d) * force;
+    if (t === this.scene.player) this.scene.fx.shake(0.003, 90);
+  }
+
   chargePending = false;
 
   stepToward(nx: number, ny: number, spd: number, dt: number) {
     if (this.flying) {
-      if (this.def.behavior === 'ghost') {
+      if (this.def.behavior === 'ghost' || this.def.behavior === 'lurker') {
         // ghosts drift through walls
         this.x += nx * spd * dt;
         this.y += ny * spd * dt;
@@ -766,26 +1049,46 @@ export class Enemy extends Actor {
     const dx = target.x - this.x,
       dy = target.y - this.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const def = this.def;
-    if (def.behavior === 'ranged' || def.behavior === 'caster' || def.behavior === 'summoner') {
-      const a = Math.atan2(dy, dx);
-      sc.spawnEnemyProjectile(this.x, this.y - 6, a, def.proj ?? 'arrow', this.dmg, def.el ?? 'phys', 130, this.name, this);
+    if (this.leapPending) {
+      // a leap that lands just short of where the target stands
+      this.leapPending = false;
+      const reach = Math.max(0, dist - 6);
+      this.leap = { t: 0, dur: 0.42, x0: this.x, y0: this.y, x1: this.x + (dx / dist) * reach, y1: this.y + (dy / dist) * reach };
+      sfx('swing');
       return;
     }
+    const def = this.def;
+    const dmg = this.dmg * this.might;
+    const b = def.behavior;
+    if (b === 'ranged' || b === 'caster' || b === 'summoner' || b === 'kiter' || b === 'support') {
+      const a = Math.atan2(dy, dx);
+      const pr = sc.spawnEnemyProjectile(this.x, this.y - 6, a, def.proj ?? 'arrow', dmg, def.el ?? 'phys', 130, this.name, this);
+      if (def.ability === 'web') pr.o.effect = 'web';
+      if (def.ability === 'sacrifice') pr.o.effect = 'drain';
+      return;
+    }
+    if (b === 'lurker') this.pw.t2 = 1.4;
     if (dist <= def.range + this.r + target.r + 6) {
-      sc.fx.slash(this.x + (dx / dist) * 8, this.y - 4 + (dy / dist) * 8, Math.atan2(dy, dx), 10, 0xffdddd, 90);
+      sc.fx.slash(this.x + (dx / dist) * 8, this.y - 4 + (dy / dist) * 8, Math.atan2(dy, dx), 10, b === 'lurker' ? 0xd08aff : 0xffdddd, 90);
       if (target === sc.player) {
-        sc.combat.damagePlayer(this.dmg, this);
-        if (def.poison) sc.player.applyPoison(this.dmg * 0.3, 3);
+        sc.combat.damagePlayer(dmg, this);
+        if (def.poison || this.mutation === 'jedovatý') sc.player.applyPoison(dmg * 0.3, 3);
         if (def.el === 'ice') sc.player.chill(1.2);
         if (def.el === 'fire') {
           sc.player.st.burnT = Math.max(sc.player.st.burnT, 2.5);
-          sc.player.st.burnDps = Math.max(sc.player.st.burnDps, this.dmg * 0.15);
+          sc.player.st.burnDps = Math.max(sc.player.st.burnDps, dmg * 0.15);
         }
-        if (this.affixes.includes('upíří')) this.hp = Math.min(this.maxHp, this.hp + this.dmg * 0.5);
+        if (this.affixes.includes('upíří')) this.hp = Math.min(this.maxHp, this.hp + dmg * 0.5);
         if (this.affixes.includes('mrazivý')) sc.player.chill(1.5);
+        if (def.ability === 'berserk') this.shove(sc.player, 200);
+        // vampires drink what they bite
+        const drink = def.ability === 'vampire' ? 1 : def.ability === 'bloodpool' ? 1.5 : 0;
+        if (drink && this.hp < this.maxHp) {
+          this.hp = Math.min(this.maxHp, this.hp + dmg * drink);
+          sc.fx.beam(sc.player.x, sc.player.y - 6, this.x, this.y - 8, 0xc0101a, 1.5, 250);
+        }
       } else {
-        target.takeDamage(this.dmg);
+        target.takeDamage(dmg);
       }
     }
   }
@@ -1013,6 +1316,8 @@ export interface ProjOpts {
   /** who shot it (a monster's projectile; named on the death screen) */
   srcName?: string;
   srcFoe?: Enemy;
+  /** what a monster's shot does besides damage: 'web', 'drain', 'curse:<id>' */
+  effect?: string;
 }
 
 export class Projectile {
@@ -1050,7 +1355,7 @@ export class Projectile {
     if (this.rotates) this.sprite.setRotation(o.angle);
     this.sprite.setScale(o.size ?? 1);
     this.sprite.setDepth(D.bright);
-    if (['pr_fire', 'pr_bolt', 'pr_holy', 'pr_shadow', 'pr_magic', 'pr_soul', 'pr_poison', 'pr_blood', 'pr_ice_ball'].includes(this.sprite.texture.key)) this.sprite.setBlendMode(Phaser.BlendModes.ADD);
+    if (['pr_fire', 'pr_bolt', 'pr_holy', 'pr_shadow', 'pr_magic', 'pr_soul', 'pr_poison', 'pr_blood', 'pr_ice_ball', 'pr_curse', 'pr_mind', 'pr_time'].includes(this.sprite.texture.key)) this.sprite.setBlendMode(Phaser.BlendModes.ADD);
   }
 
   update(dt: number) {
@@ -1145,6 +1450,7 @@ export class Projectile {
         sc.combat.damagePlayer(this.o.dmg, null, this.o.el);
         if (this.o.el === 'ice') p.chill(1.2);
         if (this.o.el === 'poison') p.applyPoison(this.o.dmg * 0.3, 3);
+        if (this.o.effect) sc.powers.projectileHit(this, true);
         sc.fx.burst(this.x, this.y, EL_COLOR[this.o.el] ?? 0xffffff, 6);
         this.kill();
         return true;
@@ -1175,7 +1481,7 @@ export class Projectile {
       this.impact(this.x, this.y);
       return;
     }
-    sc.combat.damageEnemy(e, o.dmg, { el: o.el, spell: o.spell, crit: o.crit, isAttack: o.isAttack, lifesteal: o.lifesteal, fromAlly: o.fromAlly, kx: this.vx, ky: this.vy });
+    sc.combat.damageEnemy(e, o.dmg, { el: o.el, spell: o.spell, crit: o.crit, isAttack: o.isAttack, lifesteal: o.lifesteal, fromAlly: o.fromAlly, kx: this.vx, ky: this.vy, single: o.spell && !o.pierce && !o.bounce });
     if (o.slow) {
       e.st.slowT = 2.5;
       e.st.slowMult = 1 - o.slow;
@@ -1208,6 +1514,7 @@ export class Projectile {
       sc.spells.explosion(x, y, o.explode, o.dmg, o.el, { spell: o.spell, crit: o.crit, isAttack: o.isAttack });
     } else {
       sc.fx.burst(x, y, EL_COLOR[o.el] ?? 0xffffff, 4);
+      if (o.owner === 'enemy' && o.effect === 'web') sc.powers.projectileHit(this, false);
     }
     this.kill();
   }

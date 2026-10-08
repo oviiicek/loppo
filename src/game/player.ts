@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy } from './entities';
 import { D, EL_COLOR } from './fx';
-import { SaveData, derive, Derived } from '../systems/state';
+import { SaveData, derive, Derived, LEECH_CAP } from '../systems/state';
 import { BuffMods } from '../data/spells';
 import { BASE_BY_ID, itemTier } from '../data/items';
 import { bus } from '../systems/events';
@@ -17,6 +17,10 @@ export interface Buff {
   t: number;
   total: number;
   color: number;
+  /** a monster's curse (shown red, cannot be stolen) */
+  debuff?: boolean;
+  /** the icon's glyph when it is not a spell */
+  glyph?: string;
 }
 
 const MAGIC_COLORS: Record<string, string> = { staff: 'pr_magic', wand: 'pr_magic' };
@@ -106,6 +110,7 @@ export class Player extends Actor {
   private starT = 4;
   private frostT = 0.5;
   private trailT = 0.3;
+  private thornT = 1;
   private bladeA = 0;
   private bladeTick = 0;
   bladeFx: Phaser.GameObjects.Image[] = [];
@@ -203,8 +208,40 @@ export class Player extends Actor {
     bus.emit('buffs');
   }
 
+  /** a monster's curse: works like a buff with bad numbers */
+  addCurse(id: string, name: string, mods: BuffMods, dur: number, color: number, glyph: string) {
+    this.addBuff(id, name, mods, dur, color);
+    const b = this.buffs.find((x) => x.id === id);
+    if (b) {
+      b.debuff = true;
+      b.glyph = glyph;
+    }
+    bus.emit('buffs');
+  }
+
+  /** life and mana stolen by blows: at most LEECH_CAP % of the maximum per second (no immortal vampires) */
+  leechHp = 0;
+  leechMp = 0;
+
+  leech(hp: number, mp: number) {
+    if (this.dead) return;
+    if (hp > 0) {
+      const got = Math.min(hp, this.leechHp);
+      this.leechHp -= got;
+      this.heal(got, false);
+    }
+    if (mp > 0) {
+      const got = Math.min(mp, this.leechMp);
+      this.leechMp -= got;
+      this.mp = Math.min(this.d.maxMp, this.mp + got);
+    }
+  }
+
   heal(amount: number, show = true) {
     if (this.dead || amount <= 0) return;
+    // a curse of decay halves healing
+    const cut = this.buffs.reduce((a, b) => a + (b.mods.healCut ?? 0), 0);
+    if (cut > 0) amount *= Math.max(0.1, 1 - cut / 100);
     const before = this.hp;
     this.hp = Math.min(this.d.maxHp, this.hp + amount);
     const got = Math.round(this.hp - before);
@@ -274,6 +311,9 @@ export class Player extends Actor {
     const natural = this.d.specials.has('noRegen') ? 0 : this.d.hpRegen;
     this.hp = Math.min(this.d.maxHp, this.hp + (natural + (this.d.maxHp * regenPct) / 100) * dt);
     this.mp = Math.min(this.d.maxMp, this.mp + this.d.mpRegen * dt);
+    // the leech allowance refills every second
+    this.leechHp = Math.min((this.d.maxHp * LEECH_CAP.hp) / 100, this.leechHp + ((this.d.maxHp * LEECH_CAP.hp) / 100) * dt);
+    this.leechMp = Math.min((this.d.maxMp * LEECH_CAP.mp) / 100, this.leechMp + ((this.d.maxMp * LEECH_CAP.mp) / 100) * dt);
 
     // timers of the unique powers
     if (this.lustT > 0) this.lustT -= dt;
@@ -510,6 +550,15 @@ export class Player extends Actor {
           e.st.slowMult = e.boss ? 0.75 : 0.5;
           sc.combat.damageEnemy(e, this.powerHit() * 0.12, { el: 'ice', silent: true, noCrit: true });
         }
+      }
+    }
+    // a thorn aura: whoever stands right next to the hero gets the thorns every second
+    if (s.has('thornAura') && (this.d.thorns > 0 || this.d.thornsPct > 0)) {
+      this.thornT -= dt;
+      if (this.thornT <= 0) {
+        this.thornT = 1;
+        const dmg = (this.d.thorns + this.d.maxHp * 0.02 * (this.d.thornsPct / 25)) * (s.has('thornArmor') ? 1 + this.d.armor / 400 : 1);
+        for (const e of sc.enemiesNear(this.x, this.y, 26)) sc.combat.damageEnemy(e, dmg, { el: 'phys', noCrit: true, thorns: true });
       }
     }
     if (s.has('fireTrail') && this.moving) {

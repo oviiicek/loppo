@@ -108,6 +108,20 @@ export class Loot {
       this.dropMat('hpPotion', 2, x, y);
       return;
     }
+    if (e.corrupt) {
+      // a corrupted monster always carries something good: an epic piece (or better) and more
+      const rar = Math.random() < 0.3 ? 4 : 3;
+      this.dropItem(generateItem(f + 2, { rarity: rar, magicFind: this.mf, filter: this.bias() }), x, y);
+      this.dropItem(this.item(f + 1, 2), x, y);
+      if (f >= SET_MIN_FLOOR && Math.random() < 0.15) this.dropItem(generateSetItem(f + 1), x, y);
+      this.dropRandomGem(x, y, 1);
+      if (Math.random() < 0.5) this.dropRandomRune(x, y);
+      if (Math.random() < 0.2) this.dropSpellRune(x, y);
+      for (let i = 0; i < 5; i++) this.dropGold(this.goldAmount(3), x, y);
+      this.dropMat('dust', 2 + Math.floor(f / 15), x, y);
+      this.dropMat('stone', 2 + Math.floor(f / 15), x, y);
+      return;
+    }
     if (e.def.behavior === 'thief') {
       for (let i = 0; i < 9; i++) this.dropGold(this.goldAmount(3), x, y);
       this.dropRandomGem(x, y);

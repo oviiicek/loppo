@@ -39,6 +39,8 @@ export const POWERS: PowerDef[] = [
   { id: 'lifeTap', desc: 'Kritický zásah tě vyléčí o 5 % zdraví' },
   { id: 'thunderClap', desc: 'Úhyb nebo blok vyšle kolem tebe hromovou vlnu' },
   { id: 'berserkRoar', desc: 'Pod 50 % zdraví na 5 s získáš +40 % poškození (jednou za 20 s)' },
+  { id: 'thornAura', desc: 'Trny zasáhnou i střelce a mágy (poloviční silou) a nepřátelé těsně u tebe je dostávají každou sekundu' },
+  { id: 'thornArmor', desc: 'Brnění se mění v ostny: trny jsou silnější o čtvrtinu tvého brnění v procentech' },
 ];
 
 export const POWER_BY_ID = Object.fromEntries(POWERS.map((p) => [p.id, p])) as Record<string, PowerDef>;
@@ -100,6 +102,9 @@ export const UNIQUES: UniqueDef[] = [
   { id: 'nimbleboots', name: 'Boty mrštného', base: 'boots', power: 'thunderClap', lore: 'Kdo uhne, ten udeří.' },
   { id: 'bladecloak', name: 'Plášť čepelí', base: 'chest', power: 'orbitBlades', lore: 'Čepele tančí kolem nositele.' },
   { id: 'firewalker', name: 'Žhavé šlapky', base: 'boots', power: 'fireTrail', lore: 'Po tobě zůstává jen popel.' },
+  { id: 'spikedplate', name: 'Ostnatý krunýř', base: 'chest', power: 'thornArmor', lore: 'Kdo do něj udeří, ten krvácí.' },
+  { id: 'thorncrown', name: 'Trnová koruna', base: 'helmet', power: 'thornAura', lore: 'Bolest, kterou neseš, rozdáváš dál.' },
+  { id: 'hedgehog', name: 'Ježek', base: 'shield', power: 'thornAura', lore: 'Štít, na který se nikdo nesahá dvakrát.' },
   // jewellery and off-hand
   { id: 'stormeye', name: 'Oko bouře', base: 'amulet', power: 'stormAura', lore: 'V jeho středu je ticho, kolem blesky.' },
   { id: 'dragonheart', name: 'Srdce draka', base: 'amulet', power: 'secondWind', lore: 'Bije dál, i když už nemá.' },

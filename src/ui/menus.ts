@@ -7,7 +7,7 @@ import { BASE_BY_ID, RARITIES, BASES, CATEGORY_NAMES } from '../data/items';
 import { PETS, PET_BY_ID, petTitle, petLevel } from '../data/pets';
 import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
-import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, listFallen, heroTitle } from '../systems/state';
+import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, listFallen, heroTitle, LEECH_CAP } from '../systems/state';
 import { DIFFICULTIES, DEFAULT_DIFFICULTY, difficultyOf, difficultyLines } from '../data/difficulty';
 import { areaForFloor } from '../data/biomes';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
@@ -15,7 +15,8 @@ import { fsButtonHTML, isStandalone } from './fullscreen';
 import { CHRONICLE_ORDER, CUTSCENE_BY_ID } from '../data/story';
 import { LORE, LORE_BY_ID } from '../data/lore';
 import { BEASTS, KNOW_AT, EL_NAME, EL_CSS, masteryPct } from '../data/bestiary';
-import { ENEMY_BY_ID } from '../data/enemies';
+import { ENEMY_BY_ID, ROLE_INFO } from '../data/enemies';
+import { FAMILIES } from '../data/families';
 import { cleanName } from '../data/nemesis';
 import { codexOf, codexCount, CODEX_TOTAL, CODEX_TOTALS, ALL_STONES } from '../data/codex';
 import { UNIQUES, POWER_BY_ID } from '../data/uniques';
@@ -276,6 +277,9 @@ export class Menus {
         <p><b style="color:#ffd76a">Sady a kletby:</b> kusy sad dávají bonus za 2–4 nasazené kusy. Prokletý předmět má velký bonus a postih – v chrámu v Loppu jde kletbu zkrotit. Pět předmětů stejné kvality spojí alchymista v jeden lepší (transmutace).</p>
         <p><b style="color:#ffd76a">Talenty a multiclass:</b> bod talentu dostaneš za každou druhou úroveň; každá classa má tři větve (Kouzla → Talenty). Od úrovně 100 si zvolíš druhou classu a získáš spojený titul.</p>
         <p><b style="color:#ffd76a">Šampioni a bestiář:</b> šampioni mají vlastnosti (ohnivý, zrcadlový, nesmrtelný, štítonoš…), hlouběji i dvě či tři najednou. Každý druh nestvůry má slabiny a odolnosti vůči živlům – zabíjením je odhalíš v Bestiáři (Úspěchy) a nakonec získáš mistrovství.</p>
+        <p><b style="color:#ffd76a">Rodiny nestvůr:</b> každá oblast patří dvěma rodinám (nemrtví, pavouci, ghúlové, golemové, kult, upíři…) a každá místnost má smečku jedné rodiny. Nestvůry se <b>znamením nad hlavou</b> zabij první: léčitel ✚ hojí ostatní, nekromant oživuje padlé, vyvolávač povolává další, ochránce zmenšuje poškození nestvůr kolem sebe, odstřelovač dlouho míří (červená čára), posilovač žehná smečce a zaklínač proklíná tebe. Kletby (zranitelnost, rozklad, únava, zpomalený čas, zmatení) vidíš v liště posílení s červeným rámečkem.</p>
+        <p><b style="color:#c88aff">Zkažené nestvůry:</b> velmi vzácně se objeví černofialová zkažená verze nestvůry – pětinásobné zdraví, tři náhodné vlastnosti a vždy dobrá kořist (aspoň epický předmět).</p>
+        <p><b style="color:#ffd76a">Vysávání a trny:</b> vysávání života a many léčí z poškození, které rozdáš – nejvýš ale ${LEECH_CAP.hp} % zdraví a ${LEECH_CAP.mp} % many za sekundu. Trny vrací útočníkům pevné poškození, odraz vrací část přijaté rány; obojí jde přes jejich brnění. Sada Hradba trnů a unikáty Ostnatý krunýř, Trnová koruna a Ježek z toho udělají celý styl boje.</p>
         <p><b style="color:#ffd76a">Strážci:</b> při 70, 40 a 10 % zdraví změní útoky i arénu a v posledních 10 % zuří.</p>
         <p><b style="color:#ffd76a">Žoldák, soupeři a nemesis:</b> v pauze si najmi žoldáka (tank, léčitel, lučištník, mág) a dej mu vybavení a rozkazy. Jiní dobrodruzi v kobkách se mohou přidat, obchodovat, nebo bojovat. Šampion, který tě zabije, se může stát tvým nemesis – a vrátí se.</p>
         <p><b style="color:#ffd76a">Události:</b> zajatci, oltáře, duchové, trhliny se strážcem, rvačky nestvůr, krvavá výzva, rozhodnutí s následky, kostlivci u karet, dopisy padlých a nápisy na zdech. Velmi vzácně i zlatá komnata, zlatý drak, snový portál nebo zlatý déšť.</p>
@@ -604,22 +608,32 @@ export class Menus {
       const kills = s.bestiary ?? {};
       const known = Object.keys(BEASTS).filter((id) => (kills[id] ?? 0) > 0).length;
       const els = (l: string[]) => (l.length ? l.map((x) => `<b style="color:${EL_CSS[x as 'fire']}">${esc(EL_NAME[x as 'fire'])}</b>`).join(', ') : 'žádné');
-      const cards = Object.entries(BEASTS)
-        .map(([id, b]) => {
+      const card = (id: string) => {
+          const b = BEASTS[id];
           const def = ENEMY_BY_ID[id];
           const k = kills[id] ?? 0;
-          if (!def) return '';
+          if (!def || !b) return '';
           if (!k) return `<div class="bstc"><img class="unk" src="${iconURL(def.sprite, 48)}"><div style="min-width:0"><div class="nm">???</div><div class="lv2">Ještě nepotkán${def.minFloor > 1 ? ` · od ${def.minFloor}. patra` : ''}</div></div></div>`;
           const next = k < KNOW_AT.weak ? KNOW_AT.weak : k < KNOW_AT.loot ? KNOW_AT.loot : k < KNOW_AT.master1 ? KNOW_AT.master1 : k < KNOW_AT.master2 ? KNOW_AT.master2 : 0;
           const m = masteryPct(s, id);
+          const role = def.role ? ROLE_INFO[def.role] : null;
           return `<div class="bstc found"><img src="${iconURL(def.sprite, 48)}"><div style="min-width:0"><div class="nm">${esc(def.name)} <span class="hint">· zabito ${n(k)}${next ? ` / ${next}` : ''}</span></div>
+            ${role ? `<div class="lv2" style="color:${role.color}">${esc(role.name)} – ${esc(role.desc)}</div>` : ''}
             <div class="lv2">${esc(b.note)}</div>
             <div class="lv2">${k >= KNOW_AT.weak ? `Slabiny: ${els(b.weak)} · odolnosti: ${els(b.resist)}` : `Slabiny a odolnosti: <span class="hint">po ${KNOW_AT.weak} zabitích</span>`}</div>
             <div class="lv2">${k >= KNOW_AT.loot ? `Kořist: ${esc(b.loot)}` : `Kořist: <span class="hint">po ${KNOW_AT.loot} zabitích</span>`}</div>
             ${m ? `<div class="lv2" style="color:#9dff7a">Mistrovství: +${m} % poškození</div>` : `<div class="lv2 hint">Mistrovství po ${KNOW_AT.master1} zabitích</div>`}</div></div>`;
-        })
-        .join('');
-      body = `<div class="codexhead">Poznáno <b>${known}/${Object.keys(BEASTS).length}</b> druhů nestvůr · slabina = poškození ×${1.5}, odolnost = ×${0.6}</div><div class="bstgrid">${cards}</div>`;
+      };
+      // grouped by family (a monster of several families stands with the first one)
+      const shown = new Set<string>();
+      const groups = Object.values(FAMILIES).map((f) => {
+        const ids = f.members.filter((id) => BEASTS[id] && !shown.has(id));
+        ids.forEach((id) => shown.add(id));
+        return ids.length ? `<h3 class="cxh">${esc(f.name)}</h3><div class="bstgrid">${ids.map(card).join('')}</div>` : '';
+      });
+      const rest = Object.keys(BEASTS).filter((id) => !shown.has(id));
+      if (rest.length) groups.push(`<h3 class="cxh">Zvláštní</h3><div class="bstgrid">${rest.map(card).join('')}</div>`);
+      body = `<div class="codexhead">Poznáno <b>${known}/${Object.keys(BEASTS).length}</b> druhů nestvůr · slabina = poškození ×${1.5}, odolnost = ×${0.6} · nestvůry se znamením nad hlavou zabij první</div>${groups.join('')}`;
     } else if (tab === 'nem') {
       const list = s.nemeses ?? [];
       const beaten = st.nemeses ?? 0;
@@ -643,6 +657,9 @@ export class Menus {
         ['⭐', 'Úroveň', String(s.level)],
         ['⚔️', 'Poražených nepřátel', n(s.kills)],
         ['👑', 'Z toho šampionů', n(st.elites)],
+        ['🟣', 'Zkažených nestvůr', n(st.corrupted)],
+        ['🎯', 'Nestvůr se znamením', n(st.priority)],
+        ['🌵', 'Zabito trny', n(st.thornKills)],
         ['🔥', 'Nejdelší série zabití', n(st.streak)],
         ['☠️', 'Poražených strážců', n(st.bosses)],
         ['💰', 'Sebraného zlata', n(st.goldEarned)],

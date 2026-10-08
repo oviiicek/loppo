@@ -51,7 +51,7 @@ export interface SaveData {
   playTime: number;
   stash?: (Item | null)[];
   slot?: number;
-  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number; rivals?: number; transmutes?: number; rescued?: number; events?: number; rifts?: number; lore?: number; wtf?: number; brawls?: number; arenas?: number };
+  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number; rivals?: number; transmutes?: number; rescued?: number; events?: number; rifts?: number; lore?: number; wtf?: number; brawls?: number; arenas?: number; corrupted?: number; priority?: number; thornKills?: number };
   achievements?: string[];
   story?: StoryState;
   /** combat difficulty (index into DIFFICULTIES, normal when missing) */
@@ -340,6 +340,8 @@ export interface Derived {
   dodge: number;
   block: number;
   lifesteal: number;
+  /** mana stolen with every blow (% of the damage) */
+  manasteal: number;
   manaOnHit: number;
   move: number;
   cdr: number;
@@ -347,6 +349,8 @@ export interface Derived {
   gold: number;
   magicFind: number;
   thorns: number;
+  /** % of the damage taken sent back to the attacker */
+  thornsPct: number;
   xp: number;
   elem: { fire: number; ice: number; lightning: number; poison: number };
   /** extra damage of each element in per cent (talents) */
@@ -390,6 +394,9 @@ export function gearStats(s: SaveData): { stats: Stats; specials: Set<string> } 
   if (pet) for (const [k, v] of Object.entries(pet.stats(petLevel(s.pets!, pet.id)))) add(k as StatKey, v as number);
   return { stats, specials };
 }
+
+/** life and mana steal: at most this many per cent of the maximum per second */
+export const LEECH_CAP = { hp: 8, mp: 10 };
 
 export function derive(s: SaveData, buffs: BuffMods[] = []): Derived {
   const { stats, specials } = gearStats(s);
@@ -465,6 +472,7 @@ export function derive(s: SaveData, buffs: BuffMods[] = []): Derived {
     dodge: Math.min(50, attrs.dex * 0.1 + g('dodge') + b('dodge')),
     block: Math.min(50, g('block')),
     lifesteal: g('lifesteal') + b('lifesteal'),
+    manasteal: g('manasteal'),
     manaOnHit: g('manaOnHit'),
     move: 72 * (1 + Math.min(80, g('move') + b('move')) / 100),
     cdr: Math.min(40, g('cdr')),
@@ -472,6 +480,7 @@ export function derive(s: SaveData, buffs: BuffMods[] = []): Derived {
     gold: g('gold'),
     magicFind: g('magicFind'),
     thorns: g('thorns'),
+    thornsPct: Math.min(120, g('thornsPct') + b('thornsPct')),
     xp: g('xp'),
     elem: { fire: g('fire'), ice: g('ice'), lightning: g('lightning'), poison: g('poison') },
     elemPct: { fire: g('fireDmg'), ice: g('iceDmg'), lightning: g('lightDmg'), poison: g('poisonDmg'), shadow: g('shadowDmg'), holy: g('holyDmg') },
