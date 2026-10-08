@@ -3,6 +3,7 @@ import { Actor, Enemy, ELITE_AFFIXES } from './entities';
 import { EL_COLOR } from './fx';
 import { Element } from '../data/types';
 import { bumpStat, maxStat } from '../systems/state';
+import { parseRune, RUNE_CHANCE, RuneType } from '../data/runes';
 import { sfx, vibrate } from '../systems/audio';
 import { bus } from '../systems/events';
 
@@ -80,6 +81,15 @@ export class Combat {
       e.st.burnT = 3;
       e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.2);
     }
+    // runes in the weapons
+    for (const w of [p.save.equip.main, p.save.equip.off]) {
+      if (!w?.runes) continue;
+      for (const k of w.runes) {
+        if (!k) continue;
+        const r = parseRune(k);
+        if (r && Math.random() * 100 < RUNE_CHANCE[r.tier - 1]) this.runeProc(e, r.def.id, r.tier, dmg);
+      }
+    }
     for (const b of [...p.buffs, ...sc.shrineBuffs]) {
       if (b.mods.onHitPoison) {
         e.st.poisonT = 4;
@@ -90,6 +100,50 @@ export class Combat {
         e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.25);
       }
       if (b.mods.onHitChain && Math.random() < 0.6) sc.spells.chain(e.x, e.y, 3, dmg * 0.5, 'lightning', new Set([e.id]));
+    }
+  }
+
+  /** a rune in the weapon took effect */
+  runeProc(e: Enemy, type: RuneType, tier: number, dmg: number) {
+    const sc = this.scene;
+    const k = 1 + tier * 0.1;
+    switch (type) {
+      case 'fire':
+        e.st.burnT = 3;
+        e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.3 * k);
+        sc.fx.burst(e.x, e.y - 6, 0xff7a2a, 5);
+        break;
+      case 'poison':
+        e.st.poisonT = 4;
+        e.st.poisonDps = Math.max(e.st.poisonDps, dmg * 0.3 * k);
+        sc.fx.burst(e.x, e.y - 6, 0x7bd88f, 5, 'puff');
+        break;
+      case 'frost':
+        e.st.slowT = Math.max(e.st.slowT, 2.5);
+        e.st.slowMult = e.boss ? 0.75 : 0.5;
+        // from the third grade it freezes ordinary monsters for a moment
+        if (tier >= 3 && !e.boss) e.st.stunT = Math.max(e.st.stunT, 0.5 + tier * 0.1);
+        sc.fx.burst(e.x, e.y - 6, 0x9fe6ff, 6);
+        break;
+      case 'storm':
+        sc.spells.chain(e.x, e.y, 2 + tier, dmg * 0.5, 'lightning', new Set([e.id]));
+        break;
+      case 'blood':
+        e.st.bleedT = 4;
+        e.st.bleedDps = Math.max(e.st.bleedDps, dmg * 0.35 * k);
+        sc.fx.burst(e.x, e.y - 6, 0xc81a2a, 5, 'pix');
+        break;
+      case 'weak':
+        e.st.vulnT = 4;
+        e.st.vuln = Math.max(e.st.vuln, tier >= 5 ? 0.3 : 0.2);
+        sc.fx.ring(e.x, e.y - 6, 12, 0xc77dff, 300);
+        break;
+      case 'leech': {
+        const p = sc.player;
+        p.heal(dmg * (0.08 + tier * 0.03), false);
+        sc.fx.burst(p.x, p.y - 8, 0xff6a9a, 4);
+        break;
+      }
     }
   }
 

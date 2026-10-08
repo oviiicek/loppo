@@ -5,8 +5,9 @@ import { D } from './fx';
 import { Item, Slot } from '../data/types';
 import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded, itemValue, PRIMAL } from '../data/items';
 import { SET_MIN_FLOOR } from '../data/sets';
-import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData, addGem } from '../systems/state';
+import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData, addGem, addRune } from '../systems/state';
 import { gemIcon, gemName, parseGem, randomGem } from '../data/gems';
+import { parseRune, runeIcon, runeName, randomRune } from '../data/runes';
 import { sfx, settings, LootRule } from '../systems/audio';
 import { bus } from '../systems/events';
 import { iconURL } from '../gfx/textures';
@@ -22,10 +23,11 @@ export const MAT_INFO: Record<MatKey, { name: string; icon: string; color: strin
 };
 
 export interface Ground {
-  kind: 'item' | 'gold' | 'mat' | 'gem';
+  kind: 'item' | 'gold' | 'mat' | 'gem' | 'rune';
   item?: Item;
   mat?: MatKey;
   gem?: string;
+  rune?: string;
   amount: number;
   x: number;
   y: number;
@@ -96,6 +98,7 @@ export class Loot {
       for (let i = 0; i < n; i++) this.dropItem(this.item(f + 1, 2), x, y);
       if (f >= SET_MIN_FLOOR && Math.random() < 0.12) this.dropItem(generateSetItem(f + 1), x, y);
       for (let i = 0; i < 2; i++) this.dropRandomGem(x, y, 1);
+      this.dropRandomRune(x, y, 1);
       for (let i = 0; i < 6; i++) this.dropGold(this.goldAmount(4), x, y);
       this.dropMat('stone', 2 + Math.floor(f / 10), x, y);
       this.dropMat('dust', 2 + Math.floor(f / 10), x, y);
@@ -105,6 +108,7 @@ export class Loot {
     if (e.def.behavior === 'thief') {
       for (let i = 0; i < 9; i++) this.dropGold(this.goldAmount(3), x, y);
       this.dropRandomGem(x, y);
+      if (Math.random() < 0.3) this.dropRandomRune(x, y);
       this.dropItem(this.item(f + 1, 2), x, y);
       if (Math.random() < 0.5) this.dropItem(this.item(f + 1, 1), x, y);
       this.dropMat('dust', 1 + Math.floor(f / 15), x, y);
@@ -114,6 +118,7 @@ export class Loot {
     if (e.elite) {
       this.dropItem(this.item(f, 1), x, y);
       if (Math.random() < 0.1) this.dropRandomGem(x, y);
+      if (Math.random() < 0.06) this.dropRandomRune(x, y);
       if (Math.random() < 0.35) this.dropItem(this.item(f), x, y);
       this.dropGold(this.goldAmount(2.5), x, y);
       if (Math.random() < 0.4) this.dropMat(Math.random() < 0.6 ? 'hpPotion' : 'mpPotion', 1, x, y);
@@ -128,6 +133,7 @@ export class Loot {
     if (Math.random() < 0.03 * minion) this.dropMat('stone', 1, x, y);
     if (Math.random() < 0.02 * minion) this.dropMat('dust', 1, x, y);
     if (Math.random() < 0.01 * minion) this.dropRandomGem(x, y);
+    if (Math.random() < 0.004 * minion) this.dropRandomRune(x, y);
   }
 
   /** a beaten nemesis: a legendary (or a set piece), more items, gems and a heap of gold */
@@ -137,6 +143,7 @@ export class Loot {
     this.dropItem(set ? generateSetItem(f + 2) : generateItem(f + 2, { rarity: kills >= 3 && Math.random() < 0.5 ? 5 : 4, filter: this.bias() }), x, y);
     for (let i = 0; i < 1 + Math.min(3, kills); i++) this.dropItem(this.item(f + 2, 2), x, y);
     for (let i = 0; i < 2 + Math.min(2, kills - 1); i++) this.dropRandomGem(x, y, 1);
+    this.dropRandomRune(x, y, 1);
     for (let i = 0; i < 8; i++) this.dropGold(this.goldAmount(3 + kills), x, y);
     this.dropMat('dust', 2 + Math.floor(f / 12), x, y);
     this.dropMat('stone', 1 + Math.floor(f / 15), x, y);
@@ -182,6 +189,7 @@ export class Loot {
     if (tier !== 'wood' && Math.random() < 0.5) this.dropMat('dust', tier === 'gold' || tier === 'boss' ? 2 : 1, x, y);
     // gems: rare in wooden chests, a sure one in a guardian's chest
     if (Math.random() < ({ wood: 0.04, iron: 0.12, gold: 0.3, boss: 1 } as Record<string, number>)[tier]) this.dropRandomGem(x, y, tier === 'boss' ? 1 : 0);
+    if (Math.random() < ({ wood: 0.02, iron: 0.06, gold: 0.18, boss: 0.5 } as Record<string, number>)[tier]) this.dropRandomRune(x, y, tier === 'boss' ? 1 : 0);
   }
 
   private popTo(obj: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, x: number, y: number): [number, number] {
@@ -271,6 +279,23 @@ export class Loot {
     this.dropGem(randomGem(this.scene.floor, bonus), x, y);
   }
 
+  dropRune(key: string, x: number, y: number) {
+    const sc = this.scene;
+    const r = parseRune(key);
+    if (!r) return;
+    const s = sc.add.image(x, y, runeIcon(key)).setScale(0.6).setDepth(D.entityBase + y - 2);
+    const [tx, ty] = this.popTo(s, x, y);
+    const col = Phaser.Display.Color.HexStringToColor(r.def.color).color;
+    const beam = sc.add.image(tx, ty + 2, 'beam').setOrigin(0.5, 1).setTint(col).setAlpha(0.55).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow).setScale(0.6, 0.6);
+    sc.tweens.add({ targets: beam, alpha: 0.2, yoyo: true, repeat: -1, duration: 500 });
+    this.ground.push({ kind: 'rune', rune: key, amount: 1, x: tx, y: ty, sprite: s, beam, ready: sc.time.now + 400, dead: false });
+  }
+
+  /** a random rune fitting the depth (bonus: grades above the usual) */
+  dropRandomRune(x: number, y: number, bonus = 0) {
+    this.dropRune(randomRune(this.scene.floor, bonus), x, y);
+  }
+
   dropMat(mat: MatKey, amount: number, x: number, y: number) {
     const sc = this.scene;
     const s = sc.add.image(x, y, MAT_INFO[mat].icon).setScale(0.45).setDepth(D.entityBase + y - 2);
@@ -316,6 +341,10 @@ export class Loot {
       maxStat(p.save, 'bestGem', parseGem(g.gem!)?.tier ?? 1);
       sfx('pickup');
       sc.ui.loot(gemName(g.gem!), parseGem(g.gem!)?.def.color ?? '#fff', iconURL(gemIcon(g.gem!), 32));
+    } else if (g.kind === 'rune') {
+      addRune(p.save, g.rune!);
+      sfx('pickup');
+      sc.ui.loot(runeName(g.rune!), parseRune(g.rune!)?.def.color ?? '#fff', iconURL(runeIcon(g.rune!), 32));
     } else if (g.kind === 'mat') {
       p.save.mats[g.mat!] += g.amount;
       sfx('pickup');

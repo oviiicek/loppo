@@ -683,3 +683,12 @@ Object.assign(dev, {
     return at;
   },
 });
+Object.assign(dev, {
+  /** fills the rune pouch: n of every rune in the given grades */
+  runes(n = 3, tiers = [1, 2, 3, 4, 5]) {
+    const s = (window as any).__scene.save;
+    s.runes ??= {};
+    for (const t of ['fire', 'poison', 'frost', 'storm', 'blood', 'weak', 'leech']) for (const g of tiers) s.runes[t + g] = (s.runes[t + g] ?? 0) + n;
+    return Object.keys(s.runes).length;
+  },
+});

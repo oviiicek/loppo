@@ -5,6 +5,7 @@ import { biomeForFloor } from '../data/biomes';
 import { buildHeroStrip, HERO_W, HERO_H, HERO_FRAMES } from './heroes';
 import { PET_ART } from './pets';
 import { GEMS, GEM_MAX_TIER } from '../data/gems';
+import { RUNES, RUNE_MAX_TIER } from '../data/runes';
 
 // ---------------------------------------------------------------------------
 // Registry helpers
@@ -3666,6 +3667,53 @@ function buildGems() {
   addCanvas('socket_empty', c);
 }
 
+// rune stones: a rounded tablet (darker and finer with the grade) with a glowing glyph of the rune
+function buildRunes() {
+  const GLYPHS: Record<string, string[]> = {
+    fire: ['..x..', '.x.x.', '.x.x.', 'x...x', '.xxx.'],
+    poison: ['.xxx.', 'x...x', '.xxx.', '..x..', '.x.x.'],
+    frost: ['x.x.x', '.xxx.', 'xx.xx', '.xxx.', 'x.x.x'],
+    storm: ['..xx.', '.xx..', 'xxxx.', '..xx.', '.xx..'],
+    blood: ['..x..', '.xxx.', 'xxxxx', 'xxxxx', '.xxx.'],
+    weak: ['x...x', '.x.x.', '..x..', '.x.x.', 'x...x'],
+    leech: ['x.x.x', 'x.x.x', '.xxx.', '..x..', '..x..'],
+  };
+  const STONE = [
+    ['#8a8478', '#5e5a52', '#b0aa9e'],
+    ['#9a7a52', '#6a5034', '#c49e70'],
+    ['#9aa4b0', '#626c78', '#cad4de'],
+    ['#c8a44a', '#8a6a24', '#f0d47a'],
+    ['#2e2838', '#16121e', '#5a4e6a'],
+  ];
+  for (const r of RUNES)
+    for (let t = 1; t <= RUNE_MAX_TIER; t++) {
+      const S = 15;
+      const [c, ctx] = canvas(S, S);
+      const [base, dark, light] = STONE[t - 1];
+      for (let y = 1; y < 14; y++)
+        for (let x = 2; x < 13; x++) {
+          // rounded corners
+          if ((x === 2 || x === 12) && (y === 1 || y === 13)) continue;
+          const col = x === 2 || y === 1 ? light : x === 12 || y === 13 ? dark : base;
+          px(ctx, x, y, col);
+        }
+      const g = GLYPHS[r.id];
+      for (let y = 0; y < 5; y++)
+        for (let x = 0; x < 5; x++) if (g[y][x] === 'x') px(ctx, 5 + x, 5 + y, t >= 3 ? shade(r.color, 0.25) : r.color);
+      outline(c, OUT);
+      if (t === RUNE_MAX_TIER) {
+        px(ctx, 13, 2, '#fff6c0');
+        px(ctx, 1, 12, '#fff6c0');
+      }
+      addCanvas(`rune_${r.id}_${t}`, c);
+    }
+  // an empty rune socket
+  const [c, ctx] = canvas(15, 15);
+  for (let y = 2; y < 13; y++) for (let x = 3; x < 12; x++) px(ctx, x, y, x === 3 || y === 2 ? '#1a1620' : '#2a2430');
+  outline(c, OUT);
+  addCanvas('rune_empty', c);
+}
+
 // pets are drawn at double detail already (like the heroes); cages are furniture
 function buildPets() {
   for (const [id, a] of Object.entries(PET_ART)) {
@@ -3727,6 +3775,7 @@ export function buildAllTextures(scene: Phaser.Scene) {
   buildEnemies();
   buildPets();
   buildGems();
+  buildRunes();
   buildWeapons();
   buildIcons();
   buildTierVariants();

@@ -33,13 +33,14 @@ import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR } from '../data/sets';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame } from '../systems/state';
+import { derive, equipItem, unequip, addToInventory, spellRank, canInvest, changeClass, classChangeCost, SaveData, freeSlots, newCharacterAttrs, maxStat, bumpStat, STASH_SIZE, storyBonusPct, petsOf, gemPouch, addGem, returnGems, saveGame, runePouch, addRune } from '../systems/state';
 import { GEMS, GEM_TIERS, GEM_MAX_TIER, GEM_PLACE_NAME, GemPlace, gemPlace, gemEffect, gemIcon, gemName, parseGem, gemKey, maxSockets, drillCost, combineCost } from '../data/gems';
 import { PETS, PET_BY_ID, PetId, petLevel, petFloorsToNext, petBonusText, petTitle, PET_MAX_LEVEL, PET_FLOORS_PER_LEVEL } from '../data/pets';
 import { difficultyOf } from '../data/difficulty';
 import { MERCS, MERC_BY_ROLE, MERC_SLOTS, MERC_ORDERS, MercSlot, MercRole, MercOrder, mercFits, mercSlotFor, mercPrice, mercLook, mercStats } from '../data/mercs';
 import type { RivalMood } from '../data/rivals';
 import { TRANSMUTE_N, transmuteOdds, transmuteCost, transmute } from '../data/transmute';
+import { RUNES, RUNE_TIERS, RUNE_MAX_TIER, parseRune, runeName, runeIcon, runeDesc, runeKey, runeSlots, runeSlotCount, runeCombineCost, RuneType } from '../data/runes';
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { sfx, settings, saveSettings, LootRule } from '../systems/audio';
@@ -97,9 +98,14 @@ export class Panels {
     });
     // the gem pouch in the materials bar opens the gems over the panel
     p.addEventListener('click', (e) => {
-      if (!(e.target as HTMLElement).closest('[data-a=gemchip]')) return;
-      sfx('ui');
-      this.gems(undefined, true);
+      const t = e.target as HTMLElement;
+      if (t.closest('[data-a=gemchip]')) {
+        sfx('ui');
+        this.gems(undefined, true);
+      } else if (t.closest('[data-a=runechip]')) {
+        sfx('ui');
+        this.runes(undefined, true);
+      }
     });
     return p;
   }
@@ -121,7 +127,11 @@ export class Panels {
     const best = keys.sort((a, b) => parseGem(b)!.tier - parseGem(a)!.tier)[0] ?? gemKey('ruby', 1);
     const n = keys.reduce((a, k) => a + pouch[k], 0);
     const gems = `<button class="matbtn" data-a="gemchip" title="Drahokamy"><img src="${iconURL(gemIcon(best), 30)}"><b>${n}</b></button>`;
-    return `<div class="mats"><span><img src="${iconURL('ic_gold', 32)}"><b style="color:#ffd76a">${s.gold.toLocaleString('cs-CZ')}</b></span>${m('hpPotion')}${m('mpPotion')}${m('lockpick')}${m('stone')}${m('dust')}${gems}</div>`;
+    const rp = runePouch(s);
+    const rkeys = Object.keys(rp).filter((k) => rp[k] > 0 && parseRune(k));
+    const rbest = rkeys.sort((a, b) => parseRune(b)!.tier - parseRune(a)!.tier)[0] ?? runeKey('fire', 1);
+    const runes = `<button class="matbtn" data-a="runechip" title="Runy"><img src="${iconURL(runeIcon(rbest), 30)}"><b>${rkeys.reduce((a, k) => a + rp[k], 0)}</b></button>`;
+    return `<div class="mats"><span><img src="${iconURL('ic_gold', 32)}"><b style="color:#ffd76a">${s.gold.toLocaleString('cs-CZ')}</b></span>${m('hpPotion')}${m('mpPotion')}${m('lockpick')}${m('stone')}${m('dust')}${gems}${runes}</div>`;
   }
 
   /** icon, name and kind of an item */
@@ -155,6 +165,9 @@ export class Panels {
         const e = g ? gemEffect(g, place) : null;
         h += g && e ? `<div class="aff" style="color:${parseGem(g)?.def.color}">◆ ${gemName(g)}: ${formatStat(e.key, e.value)}</div>` : `<div class="aff" style="color:#9a94a8">◇ Volný soket</div>`;
       }
+    }
+    if (socketLines && runeSlotCount(it)) {
+      for (const r of runeSlots(it)) h += r ? `<div class="aff" style="color:${parseRune(r)?.def.color}">ᚱ ${runeName(r)}: ${runeDesc(r)}</div>` : `<div class="aff" style="color:#9a94a8">ᚱ Volný runový soket</div>`;
     }
     h += this.setHtml(it);
     if (base.cat === 'weapon2h') h += `<div class="hint">Obouruční – zabírá obě ruce</div>`;
@@ -229,7 +242,7 @@ export class Panels {
 
   /** the detail column: the name, the actions right under it, then the comparison and the item's text */
   itemDetailHtml(it: Item, actions = '', compare = false, sockets = false) {
-    return this.itemHeadHtml(it) + (actions ? `<div class="iacts">${actions}</div>` : '') + (sockets ? this.socketsHtml(it) : '') + (compare ? this.compareHtml(it) : '') + `<div class="orn"><span>Vlastnosti</span></div><div class="istats">${this.itemStatsHtml(it, !sockets)}</div>`;
+    return this.itemHeadHtml(it) + (actions ? `<div class="iacts">${actions}</div>` : '') + (sockets ? this.socketsHtml(it) + this.runeSocketsHtml(it) : '') + (compare ? this.compareHtml(it) : '') + `<div class="orn"><span>Vlastnosti</span></div><div class="istats">${this.itemStatsHtml(it, !sockets)}</div>`;
   }
 
   /** the sockets of an item as buttons: a set gem (tap: take it out) or an empty socket (tap: set a gem) */
@@ -243,6 +256,57 @@ export class Panels {
         return `<button class="sock" data-a="sock" data-sock="${i}"><img src="${iconURL(gemIcon(g), 30)}"><span style="color:${parseGem(g)!.def.color}">${gemName(g)}<small>${formatStat(e.key, e.value)} • vyjmout</small></span></button>`;
       })
       .join('')}</div>`;
+  }
+
+  /** the rune sockets of a weapon as buttons: a set rune (tap: take it out) or an empty one (tap: set a rune) */
+  runeSocketsHtml(it: Item) {
+    if (!runeSlotCount(it)) return '';
+    return `<div class="orn"><span>Runy</span></div><div class="sockets">${runeSlots(it)
+      .map((r, i) => {
+        if (!r) return `<button class="sock empty" data-a="rsock" data-sock="${i}"><img src="${iconURL('rune_empty', 30)}"><span>Runový soket<small>vsadit runu</small></span></button>`;
+        return `<button class="sock" data-a="rsock" data-sock="${i}"><img src="${iconURL(runeIcon(r), 30)}"><span style="color:${parseRune(r)!.def.color}">${runeName(r)}<small>${runeDesc(r)} • vyjmout</small></span></button>`;
+      })
+      .join('')}</div>`;
+  }
+
+  /** a rune socket was tapped: take the rune out or pick one to set */
+  runeSocketClick(it: Item, i: number, after: () => void) {
+    const s = this.save;
+    const slots = runeSlots(it);
+    const r = slots[i];
+    if (r === undefined) return;
+    if (r) {
+      slots[i] = null;
+      addRune(s, r);
+      sfx('ui');
+      this.ui.toast(`${runeName(r)} je zpět ve váčku`, parseRune(r)?.def.color ?? '#fff');
+      after();
+      return;
+    }
+    const pouch = runePouch(s);
+    const keys = Object.keys(pouch)
+      .filter((k) => pouch[k] > 0 && parseRune(k))
+      .sort((a, b) => parseRune(b)!.tier - parseRune(a)!.tier);
+    const p = el(`<div class="panel small"><div class="head"><h2>Vsadit runu</h2><button class="close">✕</button></div>
+      <div style="padding:10px">${
+        keys.length
+          ? `<div class="gemlist">${keys.map((k) => `<button class="spcard gempick" data-rune="${k}"><img src="${iconURL(runeIcon(k), 30)}"><div><div class="nm" style="color:${parseRune(k)!.def.color}">${runeName(k)} <span class="hint">×${pouch[k]}</span></div><div class="lv2">${runeDesc(k)}</div></div></button>`).join('')}</div>`
+          : '<p class="hint">Nemáš žádné runy. Padají ze strážců, šampionů, zlatých skřetů a truhel.</p>'
+      }</div></div>`);
+    const close = this.ui.dialog(p);
+    $('.close', p).addEventListener('click', () => close());
+    p.querySelectorAll<HTMLElement>('[data-rune]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const k = b.dataset.rune!;
+        if (!pouch[k] || slots[i]) return close();
+        addRune(s, k, -1);
+        slots[i] = k;
+        sfx('upgrade');
+        this.ui.toast(`Vsazeno: ${runeName(k)}`, parseRune(k)!.def.color);
+        close();
+        after();
+      }),
+    );
   }
 
   /** a socket was tapped: take the gem out (it goes back to the pouch) or pick one to set */
@@ -303,6 +367,83 @@ export class Panels {
         after();
       }),
     );
+  }
+
+  // ------------------------------------------------------------------ RUNES
+  selRune: string | null = null;
+
+  /** the rune pouch: every rune in every grade, three of a grade join into one of the next */
+  runes(host?: HTMLElement, overPanel = false) {
+    const p = host ?? this.frame('Runy');
+    const body = $('.body', p);
+    const s = this.save;
+    const pouch = runePouch(s);
+    if (!this.selRune || !parseRune(this.selRune)) this.selRune = Object.keys(pouch).find((k) => pouch[k] > 0 && parseRune(k)) ?? runeKey('fire', 1);
+    body.innerHTML = `
+      <div class="col" style="flex:1;min-width:0">
+        <div class="hint">Runy vsadíš do runových soketů zbraní (v detailu zbraně v inventáři nebo u kovadliny). Každá dává zásahům šanci na zvláštní účinek. Tři stejné runy spojíš v jednu silnější.</div>
+        <div class="scroll" style="flex:1"><div class="gemgrid">${RUNES.map(
+          (r) =>
+            `<div class="gemrow"><span class="gname" style="color:${r.color}">${r.name[0].toUpperCase() + r.name.slice(1)}</span>${RUNE_TIERS.map((_, t) => {
+              const k = runeKey(r.id, t + 1);
+              const n = pouch[k] ?? 0;
+              return `<div class="slot gemcell ${n ? '' : 'none'} ${this.selRune === k ? 'sel' : ''}" data-rune="${k}"><img src="${iconURL(runeIcon(k), 30)}"><span class="price">${n ? '×' + n : ''}</span></div>`;
+            }).join('')}</div>`,
+        ).join('')}</div></div>
+      </div>
+      <div class="col detail box scroll" style="width:min(300px,38%)"></div>`;
+    const detail = $('.detail', body);
+    const render = () => {
+      const k = this.selRune!;
+      const r = parseRune(k)!;
+      const n = pouch[k] ?? 0;
+      const next = r.tier < RUNE_MAX_TIER ? runeKey(r.def.id, r.tier + 1) : null;
+      const cost = runeCombineCost(r.tier, this.sc.floor);
+      const can = !!next && n >= 3 && s.gold >= cost;
+      detail.innerHTML = `<div class="orn"><span>Runa</span></div>
+        <div class="petbig"><img src="${iconURL(runeIcon(k), 75)}"></div>
+        <div style="text-align:center;font-size:22px;color:${r.def.color}">${runeName(k)}</div>
+        <div class="hint" style="text-align:center">ve váčku: ${n}</div>
+        <p style="margin:6px 0">Ve zbrani: <b style="color:#9dff9d">${runeDesc(k)}</b> při každém zásahu.</p>
+        ${
+          next
+            ? `<div class="box" style="margin-top:8px"><b style="color:#d08aff">Spojit 3 → 1</b><div class="statline"><span>Vznikne</span><b style="color:${r.def.color}">${runeName(next)}</b></div><div class="statline"><span>Cena</span><b>${cost} zl.</b></div>
+              <div class="row eqrow"><button class="btn purple" data-a="join" ${can ? '' : 'disabled'}>Spojit</button></div></div>`
+            : '<div class="hint" style="margin-top:8px">Prastará runa je nejsilnější.</div>'
+        }`;
+      detail.querySelector('[data-a=join]')?.addEventListener('click', () => {
+        if (!next || (pouch[k] ?? 0) < 3 || s.gold < cost) return;
+        addRune(s, k, -3);
+        addRune(s, next);
+        s.gold -= cost;
+        sfx('upgrade');
+        this.ui.toast(`Spojeno: ${runeName(next)}`, r.def.color);
+        if ((pouch[k] ?? 0) < 3) this.selRune = next;
+        this.runes(p);
+      });
+    };
+    body.querySelectorAll<HTMLElement>('.gemcell').forEach((c) =>
+      c.addEventListener('click', () => {
+        sfx('ui');
+        this.selRune = c.dataset.rune!;
+        body.querySelectorAll('.gemcell').forEach((x) => x.classList.toggle('sel', x === c));
+        render();
+      }),
+    );
+    render();
+    if (host) return;
+    if (overPanel && this.ui.panel) {
+      // over another panel (from its materials bar): closing comes back to it, with fresh numbers
+      const close = this.ui.dialog(p);
+      const x = $('.close', p);
+      const nx = x.cloneNode(true) as HTMLElement;
+      x.replaceWith(nx);
+      nx.addEventListener('click', () => {
+        sfx('ui');
+        close();
+        this.ui.root.querySelectorAll<HTMLElement>('.mats').forEach((m) => (m.outerHTML = this.matsHtml()));
+      });
+    } else this.ui.showOverlay(p, () => {});
   }
 
   // ------------------------------------------------------------------ GEMS
@@ -572,9 +713,9 @@ export class Panels {
       const a = b.dataset.a;
       const sel = this.sel;
       if (!sel) return;
-      if (a === 'sock') {
+      if (a === 'sock' || a === 'rsock') {
         const it = sel.from === 'inv' ? s.inventory[sel.idx] : sel.from === 'eq' ? s.equip[sel.slot] : null;
-        if (it) this.socketClick(it, +b.dataset.sock!, rerender);
+        if (it) (a === 'sock' ? this.socketClick(it, +b.dataset.sock!, rerender) : this.runeSocketClick(it, +b.dataset.sock!, rerender));
         return;
       }
       if (a === 'lock') {
@@ -1664,6 +1805,12 @@ export class Panels {
         b.addEventListener('click', () => {
           sfx('ui');
           this.socketClick(it, +b.dataset.sock!, () => this.forge(p));
+        }),
+      );
+      detail.querySelectorAll<HTMLElement>('[data-a=rsock]').forEach((b) =>
+        b.addEventListener('click', () => {
+          sfx('ui');
+          this.runeSocketClick(it, +b.dataset.sock!, () => this.forge(p));
         }),
       );
       detail.querySelector('[data-a=en]')?.addEventListener('click', () => {

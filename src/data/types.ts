@@ -124,6 +124,8 @@ export interface Item {
   set?: string;
   /** gem sockets: a gem key ("ruby3") or null for an empty one */
   sockets?: (string | null)[];
+  /** rune sockets of a weapon: a rune key ("fire3") or null */
+  runes?: (string | null)[];
   // rolled base values
   dmgMin?: number;
   dmgMax?: number;

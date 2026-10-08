@@ -58,6 +58,8 @@ export interface SaveData {
   pets?: PetState;
   /** the gem pouch: how many of each gem ("ruby3": 2) */
   gems?: Record<string, number>;
+  /** the rune pouch ("fire2": 1) */
+  runes?: Record<string, number>;
   /** the hero's own name (optional; nemeses are named after it) */
   heroName?: string;
   /** champions that killed the hero and wait for them deeper down */
@@ -70,6 +72,16 @@ export function gemPouch(s: SaveData): Record<string, number> {
   return s.gems ?? (s.gems = {});
 }
 
+export function runePouch(s: SaveData): Record<string, number> {
+  return s.runes ?? (s.runes = {});
+}
+
+export function addRune(s: SaveData, key: string, n = 1) {
+  const p = runePouch(s);
+  p[key] = (p[key] ?? 0) + n;
+  if (p[key] <= 0) delete p[key];
+}
+
 export function addGem(s: SaveData, key: string, n = 1) {
   const p = gemPouch(s);
   p[key] = (p[key] ?? 0) + n;
@@ -79,7 +91,15 @@ export function addGem(s: SaveData, key: string, n = 1) {
 /** an item leaves the hero (sold, salvaged): its gems go back to the pouch; true if there were any */
 export function returnGems(s: SaveData, it: Item): boolean {
   let any = false;
-  if (!it.sockets) return false;
+  if (it.runes)
+    it.runes = it.runes.map((r) => {
+      if (r) {
+        addRune(s, r);
+        any = true;
+      }
+      return null;
+    });
+  if (!it.sockets) return any;
   it.sockets = it.sockets.map((g) => {
     if (g) {
       addGem(s, g);
