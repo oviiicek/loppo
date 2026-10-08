@@ -39,8 +39,11 @@ Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastaven�
 | Univerzální kouzlo | zelené tlačítko | Q | RB |
 | Lektvar zdraví / many | červený / modrý lektvar | H / J | LB / LT |
 | Akce (obchod, schody, truhla, svatyně…) | zlaté tlačítko dole | E / mezerník | A |
-| Inventář / Postava / Kouzla / Mapa | tlačítka nahoře, batoh a minimapa | I / C / K / M | křížový ovladač → / ↑ / ← / ↓ (inventář i Back) |
+| Inventář / Postava / Kouzla / Mapa | batoh vpravo dole, portrét vlevo nahoře, kniha kouzel nahoře, minimapa | I / C / K / M | křížový ovladač → / ↑ / ← / ↓ (inventář i Back) |
+| Výběr více předmětů (prodej, rozebrání) | podržet předmět, pak klepat na další | Ctrl / Shift + klik | – |
 | Pauza | ☰ | Esc | Start |
+
+Když čekají nevyužité body atributů, zlatý rámeček portrétu září; u nevyužitých bodů kouzel a talentů září kniha kouzel.
 
 Ovladač stačí připojit (USB nebo Bluetooth) a zmáčknout tlačítko. V menu, inventáři a dialozích se výběr posouvá křížovým ovladačem nebo levou páčkou, A potvrdí, B vrátí zpět, LB / RB přepínají záložky a pravá páčka posouvá dlouhé texty. A posouvá příběhové scény, B je přeskočí. Otázky typu „Prodat / Rozebrat cenný předmět?“ začínají na bezpečné odpovědi, takže dvojí stisk A nic nezničí. Když se hraje ovladačem, ukazují tlačítka kouzel a lektvarů jeho tlačítka (u ovladače PlayStation symboly ✕ ○ □ △) a ovladač při zásahu krátce zavibruje.
 

@@ -240,7 +240,7 @@ class UIManager {
       <div class="vignette"></div>
       <div class="joyzone"><div class="joy"><span class="arr u"></span><span class="arr d"></span><span class="arr l"></span><span class="arr r"></span><div class="knob"></div></div></div>
       <div class="hud-status">
-        <div class="portrait"><img class="px" src="${iconURL('pl_' + s.cls, 64)}">${s.hardcore ? '<span class="hcbadge" title="Hardcore">☠</span>' : ''}</div>
+        <div class="portrait" title="Postava (C)"><div class="pimg"><img class="px" src="${iconURL('pl_' + s.cls, 64)}"></div>${s.hardcore ? '<span class="hcbadge" title="Hardcore">☠</span>' : ''}<span class="badge at"></span></div>
         <div class="bars">
           <div class="bar hp"><div class="fill"></div><div class="fill shieldfill" style="background:rgba(160,210,255,.55);transform:scaleX(0)"></div><div class="txt"></div></div>
           <div class="bar mp"><div class="fill"></div><div class="txt"></div></div>
@@ -253,8 +253,7 @@ class UIManager {
       <div class="floorlbl"><div class="fl"></div><div class="bounty"></div></div>
       <div class="topbtns">
         ${fsSupported() && !isStandalone() ? `<div class="rbtn fs" data-a="fs" data-fs="icon" title="Celá obrazovka (F)">${fsButtonHTML('icon')}</div>` : ''}
-        <div class="rbtn" data-a="spells" title="Kouzla (K)">✦<span class="badge sp"></span></div>
-        <div class="rbtn" data-a="character" title="Postava (C)">☗<span class="badge at"></span></div>
+        <div class="rbtn spellsbtn" data-a="spells" title="Kouzla (K)"><img src="${spellbookIcon()}" alt="Kouzla"><span class="badge sp"></span></div>
         <div class="rbtn" data-a="pause" title="Menu (Esc)">☰</div>
       </div>
       <div class="bossbar"><div class="name"></div><div class="bar hp"><div class="fill"></div></div></div>
@@ -293,6 +292,14 @@ class UIManager {
       });
     });
     $('.topbtns', hud).style.pointerEvents = 'auto';
+    // the hero's portrait opens the character (its gold ring glows while attribute points wait)
+    const portrait = $('.portrait', hud);
+    portrait.style.pointerEvents = 'auto';
+    portrait.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      sfx('ui');
+      this.openPanel('character');
+    });
     // the mercenary's chip: its health; a tap opens its panel
     const chip = $('.mercchip', hud);
     chip.style.pointerEvents = 'auto';
@@ -518,10 +525,12 @@ class UIManager {
     const at = $('.badge.at', hud);
     at.textContent = String(s.attrPoints);
     at.classList.toggle('on', s.attrPoints > 0);
+    $('.portrait', hud).classList.toggle('glow', s.attrPoints > 0);
     const sp = $('.badge.sp', hud);
     const tp = freeTalentPoints(s);
     sp.textContent = String(s.spellPoints + Math.max(0, tp));
     sp.classList.toggle('on', s.spellPoints > 0 || tp > 0);
+    $('.rbtn.spellsbtn', hud).classList.toggle('glow', s.spellPoints > 0 || tp > 0);
     const inv = $('.badge.inv', hud);
     const free = s.inventory.filter((x) => !x).length;
     inv.textContent = free === 0 ? 'plno' : this.newItems > 0 ? String(this.newItems) : '';
@@ -1238,6 +1247,65 @@ class UIManager {
     setActiveSlot(slot);
     this.menus.classSelect();
   }
+}
+
+// a book of spells with a glowing rune on its cover, 24 px pixel art shown at 48 px
+let spellbookURL = '';
+function spellbookIcon() {
+  if (spellbookURL) return spellbookURL;
+  const c = document.createElement('canvas');
+  c.width = c.height = 24;
+  const x = c.getContext('2d')!;
+  const R = (col: string, a: number, b: number, w: number, h: number) => {
+    x.fillStyle = col;
+    x.fillRect(a, b, w, h);
+  };
+  const OUT = '#170b20';
+  // pages seen at the side and the bottom
+  R(OUT, 4, 3, 17, 20);
+  R('#efe2c0', 17, 4, 3, 17);
+  R('#c8b48a', 19, 5, 1, 15);
+  R('#efe2c0', 5, 19, 15, 2);
+  R('#c8b48a', 6, 20, 14, 1);
+  // the cover
+  R(OUT, 3, 2, 15, 19);
+  R('#5a2a96', 4, 3, 13, 17);
+  R('#7e46c4', 4, 3, 13, 1);
+  R('#7e46c4', 6, 3, 1, 17);
+  R('#3a1866', 4, 18, 13, 2);
+  // the spine with golden bands
+  R('#3a1866', 4, 3, 2, 17);
+  R('#e9b949', 4, 6, 2, 1);
+  R('#e9b949', 4, 15, 2, 1);
+  // golden corners
+  R('#e9b949', 15, 3, 2, 2);
+  R('#e9b949', 15, 17, 2, 2);
+  R('#a8741e', 16, 4, 1, 1);
+  R('#a8741e', 16, 18, 1, 1);
+  // the rune: a frame and a glowing star
+  R('#2a1450', 8, 7, 7, 7);
+  R('#3a8ac8', 11, 7, 1, 7);
+  R('#3a8ac8', 8, 10, 7, 1);
+  R('#5ae0ff', 11, 8, 1, 5);
+  R('#5ae0ff', 9, 10, 5, 1);
+  R('#5ae0ff', 10, 9, 3, 3);
+  R('#ffffff', 11, 10, 1, 1);
+  // a red ribbon
+  R(OUT, 12, 20, 3, 4);
+  R('#d63a3a', 13, 20, 1, 3);
+  // sparkles of magic
+  R('#bff4ff', 21, 1, 1, 3);
+  R('#bff4ff', 20, 2, 3, 1);
+  R('#ffffff', 21, 2, 1, 1);
+  R('#8adcff', 1, 9, 1, 1);
+  R('#8adcff', 22, 12, 1, 1);
+  const big = document.createElement('canvas');
+  big.width = big.height = 48;
+  const b = big.getContext('2d')!;
+  b.imageSmoothingEnabled = false;
+  b.drawImage(c, 0, 0, 48, 48);
+  spellbookURL = big.toDataURL();
+  return spellbookURL;
 }
 
 // leather backpack (like the reference HUD), 24 px pixel art shown at 48 px

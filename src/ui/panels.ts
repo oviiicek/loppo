@@ -50,7 +50,7 @@ import { MULTI_LEVEL, MULTI_COST, MULTI_TALENT_CAP, multiTitle } from '../data/m
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey } from '../game/loot';
 import { stashSize, respecMult, forgeMods, buildingLevel } from '../data/village';
-import { sfx, settings, saveSettings, LootRule } from '../systems/audio';
+import { sfx, settings, saveSettings, LootRule, vibrate } from '../systems/audio';
 import { bus } from '../systems/events';
 
 type UIM = typeof UIType;
@@ -68,12 +68,17 @@ const MYSTERY: { id: MysteryId; name: string; icon: string }[] = [
   { id: 'any', name: 'Cokoliv', icon: 'chest_gold' },
 ];
 
+/** "1 kámen", "3 kameny", "7 kamenů" */
+const stonesText = (n: number) => `${n} ${n === 1 ? 'kámen' : n < 5 ? 'kameny' : 'kamenů'}`;
+
 // Where the selected item lives
 type Sel = { from: 'inv'; idx: number } | { from: 'eq'; slot: Slot } | { from: 'shop'; idx: number } | null;
 
 export class Panels {
   ui: UIM;
   sel: Sel = null;
+  /** inventory places marked together (a long press starts it) to be sold or salvaged at once */
+  multi: Set<number> | null = null;
   constructor(ui: UIM) {
     this.ui = ui;
   }
@@ -87,6 +92,7 @@ export class Panels {
 
   open(name: string) {
     this.sel = null;
+    this.multi = null;
     if (name === 'inventory') this.inventory();
     else if (name === 'character') this.character();
     else if (name === 'spells') this.spells();
@@ -640,9 +646,20 @@ export class Panels {
   // ------------------------------------------------------------------ INVENTORY
   inventory(mode: 'normal' | 'sell' = 'normal', host?: HTMLElement) {
     this.ui.newItems = 0;
+    if (!host) this.multi = null;
     const p = host ?? this.frame('Inventář');
     const body = $('.body', p);
+    // a re-render keeps the bag where it was scrolled to
+    const scrolled = host ? body.querySelector<HTMLElement>('.bagscroll')?.scrollTop ?? 0 : 0;
     const s = this.save;
+    // marked places that no longer hold an item fall out of the selection
+    if (this.multi) {
+      for (const i of [...this.multi]) if (!s.inventory[i] || s.inventory[i]!.locked) this.multi.delete(i);
+      if (!this.multi.size) this.multi = null;
+    }
+    const multi = this.multi;
+    const marked = multi ? [...multi].map((i) => s.inventory[i]!).filter(Boolean) : [];
+    const markedValue = marked.reduce((a, it) => a + itemValue(it), 0);
     const d = derive(s);
     const better = s.inventory.map((it) => !!it && this.sc.loot.isUpgrade(it));
     const upgrades = better.filter(Boolean).length;
@@ -662,9 +679,14 @@ export class Panels {
         </div>
       </div>
       <div class="col" style="flex:1;min-width:0">
-        <div class="scroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv" data-idx="${i}`, '', undefined, better[i])).join('')}</div></div>
+        <div class="scroll bagscroll" style="flex:1"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `inv${multi?.has(i) ? ' msel' : ''}" data-idx="${i}`, '', undefined, better[i])).join('')}</div></div>
         ${mode === 'sell' ? `<div class="box">${this.matsHtml()}</div>` : ''}
-        <div class="row invacts">${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : ''}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙ Kořist</button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}${mode === 'sell' ? `<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span>` : ''}</div>
+        ${
+          multi
+            ? `<div class="row multibar"><span class="mcount">Vybráno <b>${marked.length}</b></span><button class="btn small gold" data-a="msell">Prodat · ${markedValue.toLocaleString('cs-CZ')} zl.</button><button class="btn small purple" data-a="msalv">Rozebrat</button><button class="btn small" data-a="mnone">✕ Zrušit</button></div>`
+            : ''
+        }
+        <div class="row invacts"${multi ? ' hidden' : ''}>${mode === 'sell' ? '<button class="btn small" data-a="sellcommon">Prodat běžné a neobvyklé</button>' : ''}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙ Kořist</button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}${mode === 'sell' ? `<span class="hint">Volno: ${freeSlots(s)}/${s.inventory.length}</span>` : ''}</div>
       </div>
       <div class="col detail box scroll" style="width:min(300px,34%)"></div>`;
     // gold and materials sit in the header next to the title, so the bag gets the room
@@ -688,16 +710,31 @@ export class Panels {
       }
       ha.innerHTML = '<button class="btn small" data-a="salvcommon" title="Rozebrat běžné předměty">⚒ Rozebrat běžné</button>';
     }
+    const bag = body.querySelector<HTMLElement>('.bagscroll');
+    if (bag && scrolled) bag.scrollTop = scrolled;
     const detail = $('.detail', body);
     const renderDetail = () => {
       // a newly picked item starts at the top, where its buttons are
       detail.scrollTop = 0;
+      // several marked items: what they are and what they would give
+      if (this.multi) {
+        const r = marked.reduce((a, it) => {
+          const x = salvageResult(it);
+          return { gold: a.gold + x.gold, dust: a.dust + x.dust, stones: a.stones + x.stones };
+        }, { gold: 0, dust: 0, stones: 0 });
+        detail.innerHTML = `<div class="orn"><span>Výběr · ${marked.length}</span></div>
+          <p class="hint">Klepnutím přidáš nebo odebereš další předmět. Zamčené předměty vybrat nejde.</p>
+          <div class="msellist">${marked.map((it) => `<div class="mline"><img src="${iconURL(itemIcon(it), 32)}"><span style="color:${itemColor(it)}">${it.upgrade ? '+' + it.upgrade + ' ' : ''}${esc(it.name)}</span><b>${itemValue(it).toLocaleString('cs-CZ')}</b></div>`).join('')}</div>
+          <div class="statline"><span>Prodej</span><b style="color:#ffd76a">${markedValue.toLocaleString('cs-CZ')} zl.</b></div>
+          <div class="statline"><span>Rozebrání</span><b style="color:#c8a8ff">${r.gold.toLocaleString('cs-CZ')} zl.${r.dust ? ` · ${r.dust} prach` : ''}${r.stones ? ` · ${stonesText(r.stones)}` : ''}</b></div>`;
+        return;
+      }
       const sel = this.sel;
       let it: Item | null | undefined = null;
       if (sel?.from === 'inv') it = s.inventory[sel.idx];
       else if (sel?.from === 'eq') it = s.equip[sel.slot];
       if (!it) {
-        detail.innerHTML = `<div class="orn"><span>Předmět</span></div><p class="hint">Klepni na předmět: nahoře se objeví Nasadit a Prodat a pod tím porovnání s tím, co máš na sobě.</p><p class="hint">Předměty se sbírají automaticky, když přes ně přejdeš. Dvojitým klepnutím předmět rovnou nasadíš.</p>`;
+        detail.innerHTML = `<div class="orn"><span>Předmět</span></div><p class="hint">Klepni na předmět: nahoře se objeví Nasadit a Prodat a pod tím porovnání s tím, co máš na sobě.</p><p class="hint">Předměty se sbírají automaticky, když přes ně přejdeš. Dvojitým klepnutím předmět rovnou nasadíš.</p><p class="hint">Podržením předmětu začneš vybírat víc předmětů najednou – pak je prodáš nebo rozebereš jedním tlačítkem.</p>`;
         return;
       }
       if (sel!.from === 'inv') {
@@ -719,11 +756,53 @@ export class Panels {
       }
     };
     const rerender = () => this.inventory(mode, p);
-    body.querySelectorAll<HTMLElement>('.slot.inv').forEach((sl) =>
-      sl.addEventListener('click', () => {
-        const i = +sl.dataset.idx!;
+    // marking: a long press starts it, then every tap adds or removes an item (on a PC also Ctrl / Shift + click)
+    const toggleMark = (i: number) => {
+      const it = s.inventory[i];
+      if (!it) return;
+      if (it.locked) {
+        this.ui.toast('🔒 Zamčený předmět nejde prodat ani rozebrat', '#e9d27a');
+        return;
+      }
+      const m = (this.multi ??= new Set());
+      if (m.has(i)) m.delete(i);
+      else m.add(i);
+      if (!m.size) this.multi = null;
+      this.sel = null;
+      rerender();
+    };
+    let pressT = 0;
+    let pressAt: [number, number] = [0, 0];
+    let swallow = 0;
+    body.querySelectorAll<HTMLElement>('.slot.inv').forEach((sl) => {
+      const i = +sl.dataset.idx!;
+      const cancel = () => clearTimeout(pressT);
+      sl.addEventListener('pointerdown', (e) => {
         if (!s.inventory[i]) return;
+        pressAt = [e.clientX, e.clientY];
+        clearTimeout(pressT);
+        pressT = window.setTimeout(() => {
+          swallow = Date.now() + 700;
+          vibrate(18);
+          sfx('ui');
+          if (!this.multi?.has(i)) toggleMark(i);
+        }, 420);
+      });
+      sl.addEventListener('pointermove', (e) => {
+        if (Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > 10) cancel();
+      });
+      sl.addEventListener('pointerup', cancel);
+      sl.addEventListener('pointercancel', cancel);
+      sl.addEventListener('pointerleave', cancel);
+      // no browser menu over a long-pressed picture
+      sl.addEventListener('contextmenu', (e) => e.preventDefault());
+    });
+    body.querySelectorAll<HTMLElement>('.slot.inv').forEach((sl) =>
+      sl.addEventListener('click', (e) => {
+        const i = +sl.dataset.idx!;
+        if (!s.inventory[i] || Date.now() < swallow) return;
         sfx('ui');
+        if (this.multi || e.ctrlKey || e.shiftKey || e.metaKey) return toggleMark(i);
         // double tap equips
         if (this.sel?.from === 'inv' && this.sel.idx === i && mode === 'normal') {
           const err = equipItem(s, i);
@@ -826,6 +905,69 @@ export class Panels {
         this.sel = null;
       }
       rerender();
+    });
+    const plural = (n: number) => `${n} ${n === 1 ? 'předmět' : n < 5 ? 'předměty' : 'předmětů'}`;
+    body.querySelector('[data-a=mnone]')?.addEventListener('click', () => {
+      sfx('ui');
+      this.multi = null;
+      rerender();
+    });
+    body.querySelector('[data-a=msell]')?.addEventListener('click', () => {
+      sfx('ui');
+      const idx = [...(this.multi ?? [])].filter((i) => s.inventory[i] && !s.inventory[i]!.locked);
+      if (!idx.length) return;
+      const go = () => {
+        let n = 0,
+          g = 0;
+        for (const i of idx) {
+          const it = s.inventory[i];
+          if (!it || it.locked) continue;
+          const price = itemValue(it);
+          if (returnGems(s, it)) this.ui.toast('Drahokamy se vrátily do váčku', '#d08aff');
+          this.sold(it, price);
+          s.inventory[i] = null;
+          g += price;
+          n++;
+        }
+        s.gold += g;
+        this.multi = null;
+        this.sel = null;
+        if (n) sfx('coin');
+        this.ui.toast(`Prodáno: ${plural(n)} za ${g.toLocaleString('cs-CZ')} zlata`, '#ffd76a');
+        rerender();
+      };
+      // something valuable among them: ask first
+      const best = Math.max(...idx.map((i) => s.inventory[i]!.rarity));
+      if (best >= 3) {
+        const total = idx.reduce((a, i) => a + itemValue(s.inventory[i]!), 0);
+        this.ui.confirm(`Prodat ${plural(idx.length)}?`, `Dostaneš ${total.toLocaleString('cs-CZ')} zlata. Je mezi nimi i ${RARITIES[best].name.toLowerCase()} předmět – prodej se nedá vzít zpět.`, go, 'Prodat', 'Ponechat');
+      } else go();
+    });
+    body.querySelector('[data-a=msalv]')?.addEventListener('click', () => {
+      sfx('ui');
+      const idx = [...(this.multi ?? [])].filter((i) => s.inventory[i] && !s.inventory[i]!.locked);
+      if (!idx.length) return;
+      const go = () => {
+        let n = 0;
+        const r = { gold: 0, dust: 0, stones: 0 };
+        for (const i of idx) {
+          const it = s.inventory[i];
+          if (!it || it.locked) continue;
+          const x = salvageResult(it);
+          r.gold += x.gold;
+          r.dust += x.dust;
+          r.stones += x.stones;
+          this.salvage(i, true);
+          n++;
+        }
+        this.multi = null;
+        this.sel = null;
+        this.ui.toast(`Rozebráno: ${plural(n)} · +${r.gold.toLocaleString('cs-CZ')} zl.${r.dust ? `, +${r.dust} prach` : ''}${r.stones ? `, +${stonesText(r.stones)}` : ''}`, '#c8a8ff');
+        rerender();
+      };
+      const best = Math.max(...idx.map((i) => s.inventory[i]!.rarity));
+      if (best >= 3) this.ui.confirm(`Rozebrat ${plural(idx.length)}?`, `Je mezi nimi i ${RARITIES[best].name.toLowerCase()} předmět – rozebrání se nedá vzít zpět.`, go, 'Rozebrat', 'Ponechat');
+      else go();
     });
     body.querySelector('[data-a=sellcommon]')?.addEventListener('click', () => {
       let n = 0,
