@@ -13,7 +13,7 @@ import { generateItem } from '../data/items';
 import { BuildingDef, BUILDING_BY_ID, villageOf, villagerDue } from '../data/village';
 import { LoreEntry, pickLore, GHOSTS, GhostDef } from '../data/lore';
 import { FATES, FATE_BY_ID, FateDef, Fate, FATE_LINES, WISHES, fateDueIn } from '../data/fates';
-import { biomeForFloor } from '../data/biomes';
+import { areaOf } from '../data/biomes';
 import type { Quest } from '../data/quests';
 
 // Random things that happen on a floor: a villager held captive, altars that ask for a price, a ghost
@@ -1439,7 +1439,7 @@ export class Encounters {
     const sc = this.sc;
     const c = this.spot(6);
     if (!c) return false;
-    const lore = pickLore(sc.save.lore ?? [], biomeForFloor(sc.floor), 'note');
+    const lore = pickLore(sc.save.lore ?? [], areaOf(sc.floor).lore, 'note');
     if (!lore) return false;
     const x = c.x * TS + 8,
       y = c.y * TS + 8;
@@ -1454,7 +1454,7 @@ export class Encounters {
     const d = sc.dungeon;
     const s0 = d.start;
     const hasSecret = sc.interactables.some((i) => i.kind === 'secret' && !i.used);
-    const lore = pickLore(sc.save.lore ?? [], biomeForFloor(sc.floor), 'wall', hasSecret);
+    const lore = pickLore(sc.save.lore ?? [], areaOf(sc.floor).lore, 'wall', hasSecret);
     if (!lore) return false;
     const busy = new Set(d.objects.map((o) => o.y * d.w + o.x));
     for (const it of sc.interactables) busy.add(it.ty * d.w + it.tx);

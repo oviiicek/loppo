@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Dungeon, T_FLOOR, T_WALL } from '../systems/dungeon';
-import { TILE, TILE_RES, themeForFloor } from '../gfx/textures';
+import { TILE, TILE_RES, themeForFloor, ensureTileset } from '../gfx/textures';
 import { hash } from '../gfx/pixel';
 import { placeVillageGround } from '../gfx/groundLoader';
 
@@ -150,7 +150,9 @@ export class WorldMap {
     // tile art has double resolution; layers are scaled down onto the 16px world grid
     const R = TILE_RES;
     this.map = scene.make.tilemap({ data, tileWidth: R, tileHeight: R });
-    const ts = this.map.addTilesetImage('tiles', 'tiles_' + (this.d.theme ?? themeForFloor(this.d.floor)), R, R, 0, 0)!;
+    const ti = this.d.theme ?? themeForFloor(this.d.floor);
+    ensureTileset(ti);
+    const ts = this.map.addTilesetImage('tiles', 'tiles_' + ti, R, R, 0, 0)!;
     this.layer = this.map.createLayer(0, ts, 0, 0)!;
     this.layer.setDepth(0).setScale(TS / R);
     // fog of war: black tiles removed as the player explores (just below the darkness overlay)

@@ -12,7 +12,7 @@ import { Powers } from '../game/powers';
 import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
 import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END, corruptName } from '../data/enemies';
-import { CHAPTERS, noteForFloor } from '../data/story';
+import { CHAPTERS, noteForFloor, areaIntroForFloor } from '../data/story';
 import { SaveData, FloorKind, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory } from '../systems/state';
 import { PetFollower } from '../game/pet';
 import { Mercenary } from '../game/merc';
@@ -30,8 +30,9 @@ import { Element } from '../data/types';
 import { UI } from '../ui/ui';
 import { createAllAnims } from '../gfx/anims';
 import { THEMES, themeForFloor, ACTOR_SCALE, isPropTex } from '../gfx/textures';
+import type { DecoStyle } from '../gfx/textures';
 import { hash } from '../gfx/pixel';
-import { areaForFloor } from '../data/biomes';
+import { areaForFloor, areaOf } from '../data/biomes';
 import { Difficulty, difficultyOf, POTION_CD } from '../data/difficulty';
 import { bus } from '../systems/events';
 import { sfx, settings } from '../systems/audio';
@@ -371,7 +372,7 @@ export class GameScene extends Phaser.Scene {
     this.dark = this.add.renderTexture(0, 0, 64, 64).setOrigin(0).setDepth(D.dark);
     this.lightImg = this.make.image({ key: 'light', add: false }).setOrigin(0.5);
     this.hpBars = this.add.graphics().setDepth(D.bright + 5);
-    this.weather = new Weather(this, this.inVillage ? this.vil.weather : this.theme.style);
+    this.weather = new Weather(this, this.inVillage ? this.vil.weather : this.theme.weather ?? this.theme.style);
     this.targetMarker = this.add.image(0, 0, 'ring').setTint(0xff4040).setAlpha(0).setDepth(D.floorDeco + 2).setBlendMode(Phaser.BlendModes.ADD);
 
     // input
@@ -410,10 +411,9 @@ export class GameScene extends Phaser.Scene {
     const st = storyOf(save);
     const queue: string[] = [];
     if (!st.seen.includes('prolog') && !this.inVillage) queue.push('prolog');
-    if (this.floor <= STORY_END && !this.inVillage) {
-      const ci = Math.min(CHAPTERS.length - 1, Math.floor((this.floor - 1) / 50));
-      if (ci > 0 && !st.seen.includes('ch' + (ci + 1))) queue.push('ch' + (ci + 1));
-    }
+    // every area of ten floors opens with its own scene (the first one's is the prologue's end)
+    const intro = this.inVillage || this.rift ? null : areaIntroForFloor(this.floor);
+    if (intro && !st.seen.includes(intro)) queue.push(intro);
     const story = storyBossForFloor(this.floor);
     const homeCount = BUILDINGS.filter((b) => b.who && (villageOf(save).lv[b.id] ?? 0) > 0).length;
     const sub = this.inVillage
@@ -434,7 +434,9 @@ export class GameScene extends Phaser.Scene {
               ? `Osud patra – ${this.fate.name}: ${this.fate.desc}${this.kind === 'danger' ? ' · Nebezpečná cesta' : ''}`
               : this.kind === 'danger'
                 ? 'Nebezpečná cesta: silnější nestvůry a víc šampionů, lepší kořist'
-                : this.dungeon.hasMerchant
+                : this.floor % 10 === 1
+                  ? areaOf(this.floor).desc
+                  : this.dungeon.hasMerchant
                   ? 'Někde zde čeká obchodník…'
                   : '';
     // came down the stairs: the title card is already up; story scenes play over it
@@ -471,8 +473,9 @@ export class GameScene extends Phaser.Scene {
   floorCardInfo(floor = this.floor) {
     const th = THEMES[themeForFloor(floor)];
     const a = areaForFloor(floor);
-    const range = a.to === Infinity ? `hloubka ${floor - STORY_END}` : `patra ${a.from}–${a.to}`;
-    return { floor, name: a.name, region: `${th.title} · ${range}`, color: th.glow[0] };
+    const ch = CHAPTERS.filter((c) => c.floor <= Math.min(floor, STORY_END)).pop() ?? CHAPTERS[0];
+    const where = floor > STORY_END ? 'Nekonečná hlubina' : `${ch.small} · ${ch.big}`;
+    return { floor, name: a.name, region: `${where} · patra ${a.from}–${a.to}`, color: th.glow[0] };
   }
 
   /** the title card of the village */
@@ -534,10 +537,10 @@ export class GameScene extends Phaser.Scene {
     return THEMES[this.dungeon?.theme ?? themeForFloor(this.floor)];
   }
 
-  /** biome name for the HUD (the endless depths below the story say so) */
+  /** the area's name for the HUD */
   get placeName() {
     if (this.inVillage) return 'Loppo';
-    return (this.floor > STORY_END ? 'Hlubina · ' : '') + this.theme.name;
+    return areaForFloor(this.floor).name;
   }
 
   /** where the camera looks (it trails the hero a little) */
@@ -660,8 +663,8 @@ export class GameScene extends Phaser.Scene {
     const px = o.x * TS + 8,
       py = o.y * TS + 8;
     const add = (key: string, depthOffset = 0, oy = 1) => this.add.image(px, o.y * TS + 16 * oy, key).setOrigin(0.5, oy).setDepth(D.entityBase + o.y * TS + 8 + depthOffset);
-    // the deeper biomes swap the dungeon furniture for their own decorations
-    const style = this.theme.style;
+    // the natural areas swap the dungeon furniture for their own decorations
+    const style = this.theme.deco ?? (this.theme.style as DecoStyle);
     const natural = style !== 'bricks';
     const roll = hash(o.x, o.y, this.floor + 17);
     if (natural && (o.kind === 'crate' || o.kind === 'barrel' || o.kind === 'bones' || o.kind === 'skull') && roll < 0.45) {

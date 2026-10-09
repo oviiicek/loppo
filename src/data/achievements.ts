@@ -44,13 +44,13 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'rich', name: 'Boháč', desc: 'Měj u sebe 10 000 zlata', reward: { dust: 3 }, check: (s) => s.gold >= 10000 },
   { id: 'classchange', name: 'Nová cesta', desc: 'Změň classu u obchodníka', reward: { gold: 500 }, check: (s) => s.classChanges >= 1 },
   // the story
-  { id: 'story1', name: 'Brána otevřena', desc: 'Poraz Morgrima, Strážce bran', reward: { gold: 15000, dust: 5, attr: 3 }, check: (s) => (s.story?.shards ?? 0) >= 1 },
-  { id: 'story2', name: 'Ticho v jeskyních', desc: 'Poraz Matku spor', reward: { gold: 60000, dust: 8, attr: 4 }, check: (s) => (s.story?.shards ?? 0) >= 2 },
-  { id: 'story3', name: 'Teplo pro královnu', desc: 'Vysvoboď Isoldu, Ledovou královnu', reward: { gold: 150000, dust: 10, attr: 5 }, check: (s) => (s.story?.shards ?? 0) >= 3 },
+  { id: 'story1', name: 'Teplo pro královnu', desc: 'Vysvoboď Isoldu, Ledovou královnu', reward: { gold: 15000, dust: 5, attr: 3 }, check: (s) => (s.story?.shards ?? 0) >= 1 },
+  { id: 'story2', name: 'Ticho v kořenech', desc: 'Poraz Matku spor', reward: { gold: 60000, dust: 8, attr: 4 }, check: (s) => (s.story?.shards ?? 0) >= 2 },
+  { id: 'story3', name: 'Brána otevřena', desc: 'Poraz Morgrima, Strážce bran', reward: { gold: 150000, dust: 10, attr: 5 }, check: (s) => (s.story?.shards ?? 0) >= 3 },
   { id: 'story4', name: 'Návrat Elary', desc: 'Zachraň Elaru z moci hlubin', reward: { gold: 300000, dust: 12, attr: 6 }, check: (s) => !!s.story?.blessing },
   { id: 'story5', name: 'Pečeť hlubin', desc: "Poraz Nyx'thara a dokonči příběh", reward: { gold: 1000000, dust: 20, attr: 10 }, check: (s) => !!s.story?.ended },
-  { id: 'pages', name: 'Kronikář', desc: 'Najdi všech 20 stránek a vzkazů', reward: { gold: 100000, attr: 4 }, check: (s) => (s.story?.seen ?? []).filter((x) => x.startsWith('note')).length >= 20 },
-  { id: 'floor250', name: 'Dno podsvětí', desc: 'Dosáhni patra 250', reward: { gold: 500000, attr: 8 }, check: (s) => s.maxFloor >= 250 },
+  { id: 'pages', name: 'Kronikář', desc: 'Najdi všech 25 stránek a vzkazů v táborech', reward: { gold: 100000, attr: 4 }, check: (s) => (s.story?.seen ?? []).filter((x) => x.startsWith('camp')).length >= 25 },
+  { id: 'floor250', name: 'Dno světa', desc: 'Dosáhni patra 250', reward: { gold: 500000, attr: 8 }, check: (s) => s.maxFloor >= 250 },
   // pets, cursed chests and floor tasks
   { id: 'pet1', name: 'Přítel zvířat', desc: 'Osvoboď prvního mazlíčka z klece', reward: { gold: 300, dust: 2 }, check: (s) => (s.pets?.owned.length ?? 0) >= 1 },
   { id: 'pet4', name: 'Zvěřinec', desc: 'Osvoboď 4 mazlíčky', reward: { gold: 6000, attr: 2 }, check: (s) => (s.pets?.owned.length ?? 0) >= 4 },

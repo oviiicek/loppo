@@ -2,155 +2,13 @@
 // at a low resolution (240x135 scenes, 40x40 portraits) and shown enlarged with crisp pixels.
 import type { SceneId, SpeakerId } from '../data/story';
 import { canvas, rect, px, line, shade, hash } from './pixel';
+import { ART_W, ART_H, fillPoly, pell, ring, dgrad, glow, range, stars, pine, house, torch, crystal, mushroom } from './paint';
+import type { Ctx, ParticleKind } from './paint';
+import { AREA_PAINTERS, AREA_PARTICLES } from './areascenes';
 
-export const ART_W = 240;
-export const ART_H = 135;
+export { ART_W, ART_H };
 const W = ART_W,
   H = ART_H;
-
-type Ctx = CanvasRenderingContext2D;
-
-// ------------------------------------------------------------------ primitives (all hard-edged)
-function fillPoly(ctx: Ctx, pts: number[][], col: string, h = H) {
-  ctx.fillStyle = col;
-  const ys = pts.map((p) => p[1]);
-  const y0 = Math.max(0, Math.floor(Math.min(...ys))),
-    y1 = Math.min(h - 1, Math.ceil(Math.max(...ys)));
-  for (let y = y0; y <= y1; y++) {
-    const cy = y + 0.5;
-    const xs: number[] = [];
-    for (let i = 0; i < pts.length; i++) {
-      const [ax, ay] = pts[i],
-        [bx, by] = pts[(i + 1) % pts.length];
-      if ((ay <= cy && by > cy) || (by <= cy && ay > cy)) xs.push(ax + ((cy - ay) / (by - ay)) * (bx - ax));
-    }
-    xs.sort((a, b) => a - b);
-    for (let k = 0; k + 1 < xs.length; k += 2) {
-      const xa = Math.ceil(xs[k] - 0.5),
-        xb = Math.floor(xs[k + 1] - 0.5);
-      if (xb >= xa) ctx.fillRect(xa, y, xb - xa + 1, 1);
-    }
-  }
-}
-
-function pell(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, col: string) {
-  ctx.fillStyle = col;
-  for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++)
-    for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
-      const dx = (x + 0.5 - cx) / rx,
-        dy = (y + 0.5 - cy) / ry;
-      if (dx * dx + dy * dy <= 1) ctx.fillRect(x, y, 1, 1);
-    }
-}
-
-function ring(ctx: Ctx, cx: number, cy: number, rx: number, ry: number, col: string, step = 1) {
-  const n = Math.ceil(Math.PI * (rx + ry) * 1.2);
-  for (let i = 0; i < n; i += step) {
-    const a = (i / n) * Math.PI * 2;
-    px(ctx, Math.round(cx + Math.cos(a) * rx - 0.5), Math.round(cy + Math.sin(a) * ry - 0.5), col);
-  }
-}
-
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-/** vertical gradient through the given colours, ordered-dithered like old pixel art */
-function dgrad(ctx: Ctx, x: number, y: number, w: number, h: number, cols: string[]) {
-  for (let j = 0; j < h; j++) {
-    const t = (j / Math.max(1, h - 1)) * (cols.length - 1);
-    const a = Math.min(cols.length - 2, Math.floor(t));
-    const f = t - a;
-    for (let i = 0; i < w; i++) {
-      const th = (BAYER[((y + j) & 3) * 4 + ((x + i) & 3)] + 0.5) / 16;
-      ctx.fillStyle = f > th ? cols[a + 1] : cols[a];
-      ctx.fillRect(x + i, y + j, 1, 1);
-    }
-  }
-}
-
-/** soft round light (added on top of what is painted); 'dark' mode deepens the shadow instead */
-function glow(ctx: Ctx, cx: number, cy: number, r: number, col: string, strength = 0.6, mode: 'light' | 'dark' = 'light') {
-  const n = parseInt(col.slice(1), 16);
-  const rgb = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
-  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-  g.addColorStop(0, `rgba(${rgb},${Math.min(1, strength * 0.8)})`);
-  g.addColorStop(0.45, `rgba(${rgb},${Math.min(1, strength * 0.35)})`);
-  g.addColorStop(1, `rgba(${rgb},0)`);
-  ctx.save();
-  ctx.globalCompositeOperation = mode === 'light' ? 'lighter' : 'source-over';
-  ctx.fillStyle = g;
-  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-  ctx.restore();
-}
-
-/** jagged mountain range: linear segments between random peaks, filled down to the bottom */
-function range(ctx: Ctx, base: number, amp: number, seed: number, col: string, peaks = 7, snow?: string) {
-  const pts: number[][] = [[0, H]];
-  const n = peaks * 2;
-  for (let i = 0; i <= n; i++) {
-    const x = (i / n) * W + (hash(i, seed, 1) - 0.5) * (W / n) * 0.8;
-    const up = i % 2 === 0;
-    const y = base - (up ? amp * (0.55 + hash(seed, i, 2) * 0.45) : amp * hash(i, seed, 3) * 0.35);
-    pts.push([x, y]);
-  }
-  pts.push([W, H]);
-  fillPoly(ctx, pts, col);
-  if (snow)
-    for (let i = 1; i < pts.length - 1; i++) {
-      const [x, y] = pts[i];
-      if (pts[i - 1][1] > y && pts[i + 1][1] > y && base - y > amp * 0.6) fillPoly(ctx, [[x, y], [x - 4, y + 5], [x - 1, y + 4], [x + 2, y + 6], [x + 4, y + 4]], snow);
-    }
-}
-
-function stars(ctx: Ctx, n: number, maxY: number, seed: number) {
-  for (let i = 0; i < n; i++) {
-    const x = Math.floor(hash(i, seed, 4) * W),
-      y = Math.floor(hash(seed, i, 5) * maxY);
-    const b = hash(i, i, seed);
-    px(ctx, x, y, b > 0.85 ? '#ffffff' : b > 0.5 ? '#c8d0f0' : '#7a84b0');
-  }
-}
-
-function pine(ctx: Ctx, x: number, ground: number, h: number, col: string) {
-  for (let k = 0; k < 3; k++) {
-    const top = ground - h + k * (h / 4);
-    const wd = (h / 4) * (1 + k * 0.5);
-    fillPoly(ctx, [[x, top], [x - wd, top + h / 2.4], [x + wd, top + h / 2.4]], col);
-  }
-  rect(ctx, x - 1, ground - h / 6, 2, h / 6, col);
-}
-
-function house(ctx: Ctx, x: number, ground: number, w: number, h: number, body: string, roof: string, lit: string | null, seed: number) {
-  rect(ctx, x, ground - h, w, h, body);
-  fillPoly(ctx, [[x - 3, ground - h + 1], [x + w / 2, ground - h - w * 0.55], [x + w + 3, ground - h + 1]], roof);
-  rect(ctx, x + w - 6, ground - h - w * 0.5, 3, 7, roof);
-  const nWin = Math.max(1, Math.floor(w / 9));
-  for (let i = 0; i < nWin; i++) {
-    const wx = x + 3 + i * Math.floor((w - 6) / nWin);
-    const on = lit && hash(seed, i, 6) > 0.25;
-    rect(ctx, wx, ground - h + 4, 3, 3, on ? lit! : shade(body, -0.3));
-    if (on) px(ctx, wx + 1, ground - h + 7, shade(lit!, -0.35));
-  }
-  rect(ctx, x + Math.floor(w / 2) - 1, ground - 5, 3, 5, shade(body, -0.35));
-}
-
-function torch(ctx: Ctx, x: number, y: number) {
-  glow(ctx, x, y - 3, 16, '#ffb050', 0.35);
-  rect(ctx, x - 1, y, 2, 6, '#5a3416');
-  pell(ctx, x, y - 2, 2.2, 3.4, '#ff6a1a');
-  pell(ctx, x, y - 1, 1.3, 2, '#ffd23a');
-  px(ctx, x, y - 1, '#fff6d0');
-}
-
-function crystal(ctx: Ctx, x: number, base: number, h: number, w: number, col: string, hi: string) {
-  fillPoly(ctx, [[x - w, base], [x, base - h], [x + w, base]], col);
-  line(ctx, x, base - h + 1, x, base - 1, hi);
-}
-
-function mushroom(ctx: Ctx, x: number, ground: number, s: number, cap: string, glowCol: string) {
-  glow(ctx, x, ground - s * 2, s * 5, glowCol, 0.35);
-  rect(ctx, x, ground - s * 2, Math.max(1, Math.round(s / 2)), s * 2, '#d8d0bc');
-  pell(ctx, x + s / 4, ground - s * 2, s * 1.4, s * 0.8, cap);
-  px(ctx, Math.round(x - s / 3), Math.round(ground - s * 2.2), '#d8fff6');
-}
 
 // ------------------------------------------------------------------ scenes
 function village(ctx: Ctx, mood: 'night' | 'danger' | 'dawn') {
@@ -340,43 +198,6 @@ function gate(ctx: Ctx) {
   for (let i = 0; i < 14; i++) pell(ctx, 10 + i * 17 + hash(i, 6, 1) * 6, 126 + hash(6, i, 2) * 4, 3 + hash(i, 7, 3) * 3, 2, '#2e2e38');
 }
 
-function kobky(ctx: Ctx) {
-  const vx = 120,
-    vy = 64,
-    fw = 26,
-    fh = 24;
-  // ceiling, walls and floor in perspective
-  fillPoly(ctx, [[0, 0], [W, 0], [vx + fw, vy - fh], [vx - fw, vy - fh]], '#1a1822');
-  fillPoly(ctx, [[0, 0], [vx - fw, vy - fh], [vx - fw, vy + fh], [0, H]], '#3e3c4a');
-  fillPoly(ctx, [[W, 0], [vx + fw, vy - fh], [vx + fw, vy + fh], [W, H]], '#35333f');
-  fillPoly(ctx, [[0, H], [vx - fw, vy + fh], [vx + fw, vy + fh], [W, H]], '#5a3e26');
-  rect(ctx, vx - fw, vy - fh, fw * 2, fh * 2, '#07060a');
-  // brick courses on the walls and flagstone joints on the floor
-  for (let k = 1; k < 9; k++) {
-    const t = k / 9;
-    const yl = t * H,
-      yr = vy - fh + t * fh * 2;
-    line(ctx, 0, Math.round(yl), vx - fw, Math.round(yr), '#2a2834');
-    line(ctx, W, Math.round(yl), vx + fw, Math.round(yr), '#24222c');
-  }
-  for (let k = 1; k < 6; k++) {
-    const x = Math.round((vx - fw) * (1 - Math.pow(1 - k / 6, 1.6)));
-    const t = x / (vx - fw);
-    line(ctx, x, Math.round(t * (vy - fh)), x, Math.round(H - t * (H - vy - fh)), '#2a2834');
-    line(ctx, W - x, Math.round(t * (vy - fh)), W - x, Math.round(H - t * (H - vy - fh)), '#24222c');
-  }
-  for (let k = -4; k <= 4; k++) line(ctx, vx + k * 6, vy + fh, vx + k * 60, H, '#3e2a1a');
-  for (let k = 1; k < 5; k++) {
-    const y = vy + fh + Math.pow(k / 5, 1.8) * (H - vy - fh);
-    line(ctx, 0, Math.round(y), W, Math.round(y), '#3e2a1a');
-  }
-  torch(ctx, 46, 44);
-  torch(ctx, 194, 44);
-  torch(ctx, 84, 56);
-  torch(ctx, 156, 56);
-  glow(ctx, vx, vy, 30, '#0a0910', 0.8, 'dark');
-}
-
 function caves(ctx: Ctx) {
   dgrad(ctx, 0, 0, W, H, ['#0e0c0a', '#1c1814', '#141210']);
   // far wall layers
@@ -527,13 +348,13 @@ const PAINTERS: Record<SceneId, (ctx: Ctx) => void> = {
   dawn: (c) => village(c, 'dawn'),
   hut,
   gate,
-  kobky,
   caves,
   ice,
   forge,
   abyss,
   seal,
   black: (c) => rect(c, 0, 0, W, H, '#050407'),
+  ...AREA_PAINTERS,
 };
 
 const sceneCache = new Map<SceneId, HTMLCanvasElement>();
@@ -549,20 +370,20 @@ export function sceneCanvas(id: SceneId): HTMLCanvasElement {
 }
 
 // ------------------------------------------------------------------ ambient particles
-export type ParticleKind = 'twinkle' | 'snow' | 'embers' | 'spores' | 'dust' | 'motes' | 'smoke' | 'sparkle';
+export type { ParticleKind };
 export const SCENE_PARTICLES: Record<SceneId, { kind: ParticleKind; color: string[]; n: number }> = {
   village: { kind: 'twinkle', color: ['#ffffff', '#c8d0f0'], n: 14 },
   quake: { kind: 'embers', color: ['#ff6a2a', '#ffb050'], n: 26 },
   dawn: { kind: 'motes', color: ['#fff0c0', '#ffd27a'], n: 16 },
   hut: { kind: 'embers', color: ['#ffb347', '#ffd23a'], n: 10 },
   gate: { kind: 'dust', color: ['#8a8698', '#5a5866'], n: 18 },
-  kobky: { kind: 'dust', color: ['#c8b89a', '#8a7a64'], n: 22 },
   caves: { kind: 'spores', color: ['#4ff0d0', '#b0fff0'], n: 26 },
   ice: { kind: 'snow', color: ['#ffffff', '#dff4ff'], n: 46 },
   forge: { kind: 'embers', color: ['#ff6a1a', '#ffb347', '#fff0a0'], n: 40 },
   abyss: { kind: 'motes', color: ['#c77dff', '#8a4aff', '#f0d0ff'], n: 30 },
   seal: { kind: 'sparkle', color: ['#fff2c0', '#ffd27a', '#9fe6ff'], n: 30 },
   black: { kind: 'dust', color: ['#3a3446', '#2a2434'], n: 12 },
+  ...AREA_PARTICLES,
 };
 
 interface P {
@@ -585,6 +406,10 @@ export function runParticles(cv: HTMLCanvasElement, id: SceneId): () => void {
     switch (cfg.kind) {
       case 'snow':
         return { x, y: initial ? y : -2, vx: -3 + Math.random() * 2, vy: 8 + Math.random() * 10, c, t: Math.random() * 10 };
+      case 'ash':
+        return { x, y: initial ? y : -2, vx: -2 + Math.random() * 4, vy: 4 + Math.random() * 6, c, t: Math.random() * 10 };
+      case 'drip':
+        return { x, y: initial ? y : -2, vx: 0, vy: 50 + Math.random() * 30, c, t: Math.random() * 10 };
       case 'embers':
         return { x, y: initial ? y : H + 2, vx: -2 + Math.random() * 4, vy: -(6 + Math.random() * 14), c, t: Math.random() * 10 };
       case 'spores':
@@ -608,9 +433,9 @@ export function runParticles(cv: HTMLCanvasElement, id: SceneId): () => void {
     for (let i = 0; i < ps.length; i++) {
       const p = ps[i];
       p.t += dt;
-      p.x += (p.vx + (cfg.kind === 'snow' || cfg.kind === 'spores' ? Math.sin(p.t * 1.7) * 4 : 0)) * dt;
+      p.x += (p.vx + (cfg.kind === 'snow' || cfg.kind === 'spores' || cfg.kind === 'ash' ? Math.sin(p.t * 1.7) * 4 : 0)) * dt;
       p.y += p.vy * dt;
-      if (p.y < -4 || p.y > H + 4 || p.x < -4 || p.x > W + 4 || (cfg.kind !== 'twinkle' && cfg.kind !== 'snow' && cfg.kind !== 'embers' && cfg.kind !== 'spores' && cfg.kind !== 'sparkle' && p.t > 8)) {
+      if (p.y < -4 || p.y > H + 4 || p.x < -4 || p.x > W + 4 || (!['twinkle', 'snow', 'embers', 'spores', 'sparkle', 'ash', 'drip'].includes(cfg.kind) && p.t > 8)) {
         ps[i] = spawn(false);
         continue;
       }
@@ -619,6 +444,7 @@ export function runParticles(cv: HTMLCanvasElement, id: SceneId): () => void {
       ctx.fillStyle = p.c;
       ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
       if (cfg.kind === 'smoke') ctx.fillRect(Math.round(p.x) + 1, Math.round(p.y), 1, 1);
+      if (cfg.kind === 'drip') ctx.fillRect(Math.round(p.x), Math.round(p.y) - 2, 1, 2);
     }
     raf = requestAnimationFrame(step);
   };

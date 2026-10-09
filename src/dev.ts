@@ -432,18 +432,10 @@ Object.assign(dev, {
 // Story testing: jump to any floor with a fitting character and story progress
 // ---------------------------------------------------------------------------
 import { storyOf, xpForLevel as xpFor } from './systems/state';
-import { CHRONICLE_ORDER } from './data/story';
+import { CHRONICLE_ORDER, storyFloor } from './data/story';
 import { enemyXpScale, bossForFloor } from './data/enemies';
 import { CLASS_BY_ID, CLASSES } from './data/classes';
 import type { Slot } from './data/types';
-
-function storyIdFloor(id: string) {
-  if (id === 'prolog') return 0;
-  const ch = id.match(/^ch(\d)$/);
-  if (ch) return (+ch[1] - 1) * 50 + 1;
-  const n = id.match(/\d+/);
-  return n ? +n[0] : 9999;
-}
 
 Object.assign(dev, {
   /** a character about as strong as a good player on this floor (level model of the balance sim, best of many drops) */
@@ -503,7 +495,7 @@ Object.assign(dev, {
     autoLoadout(s);
     const st = storyOf(s);
     if (story) {
-      st.seen = CHRONICLE_ORDER.filter((id) => storyIdFloor(id) < floor);
+      st.seen = CHRONICLE_ORDER.filter((id) => storyFloor(id) < floor);
       st.shards = Math.min(4, Math.floor((floor - 1) / 50));
       st.blessing = floor > 200;
     }
@@ -564,15 +556,16 @@ Object.assign(dev, {
 // Contact sheets of the story illustrations and portraits
 import { sceneCanvas, portraitURL, ART_W, ART_H } from './gfx/story';
 import type { SceneId, SpeakerId } from './data/story';
+import { AREA_SCENES } from './data/story';
 Object.assign(dev, {
-  sceneSheet(scale = 2) {
-    const ids: SceneId[] = ['village', 'quake', 'hut', 'gate', 'kobky', 'caves', 'ice', 'forge', 'abyss', 'seal', 'dawn', 'black'];
+  sceneSheet(scale = 2, ids: SceneId[] = ['village', 'quake', 'hut', 'gate', 'seal', 'dawn', ...AREA_SCENES], cols = 3) {
+    const rows = Math.ceil(ids.length / cols);
     const out = document.createElement('canvas');
-    out.width = ART_W * scale * 3 + 8;
-    out.height = ART_H * scale * 4 + 12;
+    out.width = (ART_W * scale + 4) * cols;
+    out.height = (ART_H * scale + 4) * rows;
     const x = out.getContext('2d')!;
     x.imageSmoothingEnabled = false;
-    ids.forEach((id, i) => x.drawImage(sceneCanvas(id), (i % 3) * (ART_W * scale + 4), Math.floor(i / 3) * (ART_H * scale + 4), ART_W * scale, ART_H * scale));
+    ids.forEach((id, i) => x.drawImage(sceneCanvas(id), (i % cols) * (ART_W * scale + 4), Math.floor(i / cols) * (ART_H * scale + 4), ART_W * scale, ART_H * scale));
     return out.toDataURL();
   },
   async portraitSheet(scale = 3) {

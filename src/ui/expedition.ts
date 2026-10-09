@@ -4,6 +4,7 @@ import { iconURL, THEMES, themeForFloor } from '../gfx/textures';
 import { BAND, bandOf, bandStart, bandEnd, bandOpen, bandDone, bandBest, bandLootBonus, recommendedLevel, bandName, runOf, startRun, isCampFloor } from '../data/bands';
 import { bossForFloor, storyBossForFloor, STORY_END } from '../data/enemies';
 import { saveGame } from '../systems/state';
+import { areaOf } from '../data/biomes';
 import type { FloorKind } from '../systems/state';
 import { sfx } from '../systems/audio';
 
@@ -57,6 +58,7 @@ export class ExpeditionPanels {
       const here = bandOf(cur) === b;
       cards.push(`<div class="band ${open ? '' : 'locked'} ${here ? 'here' : ''}" data-band="${b}" style="--bc:${th.glow[0]}">
         <div class="btop"><b>${bandStart(b)}–${bandEnd(b)}</b><span class="bname">${esc(bandName(b))}</span>${done ? '<span class="bdone">✔</span>' : ''}</div>
+        <div class="bdesc">${esc(areaOf(bandStart(b)).desc)}</div>
         ${
           open
             ? `<div class="bstats"><span>Nejlépe: <b>${best || '—'}</b></span><span class="lv ${lvCls}">Doporučeno: úr. ${rec}+</span><span class="loot">Kořist +${bandLootBonus(bandStart(b))} %</span></div>

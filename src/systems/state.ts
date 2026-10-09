@@ -12,7 +12,7 @@ import { CLASS_BY_ID } from '../data/classes';
 import { BASE_BY_ID, generateItem, itemStats, weaponDamage, isTwoHanded } from '../data/items';
 import { SPELL_BY_ID, spellsForClass, MAX_SPELL_RANK, BuffMods } from '../data/spells';
 import { bus } from './events';
-import { StoryState, newStory } from '../data/story';
+import { StoryState, newStory, migrateStory } from '../data/story';
 import { PetState, newPetState, PET_BY_ID, petLevel } from '../data/pets';
 import { addSetBonuses } from '../data/sets';
 
@@ -214,6 +214,7 @@ export function petsOf(s: SaveData): PetState {
 
 /** story progress of a character (older saves get it on first use) */
 export function storyOf(s: SaveData): StoryState {
+  if (s.story && s.story.v !== 2) migrateStory(s.story, s.floor);
   return s.story ?? (s.story = newStory());
 }
 

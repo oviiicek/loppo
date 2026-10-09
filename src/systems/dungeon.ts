@@ -1,7 +1,7 @@
 import { RNG } from './rng';
 import { isBossFloor } from '../data/enemies';
 import { FAMILIES, familiesFor, familyFodder, familyMembers, makePack } from '../data/families';
-import { biomeForFloor } from '../data/biomes';
+import { riftTheme } from '../data/biomes';
 
 export const T_VOID = 0;
 export const T_FLOOR = 1;
@@ -1057,7 +1057,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   // mimics are objects: handled by the scene
 
   // a rift lies in a twisted other place: the abyss (or the forge, for those already in the abyss); the dream is made of ice and light
-  const theme = rift === 'rift' ? (biomeForFloor(floor) === 4 ? 3 : 4) : rift === 'dream' ? 2 : undefined;
+  const theme = rift === 'rift' ? riftTheme(floor) : rift === 'dream' ? 2 : undefined;
   return { floor, w: W, h: H, grid, roomId, rooms, start, exit, secretWalls, lockedDoors, objects, spawns, bossRoom, hasMerchant, rift, theme, families: fams, calm };
 }
 

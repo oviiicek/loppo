@@ -27,7 +27,7 @@ export function mainQuest(s: SaveData): { title: string; sub: string; text: stri
     return {
       title: 'Nekonečná hlubina',
       sub: 'po konci příběhu',
-      text: "Nyx'thar padl a pečeť znovu drží. Pod dnem podsvětí se ale otvírají další a další patra – jak hluboko dojdeš?",
+      text: "Nyx'thar padl a pečeť znovu drží. Pod dnem světa se ale otvírají další a další patra – jak hluboko dojdeš?",
       have: s.maxFloor,
       goal: 0,
     };
@@ -36,7 +36,7 @@ export function mainQuest(s: SaveData): { title: string; sub: string; text: stri
   return {
     title: `${ch.small}: ${ch.big}`,
     sub: `${next.floor}. patro`,
-    text: `Sestup do ${next.floor}. patra a poraz: ${next.name} – ${next.title}.${last ? ' Tam, na dně podsvětí, rozhodneš o osudu Loppa.' : ' Cestou hledej stránky Elařina deníku – leží na začátku každé desítky pater.'}`,
+    text: `Sestup do ${next.floor}. patra a poraz: ${next.name} – ${next.title}.${last ? ' Tam, na dně světa, rozhodneš o osudu Loppa.' : ' Cestou hledej stránky Elařina deníku a další vzkazy – leží v táborech uprostřed každé desítky pater.'}`,
     have: Math.min(s.maxFloor, next.floor),
     goal: next.floor,
   };

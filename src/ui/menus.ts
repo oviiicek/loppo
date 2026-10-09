@@ -290,8 +290,8 @@ export class Menus {
         <p><b style="color:#ffd76a">Král Dobromil:</b> před zámkem dává královské úkoly. Za ně roste přízeň krále a s ní pocty s trvalými bonusy – až po Korunu Loppa. Ve vesnici se střídá den a noc podle hodin.</p>
         <p><b style="color:#ffd76a">Vybavení:</b> jednoruční zbraň + štít, dvě jednoruční zbraně, nebo obouruční zbraň. Dále helma, brnění, kalhoty, opasek, boty, 2 prsteny, náhrdelník a náramek.</p>
         <p><b style="color:#ffd76a">Dungeon:</b> každé patro je náhodně generované a postupně větší. Hledej tajné místnosti (praskliny ve zdech), trezory zamčené paklíčem a obchodníky. Na konci každé desítky pater (10., 20., 30. …) hlídá strážce – po jeho porážce si vybereš jednu ze tří truhel a otevře se další desítka.</p>
-        <p><b style="color:#ffd76a">Příběh:</b> sestup až na 250. patro, na dno podsvětí. Každých 50 pater se změní prostředí (kobky, jeskyně, led, výheň, propast) a čeká tam příběhový strážce – na 100. a 200. patře bojuje ve více fázích. Na každém desátém patře leží stránka deníku. Přečtené scény najdeš v pauze v Kronice. Pod 250. patrem pokračuje Nekonečná hlubina.</p>
-        <p><b style="color:#ffd76a">Prostředí:</b> každých 50 pater je jiné prostředí – Kobky, Jeskyně, Ledové hlubiny, Výheň a Propast, každé s vlastními nepřáteli. Každých 10 pater začíná nová oblast se jménem.</p>
+        <p><b style="color:#ffd76a">Příběh:</b> sestup až na 250. patro, na dno světa. Příběh má pět kapitol po 50 patrech a každou uzavírá příběhový strážce – Isolda, Matka spor, Morgrim, Elara a Nyx'thar (na 100., 200. a 250. patře bojují ve více fázích). Každá desítka pater začíná vlastní scénou a v táboře uprostřed ní leží stránka deníku nebo vzkaz. Přečtené scény najdeš v pauze v Kronice. Pod 250. patrem pokračuje Nekonečná hlubina.</p>
+        <p><b style="color:#ffd76a">Prostředí:</b> každých 10 pater je jiná oblast – 25 oblastí od Staré krypty přes Katakomby, Zatopené ruiny, Ledový dungeon, Houbový les nebo Hrobku pouštních králů až po Dno světa. Každá má vlastní vzhled, nestvůry a počasí.</p>
         <p><b style="color:#ffd76a">Výprava a desítky pater:</b> kobky se dělí na desítky (1–10, 11–20 …). Brána v Loppu ukáže každou desítku s nejhlubším dosaženým patrem, doporučenou úrovní, bonusem ke kořisti a jejím strážcem. Nová výprava začíná prvním patrem desítky; strážce na jejím konci otevře další. Běží vždy jen jedna výprava – kdo začne jinou, tu rozběhnutou ukončí.</p>
         <p><b style="color:#ffd76a">Checkpointy a tábor:</b> uprostřed každé desítky (5., 15., 25. …) je tábor – bezpečné patro s ohništěm (plné zdraví a mana, posila na 5 minut), obchodníkem, kovadlinou, alchymistou a truhlou úložiště. Smrt tě vrátí na poslední checkpoint: první patro desítky, nebo tábor, pokud do něj výprava už došla. Na lehké obtížnosti začneš stejné patro znovu.</p>
         <p><b style="color:#ffd76a">Dveře:</b> po patře si vybereš ze 2–3 dveří: nebezpečná cesta (silnější nestvůry, lepší kořist), běžná cesta nebo cesta k obchodníkovi, a neznámá oblast (pokladnice, síň hádanek, místo setkání nebo patro s osudem).</p>
@@ -533,13 +533,13 @@ export class Menus {
             ? seen
                 .map((id) => {
                   const c = CUTSCENE_BY_ID[id];
-                  const page = id.startsWith('note');
+                  const page = id.startsWith('camp');
                   return `<button class="btn ${page ? '' : 'blue'} chron" data-id="${id}" style="display:block;width:100%;text-align:left;margin-bottom:6px;white-space:normal">${page ? '📜' : '🎬'} ${esc(c.name)}</button>`;
                 })
                 .join('')
             : '<div class="hint">Zatím tu nic není.</div>'
         }
-        <div class="hint" style="margin-top:6px">Další stránky deníku leží na každém desátém patře.</div>
+        <div class="hint" style="margin-top:6px">Každá desítka pater začíná svou scénou a v táboře uprostřed ní (5. patro) leží další stránka.</div>
         <h3 class="chronh">Zápisky z hlubin <span class="hint">${(sc.save.lore ?? []).filter((id) => LORE_BY_ID[id]).length}/${LORE.length}</span></h3>
         ${
           (sc.save.lore ?? []).filter((id) => LORE_BY_ID[id]).length
@@ -563,10 +563,8 @@ export class Menus {
         return;
       }
       const c = CUTSCENE_BY_ID[b.dataset.id!];
-      // guardian dialogues happen in the dungeon; the chronicle shows them over their biome
-      const id = b.dataset.id!;
-      const biome = id.startsWith('boss50') ? 'kobky' : id.startsWith('boss100') ? 'caves' : id.startsWith('boss150') ? 'ice' : id.startsWith('boss200') ? 'forge' : id.startsWith('boss250') ? 'abyss' : undefined;
-      if (c) void this.ui.cutscene(c.shots, { scene: biome });
+      // guardian dialogues happen in the dungeon; the chronicle shows them over their area
+      if (c) void this.ui.cutscene(c.shots, { scene: c.scene });
     });
   }
 

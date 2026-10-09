@@ -145,14 +145,14 @@ export const ENEMIES: EnemyDef[] = [
   { id: 'buffEater', name: 'Požírač buffů', sprite: 'en_buffEater', hp: 80, dmg: 11, speed: 44, xp: 40, behavior: 'melee', range: 18, atkCd: 1.2, minFloor: 34, weight: 3, ability: 'eatBuff' },
   { id: 'adaptive', g: 'n', name: 'Adaptivní monstrum', sprite: 'en_adaptive', hp: 120, dmg: 13, speed: 40, xp: 46, behavior: 'melee', range: 20, atkCd: 1.3, minFloor: 36, weight: 2, scale: 1.2, radius: 7, ability: 'adapt' },
   { id: 'mirrorDemon', name: 'Zrcadlový démon', sprite: 'en_mirrorDemon', hp: 75, dmg: 12, speed: 42, xp: 44, behavior: 'caster', range: 120, atkCd: 2.2, proj: 'magic', el: 'shadow', minFloor: 40, weight: 2, ability: 'mirror' },
-  // deeper biomes (caves 51+, ice 101+, forge 151+, abyss 201+) – most of their families appear earlier too
+  // creatures of the deeper areas (the ice from 41, the fire from 51, the void from 171) – most of their families appear earlier too
   { id: 'mushroom', name: 'Houbař', sprite: 'en_mushroom', hp: 55, dmg: 9, speed: 30, xp: 22, behavior: 'caster', range: 110, atkCd: 2.2, proj: 'poison', el: 'poison', minFloor: 6, weight: 5, poison: true, role: 'healer', ability: 'spores' },
   { id: 'troll', name: 'Jeskynní troll', sprite: 'en_troll', hp: 150, dmg: 16, speed: 40, xp: 36, behavior: 'charger', range: 22, atkCd: 1.6, minFloor: 15, weight: 4, armor: 12, scale: 1.35, radius: 8, role: 'heavy' },
-  { id: 'iceGolem', name: 'Ledový golem', sprite: 'en_iceGolem', hp: 170, dmg: 15, speed: 28, xp: 38, behavior: 'melee', range: 22, atkCd: 1.8, el: 'ice', minFloor: 101, weight: 4, armor: 20, scale: 1.25, radius: 8, role: 'heavy' },
-  { id: 'frostWolf', name: 'Mrazivý vlk', sprite: 'en_frostWolf', hp: 45, dmg: 9, speed: 84, xp: 20, behavior: 'charger', range: 16, atkCd: 0.9, el: 'ice', minFloor: 101, weight: 6 },
-  { id: 'hellhound', name: 'Pekelný pes', sprite: 'en_hellhound', hp: 50, dmg: 11, speed: 88, xp: 22, behavior: 'charger', range: 16, atkCd: 0.9, el: 'fire', minFloor: 151, weight: 6 },
+  { id: 'iceGolem', name: 'Ledový golem', sprite: 'en_iceGolem', hp: 170, dmg: 15, speed: 28, xp: 38, behavior: 'melee', range: 22, atkCd: 1.8, el: 'ice', minFloor: 44, weight: 4, armor: 20, scale: 1.25, radius: 8, role: 'heavy' },
+  { id: 'frostWolf', name: 'Mrazivý vlk', sprite: 'en_frostWolf', hp: 45, dmg: 9, speed: 84, xp: 20, behavior: 'charger', range: 16, atkCd: 0.9, el: 'ice', minFloor: 40, weight: 6 },
+  { id: 'hellhound', name: 'Pekelný pes', sprite: 'en_hellhound', hp: 50, dmg: 11, speed: 88, xp: 22, behavior: 'charger', range: 16, atkCd: 0.9, el: 'fire', minFloor: 50, weight: 6 },
   { id: 'magmaGolem', name: 'Lávový golem', sprite: 'en_magmaGolem', hp: 180, dmg: 17, speed: 26, xp: 40, behavior: 'melee', range: 22, atkCd: 1.9, el: 'fire', minFloor: 28, weight: 4, armor: 22, scale: 1.3, radius: 9, ability: 'lava' },
-  { id: 'voidEye', g: 'n', name: 'Oko propasti', sprite: 'en_voidEye', hp: 48, dmg: 11, speed: 40, xp: 26, behavior: 'caster', range: 130, atkCd: 1.9, proj: 'shadow', el: 'shadow', minFloor: 201, weight: 5 },
+  { id: 'voidEye', g: 'n', name: 'Oko propasti', sprite: 'en_voidEye', hp: 48, dmg: 11, speed: 40, xp: 26, behavior: 'caster', range: 130, atkCd: 1.9, proj: 'shadow', el: 'shadow', minFloor: 171, weight: 5 },
   { id: 'shade', name: 'Stín', sprite: 'en_shade', hp: 55, dmg: 12, speed: 62, xp: 26, behavior: 'lurker', range: 30, atkCd: 1.4, minFloor: 30, weight: 4 },
   // Elara's shadow sisters (only summoned by her)
   { id: 'shadowClone', name: 'Stín Elary', sprite: 'en_elaraDark', hp: 40, dmg: 9, speed: 40, xp: 0, behavior: 'caster', range: 120, atkCd: 1.8, proj: 'shadow', el: 'shadow', minFloor: 9999, weight: 0 },
@@ -304,8 +304,9 @@ export function bossArmor(floor: number) {
 }
 
 // ---------------------------------------------------------------------------
-// Story guardians (floors 50, 100, 150, 200 and the final one on 250). Every hundredth floor and the
-// end have several stages: when a stage's health runs out the guardian changes and gets a new bar.
+// Story guardians: Isolda (50), the Mother of Spores (100), Morgrim (150), Elara (200) and Nyx'thar (250).
+// Every hundredth floor and the end have several stages: when a stage's health runs out the guardian
+// changes and gets a new bar.
 // Health and damage are multiples of a reference guardian on that floor. Very strong heroes are held back
 // by a damage budget instead (see Combat.damageEnemy), so the health can stay fair for everyone else.
 // ---------------------------------------------------------------------------
@@ -339,12 +340,12 @@ export interface StoryBossDef {
 export const STORY_BOSSES: StoryBossDef[] = [
   {
     floor: 50,
-    id: 'morgrim',
-    name: 'Morgrim',
-    title: 'Strážce bran',
+    id: 'isolda',
+    name: 'Isolda',
+    title: 'Ledová královna',
     intro: 'boss50',
     outro: 'boss50end',
-    phases: [{ sprite: 'en_morgrim', scale: 1.5, hp: 2.0, dmg: 1.0, speed: 38, patterns: ['sweep', 'chains', 'summon', 'slam', 'sweep', 'charge', 'radial'], proj: 'axe', el: 'phys', summon: 'skeleton', cadence: 3.0 }],
+    phases: [{ sprite: 'en_isolda', scale: 1.45, hp: 2.0, dmg: 1.0, speed: 40, patterns: ['shardRain', 'icePrison', 'spiral', 'teleport', 'volley', 'summon', 'icePrison'], proj: 'ice', el: 'ice', summon: 'frostWolf', cadence: 3.0 }],
   },
   {
     floor: 100,
@@ -360,12 +361,12 @@ export const STORY_BOSSES: StoryBossDef[] = [
   },
   {
     floor: 150,
-    id: 'isolda',
-    name: 'Isolda',
-    title: 'Ledová královna',
+    id: 'morgrim',
+    name: 'Morgrim',
+    title: 'Strážce bran',
     intro: 'boss150',
     outro: 'boss150end',
-    phases: [{ sprite: 'en_isolda', scale: 1.45, hp: 3.2, dmg: 1.05, speed: 40, patterns: ['shardRain', 'icePrison', 'spiral', 'teleport', 'volley', 'summon', 'icePrison'], proj: 'ice', el: 'ice', summon: 'frostWolf', cadence: 2.9 }],
+    phases: [{ sprite: 'en_morgrim', scale: 1.5, hp: 3.2, dmg: 1.05, speed: 38, patterns: ['sweep', 'chains', 'summon', 'slam', 'sweep', 'charge', 'radial'], proj: 'axe', el: 'phys', summon: 'skelKnight', cadence: 2.9 }],
   },
   {
     floor: 200,

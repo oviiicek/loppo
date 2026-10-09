@@ -986,7 +986,7 @@ class UIManager {
           <span>Poražení nepřátelé</span><b>${s.kills.toLocaleString('cs-CZ')}</b>
           <span>Poražení strážci</span><b>${s.stats?.bosses ?? 0}</b>
         </div>
-        <p class="hint" style="margin:0">Pod dnem Propasti pokračuje Nekonečná hlubina – stále těžší patra a lepší kořist.</p>
+        <p class="hint" style="margin:0">Pod dnem světa pokračuje Nekonečná hlubina – všech 25 oblastí znovu, s těžšími patry a lepší kořistí.</p>
         <button class="btn green" data-a="go">Pokračovat do Nekonečné hlubiny</button>
         <button class="btn" data-a="menu">Uložit a odejít do menu</button>
       </div></div>`);

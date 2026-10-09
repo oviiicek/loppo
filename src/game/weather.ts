@@ -1,6 +1,6 @@
-// Ambient particles of each biome, drifting through the part of the floor on screen: dust in the
+// Ambient particles of each area, drifting through the part of the floor on screen: dust in the
 // dungeons, glowing spores in the caves, snow in the ice, embers and ash in the forge, wisps in the
-// abyss. The power-saving graphics leave them out.
+// abyss, drops in the drowned places, sand, leaves, glitter. The power-saving graphics leave them out.
 import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { D } from './fx';
@@ -23,6 +23,22 @@ const LAYERS: Record<string, [string, Cfg, boolean][]> = {
     ['mote', { lifespan: { min: 5000, max: 8000 }, speedX: { min: -3, max: 3 }, speedY: { min: 3, max: 8 }, scale: { min: 0.4, max: 0.75 }, alpha: fade(0.5), tint: 0x9a9aa0, frequency: 380 }, false],
   ],
   abyss: [['mote', { lifespan: { min: 5000, max: 8000 }, speedX: { min: -6, max: 6 }, speedY: { min: -6, max: 4 }, scale: { min: 0.6, max: 1.25 }, alpha: flicker(0.9), tint: [0xb07dff, 0x7a4aff, 0xff7ad8], blendMode: 'ADD', frequency: 200 }, true]],
+  // the areas: drops falling from the ceilings of the drowned places, sand blowing over the tombs, leaves and
+  // pollen under the roots of the world, glitter of the crystals and mirrors, ash falling on the burnt plains
+  drip: [
+    ['drop', { lifespan: { min: 1400, max: 2000 }, speedX: 0, speedY: { min: 60, max: 80 }, scale: { min: 0.8, max: 1.2 }, alpha: fade(0.7), tint: [0xbfe8ff, 0xe0f8ff], frequency: 140 }, false],
+    ['mote', { lifespan: { min: 5000, max: 8000 }, speedX: { min: -3, max: 3 }, speedY: { min: -4, max: 1 }, scale: { min: 0.4, max: 0.7 }, alpha: fade(0.6), tint: [0x9affd8, 0xc8fff0], blendMode: 'ADD', frequency: 420 }, true],
+  ],
+  sand: [['pix', { lifespan: { min: 3000, max: 5000 }, speedX: { min: 18, max: 34 }, speedY: { min: -2, max: 5 }, scale: { min: 0.4, max: 0.8 }, alpha: fade(0.75), tint: [0xe8c98a, 0xd4b070, 0xf4dca8], frequency: 70 }, false]],
+  leaves: [
+    ['leaf', { lifespan: { min: 5000, max: 8000 }, speedX: { min: -6, max: 8 }, speedY: { min: 8, max: 16 }, rotate: { min: 0, max: 360 }, scale: { min: 0.6, max: 1 }, alpha: fade(0.9), tint: [0x8ac850, 0xc8b040, 0xd88a3a], frequency: 260 }, false],
+    ['mote', { lifespan: { min: 4000, max: 7000 }, speedX: { min: -3, max: 3 }, speedY: { min: -7, max: -2 }, scale: { min: 0.4, max: 0.8 }, alpha: fade(0.9), tint: [0xd0ff7a, 0xfff2a0], blendMode: 'ADD', frequency: 300 }, true],
+  ],
+  sparkle: [['mote', { lifespan: { min: 1600, max: 3200 }, speedX: { min: -2, max: 2 }, speedY: { min: -3, max: 2 }, scale: { min: 0.35, max: 0.9 }, alpha: flicker(1), tint: [0xffffff, 0xc8f4ff, 0xffd0f4, 0xd0c8ff], blendMode: 'ADD', frequency: 120 }, true]],
+  ash: [
+    ['pix', { lifespan: { min: 5000, max: 8000 }, speedX: { min: -5, max: 5 }, speedY: { min: 6, max: 13 }, scale: { min: 0.5, max: 1 }, alpha: fade(0.7), tint: [0x8a8a90, 0xb0aca8, 0x5e5a5a], frequency: 90 }, false],
+    ['pix', { lifespan: { min: 2000, max: 3600 }, speedX: { min: -5, max: 5 }, speedY: { min: -18, max: -8 }, scale: { min: 0.5, max: 0.9 }, alpha: flicker(1), tint: [0xff8a3a, 0xffc060], blendMode: 'ADD', frequency: 420 }, true],
+  ],
   // Loppo by day: pollen and petals on the wind; by night: fireflies
   meadow: [['pix', { lifespan: { min: 6000, max: 9000 }, speedX: { min: 3, max: 9 }, speedY: { min: -3, max: 3 }, scale: { min: 0.4, max: 0.8 }, alpha: fade(0.75), tint: [0xffffff, 0xfff4b0, 0xf8d0f0], frequency: 240 }, false]],
   night: [['mote', { lifespan: { min: 3000, max: 6000 }, speedX: { min: -5, max: 5 }, speedY: { min: -5, max: 4 }, scale: { min: 0.35, max: 0.7 }, alpha: flicker(1), tint: [0xd8ff7a, 0xfff27a, 0xa8ff9a], blendMode: 'ADD', frequency: 260 }, true]],

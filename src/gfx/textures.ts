@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { canvas, rect, px, tpl, outline, shade, hash, line, circle } from './pixel';
 import { CLASSES } from '../data/classes';
-import { biomeForFloor } from '../data/biomes';
+import { themeForFloor } from '../data/biomes';
+import { AREA_THEMES } from './areathemes';
 import { buildHeroStrip, HERO_W, HERO_H, HERO_FRAMES } from './heroes';
 import { PET_ART } from './pets';
 import { GEMS, GEM_MAX_TIER } from '../data/gems';
@@ -142,7 +143,9 @@ export const TILE = {
 
 // Dungeon biomes – each one spans 50 floors and ends with a story boss (the story ends on floor 250,
 // after that the endless depths cycle through them again).
-export type BiomeStyle = 'bricks' | 'cave' | 'ice' | 'lava' | 'abyss';
+export type BiomeStyle = 'bricks' | 'cave' | 'ice' | 'lava' | 'abyss' | 'catacomb' | 'flooded' | 'sand' | 'roots';
+/** the five decoration sets (furniture, torches, wall hangings) the painters share */
+export type DecoStyle = 'bricks' | 'cave' | 'ice' | 'lava' | 'abyss';
 export interface Theme {
   name: string; // short name (HUD)
   title: string; // full name (chapter banners)
@@ -160,6 +163,10 @@ export interface Theme {
   propTint?: number; // crates, barrels and pots take on the biome's colour
   /** small cobbles instead of big flagstones (the village square) */
   cobble?: boolean;
+  /** the furniture, torches and wall hangings (the painter's own set when missing) */
+  deco?: DecoStyle;
+  /** the drifting particles (see game/weather.ts; the painter's own when missing) */
+  weather?: string;
 }
 
 export const THEMES: Theme[] = [
@@ -261,7 +268,10 @@ export const THEMES: Theme[] = [
   },
 ];
 
-export const themeForFloor = biomeForFloor;
+// the looks of the areas of ten floors (6 …; see areathemes.ts and data/biomes.ts)
+THEMES.push(...AREA_THEMES);
+
+export { themeForFloor };
 
 // Tiles are drawn at 32x32 (double detail) and shown at half scale on the 16px world grid.
 export const TILE_RES = 32;
@@ -1010,6 +1020,277 @@ function abyssFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cra
   }
 }
 
+// ---------------------------------------------------------------------------
+// More painters for the areas of ten floors: the catacombs (bone walls), flooded ruins (water and algae),
+// the desert tomb (sand and sandstone) and the roots of the world (earth and roots)
+// ---------------------------------------------------------------------------
+
+/** a little bone lying on the floor */
+function bone(ctx: CanvasRenderingContext2D, x: number, y: number, len: number, vertical: boolean, col: string) {
+  const dark = shade(col, -0.35);
+  if (vertical) {
+    rect(ctx, x, y, 1, len, col);
+    rect(ctx, x - 1, y, 3, 1, col);
+    rect(ctx, x - 1, y + len - 1, 3, 1, col);
+    px(ctx, x + 1, y + 1, dark);
+  } else {
+    rect(ctx, x, y, len, 1, col);
+    rect(ctx, x, y - 1, 1, 3, col);
+    rect(ctx, x + len - 1, y - 1, 1, 3, col);
+    px(ctx, x + 1, y + 1, dark);
+  }
+}
+
+/** a skull seen from the front (5 px wide) */
+function skull(ctx: CanvasRenderingContext2D, x: number, y: number, col: string, hole: string) {
+  rect(ctx, x + 1, y, 3, 1, col);
+  rect(ctx, x, y + 1, 5, 3, col);
+  rect(ctx, x + 1, y + 4, 3, 1, col);
+  px(ctx, x + 1, y + 2, hole);
+  px(ctx, x + 3, y + 2, hole);
+  px(ctx, x + 2, y + 3, shade(col, -0.3));
+  px(ctx, x, y + 1, shade(col, 0.2));
+}
+
+function catacombFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const S = TILE_RES;
+  const mortar = th.mortar;
+  rect(ctx, ox, 0, S, S, mortar);
+  // worn square slabs, four to a tile, some sunk lower than others
+  for (let j = 0; j < 2; j++)
+    for (let i = 0; i < 2; i++) {
+      const c = th.floor[(v + i + j * 2) % th.floor.length];
+      stoneBlock(ctx, ox + 1 + i * 16, 1 + j * 16, 14, 14, c, v * 9 + i + j * 3, mortar, 0.07);
+      mottle(ctx, ox + 1 + i * 16, 1 + j * 16, 14, 14, c, v * 5 + i * 7 + j, 0.06);
+    }
+  const bc = th.moss[0];
+  if (v === 3) crack(ctx, ox, [[4, 3], [8, 9], [7, 14], [12, 20]], shade(mortar, -0.2));
+  if (v === 5) {
+    bone(ctx, ox + 5, 8, 7, false, bc);
+    bone(ctx, ox + 19, 18, 6, true, bc);
+    px(ctx, ox + 13, 24, bc);
+  }
+  if (v === 6) {
+    skull(ctx, ox + 13, 13, bc, mortar);
+    bone(ctx, ox + 6, 22, 5, false, shade(bc, -0.1));
+  }
+  if (v === 7) {
+    // a candle stub in a pool of old wax
+    pell(ctx, ox + 16, 20, 4, 2, shade(bc, -0.05));
+    rect(ctx, ox + 15, 14, 2, 6, bc);
+    px(ctx, ox + 15, 13, th.glow[0]);
+    px(ctx, ox + 16, 12, th.glow[1]);
+  }
+  grainImg(ctx, ox, 0, S, S, v * 3 + 41, 0.08, 0.1, 0.06);
+}
+
+function catacombTop(ctx: CanvasRenderingContext2D, ox: number, mask: number, th: Theme) {
+  drawWallTop(ctx, ox, mask, th);
+  // bone dust on the top of the wall
+  for (let k = 0; k < 4; k++) px(ctx, ox + 4 + Math.floor(hash(k, mask, 151) * 24), 4 + Math.floor(hash(mask, k, 152) * 22), th.moss[1]);
+}
+
+function catacombFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) {
+  const S = TILE_RES;
+  const st = th.stone;
+  const mortar = th.brickMortar;
+  rect(ctx, ox, 0, S, S, mortar);
+  rect(ctx, ox, 0, S, 5, st.topHi);
+  rect(ctx, ox, 0, S, 1, shade(st.topHi, 0.3));
+  rect(ctx, ox, 4, S, 1, shade(st.topHi, -0.25));
+  rect(ctx, ox, 5, S, 1, st.edge);
+  // the wall is a shelf of the dead: stone frames with skulls stacked in the niches, bones between them
+  const bc = th.moss[0];
+  for (let row = 0; row < 2; row++) {
+    const y = 7 + row * 12;
+    const stone = th.brick[(mask + row) % th.brick.length];
+    rect(ctx, ox, y - 1, S, 1, shade(stone, 0.12));
+    for (let n = 0; n < 3; n++) {
+      const x = 1 + n * 11 - (row ? 5 : 0);
+      if (x > S - 3) continue;
+      rect(ctx, ox + Math.max(0, x), y, Math.min(9, S - Math.max(0, x)), 10, shade(mortar, -0.35));
+      if (hash(n, row, mask + 153) > 0.25 && x >= 0 && x + 7 <= S) skull(ctx, ox + x + 2, y + 3, bc, mortar);
+      else if (x >= 0 && x + 8 <= S) bone(ctx, ox + x + 1, y + 6, 7, false, bc);
+    }
+    rect(ctx, ox, y + 10, S, 1, stone);
+  }
+  grainImg(ctx, ox, 6, S, S - 8, 400 + mask, 0.08);
+  rect(ctx, ox, S - 2, S, 2, shade(mortar, -0.45));
+  if (mask & 1) rect(ctx, ox + S - 2, 0, 2, S, st.edge);
+  if (mask & 2) rect(ctx, ox, 0, 2, S, st.edge);
+  if (cracked) {
+    const c = shade(mortar, -0.5);
+    crack(ctx, ox, [[10, 6], [15, 12], [14, 18], [18, 25]], c);
+    crack(ctx, ox, [[15, 12], [21, 15], [24, 13]], c);
+  }
+}
+
+function floodedFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const S = TILE_RES;
+  drawFloor(ctx, ox, v === 3 || v === 4 ? 0 : v, th);
+  const water = th.glow[2];
+  // shallow water lying in the low places
+  if (v === 3 || v === 4 || v === 0) {
+    const big = v === 4;
+    const cx = 16 + (v === 3 ? -3 : 2),
+      cy = 17 + (v === 0 ? 4 : 0);
+    pell(ctx, ox + cx, cy + 1, big ? 13 : 8, big ? 10 : 5, shade(water, -0.35));
+    pell(ctx, ox + cx, cy, big ? 12.5 : 7.5, big ? 9.5 : 4.5, water);
+    line(ctx, ox + cx - 5, cy - 2, ox + cx - 1, cy - 2, shade(water, 0.35));
+    line(ctx, ox + cx + 1, cy + 2, ox + cx + 4, cy + 2, shade(water, 0.25));
+  }
+  // green slime in the joints and lilies on the water
+  if (v === 5) moss(ctx, ox, 9, 24, 5, 81, th.moss);
+  if (v === 6) {
+    pell(ctx, ox + 16, 16, 10, 7, shade(water, -0.3));
+    pell(ctx, ox + 16, 15.5, 9.5, 6.5, water);
+    pell(ctx, ox + 12, 14, 2.5, 2, th.moss[1]);
+    pell(ctx, ox + 19, 17, 2, 1.6, th.moss[0]);
+    px(ctx, ox + 12, 13, th.glow[0]);
+  }
+  if (v === 7) {
+    // a broken column drum half sunk in the floor
+    pell(ctx, ox + 16, 17, 7, 4, shade(th.stone.top, -0.2));
+    pell(ctx, ox + 16, 15, 7, 4, th.stone.top);
+    pell(ctx, ox + 16, 15, 4, 2, shade(th.stone.top, -0.15));
+  }
+}
+
+function floodedTop(ctx: CanvasRenderingContext2D, ox: number, mask: number, th: Theme) {
+  drawWallTop(ctx, ox, mask, th);
+  // algae creeping over the rims, a few drops of water
+  for (let k = 0; k < 8; k++) px(ctx, ox + 2 + Math.floor(hash(k, mask, 161) * 28), 2 + Math.floor(hash(mask, k, 162) * 5), th.moss[k % th.moss.length]);
+  for (let k = 0; k < 3; k++) px(ctx, ox + 5 + Math.floor(hash(k, mask, 163) * 22), 10 + Math.floor(hash(mask, k, 164) * 14), shade(th.glow[2], 0.4));
+}
+
+function floodedFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) {
+  const S = TILE_RES;
+  drawWallFront(ctx, ox, mask, cracked, th);
+  // dark wet streaks running down the stones, algae hanging from the lip, a waterline at the foot
+  for (let k = 0; k < 3; k++) {
+    const x = 3 + Math.floor(hash(k, mask, 171) * 26);
+    const len = 6 + Math.floor(hash(mask, k, 172) * 14);
+    for (let i = 0; i < len; i++) px(ctx, ox + x, 7 + i, shade(th.brick[0], -0.3));
+  }
+  for (let i = 0; i < S; i++) {
+    if (hash(i, mask, 173) < 0.45) continue;
+    const len = 1 + Math.floor(hash(mask, i, 174) * 4);
+    for (let j = 0; j < len; j++) px(ctx, ox + i, 6 + j, th.moss[(i + j) % th.moss.length]);
+  }
+  rect(ctx, ox, S - 5, S, 1, shade(th.glow[2], 0.3));
+  rect(ctx, ox, S - 4, S, 2, th.glow[2]);
+}
+
+function sandFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const S = TILE_RES;
+  const base = th.floor[v % th.floor.length];
+  // old sandstone slabs half buried under drifting sand
+  if (v % 3 === 0) drawFloor(ctx, ox, v, th);
+  else rect(ctx, ox, 0, S, S, base);
+  const sand = th.moss[0];
+  for (let y = 0; y < S; y++) {
+    const cover = v % 3 === 0 ? (Math.sin(y * 0.35 + v) > 0.4 ? 1 : 0) : 1;
+    if (!cover) continue;
+    for (let x = 0; x < S; x++) if (hash(x, y, v + 181) > (v % 3 === 0 ? 0.55 : 0)) px(ctx, ox + x, y, sand);
+  }
+  // wind ripples across the sand
+  for (let k = 0; k < 4; k++) {
+    const y0 = 4 + k * 7 + Math.floor(hash(v, k, 182) * 3);
+    for (let x = 0; x < S; x++) {
+      const y = y0 + Math.round(Math.sin((x + v * 5) * 0.3) * 1.2);
+      if (y >= 0 && y < S && hash(x, k, v + 183) > 0.2) px(ctx, ox + x, y, shade(sand, -0.12));
+      if (y - 1 >= 0 && hash(k, x, v + 184) > 0.5) px(ctx, ox + x, y - 1, shade(sand, 0.1));
+    }
+  }
+  if (v === 5) for (let k = 0; k < 5; k++) pebble(ctx, ox + 4 + hash(v, k, 185) * 24, 4 + hash(k, v, 186) * 24, 1 + hash(k, k, 187), shade(sand, -0.25));
+  if (v === 7) {
+    // a half buried golden scarab
+    pell(ctx, ox + 16, 16, 3, 2.4, th.glow[0]);
+    line(ctx, ox + 16, 14, ox + 16, 18, shade(th.glow[0], -0.35));
+    px(ctx, ox + 15, 15, '#fff6c0');
+  }
+  grainImg(ctx, ox, 0, S, S, v * 7 + 188, 0.06, 0.12, 0.08);
+}
+
+function sandFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) {
+  const S = TILE_RES;
+  drawWallFront(ctx, ox, mask, cracked, th);
+  // carved signs on the stones and sand piled at the foot
+  const ink = shade(th.brick[0], -0.35);
+  for (let k = 0; k < 3; k++) {
+    if (hash(k, mask, 191) < 0.4) continue;
+    const x = 4 + k * 9,
+      y = k % 2 ? 22 : 9;
+    const g = Math.floor(hash(mask, k, 192) * 4);
+    if (g === 0) {
+      rect(ctx, ox + x, y, 1, 5, ink);
+      rect(ctx, ox + x - 1, y + 1, 3, 1, ink);
+    } else if (g === 1) {
+      rect(ctx, ox + x - 1, y, 3, 1, ink);
+      rect(ctx, ox + x - 1, y + 4, 3, 1, ink);
+      rect(ctx, ox + x, y + 1, 1, 3, ink);
+    } else if (g === 2) {
+      pell(ctx, ox + x, y + 2, 1.6, 1.6, ink);
+      px(ctx, ox + x, y + 2, th.brick[1]);
+    } else {
+      line(ctx, ox + x - 1, y + 4, ox + x + 1, y, ink);
+      line(ctx, ox + x + 1, y, ox + x + 3, y + 4, ink);
+    }
+  }
+  const sand = th.moss[0];
+  for (let x = 0; x < S; x++) {
+    const h = 2 + Math.round(1.5 + Math.sin((x + mask * 7) * 0.4) * 1.5);
+    rect(ctx, ox + x, S - h, 1, h, sand);
+    px(ctx, ox + x, S - h, shade(sand, 0.15));
+  }
+}
+
+function rootsFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const S = TILE_RES;
+  caveFloor(ctx, ox, v === 7 ? 6 : v, th);
+  // roots crossing the floor: thick twisting brown lines with a lit top edge
+  const root = th.brick[0];
+  const n = v % 2 ? 2 : 1;
+  for (let k = 0; k < n; k++) {
+    let y = 4 + hash(v, k, 201) * 24;
+    const amp = 2 + hash(k, v, 202) * 3;
+    for (let x = 0; x < S; x++) {
+      y += (hash(x, k + v, 203) - 0.5) * 0.9;
+      const yy = Math.round(y + Math.sin(x * 0.25 + k * 2) * amp * 0.3);
+      if (yy < 1 || yy > S - 3) continue;
+      rect(ctx, ox + x, yy, 1, 2, root);
+      px(ctx, ox + x, yy, shade(root, 0.25));
+      px(ctx, ox + x, yy + 2, shade(root, -0.4));
+    }
+  }
+  if (v === 7) {
+    // a glowing seed in the moss
+    moss(ctx, ox, 16, 17, 5, 91, th.moss);
+    pell(ctx, ox + 16, 16, 2, 2.5, th.glow[0]);
+    px(ctx, ox + 15, 15, th.glow[2]);
+  }
+}
+
+function rootsFront(ctx: CanvasRenderingContext2D, ox: number, mask: number, cracked: boolean, th: Theme) {
+  const S = TILE_RES;
+  caveFront(ctx, ox, mask, cracked, th);
+  // roots hanging over the rock face
+  const root = th.brick[0];
+  for (let k = 0; k < 3; k++) {
+    if (hash(k, mask, 211) < 0.3) continue;
+    let x = 3 + hash(mask, k, 212) * 26;
+    const len = 10 + Math.floor(hash(k, mask, 213) * 16);
+    for (let y = 5; y < Math.min(S - 2, 5 + len); y++) {
+      x += (hash(y, k + mask, 214) - 0.5) * 1.2;
+      const xx = Math.round(x);
+      if (xx < 0 || xx > S - 2) continue;
+      rect(ctx, ox + xx, y, 2, 1, root);
+      px(ctx, ox + xx, y, shade(root, 0.25));
+    }
+  }
+  for (let k = 0; k < 5; k++) px(ctx, ox + 2 + Math.floor(hash(k, mask, 215) * 28), 7 + Math.floor(hash(mask, k, 216) * 20), th.moss[k % th.moss.length]);
+}
+
 function biomeRock(ctx: CanvasRenderingContext2D, ox: number, th: Theme) {
   const S = TILE_RES;
   const st = th.stone;
@@ -1039,6 +1320,10 @@ const BIOME_PAINTERS: Record<BiomeStyle, { floor: FloorPainter; top: FloorPainte
   ice: { floor: iceFloor, top: iceTop, front: iceFront, rock: biomeRock },
   lava: { floor: lavaFloor, top: lavaTop, front: lavaFront, rock: biomeRock },
   abyss: { floor: abyssFloor, top: abyssTop, front: abyssFront, rock: biomeRock },
+  catacomb: { floor: catacombFloor, top: catacombTop, front: catacombFront, rock: drawRock },
+  flooded: { floor: floodedFloor, top: floodedTop, front: floodedFront, rock: drawRock },
+  sand: { floor: sandFloor, top: drawWallTop, front: sandFront, rock: drawRock },
+  roots: { floor: rootsFloor, top: caveTop, front: rootsFront, rock: biomeRock },
 };
 
 /** cobbles of the village square: rounded stones in earth, grass growing in some joints */
@@ -1077,9 +1362,13 @@ function cobbleFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: T
   }
 }
 
-function buildTileset() {
+/** the tiles of a theme; the five biomes and the village are painted at the start, an area's own tiles the
+ *  first time one of its floors is entered */
+export function ensureTileset(ti: number) {
+  const th = THEMES[ti] ?? THEMES[0];
+  if (SCENE.textures.exists('tiles_' + ti)) return;
   const S = TILE_RES;
-  THEMES.forEach((th, ti) => {
+  {
     const [c, ctx] = canvas(S * TILE.count, S);
     const P = BIOME_PAINTERS[th.style];
     const floor = th.cobble ? cobbleFloor : P.floor;
@@ -1093,7 +1382,11 @@ function buildTileset() {
     P.rock(ctx, S * TILE.rock, th);
     addCanvas('tiles_' + ti, c);
     if (ti === 0) addCanvas('tiles', c);
-  });
+  }
+}
+
+function buildTileset() {
+  for (let ti = 0; ti < 6; ti++) ensureTileset(ti);
 }
 
 // ---------------------------------------------------------------------------
@@ -3220,6 +3513,16 @@ function buildProjectiles() {
     ])
       rect(fx, x, y, 1, 1, 'rgba(255,255,255,0.6)');
     addCanvas('flake', f);
+    // a falling drop (a short streak) and a leaf (tinted by the weather)
+    const [d, dx] = canvas(1, 4);
+    rect(dx, 0, 0, 1, 1, 'rgba(255,255,255,0.35)');
+    rect(dx, 0, 1, 1, 3, '#ffffff');
+    addCanvas('drop', d);
+    const [l, lx] = canvas(5, 3);
+    rect(lx, 1, 0, 3, 1, '#ffffff');
+    rect(lx, 0, 1, 5, 1, '#ffffff');
+    rect(lx, 1, 2, 2, 1, 'rgba(255,255,255,0.7)');
+    addCanvas('leaf', l);
   }
   // smoke puff
   {

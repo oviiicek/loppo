@@ -7,7 +7,8 @@ export interface LoreEntry {
   kind: 'note' | 'wall';
   title: string;
   text: string;
-  /** only in this biome (0 dungeons, 1 caves, 2 ice, 3 forge, 4 abyss); anywhere when missing */
+  /** only in the areas of this group (data/biomes.ts Area.lore: 0 crypts and tombs, 1 caves and waters, 2 ice and
+   *  crystal, 3 fire, 4 the void); anywhere when missing */
   biome?: number;
   /** reading it points at a secret wall of the floor */
   secret?: boolean;
@@ -17,7 +18,7 @@ export const LORE: LoreEntry[] = [
   // letters and notes of the dead
   { id: 'n_quake', kind: 'note', title: 'Dopis Martě', text: 'Marto, jestli tohle čteš, nečekej mě k večeři. Když se země otřásla, propadl jsem se do kobek i s vozem. Kůň utekl. Já už neuteču. – Tvůj Jarek' },
   { id: 'n_greed', kind: 'note', title: 'Poslední zápis kupce', text: 'Zlato. Tolik zlata v jedné truhle! Ještě nikdy jsem neviděl truhlu, která by se tak zubila. A proč dýchá…' },
-  { id: 'n_map', kind: 'note', title: 'Ohořelá mapa', text: 'Na mapě je zakreslená cesta dolů a vedle ní poznámka: „Každé páté patro hlídá strážce. Nechoď tam bez lektvarů. A když zčervená země, uhni.“' },
+  { id: 'n_map', kind: 'note', title: 'Ohořelá mapa', text: 'Na mapě je zakreslená cesta dolů a vedle ní poznámka: „Každé desáté patro hlídá strážce. Nechoď tam bez lektvarů. Uprostřed každé desítky je tábor – tam si odpočiň. A když zčervená země, uhni.“' },
   { id: 'n_bet', kind: 'note', title: 'Sázka', text: 'Vsadil jsem se s Ondrou, že dojdu do dvacátého patra. Jsem v devátém a došel mi chleba. Ondro, vyhráls. Pivo ti dlužím na věčnost.' },
   { id: 'n_prayer', kind: 'note', title: 'Modlitba poutníka', text: 'Světlo nahoře, nezapomeň na nás dole. Ilda říká, že pečeť drží. Já jí věřím. Jen kdyby tak strašně nepraskala.' },
   { id: 'n_goblin', kind: 'note', title: 'Gobliní dlužní úpis', text: 'Dlužník: Bertík Hrbáček. Dluh: 3 kozy, 1 kotel, 14 zlatých. Úrok: jedna ruka. Splatné ihned. – Gobliní spořitelna, pobočka Kobky' },
@@ -25,7 +26,7 @@ export const LORE: LoreEntry[] = [
   { id: 'n_child', kind: 'note', title: 'Dětská kresba', text: 'Na pomačkaném papíře je nakreslená lucerna, usměvavé slunce a velkými písmeny: TATÍNKU, VRAŤ SE.' },
   { id: 'n_recipe', kind: 'note', title: 'Recept na lektvar', text: 'Tři kapky slizu, kořen jeskynní houby, špetka popela. NEPŘIDÁVAT netopýří křídla. (Přidal jsem je. Proto tu teď ležím.)' },
   { id: 'n_thief', kind: 'note', title: 'Lovcova chlouba', text: 'Viděl jsem zlatého skřeta! Nesl pytel větší než on sám. Až ho chytím, budu boháč. Stačí jen být rychlejší než… au.' },
-  { id: 'n_five', kind: 'note', title: 'Zápisky učence', text: 'Pětice: Bořiv kovář, Isolda Ledová, Radim Štítonoš, Vesna Světlonoška a Kael Bezejmenný. O posledním z nich nevíme vůbec nic. Ani jak vypadal. Ani jak zemřel. Proč?' },
+  { id: 'n_five', kind: 'note', title: 'Zápisky učence', text: 'Pětice: Bořiv kovář, Isolda Ledová, Květa Kořenná, Morgrim Štítonoš a Svatava Světlonoška. Nejstarší kroniky ale jmenují i šestého – Kaela Bezejmenného. O něm nevíme vůbec nic. Ani jak vypadal. Ani jak zemřel. Proč?' },
   { id: 'n_elara', kind: 'note', title: 'Vzkaz na kameni', text: 'Kdo najde tento vzkaz: jsem v pořádku a jdu dál dolů. Mamince vyřiďte, ať se nebojí. – E.', biome: 0 },
   { id: 'n_coward', kind: 'note', title: 'Útěk', text: 'Otočil jsem se a utíkal. Ostatní zůstali. Ten řev budu slyšet do konce života. Asi to nebude dlouho.' },
   { id: 'n_cook', kind: 'note', title: 'Kuchařka z hlubin', text: 'Netopýr na rožni: chutná jako kuře. Zombie: chutná jako zklamání. Sliz: nechutná vůbec, ale zasytí na tři dny.' },

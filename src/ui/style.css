@@ -4314,6 +4314,13 @@ textarea.code {
 .band .loot {
   color: #c8a8ff;
 }
+.band .bdesc {
+  font-size: 14px;
+  line-height: 1.2;
+  color: #b8ac98;
+  font-style: italic;
+  margin-bottom: 2px;
+}
 .band .bboss,
 .band .block {
   font-size: 14px;
