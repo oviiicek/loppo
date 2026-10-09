@@ -328,7 +328,7 @@ class UIManager {
         </div>
       </div>
       <div class="minimap"><canvas width="124" height="124"></canvas></div>
-      <div class="floorlbl"><div class="fl"></div><div class="flfate"></div><div class="qchip" title="Deník úkolů"><img src="${iconURL('page', 32)}"><span class="qt">Úkoly</span><span class="qn"></span></div></div>
+      <div class="floorlbl"><div class="fl"></div><div class="flfate"></div></div>
       <div class="topbtns">
         ${fsSupported() && !isStandalone() ? `<div class="rbtn fs" data-a="fs" data-fs="icon" title="Celá obrazovka (F)">${fsButtonHTML('icon')}</div>` : ''}
         <div class="rbtn spellsbtn" data-a="spells" title="Kouzla (K)"><img src="${spellbookIcon()}" alt="Kouzla"><span class="badge sp"></span></div>
@@ -391,13 +391,6 @@ class UIManager {
       sfx('ui');
       this.bigMap();
     });
-    // the quest chip under the floor's name opens the quest log
-    $('.qchip', hud).addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      if (this.panel || !this.scene || this.scene.player.dead) return;
-      sfx('ui');
-      this.quests.log();
-    });
     const act = $('.action', hud);
     act.style.pointerEvents = 'auto';
     act.addEventListener('pointerdown', (e) => {
@@ -446,6 +439,18 @@ class UIManager {
     mk('php', 'ic_hpPotion', 262, 34, 54, () => this.scene?.usePotion('hpPotion'));
     mk('pmp', 'ic_mpPotion', 204, 34, 54, () => this.scene?.usePotion('mpPotion'));
     mk('bag', 'ic_belt', 30, 30, 54, () => this.openPanel('inventory'), false);
+    // the quest log: a round button with an exclamation mark among the spells (the floor task's progress below it)
+    const q = el(`<div class="questbtn" title="Deník úkolů"><b>!</b><span class="qn"></span></div>`);
+    q.style.right = 206 - 23 + 'px';
+    q.style.bottom = 168 - 23 + 'px';
+    q.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (this.panel || !this.scene || this.scene.player.dead) return;
+      sfx('ui');
+      this.quests.log();
+    });
+    box.appendChild(q);
     const bag = $('.potion.bag img', box) as HTMLImageElement;
     bag.src = bagIcon();
     const badge = el('<span class="badge inv"></span>');
@@ -1170,11 +1175,11 @@ class UIManager {
     (st as any)._t = setTimeout(() => st.classList.remove('on', 'end'), 1800);
   }
 
-  /** the optional task of the floor, under the minimap */
-  /** the quest chip under the floor's name: the floor task's progress at a glance (the whole log on a tap) */
+  /** the quest button among the spells: the floor task's progress at a glance (the whole log on a tap) */
   bounty(b: Bounty | null) {
     if (!this.hud) return;
-    const chip = $('.floorlbl .qchip', this.hud);
+    const chip = this.hud.querySelector<HTMLElement>('.questbtn');
+    if (!chip) return;
     const s = this.scene?.save;
     const v = s?.village;
     // a finished side quest waiting for its reward, or a treasure map not dug up yet

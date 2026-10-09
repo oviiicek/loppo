@@ -1795,6 +1795,14 @@ export function creatureStrip(key: string, w: number, h: number, frames: number,
   addStrip(key, c, w, h, frames);
 }
 
+/** a one-pixel ring (the jailer's keys) */
+function ring_(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, col: string) {
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    px(ctx, Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), col);
+  }
+}
+
 export function ell(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, col: string) {
   ctx.fillStyle = col;
   ctx.beginPath();
@@ -2238,6 +2246,118 @@ function buildEnemies() {
     ell(ctx, 18 + b * 0.6, 16, 5, 5, '#c77dff');
     ell(ctx, 18 + b * 0.6, 16, 3, 3, '#8a3aff');
     rect(ctx, 18 + b, 11, 1, 10, '#05020a');
+    px(ctx, 16, 14, '#ffffff');
+  });
+
+  // the abbot of the crypt's monks, risen (floor 25): a tall hooded skeleton in a ragged habit with a crozier
+  creatureStrip('en_abbot', 24, 34, 2, (ctx, f) => {
+    const b = f === 0 ? 0 : 1;
+    const habit = '#4a3e36',
+      habitL = '#5e5046',
+      habitD = '#2e2620',
+      bone = '#e2d8c0',
+      gold = '#d8a840';
+    // the habit, ragged at the hem
+    poly(ctx, [7, 13, 17, 13, 20, 33, 4, 33], habit);
+    poly(ctx, [9, 13, 12, 13, 11, 33, 6, 33], habitL);
+    for (let x = 4; x < 20; x += 3) px(ctx, x + 1, 33 - ((x / 3) % 2), '#140f0c');
+    rect(ctx, 6, 20 + b, 12, 2, habitD);
+    px(ctx, 12, 21 + b, gold);
+    // the stole with golden crosses of the order (five rings)
+    rect(ctx, 10, 14, 4, 18, '#7a1a1a');
+    for (const y of [17, 22, 27]) {
+      px(ctx, 11, y, gold);
+      px(ctx, 12, y, gold);
+    }
+    // bony hands, one on the crozier
+    rect(ctx, 3, 18 + b, 3, 3, bone);
+    rect(ctx, 18, 16 - b, 3, 3, bone);
+    // the crozier with a lantern of green fire
+    line(ctx, 20, 3 - b, 20, 33, '#6a4a2a');
+    line(ctx, 20, 3 - b, 23, 1 - b, gold);
+    line(ctx, 23, 1 - b, 23, 4 - b, gold);
+    rect(ctx, 21, 5 - b, 3, 4, '#2a3a2a');
+    px(ctx, 22, 6 - b, '#8aff9a');
+    px(ctx, 22, 7 - b, '#d8ffd8');
+    // the tall hood and the skull inside it
+    poly(ctx, [6, 14, 8, 4, 12, 0, 16, 4, 18, 14], habitD);
+    poly(ctx, [8, 13, 9, 5, 12, 2, 15, 5, 16, 13], habit);
+    rect(ctx, 9, 3, 6, 1, gold);
+    ell(ctx, 12, 9 + b * 0.5, 3.2, 3.5, bone);
+    rect(ctx, 10, 11 + b, 5, 2, bone);
+    px(ctx, 10, 9 + b, '#5aff7a');
+    px(ctx, 13, 9 + b, '#5aff7a');
+    px(ctx, 11, 12 + b, '#140f0c');
+    px(ctx, 13, 12 + b, '#140f0c');
+  });
+  // the jailer of the ossuary (floor 125): a hulking giant of bones in an iron mask, keys and chains
+  creatureStrip('en_jailer', 32, 32, 2, (ctx, f) => {
+    const b = f === 0 ? 0 : 1;
+    const bone = '#d8ccb0',
+      boneD = '#a89c80',
+      iron = '#4a4650',
+      ironL = '#6a6672',
+      rust = '#7a4a2a';
+    // bowed legs
+    rect(ctx, 9, 22, 4, 8 - b, boneD);
+    rect(ctx, 19, 22, 4, 7 + b, boneD);
+    rect(ctx, 8, 29 - b, 6, 3, iron);
+    rect(ctx, 18, 28 + b, 6, 3, iron);
+    // the ribcage under a leather harness
+    ell(ctx, 16, 16 + b, 9, 7, bone);
+    for (let y = 12; y <= 20; y += 2) line(ctx, 9, y + b, 23, y + b, boneD);
+    rect(ctx, 15, 10 + b, 2, 12, boneD);
+    line(ctx, 8, 11 + b, 24, 21 + b, '#4a2a1a');
+    // the ring of keys at the belt
+    ring_(ctx, 22, 23 + b, 3, '#c8a040');
+    px(ctx, 24, 26 + b, '#c8a040');
+    px(ctx, 21, 27 + b, '#c8a040');
+    // huge arms, the right one dragging a chain with a hook
+    rect(ctx, 3, 12 + b, 5, 11, bone);
+    rect(ctx, 24, 12 + b, 5, 11, bone);
+    rect(ctx, 2, 22 + b, 6, 3, iron);
+    rect(ctx, 24, 22 + b, 6, 3, iron);
+    for (let i = 0; i < 5; i++) px(ctx, 28 + (i % 2), 25 + i, ironL);
+    poly(ctx, [27, 30, 31, 30, 31, 27, 29, 29], '#9aa0a8');
+    // the iron mask with a barred face and burning eyes
+    ell(ctx, 16, 6 + b, 6.5, 6, iron);
+    rect(ctx, 10, 6 + b, 13, 5, iron);
+    rect(ctx, 11, 2 + b, 10, 1, ironL);
+    for (let x = 12; x <= 20; x += 2) rect(ctx, x, 7 + b, 1, 4, '#1a1418');
+    px(ctx, 13, 6 + b, '#ff8a2a');
+    px(ctx, 19, 6 + b, '#ff8a2a');
+    rect(ctx, 9, 1 + b, 2, 3, rust);
+    rect(ctx, 21, 1 + b, 2, 3, rust);
+  });
+  // Nyx'thar after the seal cut off his arm (the fourth stage of the last fight): the tentacles of one side are
+  // stumps, the great eye is cracked and bleeds light
+  creatureStrip('en_nyxBroken', 36, 32, 2, (ctx, f) => {
+    const b = f === 0 ? 0 : 1;
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + b * 0.25;
+      // the right side was cut away: short stumps glowing where the seal struck
+      const cut = Math.cos(a) > 0.35;
+      const len = cut ? 8 : 17;
+      const x1 = 18 + Math.cos(a) * len,
+        y1 = 16 + Math.sin(a) * (cut ? 7 : 15);
+      line(ctx, 18, 16, Math.round(x1), Math.round(y1), '#3a1448');
+      line(ctx, 18, 17, Math.round(x1), Math.round(y1) + 1, '#2a0e36');
+      px(ctx, Math.round(x1), Math.round(y1), cut ? '#ff5ab0' : '#8a3aff');
+      if (cut) px(ctx, Math.round(x1), Math.round(y1) + 1 + b, '#ff9ad8');
+    }
+    ell(ctx, 18, 16, 12, 10, '#2a0a2a');
+    for (const [x, y] of [[8, 8], [9, 24]]) {
+      ell(ctx, x, y, 2, 1.6, '#e8dcf0');
+      px(ctx, x, y, '#ff3a8a');
+    }
+    ell(ctx, 18, 16, 9.5, 7.5, '#e8dcf0');
+    ell(ctx, 18 + b * 0.8, 16, 5, 5, '#ff5ab0');
+    ell(ctx, 18 + b * 0.8, 16, 3, 3, '#c0206a');
+    rect(ctx, 18 + b, 11, 1, 10, '#05020a');
+    // the crack across the eye
+    line(ctx, 11, 10, 15, 14, '#1a0610');
+    line(ctx, 15, 14, 14, 18, '#1a0610');
+    line(ctx, 14, 18, 18, 22, '#1a0610');
     px(ctx, 16, 14, '#ffffff');
   });
 

@@ -7,7 +7,7 @@
 // fiftieth floor closes a chapter with a story guardian.
 // Lines addressed to the hero avoid gendered verb forms (the hero can be anyone).
 
-export type SpeakerId = 'narrator' | 'ilda' | 'elara' | 'elaraDark' | 'morgrim' | 'spore' | 'isolda' | 'nyx' | 'diary' | 'smith';
+export type SpeakerId = 'narrator' | 'ilda' | 'elara' | 'elaraDark' | 'morgrim' | 'spore' | 'isolda' | 'nyx' | 'diary' | 'smith' | 'abbot' | 'jailer';
 export type SceneId =
   | 'village'
   | 'quake'
@@ -72,6 +72,8 @@ export const SPEAKERS: Record<SpeakerId, { name: string; color: string }> = {
   nyx: { name: "Nyx'thar", color: '#c77dff' },
   diary: { name: 'Elařin deník', color: '#e8d8b0' },
   smith: { name: 'Vyrytý nápis', color: '#ffb36a' },
+  abbot: { name: 'Opat Benedikt', color: '#9affb0' },
+  jailer: { name: 'Grot', color: '#ffb070' },
 };
 
 const N = (text: string, scene?: SceneId, fx?: Shot['fx']): Shot => ({ speaker: 'narrator', text, scene, fx });
@@ -131,6 +133,26 @@ export const CUTSCENES: Cutscene[] = [
     S('ilda', 'Tady pohřbívali ty, kdo padli v první válce s hlubinou. Prokaž jim úctu. Většina z nich za nás kdysi bojovala.', 'catacombs'),
   ]),
   page(25, 'Nápis v katakombách', S('smith', 'Nad branou kostnice je vytesáno: „Padli jsme, aby jiní žili. Neplač nad námi – jdi dál.“', 'catacombs')),
+  {
+    id: 'boss25',
+    name: 'Mrtvý opat',
+    scene: 'catacombs',
+    shots: [
+      N('Uprostřed katakomb stojí kazatelna z kostí. Za ní se zvedl vysoký stín v kápi – opat mnichů, kteří kdysi hlídali vchod do hlubin.'),
+      S('abbot', 'Hlídali jsme tu bránu tři sta let. Pak k nám dolů promluvil hlas a slíbil nám věčnost.'),
+      S('abbot', 'Dodržel slovo. Pojď blíž. I ty tu budeš sloužit navěky.'),
+    ],
+  },
+  {
+    id: 'boss25end',
+    name: 'Mrtvý opat – konec',
+    shots: [
+      S('abbot', 'Ten hlas… lhal. Věčnost je jen dlouhá zima.', 'catacombs'),
+      S('abbot', 'Před rokem tudy šla dívka s lucernou. Svítila tak jasně, že jsme ji nechali projít… Dej si pozor na Isoldu. Její led už nepoznává přátele.', 'catacombs'),
+      N('Opat se rozpadl v prach a jeho kosti konečně zůstaly ležet.', 'catacombs', 'flash'),
+      S('ilda', 'Mniši z krypty… Konečně mají klid. Pokračuj, jdeš správnou cestou.', 'catacombs'),
+    ],
+  },
   area(4, 'Zatopené ruiny', [
     N('Pod katakombami leží utopené město. Žili tu horníci, kteří pro Pětici dobývali stříbro na pečeť.', 'flooded'),
     N('Kopali tak hluboko, až prokopali dno. Pak přišla voda. Stoupá dodnes – a v ní plave něco, co nemá jméno.', 'flooded'),
@@ -185,6 +207,25 @@ export const CUTSCENES: Cutscene[] = [
     N('Kosti tu šeptají. Pořád dokola jen jedno jméno: Morgrim.', 'ossuary'),
   ]),
   page(125, 'Deník: Rytíř', S('diary', '„Morgrim mě nechtěl pustit. Spoutala jsem ho pečetí a on poklekl. Řekl: ‚Jdi, dcero Svatavy. Já tu zůstanu navždy.‘ Bylo mi ho líto.“', 'ossuary')),
+  {
+    id: 'boss125',
+    name: 'Žalářník kostnice',
+    scene: 'ossuary',
+    shots: [
+      N('Kostnicí se rozlehl rachot klíčů. Ze tmy vylezl obr z kostí v železné masce, s řetězy kolem paží.', undefined, 'shake'),
+      S('jailer', 'Grot hlídá vězně pána Morgrima. Nikdo z kostnice neodejde. Ani mrtvý. Ani živý.'),
+      S('jailer', 'Nový vězeň! Grot má pro tebe celu.'),
+    ],
+  },
+  {
+    id: 'boss125end',
+    name: 'Žalářník kostnice – konec',
+    shots: [
+      S('jailer', 'Klíče… Grot ztratil klíče…', 'ossuary'),
+      N('Kruh klíčů dopadl na zem a všechny cely v kostnici se naráz otevřely. Kosti si oddechly.', 'ossuary', 'flash'),
+      S('ilda', 'Slyšíš to? Kostnice ztichla. Zbývá už jen Morgrim – a jeho brána.', 'ossuary'),
+    ],
+  },
   area(14, 'Zatopená katedrála', [
     N('Pod hladinou podzemního jezera stojí katedrála. Postavila ji Svatava, kněžka Pětice – Ildina dávná pramáti.', 'cathedral'),
     S('ilda', 'Tady se modlila, než šla s ostatními dolů. Odtud je i tvoje lucerna. Slyšíš ty zvony pod vodou? Zvoní pro tebe.', 'cathedral'),
@@ -261,6 +302,8 @@ export const CUTSCENES: Cutscene[] = [
       S('isolda', 'Jestli chceš dál, musíš mě porazit. Prosím… poraz mě.'),
     ],
   },
+  { id: 'boss50p2', name: 'Zimní bouře', scene: 'ice', shots: [N('Isolda zvedla ruce a ledová síň se zaplnila vánicí.', undefined, 'shake'), S('isolda', 'Neubráním se… jeho mráz je silnější než já. Uteč, dokud můžeš!')] },
+  { id: 'boss50p3', name: 'Srdce z ledu', scene: 'ice', shots: [N('Led na Isoldině hrudi praskl a odhalil srdce z modrého krystalu.', undefined, 'flash'), S('isolda', 'Rozbij ho… prosím. Jen tak budu volná.')] },
   {
     id: 'boss50end',
     name: 'Ledová královna – konec',
@@ -282,6 +325,8 @@ export const CUTSCENES: Cutscene[] = [
     ],
   },
   { id: 'boss100p2', name: 'Matka spor vykvétá', scene: 'roots', shots: [N('Matka spor se roztrhla – a z jejího nitra vyrazily nové, jedovaté výhonky!', undefined, 'shake'), S('spore', 'VYKVÉTÁM!')] },
+  { id: 'boss100p3', name: 'Kořeny se probouzejí', scene: 'roots', shots: [N('Kořeny světa se zachvěly a vrhly se do boje po boku Matky spor.', undefined, 'shake'), S('spore', 'Strom… patří… NÁM!')] },
+  { id: 'boss100p4', name: 'Poslední květ', scene: 'roots', shots: [N('Z Matky spor vyrašil jediný bílý květ. Na okamžik se v něm mihla tvář ženy.', undefined, 'flash'), S('spore', 'Pomoz… mi… ne… KRMTE SE!')] },
   {
     id: 'boss100end',
     name: 'Matka spor – konec',
@@ -302,6 +347,8 @@ export const CUTSCENES: Cutscene[] = [
       S('morgrim', 'Ta dívka mě spoutala pečetí a prošla. Podruhé to nedovolím. Bojuj – nebo se vrať!'),
     ],
   },
+  { id: 'boss150p2', name: 'Rozžhavená zbroj', scene: 'hellgate', shots: [N('Morgrimova zbroj se rozžhavila doruda. Z průzorů helmy šlehá oheň podsvětí.', undefined, 'shake'), S('morgrim', 'Přísaha hoří! A já s ní!')] },
+  { id: 'boss150p3', name: 'Poslední stráž', scene: 'hellgate', shots: [S('morgrim', 'Tisíc let… nikdo neprošel… Nikdo… NEPROJDE!', undefined, 'shake')] },
   {
     id: 'boss150end',
     name: 'Strážce bran – konec',
@@ -324,6 +371,7 @@ export const CUTSCENES: Cutscene[] = [
   },
   { id: 'boss200p2', name: 'Stínové sestry', scene: 'citadel', shots: [S('elaraDark', 'Myslíš, že mě porazíš? Je nás víc!')] },
   { id: 'boss200p3', name: 'Stínová křídla', scene: 'citadel', shots: [S('elara', 'Pomoz… mi…'), S('elaraDark', 'Mlč! On mi dal moc. A ty mi ji nevezmeš!', undefined, 'shake')] },
+  { id: 'boss200p4', name: 'Hlas v Elaře', scene: 'citadel', shots: [N('Elařiny oči zčernaly. Jejími ústy promluvil někdo jiný.'), S('nyx', 'Jestli mi ji vezmeš, vezmu si tebe. Tak pojď.', undefined, 'shake')] },
   {
     id: 'boss200end',
     name: 'Elara – konec',
@@ -344,11 +392,13 @@ export const CUTSCENES: Cutscene[] = [
       N('Na dně světa se tma pohnula. Otevřelo se oko velké jako brána hradu.', undefined, 'shake'),
       S('nyx', 'Konečně. Malé světýlko na samém dně mé tmy.'),
       S('nyx', 'Pětice mě spoutala na tisíc let. Tisíc let čekám na někoho, kdo dojde až sem.'),
-      S('nyx', 'Pokloň se a dám ti svět. Postav se mi – a zhasneš.'),
+      S('nyx', 'Nebudu se ani namáhat. Ukaž mi, jak dlouho dokážeš svítit.'),
     ],
   },
-  { id: 'boss250p2', name: 'Pravá podoba', scene: 'bottom', shots: [S('nyx', 'Tohle byl jen můj stín. Teď uvidíš, co spí pod horou!', undefined, 'shake')] },
-  { id: 'boss250p3', name: 'Srdce hlubin', scene: 'bottom', shots: [S('nyx', 'Ne… střepy… ty máš všechny čtyři…'), S('nyx', 'Jestli padnu, vezmu tvé světlo s sebou!', undefined, 'shake')] },
+  { id: 'boss250p2', name: 'Probuzení', scene: 'bottom', shots: [N("Čtyři střepy pečeti se rozzářily a spálily stín, ve kterém se Nyx'thar skrýval.", undefined, 'flash'), S('nyx', 'Ta světla… pálí! Dobře. Tak tedy doopravdy.')] },
+  { id: 'boss250p3', name: 'Pravá podoba', scene: 'bottom', shots: [S('nyx', 'Tohle byl jen můj stín. Teď uvidíš, co spí pod horou!', undefined, 'shake'), N('Z tmy se rozvinula chapadla posetá tisíci očí.')] },
+  { id: 'boss250p4', name: 'Useknutá paže', scene: 'bottom', shots: [N("Pátý zámek pečeti sevřel Nyx'tharova chapadla – a s hromovým třeskem je uťal.", undefined, 'flash'), S('nyx', 'MOJE PAŽE! Ty… ty malé světlo…!', undefined, 'shake')] },
+  { id: 'boss250p5', name: 'Srdce hlubin', scene: 'bottom', shots: [S('nyx', 'Ne… střepy… ty máš všechny čtyři…'), S('nyx', 'Jestli padnu, vezmu tvé světlo s sebou!', undefined, 'shake'), N('Dno světa se otřásá. Tohle je poslední boj.')] },
   {
     id: 'ending',
     name: 'Konec příběhu',
@@ -390,12 +440,14 @@ export function storyFloor(id: string): number {
   return n ? +n[0] : 9999;
 }
 
-/** order of the chronicle: everything in story order */
-export const CHRONICLE_ORDER: string[] = CUTSCENES.map((c) => c.id);
+/** order of the chronicle: everything in story order (by floor; on one floor in the order written above) */
+export const CHRONICLE_ORDER: string[] = CUTSCENES.map((c, i) => ({ id: c.id, i, f: storyFloor(c.id) }))
+  .sort((a, b) => a.f - b.f || a.i - b.i)
+  .map((c) => c.id);
 
 export interface StoryState {
   seen: string[];
-  /** seal shards collected (story guardians defeated on floors 50, 100, 150, 200) */
+  /** seal shards collected (the guardians of the locks defeated on floors 50, 100, 150, 200) */
   shards: number;
   /** Elara's blessing (floor 200) */
   blessing: boolean;

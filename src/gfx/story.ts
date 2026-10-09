@@ -615,6 +615,44 @@ function portSmith(ctx: Ctx) {
   }
 }
 
+function portAbbot(ctx: Ctx) {
+  // the tall hood with a golden band, the skull inside lit by green fire
+  fillPoly(ctx, [[5, 40], [9, 16], [14, 6], [20, 1], [26, 6], [31, 16], [35, 40]], '#2e2620', PW);
+  fillPoly(ctx, [[9, 40], [12, 18], [16, 9], [20, 5], [24, 9], [28, 18], [31, 40]], '#4a3e36', PW);
+  rect(ctx, 15, 7, 10, 2, '#d8a840');
+  pell(ctx, 20, 22, 7.5, 8.5, '#0e0a08');
+  pell(ctx, 20, 21, 6.5, 7, '#e2d8c0');
+  rect(ctx, 16, 26, 8, 3, '#e2d8c0');
+  for (const ex of [17, 23]) {
+    pell(ctx, ex, 20, 1.8, 2, '#0e0a08');
+    px(ctx, ex, 20, '#5aff7a');
+  }
+  rect(ctx, 19, 23, 2, 2, '#3a3026');
+  for (const x of [17, 19, 21, 23]) px(ctx, x, 27, '#3a3026');
+  // the stole of the order
+  rect(ctx, 18, 32, 4, 8, '#7a1a1a');
+  px(ctx, 19, 35, '#d8a840');
+  px(ctx, 20, 35, '#d8a840');
+}
+
+function portJailer(ctx: Ctx) {
+  // shoulders of bone, the iron mask with bars and burning eyes, keys
+  pell(ctx, 20, 38, 18, 8, '#a89c80');
+  for (let x = 6; x < 36; x += 4) line(ctx, x, 32, x + 2, 40, '#8a7e64');
+  pell(ctx, 20, 18, 12, 12, '#4a4650');
+  rect(ctx, 8, 18, 24, 10, '#4a4650');
+  rect(ctx, 10, 9, 20, 2, '#6a6672');
+  for (let x = 13; x <= 27; x += 3) rect(ctx, x, 19, 1, 8, '#1a1418');
+  pell(ctx, 15, 17, 1.8, 1.4, '#ff8a2a');
+  pell(ctx, 25, 17, 1.8, 1.4, '#ff8a2a');
+  px(ctx, 15, 17, '#ffd060');
+  px(ctx, 25, 17, '#ffd060');
+  rect(ctx, 6, 8, 3, 6, '#7a4a2a');
+  rect(ctx, 31, 8, 3, 6, '#7a4a2a');
+  ring(ctx, 31, 34, 3, 3, '#c8a040', 1);
+  rect(ctx, 33, 36, 1, 3, '#c8a040');
+}
+
 const PORTRAITS: Partial<Record<SpeakerId, (ctx: Ctx) => void>> = {
   ilda: portIlda,
   elara: (c) => portElara(c, false),
@@ -625,6 +663,8 @@ const PORTRAITS: Partial<Record<SpeakerId, (ctx: Ctx) => void>> = {
   nyx: portNyx,
   diary: portDiary,
   smith: portSmith,
+  abbot: portAbbot,
+  jailer: portJailer,
 };
 
 const portraitCache = new Map<SpeakerId, string>();

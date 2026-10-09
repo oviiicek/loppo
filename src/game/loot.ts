@@ -181,6 +181,15 @@ export class Loot {
     this.dropMat('stone', 1 + Math.floor(f / 15), x, y);
   }
 
+  /** what a guardian leaves behind: its hoard (a guardian's chest worth of things, twice for a story guardian) and one
+   *  sure piece of epic gear or better, the kind the hero can use */
+  guardianHoard(x: number, y: number, story: boolean) {
+    this.chestDrops('boss', x, y);
+    if (story) this.chestDrops('boss', x, y);
+    const rarity = story ? (Math.random() < 0.3 ? 5 : 4) : Math.random() < 0.25 ? 4 : 3;
+    this.dropItem(generateItem(this.scene.floor + 2, { rarity, filter: this.bias() }), x, y);
+  }
+
   /** what a chest holds (a floor of double loot gives it all twice) */
   chestDrops(tier: string, x: number, y: number) {
     const n = this.scene.mod?.lootMult ?? 1;

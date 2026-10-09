@@ -433,7 +433,7 @@ Object.assign(dev, {
 // ---------------------------------------------------------------------------
 import { storyOf, xpForLevel as xpFor } from './systems/state';
 import { CHRONICLE_ORDER, storyFloor } from './data/story';
-import { enemyXpScale, bossForFloor } from './data/enemies';
+import { enemyXpScale, bossForFloor, storyBossBase } from './data/enemies';
 import { CLASS_BY_ID, CLASSES } from './data/classes';
 import type { Slot } from './data/types';
 
@@ -504,6 +504,10 @@ Object.assign(dev, {
     UI.startGame();
     return { level: L, hp: derive(s).maxHp };
   },
+  /** health of the reference guardian a story guardian's stages are multiples of */
+  storyBase(floor: number) {
+    return Math.round(storyBossBase(floor).hp);
+  },
   toBoss() {
     const sc = (window as any).__scene;
     const b = sc?.boss;
@@ -569,7 +573,7 @@ Object.assign(dev, {
     return out.toDataURL();
   },
   async portraitSheet(scale = 3) {
-    const ids: SpeakerId[] = ['ilda', 'elara', 'elaraDark', 'morgrim', 'spore', 'isolda', 'nyx', 'diary', 'smith'];
+    const ids: SpeakerId[] = ['ilda', 'elara', 'elaraDark', 'morgrim', 'spore', 'isolda', 'nyx', 'diary', 'smith', 'abbot', 'jailer'];
     const out = document.createElement('canvas');
     out.width = ids.length * (40 * scale + 6);
     out.height = 40 * scale;

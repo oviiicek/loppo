@@ -15,7 +15,7 @@ import { fsButtonHTML, isStandalone } from './fullscreen';
 import { CHRONICLE_ORDER, CUTSCENE_BY_ID } from '../data/story';
 import { LORE, LORE_BY_ID } from '../data/lore';
 import { BEASTS, KNOW_AT, EL_NAME, EL_CSS, masteryPct } from '../data/bestiary';
-import { ENEMY_BY_ID, ROLE_INFO } from '../data/enemies';
+import { ENEMY_BY_ID, ROLE_INFO, isBossFloor } from '../data/enemies';
 import { FAMILIES } from '../data/families';
 import { cleanName } from '../data/nemesis';
 import { codexOf, codexCount, CODEX_TOTAL, CODEX_TOTALS, ALL_STONES } from '../data/codex';
@@ -289,11 +289,12 @@ export class Menus {
         <p><b style="color:#ffd76a">Loppo a úkoly:</b> z pauzy se vrátíš domů do Loppa, zpět do kobek vede brána ve zřícenině hradu. Zachránění vesničané tam otevřou kovárnu, obchod, nástěnku úkolů, laboratoř, věž mága, cvičiště a chrám – a budovy rostou za zlato. V tvém domě je truhla, postel (odpočinek dává zkušenosti navíc) a trofeje. Úkoly z nástěnky tě pošlou na konkrétní patra; odměnu si vyzvedneš zase na nástěnce.</p>
         <p><b style="color:#ffd76a">Král Dobromil:</b> před zámkem dává královské úkoly. Za ně roste přízeň krále a s ní pocty s trvalými bonusy – až po Korunu Loppa. Ve vesnici se střídá den a noc podle hodin.</p>
         <p><b style="color:#ffd76a">Vybavení:</b> jednoruční zbraň + štít, dvě jednoruční zbraně, nebo obouruční zbraň. Dále helma, brnění, kalhoty, opasek, boty, 2 prsteny, náhrdelník a náramek.</p>
-        <p><b style="color:#ffd76a">Dungeon:</b> každé patro je náhodně generované a postupně větší. Hledej tajné místnosti (praskliny ve zdech), trezory zamčené paklíčem a obchodníky. Na konci každé desítky pater (10., 20., 30. …) hlídá strážce – po jeho porážce si vybereš jednu ze tří truhel a otevře se další desítka.</p>
+        <p><b style="color:#ffd76a">Dungeon:</b> každé patro je náhodně generované. V každé desítce jsou první patra malá a ke konci desítky rostou. Hledej tajné místnosti (praskliny ve zdech), trezory zamčené paklíčem a obchodníky. Na konci každé desítky pater (10., 20., 30. …) hlídá strážce – po jeho porážce vysype svůj poklad a otevře se další desítka. Příběhoví strážci čekají také na 25. a 125. patře.</p>
         <p><b style="color:#ffd76a">Příběh:</b> sestup až na 250. patro, na dno světa. Příběh má pět kapitol po 50 patrech a každou uzavírá příběhový strážce – Isolda, Matka spor, Morgrim, Elara a Nyx'thar (na 100., 200. a 250. patře bojují ve více fázích). Každá desítka pater začíná vlastní scénou a v táboře uprostřed ní leží stránka deníku nebo vzkaz. Přečtené scény najdeš v pauze v Kronice. Pod 250. patrem pokračuje Nekonečná hlubina.</p>
         <p><b style="color:#ffd76a">Prostředí:</b> každých 10 pater je jiná oblast – 25 oblastí od Staré krypty přes Katakomby, Zatopené ruiny, Ledový dungeon, Houbový les nebo Hrobku pouštních králů až po Dno světa. Každá má vlastní vzhled, nestvůry a počasí.</p>
         <p><b style="color:#ffd76a">Výprava a desítky pater:</b> kobky se dělí na desítky (1–10, 11–20 …). Brána v Loppu ukáže každou desítku s nejhlubším dosaženým patrem, doporučenou úrovní, bonusem ke kořisti a jejím strážcem. Nová výprava začíná prvním patrem desítky; strážce na jejím konci otevře další. Běží vždy jen jedna výprava – kdo začne jinou, tu rozběhnutou ukončí.</p>
-        <p><b style="color:#ffd76a">Checkpointy a tábor:</b> uprostřed každé desítky (5., 15., 25. …) je tábor – bezpečné patro s ohništěm (plné zdraví a mana, posila na 5 minut), obchodníkem, kovadlinou, alchymistou a truhlou úložiště. Smrt tě vrátí na poslední checkpoint: první patro desítky, nebo tábor, pokud do něj výprava už došla. Na lehké obtížnosti začneš stejné patro znovu.</p>
+        <p><b style="color:#ffd76a">Checkpointy a tábor:</b> uprostřed každé desítky (5., 15., 35. …) je tábor – bezpečné patro s ohništěm (plné zdraví a mana, posila na 5 minut), obchodníkem, kovadlinou, alchymistou a truhlou úložiště. Smrt tě vrátí na poslední checkpoint: první patro desítky, nebo tábor, pokud do něj výprava už došla. Na lehké obtížnosti začneš stejné patro znovu.</p>
+        <p><b style="color:#ffd76a">Patra strážců:</b> na patře se strážcem vede od schodů krátká chodba do přípravné místnosti (oheň k odpočinku, obchodník, kovadlina, alchymista a úložiště) a za ní je aréna. Jakmile do ní vstoupíš, zavře se za tebou bariéra, dokud strážce nepadne. Kdo v aréně zemře, začne znovu v přípravné místnosti. Poražený strážce místo truhel vysype svůj poklad – vždy v něm je epická nebo lepší věc.</p>
         <p><b style="color:#ffd76a">Dveře:</b> po patře si vybereš ze 2–3 dveří: nebezpečná cesta (silnější nestvůry, lepší kořist), běžná cesta nebo cesta k obchodníkovi, a neznámá oblast (pokladnice, síň hádanek, místo setkání nebo patro s osudem).</p>
         <p><b style="color:#ffd76a">Osudy pater:</b> asi každé třetí patro má osud, který se ukáže hned po příchodu – Temnota, Krvavý měsíc, Dvojitá kořist, Bez léčení, Invaze elit, Patro pokladů, Zlatá horečka, Prokletí nebo Hordy. Pod jménem patra je vidět, který platí.</p>
         <p><b style="color:#ffd76a">Patra bez boje:</b> křižovatka obchodníků, pokladnice, síň hádanek (přečti tabulku a šlápni na runové desky ve správném pořadí) a místo setkání s věštkyní, hráči karet a oltáři.</p>
@@ -730,7 +731,7 @@ export class Menus {
     const where =
       back === floor
         ? `Patro ${floor} začneš znovu od schodů.`
-        : `Výprava se vrací na checkpoint: <b style="color:#ffd76a">patro ${back}</b> (${isCampFloor(back) ? 'tábor' : 'začátek desítky'}).`;
+        : `Výprava se vrací na checkpoint: <b style="color:#ffd76a">patro ${back}</b> (${isBossFloor(back) ? 'příprava na strážce' : isCampFloor(back) ? 'tábor' : 'začátek desítky'}).`;
     const p = el(`<div class="panel small" style="border-color:#8a2a2a"><div class="head" style="background:linear-gradient(#3a1414,#1a0a0a)"><h2 style="color:#ff6b6b">Porážka</h2></div>
       <div style="padding:16px;text-align:center">
         <p style="font-size:20px;margin:0 0 4px">Tvoje cesta skončila v patře ${floor}.</p>

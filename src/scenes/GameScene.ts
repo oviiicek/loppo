@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { generateDungeon, Dungeon, DObject, T_FLOOR, eliteChanceFor, CalmKind } from '../systems/dungeon';
+import type { Room } from '../systems/dungeon';
 import { FloorMod, FLOOR_MODS, FLOOR_MOD_BY_ID, DANGER_MOD, mergeMods, FATE_CHANCE } from '../data/floormods';
 import { bandOf, bandStart, isCampFloor, runOf } from '../data/bands';
 import { WorldMap, TS } from '../game/map';
@@ -164,6 +165,10 @@ export class GameScene extends Phaser.Scene {
   get calm(): CalmKind | undefined {
     return this.dungeon?.calm;
   }
+  /** a guardian's floor: the stairs, the preparation room and the arena */
+  get guard(): boolean {
+    return !!this.dungeon?.guard;
+  }
   merchantStocks = new Map<Interactable, MerchantStock>();
   currentAction: Interactable | null = null;
   playTimeT = 0;
@@ -257,8 +262,10 @@ export class GameScene extends Phaser.Scene {
     // the expedition: what kind of floor the path down led to (a camp halfway down every band of ten)
     const run = !rift && !this.inVillage ? runOf(save) : null;
     if (run) {
-      if (isCampFloor(this.floor)) this.kind = 'camp';
-      else if (!isBossFloor(this.floor)) {
+      // a guardian's floor has its own layout (with the preparation room that is also the camp on 25 and 125)
+      if (isBossFloor(this.floor)) this.kind = 'normal';
+      else if (isCampFloor(this.floor)) this.kind = 'camp';
+      else {
         let k = run.kind ?? 'normal';
         // the unknown door: a treasury, a puzzle, a meeting place – or a floor with a fate for sure
         if (k === 'unknown') {
@@ -269,8 +276,8 @@ export class GameScene extends Phaser.Scene {
         }
         this.kind = k;
       }
-      // the band's first floor and its camp are the places a death sends the hero back to
-      if (this.floor === bandStart(bandOf(this.floor)) || isCampFloor(this.floor)) run.checkpoint = this.floor;
+      // the band's first floor, its camp and a guardian's preparation room are the places a death sends the hero back to
+      if (this.floor === bandStart(bandOf(this.floor)) || isCampFloor(this.floor) || isBossFloor(this.floor)) run.checkpoint = this.floor;
     }
     const calmKind: CalmKind | undefined = this.kind === 'camp' || this.kind === 'merchant' || this.kind === 'vault' || this.kind === 'puzzle' || this.kind === 'npc' ? this.kind : undefined;
     // pity: guarantee merchants regularly
@@ -329,24 +336,27 @@ export class GameScene extends Phaser.Scene {
     if (!rift && !home) this.placeStoryPage();
     // a calm floor has no monsters at all (no thief, no nemesis, no guardian)
     if (!calm) this.spawnEnemies();
-    if (!rift && !home && !calm) {
+    const guard = this.guard;
+    if (!rift && !home && !calm && !guard) {
       this.placePetCage();
       this.placeCursedChest();
       this.placeAlchemist();
       this.rollBounty();
     }
     if (calm === 'camp') this.placeAlchemist(true);
+    // the preparation room before a guardian has an alchemist too
+    if (guard) this.placeAlchemist(true, this.dungeon.rooms.find((r) => r.type === 'prep'));
     if (calm === 'puzzle') this.placePuzzle();
     // the pet and the mercenary come down the stairs right after the hero (shown in arrive)
     this.spawnPet(ux, uy + 4, false);
     this.spawnMerc(ux, uy + 4, false);
     syncCodex(this.save);
-    if (!rift && !home && !calm) this.spawnRival();
+    if (!rift && !home && !calm && !guard) this.spawnRival();
     else this.rival = null;
     // what else happens on this floor (a rift has its own rules, the village is home, a calm floor is quiet)
     if (rift) this.enc.setupRift(rift);
     else if (home) this.vil.place();
-    else if (calm) {
+    else if (calm || guard) {
       if (calm === 'npc') this.enc.placeMeeting();
       this.quests.placeFloorQuests(true);
     } else {
@@ -466,6 +476,7 @@ export class GameScene extends Phaser.Scene {
         UI.banner(`Osud patra: ${f.name}`, f.desc);
       });
     } else if (this.calm === 'camp') this.time.delayedCall(700, () => UI.banner('Tábor', 'Bezpečné místo · odpočinek u ohně, obchodník a úložiště · checkpoint'));
+    else if (this.guard && !this.bossDefeated) this.time.delayedCall(700, () => UI.banner('Příprava na strážce', 'Odpočiň si u ohně, nakup a vybav se · za tebou je checkpoint'));
     if (this.floor === 1 && save.kills === 0 && save.level === 1) this.tutorial();
   }
 
@@ -811,7 +822,7 @@ export class GameScene extends Phaser.Scene {
         const glow = this.add.image(px, py, 'glow').setTint(0xff9a3a).setAlpha(0.35).setScale(1.6).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
         this.tweens.add({ targets: glow, alpha: 0.22, yoyo: true, repeat: -1, duration: 420 });
         this.lamps.push({ x: px, y: py, r: 120, flicker: 5, glow });
-        this.fx.label(px, py - 16, 'Tábor', '#ffb347', 6).setDepth(99980);
+        this.fx.label(px, py - 16, this.guard ? 'Odpočinek' : 'Tábor', '#ffb347', 6).setDepth(99980);
         break;
       }
       case 'stashchest': {
@@ -923,7 +934,7 @@ export class GameScene extends Phaser.Scene {
       if (m?.enemyDmg) e.dmg *= m.enemyDmg;
       if (m?.enemySpeed) e.speed *= m.enemySpeed;
     }
-    if (!this.rift && !this.inVillage) {
+    if (!this.rift && !this.inVillage && !this.guard) {
       this.spawnThief();
       this.spawnNemesis();
     }
@@ -941,6 +952,8 @@ export class GameScene extends Phaser.Scene {
         e.makeBoss(def, tier, this.floor);
         this.boss = e;
       }
+      // on a guardian's floor it waits in its arena, out of reach, until the hero steps in (see sealArena)
+      if (this.guard) this.boss.invuln = true;
     }
   }
 
@@ -1247,10 +1260,10 @@ export class GameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- alchemist
   /** now and then an alchemist sets up his cauldron on a floor: five items of a rarity melt into a better one */
-  placeAlchemist(always = false) {
+  placeAlchemist(always = false, room?: Room) {
     const forced = always || (window as any).__forceAlchemist; // (a camp always has one; dev testing hook)
     if (!forced && (this.floor < 3 || isBossFloor(this.floor) || (this.floor % 7 !== 3 && Math.random() > 0.1))) return;
-    const c = this.freeSpot(forced ? 4 : 8);
+    const c = room ? this.freeSpotIn(room) : this.freeSpot(forced ? 4 : 8);
     if (!c) return;
     const px = c.x * TS + 8,
       py = c.y * TS + 8;
@@ -1792,6 +1805,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** a free floor tile near the middle of a regular room away from the start, with nothing around it */
+  /** a free floor tile in a room, with free tiles all around it (nearest to the room's middle first, but not on it) */
+  freeSpotIn(r: Room): { x: number; y: number; room: number } | null {
+    const d = this.dungeon;
+    const busy = new Set(d.objects.map((o) => o.y * d.w + o.x));
+    for (const it of this.interactables) busy.add(it.ty * d.w + it.tx);
+    const cells = r.cells
+      .map((i) => [i % d.w, Math.floor(i / d.w)] as [number, number])
+      .filter(([x, y]) => {
+        if (Math.abs(x - r.cx) + Math.abs(y - r.cy) < 3) return false;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (d.grid[(y + dy) * d.w + x + dx] !== T_FLOOR || busy.has((y + dy) * d.w + x + dx)) return false;
+        return true;
+      })
+      .sort((a, b) => Math.hypot(a[0] - r.cx, a[1] - r.cy) - Math.hypot(b[0] - r.cx, b[1] - r.cy));
+    return cells[0] ? { x: cells[0][0], y: cells[0][1], room: r.id } : null;
+  }
+
   freeSpot(minStartDist: number): { x: number; y: number; room: number } | null {
     const d = this.dungeon;
     const s0 = d.start;
@@ -2046,7 +2075,7 @@ export class GameScene extends Phaser.Scene {
       bd = 24;
     for (const it of this.interactables) {
       if (it.used) continue;
-      if (it.kind === 'chest' && !it.data.locked && !it.data.bossChoice) continue; // auto-open
+      if (it.kind === 'chest' && !it.data.locked) continue; // auto-open
       if (it.kind === 'goldpile' || it.kind === 'mimic' || it.kind === 'breakable' || it.kind === 'page' || it.kind === 'plate') continue;
       const d = Math.hypot(it.x - p.x, it.y - p.y);
       if (d < bd) {
@@ -2075,7 +2104,7 @@ export class GameScene extends Phaser.Scene {
       case 'door':
         return `Odemknout (paklíče: ${this.save.mats.lockpick})`;
       case 'chest':
-        return it.data.bossChoice ? 'Vybrat tuto truhlu' : `Odemknout (paklíče: ${this.save.mats.lockpick})`;
+        return `Odemknout (paklíče: ${this.save.mats.lockpick})`;
       case 'merchant':
         return 'Obchodovat';
       case 'anvil':
@@ -2130,10 +2159,6 @@ export class GameScene extends Phaser.Scene {
         break;
       case 'door':
       case 'chest':
-        if (it.data.bossChoice) {
-          UI.confirm('Otevřít tuto truhlu?', 'Můžeš si vybrat jen jednu ze tří. Ostatní zmizí.', () => this.openBossChest(it));
-          return;
-        }
         if (this.save.mats.lockpick <= 0) {
           UI.toast('Potřebuješ paklíč!', '#ff8080');
           return;
@@ -2296,19 +2321,6 @@ export class GameScene extends Phaser.Scene {
     else if (r < 0.33) this.loot.dropMat('lockpick', 1, it.x, it.y - 4);
   }
 
-  openBossChest(it: Interactable) {
-    this.openChest(it);
-    for (const other of this.interactables) {
-      if (other !== it && other.data?.bossChoice && !other.used) {
-        other.used = true;
-        const s = other.sprite!;
-        this.fx.burst(s.x, s.y - 8, 0xb07dff, 20, 'puff');
-        this.tweens.add({ targets: s, alpha: 0, scale: 0.2 * ACTOR_SCALE, duration: 500, onComplete: () => s.destroy() });
-      }
-    }
-    UI.toast('Ostatní truhly se rozplynuly…', '#c77dff');
-  }
-
   checkAutoInteract() {
     const p = this.player;
     for (const it of this.interactables) {
@@ -2317,7 +2329,7 @@ export class GameScene extends Phaser.Scene {
       if (it.kind === 'page' && d < 14) this.readPage(it);
       else if (it.kind === 'plate' && d < 7) this.stepPlate(it);
       else if (it.kind === 'breakable' && d < 11) this.breakObject(it);
-      else if (it.kind === 'chest' && !it.data.locked && !it.data.bossChoice && d < 13) this.openChest(it);
+      else if (it.kind === 'chest' && !it.data.locked && d < 13) this.openChest(it);
       else if (it.kind === 'goldpile' && d < 12) {
         it.used = true;
         it.sprite?.destroy();
@@ -2335,8 +2347,72 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- boss
+  /** may the guardian start the fight: on a guardian's floor only once the hero stands in the arena */
+  heroInArena(b: Enemy) {
+    const br = this.dungeon.bossRoom;
+    if (!this.guard || !br || b !== this.boss) return true;
+    const p = this.player;
+    return this.dungeon.roomId[Math.floor(p.y / TS) * this.dungeon.w + Math.floor(p.x / TS)] === br.id;
+  }
+
+  /** the gate of the arena: tiles just outside it that a barrier closes for the fight */
+  arenaGate: { cells: number[]; imgs: Phaser.GameObjects.Image[] } | null = null;
+
+  /** the fight begins: a barrier of runes closes the arena behind the hero (the pet and the mercenary come along) */
+  sealArena() {
+    const d = this.dungeon;
+    const br = d.bossRoom;
+    if (!br || this.arenaGate) return;
+    const inside = new Set(br.cells);
+    const cells: number[] = [];
+    for (const c of br.cells) {
+      const x = c % d.w,
+        y = Math.floor(c / d.w);
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        const n = (y + dy) * d.w + x + dx;
+        if (!inside.has(n) && d.grid[n] === T_FLOOR && !cells.includes(n)) cells.push(n);
+      }
+    }
+    const imgs: Phaser.GameObjects.Image[] = [];
+    for (const n of cells) {
+      this.map.solid[n] = 1;
+      const px = (n % d.w) * TS + 8,
+        py = Math.floor(n / d.w) * TS + 8;
+      const img = this.add.image(px, py, 'glow').setTint(0xb07dff).setAlpha(0).setScale(0.9, 1.3).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
+      this.tweens.add({ targets: img, alpha: 0.75, duration: 300 });
+      this.tweens.add({ targets: img, scaleY: 1.6, yoyo: true, repeat: -1, duration: 700, delay: 300 });
+      this.fx.burst(px, py, 0xb07dff, 6, 'puff');
+      imgs.push(img);
+    }
+    this.arenaGate = { cells, imgs };
+    // the companions are pulled in with the hero
+    const p = this.player;
+    for (const c of [this.pet, this.merc]) {
+      if (!c) continue;
+      c.x = p.x;
+      c.y = p.y + 4;
+    }
+    this.boss && (this.boss.invuln = false);
+    sfx('boss');
+  }
+
+  /** the guardian is beaten: the barrier falls */
+  openArena() {
+    const g = this.arenaGate;
+    if (!g) return;
+    for (const n of g.cells) this.map.solid[n] = 0;
+    for (const img of g.imgs) this.tweens.add({ targets: img, alpha: 0, duration: 600, onComplete: () => img.destroy() });
+    this.arenaGate = null;
+  }
+
   onBossAggro(b: Enemy) {
     if (b.tag === 'secret') return this.enc.secretAggro(b);
+    if (this.guard && b === this.boss) this.sealArena();
     if (!b.tag) this.quests.onBossAggro();
     if (b.tag === 'riftGuard') {
       sfx('boss');
@@ -2384,7 +2460,8 @@ export class GameScene extends Phaser.Scene {
     await new Promise<void>((r) => this.time.delayedCall(900, () => r()));
     if (e.dead || !this.sys.isActive()) return;
     const next = e.story!.phases[e.phase + 1];
-    if (next.intro) await UI.cutscene(next.intro, { overlay: true });
+    // (a second try at the guardian does not repeat its words)
+    if (next.intro && !storyOf(this.save).seen.includes(next.intro)) await UI.cutscene(next.intro, { overlay: true });
     e.applyPhase(e.phase + 1, this.floor);
     this.fx.burst(e.x, e.y - 10, 0xb07dff, 40, 'puff');
     this.fx.ring(e.x, e.y - 10, 70, 0xb07dff, 600);
@@ -2409,18 +2486,20 @@ export class GameScene extends Phaser.Scene {
     this.clearBossField();
     this.fx.shake(0.016, 900);
     for (let i = 0; i < 3; i++) this.time.delayedCall(i * 250, () => this.fx.ring(b.x, b.y - 10, 60 + i * 30, 0xfff2c0, 600));
-    if (def.floor < STORY_END) {
+    if (def.floor >= STORY_END) st.ended = true;
+    else if (def.lock) {
       st.shards = Math.max(st.shards, def.floor / 50);
       if (def.floor === 200) st.blessing = true;
       this.player.recalc();
-    } else st.ended = true;
+    }
     saveGame(this.save);
     await new Promise<void>((r) => this.time.delayedCall(1400, () => r()));
     if (!this.sys.isActive()) return;
     await UI.cutscene(def.outro);
-    this.spawnBossRewards();
+    this.spawnBossRewards(b);
     if (def.floor === STORY_END) UI.storyEnd();
-    else UI.banner('Zámek pečeti obnoven!', `Pečetní střepy: ${st.shards}/4 · +${st.shards * 4 + (st.blessing ? 10 : 0)} % zdraví a poškození`);
+    else if (def.lock) UI.banner('Zámek pečeti obnoven!', `Pečetní střepy: ${st.shards}/4 · +${st.shards * 4 + (st.blessing ? 10 : 0)} % zdraví a poškození`);
+    else UI.banner(`${def.name} poražen`, `${def.title} už nikomu nezastoupí cestu`);
     saveGame(this.save);
   }
 
@@ -2479,26 +2558,26 @@ export class GameScene extends Phaser.Scene {
     UI.hideBoss();
     UI.banner('Strážce poražen!', `${b.name} padl${b.boss?.fem ? 'a' : ''}`);
     this.fx.shake(0.012, 500);
-    this.spawnBossRewards();
+    this.spawnBossRewards(b);
   }
 
-  // the guardian's reward: three chests to choose one from, and the stairs down
-  spawnBossRewards() {
+  /** the guardian's reward: everything it guarded bursts out of it (no chests to choose from), the barrier falls
+   *  and the stairs down appear */
+  spawnBossRewards(b?: Enemy) {
     const br = this.dungeon.bossRoom!;
-    const cx = br.cx,
-      cy = br.cy + 2 <= br.y + br.h - 2 ? br.cy + 2 : br.cy;
-    for (let i = -1; i <= 1; i++) {
-      const x = cx + i * 2,
-        y = cy;
-      if (this.map.tileAt(x, y) !== T_FLOOR) continue;
-      const px = x * TS + 8,
-        py = y * TS + 8;
-      const s = this.add.image(px, y * TS + 16, 'chest_boss').setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + py).setAlpha(0);
-      this.tweens.add({ targets: s, alpha: 1, duration: 600, delay: 800 + (i + 1) * 200 });
-      this.fx.burst(px, py, 0xb07dff, 16, 'puff');
-      this.interactables.push({ kind: 'chest', x: px, y: py + 4, tx: x, ty: y, sprite: s, data: { tier: 'boss', bossChoice: true, locked: false } });
-      this.addSparkle(s);
-    }
+    const x = b ? b.x : br.cx * TS + 8,
+      y = b ? b.y : br.cy * TS + 8;
+    const story = !!b?.story;
+    this.openArena();
+    this.fx.burst(x, y - 10, 0xffd23a, 40);
+    this.fx.ring(x, y - 10, 70, 0xffd23a, 700);
+    for (let i = 0; i < 3; i++) this.time.delayedCall(250 + i * 220, () => this.fx.burst(x + (Math.random() - 0.5) * 30, y - 10 - Math.random() * 16, 0xfff2c0, 14));
+    this.time.delayedCall(450, () => {
+      if (!this.sys.isActive()) return;
+      sfx('chest');
+      this.loot.guardianHoard(x, y, story);
+      UI.toast(story ? 'Strážce odkázal svůj poklad – a mezi ním věc, která září víc než ostatní.' : 'Strážce padl a jeho poklad se rozsypal po aréně.', '#ffd23a');
+    });
     const ex = this.dungeon.exit;
     const st = this.add.image(ex.x * TS + 8, ex.y * TS + 8, 'stairs').setScale(ACTOR_SCALE).setDepth(D.floorDeco).setAlpha(0);
     this.tweens.add({ targets: st, alpha: 1, duration: 800, delay: 1200 });

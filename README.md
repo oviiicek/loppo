@@ -1,6 +1,6 @@
 # Loppo – Nekonečný dungeon
 
-Mobilní akční dungeon RPG na šířku inspirované hrou *Dungeon Madness*. Hra obsahuje příběh s cutscénami (250 pater, 5 prostředí, příběhoví bossové), náhodně generovaná patra, 10 class, 211 kouzel, loot v 6 kvalitách, vylepšování a očarování vybavení, obchodníky, paklíče, tajné místnosti, bosse, 8 mazlíčků, prokleté truhly a úkoly pater. Hraje se v prohlížeči (i v mobilu). Jde nainstalovat jako aplikace (PWA) nebo zabalit do Android/iOS aplikace přes Capacitor.
+Mobilní akční dungeon RPG na šířku inspirované hrou *Dungeon Madness*. Hra obsahuje příběh s cutscénami (250 pater, 25 oblastí, 7 příběhových strážců), náhodně generovaná patra, 10 class, 211 kouzel, loot v 6 kvalitách, vylepšování a očarování vybavení, obchodníky, paklíče, tajné místnosti, bosse, 8 mazlíčků, prokleté truhly a úkoly pater. Hraje se v prohlížeči (i v mobilu). Jde nainstalovat jako aplikace (PWA) nebo zabalit do Android/iOS aplikace přes Capacitor.
 
 Celá grafika (postavy, nepřátelé, dlaždice, předměty, efekty i ikony kouzel) se generuje procedurálně v kódu jako pixel-art. Hra nepotřebuje žádné externí obrázky ani zvuky. Zvuky a hudba se syntetizují přes WebAudio.
 
@@ -50,33 +50,35 @@ Ovladač stačí připojit (USB nebo Bluetooth) a zmáčknout tlačítko. V menu
 ## Co hra obsahuje
 
 ### Příběh
-Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky. Pečeť praská. Stará strážkyně Ilda posílá hrdinu dolů. Má obnovit zámky a najít její dceru Elaru, která sestoupila před rokem a nevrátila se.
+Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala Pětice – čarodějka Isolda, druidka Květa, rytíř Morgrim, kovář Bořiv a kněžka Svatava – pečetí s pěti zámky. Tři z nich zůstali dole jako strážci a jeho hlas z nich za tisíc let udělal nestvůry. Pečeť praská. Stará strážkyně Ilda posílá hrdinu dolů: obnovit zámky a najít její dceru Elaru, která sestoupila před rokem a nevrátila se.
 
-- **Cutscény:** ilustrované pixel-art scény s portréty postav a postupně psaným textem. Jdou přeskočit a všechny zhlédnuté se dají přehrát znovu v **Kronice** (pauza).
+- **Cutscény:** ilustrované pixel-art scény s portréty postav a postupně psaným textem. Jdou přeskočit a všechny zhlédnuté se dají přehrát znovu v **Kronice** (pauza), seřazené podle pater.
   - prolog,
-  - úvod každé kapitoly,
-  - rozhovory se strážci,
+  - úvodní scéna každé oblasti (24 scén, každá na prvním patře své desítky),
+  - stránka v táboře každé oblasti (25 stránek: Elařin deník, šepot z hlubin, Ildiny vzkazy a nápisy Pětice),
+  - rozhovory se strážci a scény mezi jejich fázemi,
   - konec příběhu.
-- **250 pater, 5 prostředí po 50 patrech**, každé s vlastními zdmi, podlahou, světly, dekoracemi a nestvůrami:
-  - Zapomenuté kobky (cihly),
-  - Hladové jeskyně (balvany, svítící houby),
-  - Ledové hlubiny (sníh, rampouchy),
-  - Ohnivá výheň (čedič, láva),
-  - Propast (obsidián, runy).
-- **Příběhoví strážci** každých 50 pater, s vlastním vzhledem a útoky:
-  - 50: Morgrim, Strážce bran (řetěz, máchnutí sekerou),
-  - 100: Matka spor, **2 fáze** (jedovaté mraky, kořeny),
-  - 150: Isolda, Ledová královna (ledové vězení, déšť střepů),
-  - 200: Elara, Hlas hlubin, **3 fáze** (stínové sestry, stínová křídla),
-  - 250: Nyx'thar, Pán hlubin, **3 fáze** (ruce tmy, paprsky, jámy prázdnoty).
+- **250 pater v 5 kapitolách** (Mrazivá pečeť, Hladové hlubiny, Brána podsvětí, Stínová citadela, Dno světa), **každých 10 pater jiná oblast** – viz Prostředí. Každá oblast má vlastní ilustraci (krypta, katakomby, zatopené ruiny, ledová síň, démonický idol, houbový les, pavoučí hnízda, hrobka pouštních králů, kořeny světa, krystaly, trpasličí síně, kostnice, zatopená katedrála, brána podsvětí, popelavé pláně, kovárny, bažiny, obsidián, stínová citadela, okraj prázdnoty, plovoucí ostrovy, zrcadlový palác, hlubina snů a dno světa).
+- **Příběhoví strážci** s vlastním vzhledem, útoky a délkou boje:
 
-  Ve stovkách a na konci se strážce po vyčerpání zdraví promění a dostane nový ukazatel zdraví.
-- **Pečetní střepy:** za každého z prvních čtyř strážců získáš střep, který dává trvale +4 % zdraví, poškození a síly kouzel. Za záchranu Elary navíc dostaneš požehnání +10 %.
-- **Stránky deníku:** na každém desátém patře leží stránka Elařina deníku nebo vzkaz (celkem 20).
-- **Nekonečná hlubina:** po skončení příběhu pokračují patra 251+ a obtížnost dál roste.
+  | Patro | Strážce | Fáze | Boj trvá zhruba |
+  |---|---|---|---|
+  | 25 | Opat Benedikt, Pán katakomb | 1 | 2–3 minuty |
+  | 50 | Isolda, Ledová královna | 3 (vánice, srdce z ledu) | 10 minut |
+  | 100 | Matka spor, Srdce kořenů | 4 (vykvétá, kořeny, poslední květ) | 15 minut |
+  | 125 | Grot, Žalářník kostnice | 1 | 2–3 minuty |
+  | 150 | Morgrim, Strážce bran | 3 (rozžhavená zbroj, poslední stráž) | 10 minut |
+  | 200 | Elara, Hlas hlubin | 4 (stínové sestry, stínová křídla, hlas v Elaře) | 15 minut |
+  | 250 | Nyx'thar, Pán hlubin | 5 | asi 20 minut |
+
+  Nyx'thar bojuje v pěti fázích: nejdřív se drží zpátky (pomalý, ale silný), pak ho střepy pečeti spálí a probudí se, potom ukáže pravou podobu, pečeť mu usekne paži (zuří a je rychlý) a poslední fáze – srdce hlubin – je opravdu těžká. Každá fáze má vlastní ukazatel zdraví a v poslední fázi strážce ještě přitvrdí na 70, 40 a 10 % zdraví.
+  Délka boje se drží u všech hrdinů: fáze nejde zkrátit pod tři čtvrtiny jejího času (velmi silný hrdina přebytek poškození neuplatní) a když se fáze táhne přes 1,3násobek času, začnou strážce spalovat střepy pečeti. Na vyšší obtížnosti strážci víc bolí, ale boj netrvá déle.
+- **Pečetní střepy:** za každého strážce zámku (50, 100, 150, 200) získáš střep, který dává trvale +4 % zdraví, poškození a síly kouzel. Za záchranu Elary navíc dostaneš požehnání +10 %.
+- **Poslední kapitola (201–250) je hodně těžká:** nestvůry mají postupně až o 60 % víc zdraví a o 35 % víc poškození, je víc šampionů (a za ně víc zkušeností).
+- **Nekonečná hlubina:** po skončení příběhu pokračují patra 251+ – oblasti se vracejí (Stará krypta II …) a obtížnost dál roste.
 
 ### Dungeon
-- Každé patro je náhodně generované a s hloubkou se zvětšuje (od cca 46×34 až po limit 130×96 polí).
+- Každé patro je náhodně generované. V každé desítce jsou první patra malá a ke konci rostou (1. patro desítky asi 50×36 polí, 9. patro až 126×90 polí; první desítky tolik nerostou).
 - Místnosti různých tvarů: obdélníky, L, kříže, kruhy, osmiúhelníky, jeskyně a sály se sloupy.
 - Chodby hledá A* s penalizací zatáček. Kromě nich vznikají smyčky (alternativní cesty), slepé odbočky a malé komůrky s pokladem.
 - Speciální místnosti s náhodným výskytem:
@@ -101,7 +103,9 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   - teleport,
   - spirály.
 
-  Pod 50 % HP se boss rozzuří. Po jeho porážce se objeví 3 truhly a hráč smí otevřít jen jednu. Bossové se v dalších prostředích vracejí v „Prastaré“ verzi s více pomocníky. Každé 50. patro patří příběhovému strážci (viz Příběh).
+  Pod 50 % HP se boss rozzuří. Bossové se v dalších prostředích vracejí v „Prastaré“ verzi s více pomocníky. Příběhoví strážci čekají na 25., 50., 100., 125., 150., 200. a 250. patře (viz Příběh).
+- **Patro strážce:** od schodů vede krátká chodba do **přípravné místnosti** – ohniště (plné zdraví a mana, posila na 5 minut), obchodník, kovadlina, alchymista a truhla úložiště – a za ní je aréna. Jakmile do ní hrdina vstoupí, zavře se za ním runová bariéra a otevře se až po porážce strážce (mazlíček a žoldák jdou s ním). Smrt v aréně vrací do přípravné místnosti stejného patra, takže jde změnit výbavu a zkusit to znovu.
+- **Poklad strážce:** poražený strážce vysype svůj poklad přímo v aréně – předměty (první aspoň epický), zlato, drahokam, materiály, často runu – a navíc jednu jistou epickou nebo lepší věc, kterou hrdina může použít. Příběhový strážce dá poklad dvakrát a jistá věc je legendární nebo mýtická.
 
 ### Obtížnost
 - Při zakládání postavy (po výběru classy) se volí jedna ze 4 obtížností boje:
@@ -211,6 +215,7 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
 
   Obouruční zbraň zabere obě ruce.
 - Grafický inventář s 30 políčky. Po klepnutí na předmět jsou v detailu nahoře tlačítka Nasadit (u jednoručních zbraní „Do pravé ruky“ a „Do levé ruky“, u prstenů Prsten 1 a 2), Prodat, Rozebrat a Zahodit, pod nimi porovnání s nasazenou výbavou a pak vlastnosti předmětu. Předměty, které se vejdou do dvou slotů, se porovnávají s oběma nasazenými a lepší volba je označená ▲.
+- Klepnutí na nasazený slot (třeba helmu) ukáže všechny předměty z batohu, které se do něj vejdou, seřazené od nejlepšího – se šipkou ▲/▼ podle toho, jestli by byly lepší, a tlačítkem Nasadit. Klepnutí na řádek ukáže detail předmětu.
 - Prodávat jde přímo z inventáře kdekoliv (vzácné a lepší předměty se nejdřív potvrdí). Předměty jde také řadit a rozebírat na materiály. Zelená šipka ▲ označuje předměty, které jsou lepší než nasazená výbava, a tlačítko „Nasadit lepší“ je nasadí jedním klepnutím.
 - Sebrané předměty a materiály se ukazují v malém seznamu vlevo pod životy, oznámení o nové úrovni nahoře uprostřed.
 - Obchodník:
@@ -225,15 +230,17 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
 - Chytrý loot: část zbraní padá podle typu útoku postavy a přednost mají prázdné sloty.
 
 ### Prostředí a průzkum
-- Každé z 5 prostředí (po 50 patrech) se dělí na pět oblastí po 10 patrech a každá má své jméno:
-  - Kobky: Vstupní síně, Strážnice, Vězení, Katakomby, Brána hlubin,
-  - Jeskyně: Kapající chodby, Houbový les, Podzemní řeka, Pavoučí doupata, Srdce jeskyní,
-  - Ledové hlubiny: Zamrzlé vodopády, Krystalové síně, Ledová pustina, Hrobka zimy, Isoldin trůn,
-  - Výheň: Popelavé pláně, Lávové řeky, Kovárny Pětice, Řetězové mosty, Srdce výhně,
-  - Propast: Okraj prázdnoty, Plovoucí ostrovy, Šepot tmy, Hlubina snů, Dno světa.
+- **25 oblastí po 10 patrech**, každá s vlastními dlaždicemi, barvami, dekoracemi, počasím a dvěma rodinami nestvůr:
+  - Kapitola I: Stará krypta, Jeskyně, Katakomby, Zatopené ruiny, Ledový dungeon,
+  - Kapitola II: Démonické podzemí, Houbový les, Pavoučí hnízda, Hrobka pouštních králů, Kořeny světa,
+  - Kapitola III: Krystalové jeskyně, Trpasličí síně, Kostnice, Zatopená katedrála, Brána podsvětí,
+  - Kapitola IV: Popelavé pláně, Kovárny Pětice, Hnijící bažiny, Obsidiánová hlubina, Stínová citadela,
+  - Kapitola V: Okraj prázdnoty, Plovoucí ostrovy, Zrcadlový palác, Hlubina snů, Dno světa.
+
+  Na prvním patře oblasti ukáže karta patra její krátký popis a v Kronice se odemkne její úvodní scéna.
 - Přechod do dalšího patra: postava dojde ke schodům a sejde po nich do tmy. Na černé obrazovce se objeví číslo patra, jméno oblasti a co na patře čeká (strážce, modifikátor, obchodník). Na novém patře postava sejde ze schodů, které vedou z patra nad ním. Klepnutím se dá karta zkrátit.
 - **Výprava a desítky pater.** Brána do kobek v Loppu otevře výběr desítek (1–10, 11–20 …). U každé je nejhlubší dosažené patro, doporučená úroveň, bonus ke kořisti (+5 % za každou desítku) a strážce na jejím konci. Výprava začíná prvním patrem desítky; poražený strážce otevře další desítku. Běží vždy jen jedna výprava – začít jinou znamená tu rozběhnutou ukončit (hra se zeptá).
-- **Tábor a checkpointy.** Páté patro každé desítky (5., 15., 25. …) je tábor: bezpečné patro bez nestvůr s ohništěm (plné zdraví a mana a na 5 minut +10 % poškození), obchodníkem, kovadlinou, alchymistou a truhlou společného úložiště. Smrt vrací výpravu na poslední checkpoint – první patro desítky, nebo tábor. Na lehké obtížnosti se patro jen opakuje.
+- **Tábor a checkpointy.** Páté patro každé desítky (5., 15., 35. …) je tábor: bezpečné patro bez nestvůr s ohništěm (plné zdraví a mana a na 5 minut +10 % poškození), obchodníkem, kovadlinou, alchymistou a truhlou společného úložiště. Na 25. a 125. patře je místo tábora příběhový strážce s přípravnou místností. Smrt vrací výpravu na poslední checkpoint – první patro desítky, tábor, nebo přípravnou místnost na patře strážce. Na lehké obtížnosti se patro jen opakuje.
 - **Dveře.** Po patře se vybírá ze 2–3 dveří: nebezpečná cesta (o 35 % odolnější a o 25 % silnější nestvůry, víc šampionů, +60 % ke kořisti, víc zlata a zkušeností), běžná cesta nebo cesta k obchodníkovi, a neznámá oblast. Před táborem a strážcem žádné dveře nejsou.
 - **Patra bez boje:** křižovatka obchodníků (obchodník, kovadlina, fontána, svatyně), pokladnice (truhly a zlato bez hlídek), síň hádanek (tabulka ukáže pořadí runových desek; špatný krok kousne bleskem, vyřešená hádanka vydá truhly) a místo setkání (věštkyně, hráči karet, oltáře, dopisy padlých).
 - **Osudy pater.** Asi třetina běžných pater (na nebezpečné cestě víc) má osud, který se ukáže hned po příchodu a je napsaný pod jménem patra:
@@ -256,9 +263,9 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin, spoutaný pečetí s pěti zámky
   - rozbij bedny a nádoby,
   - prozkoumej 75 % patra.
 
-  Postup ukazuje malé tlačítko Úkoly pod minimapou. Za splnění padne k hrdinovým nohám zlato, předmět, materiály a někdy paklíč.
+  Postup ukazuje štítek pod kulatým tlačítkem s vykřičníkem mezi kouzly. Za splnění padne k hrdinovým nohám zlato, předmět, materiály a někdy paklíč.
 - Prokletá truhla: vzácná černá truhla se zelenými runami. Po přijetí výzvy se 30 sekund kolem ní otevírají zelené portály s vlnami nestvůr. Nahoře běží čas a počet poražených. Na konci zbylé nestvůry zmizí a truhla se otevře; čím víc nestvůr padlo, tím víc předmětů v ní je (od 20 poražených i legendární nebo mýtický).
-- Atmosféra prostředí: v kobkách poletuje prach, v jeskyních svítící spory, v ledových hlubinách sněží, ve výhni stoupají jiskry a padá popel a v propasti blikají fialové jiskřičky. Úsporná grafika je vypne.
+- Atmosféra oblastí: v kryptách poletuje prach, v jeskyních svítící spory, v ledu sněží, ve výhni stoupají jiskry, v zatopených místech kape voda, nad hrobkou fouká písek, pod kořeny světa padá listí, krystaly a zrcadla se třpytí, na popelavých pláních padá popel a v propasti blikají fialové jiskřičky. Úsporná grafika je vypne.
 - Přes 70 úspěchů s odměnami (zlato, materiály, paklíče, body atributů). Na druhé záložce panelu úspěchů jsou statistiky postavy: herní čas, poražení nepřátelé a šampioni, sebrané zlato a předměty, nejlepší nález, nejsilnější zásah, splněné úkoly, prokleté truhly, mazlíčci, smrti a další.
 - Barva kovu u zbraní a zbroje odpovídá materiálu předmětu (rezavý, železný, ocelový, runový, mithrilový, dračí, démonický, hvězdný). Vidět je to v inventáři i na zbrani v ruce postavy.
 
@@ -334,7 +341,7 @@ Hardcore hrdinové, kteří padli, mají na hřbitově u kaple vlastní hrob se 
 ### Úkoly
 Na nástěnce v Loppu visí úkoly od vesničanů: najdi ztraceného dobrodruha (čeká jako zajatec na určeném patře), přines artefakt strážce, otevři prokletou hrobku, poraz strážce bez lektvarů, najdi tajné místnosti, poraz šampiony nebo nestvůry, osvoboď zajatce, přečti zápisky, zavři trhlinu a pomsti se nemesis. Najednou jich jde vzít 5, 7 nebo 10 (podle úrovně nástěnky). Splněný úkol se vyzvedne na nástěnce (zlato, předmět, drahokam, runa nebo materiál).
 
-Deník úkolů se otevře tlačítkem Úkoly pod minimapou (nebo z pauzy): nahoře hlavní úkol příběhu (další příběhový strážce a kapitola), pod ním úkol patra, vedlejší úkoly a mapy pokladů. Mapa pokladu občas leží v truhle (častěji ve zlaté), nosí ji šampion a skoro vždy zloděj. Přidá vedlejší úkol na jedno z dalších pater; tam na mapě i minimapě svítí zlatý křížek, kde se kope – vykopaná truhla dá předměty, zlato, drahokam a někdy runu. Najednou jdou nést 3 mapy.
+Deník úkolů se otevře kulatým tlačítkem s vykřičníkem vedle kouzel (nebo z pauzy); když čeká odměna nebo mapa pokladu, tlačítko zeleně pulzuje: nahoře hlavní úkol příběhu (další příběhový strážce a kapitola), pod ním úkol patra, vedlejší úkoly a mapy pokladů. Mapa pokladu občas leží v truhle (častěji ve zlaté), nosí ji šampion a skoro vždy zloděj. Přidá vedlejší úkol na jedno z dalších pater; tam na mapě i minimapě svítí zlatý křížek, kde se kope – vykopaná truhla dá předměty, zlato, drahokam a někdy runu. Najednou jdou nést 3 mapy.
 
 ### Ostatní
 - Dynamické osvětlení s blikajícími pochodněmi, minimapa s mlhou války, čísla poškození, částicové efekty a otřesy obrazovky.
@@ -342,7 +349,7 @@ Deník úkolů se otevře tlačítkem Úkoly pod minimapou (nebo z pauzy): naho�
 - Přenos postavy mezi zařízeními nebo prohlížeči: v menu Postavy tlačítko Přenést vytvoří textový kód a Vložit kód ho na jiném zařízení načte do volného slotu.
 - Sklad (u obchodníků i v tvém domě v Loppu, 42–126 míst) pro předměty, které nechceš nosit ani prodat.
 - Po smrti ukáže obrazovka, kdo zasadil poslední ránu a jak silnou, s tipem, jak se tomu příště vyhnout.
-- Smrt znamená ztrátu části zlata a zkušeností (podle obtížnosti 5–25 % zlata) a návrat na checkpoint výpravy (začátek desítky nebo tábor). V režimu Hardcore postava po smrti navždy zmizí.
+- Smrt znamená ztrátu části zlata a zkušeností (podle obtížnosti 5–25 % zlata) a návrat na checkpoint výpravy (začátek desítky, tábor, nebo přípravná místnost na patře strážce). V režimu Hardcore postava po smrti navždy zmizí.
 - Lektvary mají krátké přebíjení (zdraví 4 s, mana 3 s), na tlačítku je vidět jako u kouzel.
 - Tajemné zboží u obchodníka stojí zhruba trojnásobek toho, co v průměru dá, každý další kus u stejného obchodníka je o 40 % dražší a obchodník jich má jen čtyři.
 - Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání, automatické rozebírání slabých předmětů a úspornou grafiku (bez dynamického osvětlení, pro slabší telefony).

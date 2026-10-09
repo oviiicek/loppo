@@ -1,8 +1,8 @@
 import { $, el, esc } from './ui';
 import type { UI as UIType } from './ui';
 import { iconURL, THEMES, themeForFloor } from '../gfx/textures';
-import { BAND, bandOf, bandStart, bandEnd, bandOpen, bandDone, bandBest, bandLootBonus, recommendedLevel, bandName, runOf, startRun, isCampFloor } from '../data/bands';
-import { bossForFloor, storyBossForFloor, STORY_END } from '../data/enemies';
+import { BAND, bandOf, bandStart, bandEnd, bandOpen, bandDone, bandBest, bandLootBonus, recommendedLevel, bandName, runOf, startRun, isCampFloor, bandCamp } from '../data/bands';
+import { bossForFloor, storyBossForFloor, isBossFloor, STORY_END } from '../data/enemies';
 import { saveGame } from '../systems/state';
 import { areaOf } from '../data/biomes';
 import type { FloorKind } from '../systems/state';
@@ -29,12 +29,13 @@ export class ExpeditionPanels {
     return this.ui.scene!;
   }
 
-  /** the guardian at the end of a band */
+  /** the guardians of a band: a story guardian halfway down (floors 25 and 125) and the one at its end */
   private guardianOf(b: number) {
     const f = bandEnd(b);
+    const mid = storyBossForFloor(bandCamp(b));
     const story = storyBossForFloor(f);
-    if (story) return `${story.name} – ${story.title}`;
-    return bossForFloor(f).def.name;
+    const end = story ? `${story.name} – ${story.title}` : bossForFloor(f).def.name;
+    return mid ? `${mid.name} (${mid.floor}.) · ${end} (${f}.)` : end;
   }
 
   /** the bands: the current expedition to continue, every band with its best floor, the level it asks for,
@@ -62,7 +63,7 @@ export class ExpeditionPanels {
         ${
           open
             ? `<div class="bstats"><span>Nejlépe: <b>${best || '—'}</b></span><span class="lv ${lvCls}">Doporučeno: úr. ${rec}+</span><span class="loot">Kořist +${bandLootBonus(bandStart(b))} %</span></div>
-               <div class="bboss">Strážce: ${esc(this.guardianOf(b))}</div>`
+               <div class="bboss">${storyBossForFloor(bandCamp(b)) ? 'Strážci' : 'Strážce'}: ${esc(this.guardianOf(b))}</div>`
             : `<div class="block">🔒 Poraz strážce ${bandEnd(b - 1)}. patra</div>`
         }
       </div>`);
@@ -72,7 +73,7 @@ export class ExpeditionPanels {
       <div class="body scroll" style="display:block">
         <div class="runcard">
           <div><div class="rt">⚑ Aktuální výprava: <b>patro ${cur}</b> · ${esc(bandName(bandOf(cur)))}</div>
-          <div class="hint">Checkpoint: patro ${back} (${isCampFloor(back) ? 'tábor' : 'začátek desítky'}) – sem tě vrátí smrt. Nejhlouběji: patro ${s.maxFloor}.</div></div>
+          <div class="hint">Checkpoint: patro ${back} (${isBossFloor(back) ? 'příprava na strážce' : isCampFloor(back) ? 'tábor' : 'začátek desítky'}) – sem tě vrátí smrt. Nejhlouběji: patro ${s.maxFloor}.</div></div>
           <button class="btn gold" data-a="cont">Pokračovat ▶</button>
         </div>
         <b class="qsect">Desítky pater</b>

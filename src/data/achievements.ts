@@ -44,6 +44,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'rich', name: 'Boháč', desc: 'Měj u sebe 10 000 zlata', reward: { dust: 3 }, check: (s) => s.gold >= 10000 },
   { id: 'classchange', name: 'Nová cesta', desc: 'Změň classu u obchodníka', reward: { gold: 500 }, check: (s) => s.classChanges >= 1 },
   // the story
+  { id: 'abbot', name: 'Klid pro mnichy', desc: 'Poraz opata Benedikta v katakombách', reward: { gold: 6000, dust: 3, attr: 2 }, check: (s) => !!s.story?.seen.includes('boss25end') },
+  { id: 'jailer', name: 'Otevřené cely', desc: 'Poraz žalářníka Grota v kostnici', reward: { gold: 100000, dust: 8, attr: 4 }, check: (s) => !!s.story?.seen.includes('boss125end') },
   { id: 'story1', name: 'Teplo pro královnu', desc: 'Vysvoboď Isoldu, Ledovou královnu', reward: { gold: 15000, dust: 5, attr: 3 }, check: (s) => (s.story?.shards ?? 0) >= 1 },
   { id: 'story2', name: 'Ticho v kořenech', desc: 'Poraz Matku spor', reward: { gold: 60000, dust: 8, attr: 4 }, check: (s) => (s.story?.shards ?? 0) >= 2 },
   { id: 'story3', name: 'Brána otevřena', desc: 'Poraz Morgrima, Strážce bran', reward: { gold: 150000, dust: 10, attr: 5 }, check: (s) => (s.story?.shards ?? 0) >= 3 },

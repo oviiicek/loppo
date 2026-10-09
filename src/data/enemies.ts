@@ -222,14 +222,14 @@ export const BOSSES: BossDef[] = [
   { id: 'dragon', name: 'Starý drak Vermithrax', sprite: 'en_dragon', scale: 2.6, hp: 2600, dmg: 28, speed: 44, patterns: ['breath', 'meteors', 'charge', 'radial', 'summon'], proj: 'fire', el: 'fire', summon: 'imp' },
 ];
 
-/** the guardian waits on the last floor of every band of ten */
+/** the guardian waits on the last floor of every band of ten (and the story adds two more: on 25 and 125) */
 export function isBossFloor(floor: number) {
-  return floor % 10 === 0;
+  return floor % 10 === 0 || isStoryBossFloor(floor);
 }
 
-/** every 50th floor (up to the end of the story) belongs to a story boss */
+/** the floors of the story guardians (25, 50, 100, 125, 150, 200, 250) */
 export function isStoryBossFloor(floor: number) {
-  return floor % 50 === 0 && floor <= STORY_END;
+  return floor <= STORY_END && STORY_BOSSES.some((b) => b.floor === floor);
 }
 
 /** the monster families each guardian rules */
@@ -279,21 +279,28 @@ function baseDmgScale(floor: number) {
   return 1.6 * (1 + 0.26 * f + 0.012 * f * f) * Math.pow(1.02, f);
 }
 
+/** the last chapter of the story (floors 201–250) is meant to be very hard: its monsters grow up to `max` times
+ *  stronger than the curve alone would make them (and stay so in the endless depths below) */
+function deepMult(floor: number, max: number) {
+  if (floor <= 200) return 1;
+  return 1 + (max - 1) * Math.min(1, (floor - 200) / 50);
+}
+
 export function enemyHpScale(floor: number) {
   const f = floor - 1;
   const base = 1.15 * (1 + 0.35 * f + 0.02 * f * f) * Math.pow(1.03, f);
   if (floor <= 100) return base;
   const g = Math.min(floor, STORY_END) - 100;
-  return base / (1 + 0.005 * g + 0.00011 * g * g);
+  return (base / (1 + 0.005 * g + 0.00011 * g * g)) * deepMult(floor, 1.6);
 }
 export function enemyDmgScale(floor: number) {
   if (floor <= 40) return baseDmgScale(floor);
   const g = Math.min(floor, STORY_END) - 40;
-  const v = baseDmgScale(40) * (1 + 0.0242 * g) * (1 + 0.0018 * g);
+  const v = baseDmgScale(40) * (1 + 0.0242 * g) * (1 + 0.0018 * g) * deepMult(floor, 1.35);
   return floor > STORY_END ? v * Math.pow(1.02, floor - STORY_END) : v;
 }
 export function enemyXpScale(floor: number) {
-  return 1 + 0.25 * (floor - 1) + 0.004 * (floor - 1) * (floor - 1);
+  return (1 + 0.25 * (floor - 1) + 0.004 * (floor - 1) * (floor - 1)) * deepMult(floor, 1.3);
 }
 /** monster armour stops growing at some depth (otherwise it would shrug off nearly all physical damage) */
 export function enemyArmor(base: number, floor: number) {
@@ -314,7 +321,8 @@ export interface StoryPhase {
   sprite: string;
   scale: number;
   tint?: number;
-  hp: number;
+  /** how long the stage lasts for a hero of the expected strength (seconds; sets its health and the damage cap) */
+  time: number;
   dmg: number;
   speed: number;
   patterns: BossPattern[];
@@ -334,10 +342,27 @@ export interface StoryBossDef {
   title: string;
   intro: string;
   outro: string;
+  /** a guardian of one of the five locks (a seal shard when beaten) */
+  lock: boolean;
   phases: StoryPhase[];
 }
 
+const P = (sprite: string, scale: number, time: number, dmg: number, speed: number, patterns: BossPattern[], proj: string, el: Element, summon: string, cadence: number, intro?: string, tint?: number): StoryPhase => ({ sprite, scale, time, dmg, speed, patterns, proj, el, summon, cadence, intro, tint });
+
+// The fights get longer the deeper they are: the abbot (25) and the jailer (125) take two or three minutes,
+// Isolda (50) and Morgrim (150) about ten, the Mother of Spores (100) and Elara (200) about fifteen, and
+// Nyx'thar fights in five stages, holding back at first and terribly hard at the end.
 export const STORY_BOSSES: StoryBossDef[] = [
+  {
+    floor: 25,
+    id: 'abbot',
+    name: 'Opat Benedikt',
+    title: 'Pán katakomb',
+    intro: 'boss25',
+    outro: 'boss25end',
+    lock: false,
+    phases: [P('en_abbot', 1.5, 150, 0.9, 34, ['summon', 'volley', 'radial', 'teleport', 'summon', 'spiral'], 'bone', 'shadow', 'skeleton', 3.1)],
+  },
   {
     floor: 50,
     id: 'isolda',
@@ -345,19 +370,37 @@ export const STORY_BOSSES: StoryBossDef[] = [
     title: 'Ledová královna',
     intro: 'boss50',
     outro: 'boss50end',
-    phases: [{ sprite: 'en_isolda', scale: 1.45, hp: 2.0, dmg: 1.0, speed: 40, patterns: ['shardRain', 'icePrison', 'spiral', 'teleport', 'volley', 'summon', 'icePrison'], proj: 'ice', el: 'ice', summon: 'frostWolf', cadence: 3.0 }],
+    lock: true,
+    phases: [
+      P('en_isolda', 1.45, 190, 0.95, 40, ['shardRain', 'volley', 'icePrison', 'summon', 'radial'], 'ice', 'ice', 'frostWolf', 3.1),
+      P('en_isolda', 1.5, 190, 1.0, 44, ['spiral', 'teleport', 'icePrison', 'shardRain', 'radial', 'summon'], 'ice', 'ice', 'wraith', 2.8, 'boss50p2', 0xc8ecff),
+      P('en_isolda', 1.6, 220, 1.08, 48, ['shardRain', 'icePrison', 'spiral', 'teleport', 'volley', 'summon', 'nova'], 'ice', 'ice', 'frostWolf', 2.5, 'boss50p3', 0x8fdcff),
+    ],
   },
   {
     floor: 100,
     id: 'sporeMother',
     name: 'Matka spor',
-    title: 'Srdce jeskyní',
+    title: 'Srdce kořenů',
     intro: 'boss100',
     outro: 'boss100end',
+    lock: true,
     phases: [
-      { sprite: 'en_sporeMother', scale: 1.45, hp: 2.6, dmg: 1.0, speed: 24, patterns: ['spores', 'summon', 'volley', 'slam', 'spores', 'radial'], proj: 'poison', el: 'poison', summon: 'mushroom', cadence: 3.2 },
-      { sprite: 'en_sporeMother', scale: 1.65, tint: 0xb8ffe8, hp: 2.6, dmg: 1.1, speed: 32, patterns: ['roots', 'spores', 'spiral', 'summon', 'roots', 'radial'], proj: 'poison', el: 'poison', summon: 'mushroom', cadence: 2.7, intro: 'boss100p2' },
+      P('en_sporeMother', 1.45, 210, 0.95, 24, ['spores', 'summon', 'volley', 'slam', 'spores', 'radial'], 'poison', 'poison', 'mushroom', 3.2),
+      P('en_sporeMother', 1.6, 210, 1.0, 30, ['roots', 'spores', 'spiral', 'summon', 'roots', 'radial'], 'poison', 'poison', 'mushroom', 2.9, 'boss100p2', 0xb8ffe8),
+      P('en_sporeMother', 1.7, 220, 1.06, 34, ['roots', 'web', 'drain', 'spores', 'charge', 'summon'], 'poison', 'poison', 'troll', 2.7, 'boss100p3', 0xd8ffb0),
+      P('en_sporeMother', 1.8, 240, 1.14, 36, ['roots', 'spores', 'spiral', 'summon', 'drain', 'nova', 'radial'], 'poison', 'poison', 'mushroom', 2.4, 'boss100p4', 0xffffff),
     ],
+  },
+  {
+    floor: 125,
+    id: 'jailer',
+    name: 'Grot',
+    title: 'Žalářník kostnice',
+    intro: 'boss125',
+    outro: 'boss125end',
+    lock: false,
+    phases: [P('en_jailer', 1.55, 150, 0.95, 40, ['chains', 'slam', 'sweep', 'summon', 'charge', 'chains'], 'axe', 'phys', 'skelKnight', 3.0)],
   },
   {
     floor: 150,
@@ -366,7 +409,12 @@ export const STORY_BOSSES: StoryBossDef[] = [
     title: 'Strážce bran',
     intro: 'boss150',
     outro: 'boss150end',
-    phases: [{ sprite: 'en_morgrim', scale: 1.5, hp: 3.2, dmg: 1.05, speed: 38, patterns: ['sweep', 'chains', 'summon', 'slam', 'sweep', 'charge', 'radial'], proj: 'axe', el: 'phys', summon: 'skelKnight', cadence: 2.9 }],
+    lock: true,
+    phases: [
+      P('en_morgrim', 1.5, 190, 0.95, 38, ['sweep', 'chains', 'summon', 'slam', 'sweep', 'charge', 'radial'], 'axe', 'phys', 'skelKnight', 3.0),
+      P('en_morgrim', 1.55, 190, 1.02, 42, ['meteors', 'sweep', 'chains', 'slam', 'charge', 'radial'], 'fire', 'fire', 'hellhound', 2.8, 'boss150p2', 0xffb080),
+      P('en_morgrim', 1.65, 220, 1.1, 46, ['sweep', 'chains', 'meteors', 'slam', 'charge', 'summon', 'nova'], 'axe', 'phys', 'skelKnight', 2.5, 'boss150p3', 0xff7a5a),
+    ],
   },
   {
     floor: 200,
@@ -375,10 +423,12 @@ export const STORY_BOSSES: StoryBossDef[] = [
     title: 'Hlas hlubin',
     intro: 'boss200',
     outro: 'boss200end',
+    lock: true,
     phases: [
-      { sprite: 'en_elaraDark', scale: 1.4, hp: 1.9, dmg: 1.0, speed: 46, patterns: ['volley', 'teleport', 'meteors', 'spiral'], proj: 'shadow', el: 'shadow', summon: 'shade', cadence: 2.9 },
-      { sprite: 'en_elaraDark', scale: 1.4, tint: 0xe0b0ff, hp: 1.9, dmg: 1.05, speed: 50, patterns: ['clones', 'teleport', 'radial', 'volley', 'meteors'], proj: 'shadow', el: 'shadow', summon: 'shade', cadence: 2.7, intro: 'boss200p2' },
-      { sprite: 'en_elaraWings', scale: 1.55, hp: 2.2, dmg: 1.15, speed: 56, patterns: ['darkNova', 'meteors', 'spiral', 'charge', 'teleport', 'clones'], proj: 'shadow', el: 'shadow', summon: 'shade', cadence: 2.4, intro: 'boss200p3' },
+      P('en_elaraDark', 1.4, 210, 0.95, 46, ['volley', 'teleport', 'meteors', 'spiral'], 'shadow', 'shadow', 'shade', 3.0),
+      P('en_elaraDark', 1.4, 210, 1.0, 50, ['clones', 'teleport', 'radial', 'volley', 'meteors'], 'shadow', 'shadow', 'shade', 2.8, 'boss200p2', 0xe0b0ff),
+      P('en_elaraWings', 1.55, 220, 1.08, 56, ['darkNova', 'meteors', 'spiral', 'charge', 'teleport', 'clones'], 'shadow', 'shadow', 'shade', 2.5, 'boss200p3'),
+      P('en_elaraWings', 1.65, 240, 1.16, 60, ['darkNova', 'lasers', 'clones', 'spiral', 'voidZones', 'teleport'], 'shadow', 'shadow', 'voidEye', 2.3, 'boss200p4', 0xb070ff),
     ],
   },
   {
@@ -388,10 +438,18 @@ export const STORY_BOSSES: StoryBossDef[] = [
     title: 'Pán hlubin',
     intro: 'boss250',
     outro: 'ending',
+    lock: true,
     phases: [
-      { sprite: 'en_nyxShadow', scale: 1.6, hp: 1.8, dmg: 1.05, speed: 44, patterns: ['hands', 'spiral', 'teleport', 'summon', 'volley', 'hands'], proj: 'shadow', el: 'shadow', summon: 'shade', cadence: 2.8 },
-      { sprite: 'en_nyxTrue', scale: 1.7, hp: 2.0, dmg: 1.1, speed: 16, patterns: ['lasers', 'voidZones', 'radial', 'summon', 'lasers', 'meteors'], proj: 'shadow', el: 'shadow', summon: 'voidEye', cadence: 2.7, intro: 'boss250p2' },
-      { sprite: 'en_nyxTrue', scale: 1.9, tint: 0xff9ad8, hp: 2.3, dmg: 1.2, speed: 22, patterns: ['lasers', 'hands', 'darkNova', 'voidZones', 'spiral', 'lasers'], proj: 'shadow', el: 'shadow', summon: 'voidEye', cadence: 2.3, intro: 'boss250p3' },
+      // holding back: slow and almost lazy, but every blow is heavy
+      P('en_nyxShadow', 1.6, 200, 0.95, 30, ['volley', 'hands', 'summon', 'volley'], 'shadow', 'shadow', 'shade', 4.0),
+      // the shards burn his shadow away: the true form
+      P('en_nyxTrue', 1.7, 220, 1.05, 18, ['lasers', 'voidZones', 'radial', 'summon', 'lasers', 'meteors'], 'shadow', 'shadow', 'voidEye', 3.0, 'boss250p2'),
+      // the eyes open: everything at once
+      P('en_nyxTrue', 1.9, 220, 1.12, 22, ['lasers', 'hands', 'darkNova', 'voidZones', 'spiral', 'meteors'], 'shadow', 'shadow', 'voidEye', 2.6, 'boss250p3', 0xff9ad8),
+      // the seal cut off his arm: wild and fast
+      P('en_nyxBroken', 1.9, 220, 1.2, 34, ['charge', 'teleport', 'spiral', 'lasers', 'hands', 'charge', 'voidZones'], 'shadow', 'shadow', 'shade', 2.3, 'boss250p4'),
+      // the heart of the depths: the last and hardest stage
+      P('en_nyxBroken', 2.0, 260, 1.4, 40, ['lasers', 'hands', 'darkNova', 'voidZones', 'spiral', 'meteors', 'charge', 'nova'], 'shadow', 'shadow', 'voidEye', 1.9, 'boss250p5', 0xff5a8a),
     ],
   },
 ];
@@ -403,4 +461,39 @@ export function storyBossForFloor(floor: number): StoryBossDef | null {
 /** health and damage of the reference guardian a story guardian's stages are measured against */
 export function storyBossBase(floor: number) {
   return { hp: 1400 * 0.5 * enemyHpScale(floor), dmg: 15 * enemyDmgScale(floor) };
+}
+
+/** damage per second of a hero of the expected strength fighting a guardian on a floor, in units of the floor's
+ *  monster health (measured with bots of four classes in average gear and taken at the weaker end: stronger
+ *  heroes are held to the stage's time by the damage cap, see Combat.damageEnemy) */
+const HERO_DPS: [number, number][] = [
+  [25, 40],
+  [50, 55],
+  [100, 60],
+  [125, 56],
+  [150, 52],
+  [200, 85],
+  [250, 32],
+];
+export function heroDps(floor: number) {
+  let k = HERO_DPS[0][1];
+  for (let i = 0; i < HERO_DPS.length; i++) {
+    const [f, v] = HERO_DPS[i];
+    if (floor <= f) {
+      if (i === 0) k = v;
+      else {
+        const [f0, v0] = HERO_DPS[i - 1];
+        k = v0 + ((v - v0) * (floor - f0)) / (f - f0);
+      }
+      break;
+    }
+    k = v;
+  }
+  return k * enemyHpScale(floor);
+}
+
+/** the health of a story guardian's stage that lasts `time` seconds for a hero of the expected strength (who does
+ *  not hit all the time: dodging, drinking, walking) */
+export function storyStageHp(floor: number, time: number) {
+  return heroDps(floor) * time * 0.8;
 }

@@ -634,6 +634,23 @@ export class Panels {
     return [cat as Slot];
   }
 
+  /** the bag's items that fit an equipment slot, best first (tapping the helmet lists every helmet in the bag) */
+  fitsHtml(slot: Slot): string {
+    const s = this.save;
+    const list = s.inventory
+      .map((it, i) => ({ it, i }))
+      .filter((x): x is { it: Item; i: number } => !!x.it && this.targetSlots(x.it).includes(slot))
+      .map((x) => ({ ...x, d: this.slotDelta(x.it, slot) }))
+      .sort((a, b) => b.d.score - a.d.score);
+    if (!list.length) return `<div class="fits"><div class="orn"><span>Do tohoto místa</span></div><p class="hint">V batohu nemáš nic, co by se sem dalo nasadit (${esc(SLOT_NAMES[slot])}).</p></div>`;
+    return `<div class="fits"><div class="orn"><span>Do tohoto místa · ${list.length}</span></div>${list
+      .map(({ it, i, d }) => {
+        const mark = d.err ? '' : d.score > 0.001 ? '<b class="up">▲</b>' : d.score < -0.001 ? '<b class="down">▼</b>' : '<b class="same">=</b>';
+        return `<div class="fit" data-inv="${i}"><img src="${iconURL(itemIcon(it), 32)}"><span class="nm" style="color:${itemColor(it)}">${it.upgrade ? '+' + it.upgrade + ' ' : ''}${esc(it.name)}</span>${mark}<button class="btn green small" data-a="fit" data-i="${i}">Nasadit</button></div>`;
+      })
+      .join('')}</div>`;
+  }
+
   /** how the hero's main numbers change when the item is worn in a slot (and a rough overall score) */
   slotDelta(it: Item, slot: Slot): { rows: [string, number, string][]; score: number; err?: string } {
     const s = this.save;
@@ -779,6 +796,14 @@ export class Panels {
       let it: Item | null | undefined = null;
       if (sel?.from === 'inv') it = s.inventory[sel.idx];
       else if (sel?.from === 'eq') it = s.equip[sel.slot];
+      // a tapped equipment slot: everything in the bag that fits it, best first, and below it what is worn there
+      if (sel?.from === 'eq') {
+        const worn = it
+          ? this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn" data-a="unequip">Sundat do inventáře</button></div>`, false, true)
+          : `<div class="orn"><span>${SLOT_NAMES[sel.slot]}</span></div><p class="hint">Na tomto místě nemáš nic.</p>`;
+        detail.innerHTML = this.fitsHtml(sel.slot) + worn;
+        return;
+      }
       if (!it) {
         detail.innerHTML = `<div class="orn"><span>Předmět</span></div><p class="hint">Klepni na předmět: nahoře se objeví Nasadit a Prodat a pod tím porovnání s tím, co máš na sobě.</p><p class="hint">Předměty se sbírají automaticky, když přes ně přejdeš. Dvojitým klepnutím předmět rovnou nasadíš.</p><p class="hint">Podržením předmětu začneš vybírat víc předmětů najednou – pak je prodáš nebo rozebereš jedním tlačítkem.</p>`;
         return;
@@ -797,8 +822,6 @@ export class Panels {
           ? `<div class="row eqrow">${eq}</div><div class="row subrow"><button class="btn small" data-a="lock">🔓 Odemknout</button><span class="hint">Zamčený – nejde prodat, rozebrat ani zahodit.</span></div>`
           : `<div class="row eqrow">${eq}</div><div class="row subrow"><button class="btn gold small" data-a="sell">Prodat · ${itemValue(it)} zl.</button><button class="btn purple small" data-a="salvage">Rozebrat</button><button class="btn red small" data-a="drop">Zahodit</button><button class="btn small" data-a="lock" title="Zamknout">🔒</button></div>`;
         detail.innerHTML = this.itemDetailHtml(it, acts, true, true) + `<div class="hint" style="margin-top:6px">Rozebrání dá: ${this.salvageText(it)}${it.sockets?.some(Boolean) ? ' Drahokamy se při prodeji i rozebrání vrátí do váčku.' : ''}</div>`;
-      } else {
-        detail.innerHTML = this.itemDetailHtml(it, `<div class="row eqrow"><button class="btn" data-a="unequip">Sundat do inventáře</button></div>`, false, true);
       }
     };
     const rerender = () => this.inventory(mode, p);
@@ -867,7 +890,7 @@ export class Panels {
     body.querySelectorAll<HTMLElement>('.slot.eq').forEach((sl) =>
       sl.addEventListener('click', () => {
         const slot = sl.dataset.slot as Slot;
-        if (!s.equip[slot]) return;
+        if (this.multi) return;
         sfx('ui');
         this.sel = { from: 'eq', slot };
         body.querySelectorAll('.slot').forEach((x) => x.classList.remove('sel'));
@@ -877,11 +900,29 @@ export class Panels {
     );
     detail.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest('button');
+      // a line of the slot's list: show that item from the bag
+      const fit = (e.target as HTMLElement).closest<HTMLElement>('.fit');
+      if (fit && !b) {
+        sfx('ui');
+        const i = +fit.dataset.inv!;
+        this.sel = { from: 'inv', idx: i };
+        body.querySelectorAll('.slot').forEach((x) => x.classList.remove('sel'));
+        body.querySelector(`.slot.inv[data-idx="${i}"]`)?.classList.add('sel');
+        renderDetail();
+        return;
+      }
       if (!b) return;
       sfx('ui');
       const a = b.dataset.a;
       const sel = this.sel;
       if (!sel) return;
+      if (a === 'fit' && sel.from === 'eq') {
+        const err = equipItem(s, +b.dataset.i!, sel.slot);
+        if (err) this.ui.toast(err, '#ff8080');
+        else this.afterEquip();
+        rerender();
+        return;
+      }
       if (a === 'sock' || a === 'rsock') {
         const it = sel.from === 'inv' ? s.inventory[sel.idx] : sel.from === 'eq' ? s.equip[sel.slot] : null;
         if (it) (a === 'sock' ? this.socketClick(it, +b.dataset.sock!, rerender) : this.runeSocketClick(it, +b.dataset.sock!, rerender));

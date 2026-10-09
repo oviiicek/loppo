@@ -378,55 +378,61 @@ img.px {
 .flfate.odd {
   color: #c8a8ff;
 }
-/* the quest chip under the floor name: the floor task's progress, the quest log on a tap */
-.floorlbl .qchip {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  padding: 2px 8px 3px 4px;
-  border: 1px solid #5a4630;
-  border-radius: 12px;
-  background: rgba(12, 9, 16, 0.78);
-  color: #e8dcc4;
-  font-size: 14px;
-  line-height: 1;
+/* the quest log's button among the spells: an exclamation mark, the floor task's progress below it */
+.questbtn {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 3px solid #6b5432;
+  background: radial-gradient(circle at 40% 35%, #3a2e1e, #140f0a);
+  box-shadow: 0 0 0 2px #120d08, 0 3px 8px #000c;
   pointer-events: auto;
   cursor: pointer;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-/* the floor task's progress as a thin line along the bottom */
-.floorlbl .qchip::after {
-  content: '';
+.questbtn:active {
+  transform: scale(0.92);
+}
+.questbtn b {
+  font-family: var(--font);
+  font-size: 32px;
+  line-height: 1;
+  color: #ffd23a;
+  text-shadow: 0 2px 0 #7a4a10, 0 0 8px rgba(255, 210, 58, 0.6);
+}
+.questbtn .qn {
   position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: var(--qp, 0%);
-  background: linear-gradient(90deg, #c8962a, #ffd76a);
-}
-.qchip img {
-  width: 18px;
-  height: 18px;
-  image-rendering: pixelated;
-}
-.qchip .qn {
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #1a1410;
+  border: 1px solid #6b5432;
   color: #fff;
+  font-size: 12px;
+  line-height: 15px;
+  white-space: nowrap;
 }
-.qchip .qn:empty {
+.questbtn .qn:empty {
   display: none;
 }
-.qchip.done {
+.questbtn.done .qn {
+  color: #9dff9a;
   border-color: #4a8a4a;
 }
-.qchip.done .qn {
-  color: #9dff9a;
-}
-/* a side quest's reward is waiting */
-.qchip.claim {
+/* a side quest's reward (or a treasure map) is waiting: it glows */
+.questbtn.claim {
   border-color: #9dff7a;
-  box-shadow: 0 0 6px rgba(157, 255, 122, 0.45);
+  animation: questglow 1.6s ease-in-out infinite;
+}
+@keyframes questglow {
+  50% {
+    box-shadow: 0 0 0 2px #120d08, 0 0 16px rgba(157, 255, 122, 0.7), 0 3px 8px #000c;
+  }
 }
 .topbtns {
   position: absolute;
@@ -4430,4 +4436,45 @@ textarea.code {
   to {
     box-shadow: 0 0 16px rgba(255, 90, 74, 0.6);
   }
+}
+
+/* the bag's items that fit a tapped equipment slot */
+.fits {
+  margin-bottom: 8px;
+}
+.fit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  margin-bottom: 3px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+.fit img {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  image-rendering: pixelated;
+}
+.fit .nm {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fit .up {
+  color: #9dff7a;
+}
+.fit .down {
+  color: #ff8a7a;
+}
+.fit .same {
+  color: #a89c88;
+}
+.fit .btn {
+  flex: none;
 }

@@ -17,7 +17,8 @@ export class BossAI {
       dy = p.y - b.y;
     const dist = Math.hypot(dx, dy) || 1;
     if (!b.aggro) {
-      if (dist < 150 && sc.map.los(b.x, b.y, p.x, p.y)) {
+      // (on a guardian's floor it waits until the hero steps into the arena)
+      if (dist < 150 && sc.map.los(b.x, b.y, p.x, p.y) && sc.heroInArena(b)) {
         b.aggro = true;
         sc.onBossAggro(b);
       } else {
@@ -25,6 +26,9 @@ export class BossAI {
         return;
       }
     }
+    // a story guardian's stage that drags on far past its time: the seal shards burn it (so that no fight goes
+    // on forever for a hero who keeps standing but cannot hit hard enough)
+    if (b.story && !b.invuln) this.sealTick(b, dt);
     // at 70, 40 and 10 % of its health the guardian enters its next phase (story guardians in their last stage)
     const mark = b.nextPhaseHp;
     if (mark !== null && b.hp <= mark && !b.invuln) this.phaseUp(b);
@@ -89,6 +93,26 @@ export class BossAI {
       this.run(b, pat);
     }
     b.syncSprite(moving);
+  }
+
+  /** past 1.3 times its stage's time the seal burns a story guardian: 0.4 % of the stage's health per second, growing
+   *  to 2 % at twice the time */
+  sealTick(b: Enemy, dt: number) {
+    const sc = this.scene;
+    const time = b.story!.phases[b.phase].time;
+    b.stageT += dt;
+    const over = b.stageT / time - 1.3;
+    if (over <= 0 || b.dead) return;
+    if (!b.sealBurn) {
+      b.sealBurn = true;
+      sc.ui.toast('Pečetní střepy se rozzářily a spalují strážce…', '#fff2c0');
+      sc.fx.ring(b.x, b.y - 10, 70, 0xfff2c0, 700);
+    }
+    const rate = Math.min(0.02, 0.004 + over * 0.023);
+    const dmg = b.maxHp * rate * dt;
+    // (never the killing blow on its own: the last bit is the hero's)
+    b.hp = Math.max(Math.min(b.hp, b.maxHp * 0.02), b.hp - dmg);
+    if (Math.random() < dt * 2) sc.fx.burst(b.x, b.y - 12, 0xfff2c0, 3);
   }
 
   /** the guardian passes a phase mark: a roar, a shockwave and a change in how it fights */

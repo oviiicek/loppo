@@ -3,7 +3,7 @@ import type { GameScene } from '../scenes/GameScene';
 import { D, EL_COLOR } from './fx';
 import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
-import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, PRIORITY_ROLES, corruptName } from '../data/enemies';
+import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, storyStageHp, PRIORITY_ROLES, corruptName } from '../data/enemies';
 import type { PowerState } from './powers';
 import { sfx } from '../systems/audio';
 import { ArenaKind, BOSS_PHASE_HP } from '../data/bossphases';
@@ -205,6 +205,8 @@ export class Enemy extends Actor {
   // damage budget of a story guardian (see Combat.damageEnemy)
   capBudget = 0;
   capT = 0;
+  /** how much of a story guardian's stage may go per second (the damage cap) */
+  capRate = 0;
   // boss state
   patternIdx = 0;
   patternT = 3;
@@ -213,6 +215,9 @@ export class Enemy extends Actor {
   patterns: BossPattern[] = [];
   /** how many of the 70/40/10 % phase marks the guardian has passed */
   bphase = 0;
+  /** seconds a story guardian's stage has been fought (past its time the seal starts burning it, see BossAI) */
+  stageT = 0;
+  sealBurn = false;
   /** what the arena does from the third phase on */
   arena: ArenaKind | null = null;
   arenaT = 0;
@@ -443,7 +448,10 @@ export class Enemy extends Actor {
     this.phase = i;
     this.bossTier = 1 + i;
     const dif = this.scene.diff;
-    this.maxHp = this.hp = Math.round(base.hp * ph.hp * (dif?.enemyHp ?? 1));
+    // the stage lasts about its time for a hero of the expected strength; even a far stronger one needs at least
+    // three quarters of it (the damage cap), and the difficulty makes it hit harder, not last longer
+    this.maxHp = this.hp = Math.round(storyStageHp(floor, ph.time));
+    this.capRate = this.maxHp / (ph.time * 0.75);
     this.dmg = base.dmg * ph.dmg;
     this.speed = ph.speed * (dif?.enemySpeed ?? 1);
     this.enraged = false;
@@ -451,11 +459,13 @@ export class Enemy extends Actor {
     this.patternT = 1.6;
     this.patterns = [...ph.patterns];
     this.bphase = 0;
+    this.stageT = 0;
+    this.sealBurn = false;
     this.arena = null;
     this.lastStand = false;
-    this.capBudget = this.maxHp * 0.1;
+    this.capBudget = this.maxHp * 0.05;
     this.capT = this.scene.time.now / 1000;
-    this.boss = { id: def.id, name: def.name, sprite: ph.sprite, scale: ph.scale, hp: ph.hp, dmg: ph.dmg, speed: ph.speed, patterns: ph.patterns, proj: ph.proj, el: ph.el, summon: ph.summon, tint: ph.tint };
+    this.boss = { id: def.id, name: def.name, sprite: ph.sprite, scale: ph.scale, hp: this.maxHp, dmg: ph.dmg, speed: ph.speed, patterns: ph.patterns, proj: ph.proj, el: ph.el, summon: ph.summon, tint: ph.tint };
     if (this.spriteKey !== ph.sprite) {
       this.spriteKey = ph.sprite;
       this.sprite.setTexture(ph.sprite, 0);
