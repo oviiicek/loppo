@@ -1187,8 +1187,6 @@ class UIManager {
     chip.classList.toggle('claim', claim);
     chip.classList.toggle('done', !!b?.done);
     $('.qn', chip).textContent = !b ? '' : b.done ? '✔' : b.kind === 'explore' ? `${b.have} %` : `${b.have}/${b.goal}`;
-    const bar = (b && !b.done ? Math.min(1, b.have / b.goal) : 0) * 100;
-    chip.style.setProperty('--qp', `${bar}%`);
   }
 
   /** progress of a floor event (the cursed chest) at the top of the screen */

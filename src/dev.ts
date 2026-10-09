@@ -226,7 +226,36 @@ function botTick() {
       sc.castSlot(i);
     }
   }
+  // step out of a warning on the ground or a poisonous pool (as a careful player would)
+  const tnow = sc.time.now;
+  let danger: { x: number; y: number; r: number } | null = null;
+  for (const w of sc.fx.warnings) if (w.until > tnow && Math.hypot(w.x - p.x, w.y - p.y) < w.r + 6) danger = w;
+  for (const h of sc.hazards) if (!h.slow && Math.hypot(h.x - p.x, h.y - p.y) < h.r + 4) danger = h;
+  // sidestep an enemy shot coming straight at the hero
+  if (!danger) {
+    for (const pr of sc.projectiles) {
+      if (pr.dead || pr.o.owner !== 'enemy') continue;
+      const dx = p.x - pr.x,
+        dy = p.y - pr.y;
+      const d = Math.hypot(dx, dy);
+      const sp = Math.hypot(pr.vx, pr.vy) || 1;
+      if (d > 70 || (dx * pr.vx + dy * pr.vy) / (d * sp) < 0.85) continue;
+      // step to the side of its path
+      const side = pr.vx * dy - pr.vy * dx > 0 ? 1 : -1;
+      UI.joy = [(-pr.vy / sp) * side, (pr.vx / sp) * side];
+      return;
+    }
+  }
+  if (danger) {
+    let ex = p.x - danger.x,
+      ey = p.y - danger.y;
+    if (Math.hypot(ex, ey) < 1) [ex, ey] = [Math.random() - 0.5, Math.random() - 0.5];
+    const el = Math.hypot(ex, ey) || 1;
+    UI.joy = [ex / el, ey / el];
+    return;
+  }
   let gx: number, gy: number;
+  let flee = false;
   const stairs = sc.interactables.find((i) => i.kind === 'stairs' && !i.used);
   const floorTime = (now - botState.floorStart) / 1000;
   const goStairs = stairs && (enemies.length < 6 || floorTime > 120 || !target || bd > 500);
@@ -244,7 +273,12 @@ function botTick() {
     gx = target.x;
     gy = target.y;
     const keep = kind === 'melee' ? 8 : 70;
-    if (bd < keep + 6 && sc.map.los(p.x, p.y, target.x, target.y)) {
+    // a ranged hero backs away from a guardian that comes too close (as a careful player would)
+    if (kind !== 'melee' && target.boss && bd < 50) {
+      flee = true;
+      gx = p.x + ((p.x - target.x) / (bd || 1)) * 60;
+      gy = p.y + ((p.y - target.y) / (bd || 1)) * 60;
+    } else if (bd < keep + 6 && sc.map.los(p.x, p.y, target.x, target.y)) {
       UI.joy = [0, 0];
       return;
     }
@@ -256,7 +290,8 @@ function botTick() {
   botState.pathT -= 0.1;
   const ptx = Math.floor(p.x / TS),
     pty = Math.floor(p.y / TS);
-  if (botState.pathT <= 0 || !botState.path.length) {
+  if (flee) botState.path = [];
+  else if (botState.pathT <= 0 || !botState.path.length) {
     botState.pathT = 0.5;
     botState.path = bfsPath(sc, ptx, pty, Math.floor(gx / TS), Math.floor(gy / TS));
     if (!botState.path.length && target && !goStairs && bd > 40) ign.set(target.id, now + 15000);

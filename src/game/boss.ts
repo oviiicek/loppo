@@ -173,6 +173,10 @@ export class BossAI {
           m.aggro = true;
           m.isMinion = true;
           m.xp = Math.round(m.xp * 0.3);
+          if (b.story) {
+            m.dmg *= b.blowScale;
+            m.maxHp = m.hp = Math.round(m.maxHp * 0.6);
+          }
         });
       }
     } else {
@@ -321,7 +325,9 @@ export class BossAI {
     const extra = b.lastStand ? 1.7 : b.enraged ? 1.4 : 1;
     switch (pat) {
       case 'summon': {
-        const n = Math.round((2 + b.bossTier) * extra) + 1;
+        let n = Math.round((2 + b.bossTier) * extra) + 1;
+        // a story guardian's fight is long: a few servants at a time, never a whole army
+        if (b.story) n = Math.min(n, 3 + Math.floor(b.phase / 2), Math.max(0, 8 - sc.enemies.filter((e) => !e.dead && e.isMinion).length));
         b.windup = 0.6;
         sc.fx.ring(b.x, b.y - 8, 40, 0xb07dff, 500);
         for (let i = 0; i < n; i++) {
@@ -334,6 +340,12 @@ export class BossAI {
             m.aggro = true;
             m.isMinion = true;
             m.xp = Math.round(m.xp * 0.3);
+            // a story guardian's long fight: its servants are a nuisance, not executioners (they hit as softly
+            // as the guardian's own blows in a long stage)
+            if (b.story) {
+              m.dmg *= b.blowScale;
+              m.maxHp = m.hp = Math.round(m.maxHp * 0.6);
+            }
           });
         }
         break;

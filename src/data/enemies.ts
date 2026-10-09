@@ -280,7 +280,8 @@ function baseDmgScale(floor: number) {
 }
 
 /** the last chapter of the story (floors 201–250) is meant to be very hard: its monsters grow up to `max` times
- *  stronger than the curve alone would make them (and stay so in the endless depths below) */
+ *  stronger than the curve alone would make them – mostly tougher (60 % more health), a little harder hitting
+ *  (20 %) – and stay so in the endless depths below */
 function deepMult(floor: number, max: number) {
   if (floor <= 200) return 1;
   return 1 + (max - 1) * Math.min(1, (floor - 200) / 50);
@@ -296,7 +297,7 @@ export function enemyHpScale(floor: number) {
 export function enemyDmgScale(floor: number) {
   if (floor <= 40) return baseDmgScale(floor);
   const g = Math.min(floor, STORY_END) - 40;
-  const v = baseDmgScale(40) * (1 + 0.0242 * g) * (1 + 0.0018 * g) * deepMult(floor, 1.35);
+  const v = baseDmgScale(40) * (1 + 0.0242 * g) * (1 + 0.0018 * g) * deepMult(floor, 1.2);
   return floor > STORY_END ? v * Math.pow(1.02, floor - STORY_END) : v;
 }
 export function enemyXpScale(floor: number) {
@@ -361,7 +362,7 @@ export const STORY_BOSSES: StoryBossDef[] = [
     intro: 'boss25',
     outro: 'boss25end',
     lock: false,
-    phases: [P('en_abbot', 1.5, 150, 0.9, 34, ['summon', 'volley', 'radial', 'teleport', 'summon', 'spiral'], 'bone', 'shadow', 'skeleton', 3.1)],
+    phases: [P('en_abbot', 1.5, 170, 0.85, 34, ['summon', 'volley', 'radial', 'teleport', 'summon', 'spiral'], 'bone', 'shadow', 'skeleton', 3.1)],
   },
   {
     floor: 50,
@@ -372,9 +373,9 @@ export const STORY_BOSSES: StoryBossDef[] = [
     outro: 'boss50end',
     lock: true,
     phases: [
-      P('en_isolda', 1.45, 190, 0.95, 40, ['shardRain', 'volley', 'icePrison', 'summon', 'radial'], 'ice', 'ice', 'frostWolf', 3.1),
-      P('en_isolda', 1.5, 190, 1.0, 44, ['spiral', 'teleport', 'icePrison', 'shardRain', 'radial', 'summon'], 'ice', 'ice', 'wraith', 2.8, 'boss50p2', 0xc8ecff),
-      P('en_isolda', 1.6, 220, 1.08, 48, ['shardRain', 'icePrison', 'spiral', 'teleport', 'volley', 'summon', 'nova'], 'ice', 'ice', 'frostWolf', 2.5, 'boss50p3', 0x8fdcff),
+      P('en_isolda', 1.45, 210, 0.85, 40, ['shardRain', 'volley', 'icePrison', 'summon', 'radial'], 'ice', 'ice', 'frostWolf', 3.1),
+      P('en_isolda', 1.5, 220, 0.9, 44, ['spiral', 'teleport', 'icePrison', 'shardRain', 'radial', 'summon'], 'ice', 'ice', 'wraith', 2.8, 'boss50p2', 0xc8ecff),
+      P('en_isolda', 1.6, 240, 1.0, 48, ['shardRain', 'icePrison', 'spiral', 'teleport', 'volley', 'summon', 'nova'], 'ice', 'ice', 'frostWolf', 2.5, 'boss50p3', 0x8fdcff),
     ],
   },
   {
@@ -386,10 +387,10 @@ export const STORY_BOSSES: StoryBossDef[] = [
     outro: 'boss100end',
     lock: true,
     phases: [
-      P('en_sporeMother', 1.45, 210, 0.95, 24, ['spores', 'summon', 'volley', 'slam', 'spores', 'radial'], 'poison', 'poison', 'mushroom', 3.2),
-      P('en_sporeMother', 1.6, 210, 1.0, 30, ['roots', 'spores', 'spiral', 'summon', 'roots', 'radial'], 'poison', 'poison', 'mushroom', 2.9, 'boss100p2', 0xb8ffe8),
-      P('en_sporeMother', 1.7, 220, 1.06, 34, ['roots', 'web', 'drain', 'spores', 'charge', 'summon'], 'poison', 'poison', 'troll', 2.7, 'boss100p3', 0xd8ffb0),
-      P('en_sporeMother', 1.8, 240, 1.14, 36, ['roots', 'spores', 'spiral', 'summon', 'drain', 'nova', 'radial'], 'poison', 'poison', 'mushroom', 2.4, 'boss100p4', 0xffffff),
+      P('en_sporeMother', 1.45, 230, 0.85, 24, ['spores', 'summon', 'volley', 'slam', 'spores', 'radial'], 'poison', 'poison', 'mushroom', 3.2),
+      P('en_sporeMother', 1.6, 240, 0.9, 30, ['roots', 'spores', 'spiral', 'summon', 'roots', 'radial'], 'poison', 'poison', 'mushroom', 2.9, 'boss100p2', 0xb8ffe8),
+      P('en_sporeMother', 1.7, 250, 0.95, 34, ['roots', 'web', 'drain', 'spores', 'charge', 'summon'], 'poison', 'poison', 'troll', 2.7, 'boss100p3', 0xd8ffb0),
+      P('en_sporeMother', 1.8, 280, 1.05, 36, ['roots', 'spores', 'spiral', 'summon', 'drain', 'nova', 'radial'], 'poison', 'poison', 'mushroom', 2.4, 'boss100p4', 0xffffff),
     ],
   },
   {
@@ -400,7 +401,7 @@ export const STORY_BOSSES: StoryBossDef[] = [
     intro: 'boss125',
     outro: 'boss125end',
     lock: false,
-    phases: [P('en_jailer', 1.55, 150, 0.95, 40, ['chains', 'slam', 'sweep', 'summon', 'charge', 'chains'], 'axe', 'phys', 'skelKnight', 3.0)],
+    phases: [P('en_jailer', 1.55, 170, 0.9, 40, ['chains', 'slam', 'sweep', 'summon', 'charge', 'chains'], 'axe', 'phys', 'skelKnight', 3.0)],
   },
   {
     floor: 150,
@@ -411,9 +412,9 @@ export const STORY_BOSSES: StoryBossDef[] = [
     outro: 'boss150end',
     lock: true,
     phases: [
-      P('en_morgrim', 1.5, 190, 0.95, 38, ['sweep', 'chains', 'summon', 'slam', 'sweep', 'charge', 'radial'], 'axe', 'phys', 'skelKnight', 3.0),
-      P('en_morgrim', 1.55, 190, 1.02, 42, ['meteors', 'sweep', 'chains', 'slam', 'charge', 'radial'], 'fire', 'fire', 'hellhound', 2.8, 'boss150p2', 0xffb080),
-      P('en_morgrim', 1.65, 220, 1.1, 46, ['sweep', 'chains', 'meteors', 'slam', 'charge', 'summon', 'nova'], 'axe', 'phys', 'skelKnight', 2.5, 'boss150p3', 0xff7a5a),
+      P('en_morgrim', 1.5, 210, 0.85, 38, ['sweep', 'chains', 'summon', 'slam', 'sweep', 'charge', 'radial'], 'axe', 'phys', 'skelKnight', 3.0),
+      P('en_morgrim', 1.55, 220, 0.92, 42, ['meteors', 'sweep', 'chains', 'slam', 'charge', 'radial'], 'fire', 'fire', 'hellhound', 2.8, 'boss150p2', 0xffb080),
+      P('en_morgrim', 1.65, 240, 1.02, 46, ['sweep', 'chains', 'meteors', 'slam', 'charge', 'summon', 'nova'], 'axe', 'phys', 'skelKnight', 2.5, 'boss150p3', 0xff7a5a),
     ],
   },
   {
@@ -425,10 +426,10 @@ export const STORY_BOSSES: StoryBossDef[] = [
     outro: 'boss200end',
     lock: true,
     phases: [
-      P('en_elaraDark', 1.4, 210, 0.95, 46, ['volley', 'teleport', 'meteors', 'spiral'], 'shadow', 'shadow', 'shade', 3.0),
-      P('en_elaraDark', 1.4, 210, 1.0, 50, ['clones', 'teleport', 'radial', 'volley', 'meteors'], 'shadow', 'shadow', 'shade', 2.8, 'boss200p2', 0xe0b0ff),
-      P('en_elaraWings', 1.55, 220, 1.08, 56, ['darkNova', 'meteors', 'spiral', 'charge', 'teleport', 'clones'], 'shadow', 'shadow', 'shade', 2.5, 'boss200p3'),
-      P('en_elaraWings', 1.65, 240, 1.16, 60, ['darkNova', 'lasers', 'clones', 'spiral', 'voidZones', 'teleport'], 'shadow', 'shadow', 'voidEye', 2.3, 'boss200p4', 0xb070ff),
+      P('en_elaraDark', 1.4, 230, 0.85, 46, ['volley', 'teleport', 'meteors', 'spiral'], 'shadow', 'shadow', 'shade', 3.0),
+      P('en_elaraDark', 1.4, 240, 0.9, 50, ['clones', 'teleport', 'radial', 'volley', 'meteors'], 'shadow', 'shadow', 'shade', 2.8, 'boss200p2', 0xe0b0ff),
+      P('en_elaraWings', 1.55, 250, 0.98, 56, ['darkNova', 'meteors', 'spiral', 'charge', 'teleport', 'clones'], 'shadow', 'shadow', 'shade', 2.5, 'boss200p3'),
+      P('en_elaraWings', 1.65, 280, 1.08, 60, ['darkNova', 'lasers', 'clones', 'spiral', 'voidZones', 'teleport'], 'shadow', 'shadow', 'voidEye', 2.3, 'boss200p4', 0xb070ff),
     ],
   },
   {
@@ -440,16 +441,16 @@ export const STORY_BOSSES: StoryBossDef[] = [
     outro: 'ending',
     lock: true,
     phases: [
-      // holding back: slow and almost lazy, but every blow is heavy
-      P('en_nyxShadow', 1.6, 200, 0.95, 30, ['volley', 'hands', 'summon', 'volley'], 'shadow', 'shadow', 'shade', 4.0),
+      // holding back: strong, but slow and almost lazy – he does not use his strength yet
+      P('en_nyxShadow', 1.6, 230, 0.5, 28, ['volley', 'radial', 'summon', 'volley', 'radial'], 'shadow', 'shadow', 'shade', 4.2),
       // the shards burn his shadow away: the true form
-      P('en_nyxTrue', 1.7, 220, 1.05, 18, ['lasers', 'voidZones', 'radial', 'summon', 'lasers', 'meteors'], 'shadow', 'shadow', 'voidEye', 3.0, 'boss250p2'),
+      P('en_nyxTrue', 1.7, 250, 0.8, 18, ['lasers', 'voidZones', 'radial', 'summon', 'lasers', 'meteors'], 'shadow', 'shadow', 'voidEye', 3.0, 'boss250p2'),
       // the eyes open: everything at once
-      P('en_nyxTrue', 1.9, 220, 1.12, 22, ['lasers', 'hands', 'darkNova', 'voidZones', 'spiral', 'meteors'], 'shadow', 'shadow', 'voidEye', 2.6, 'boss250p3', 0xff9ad8),
+      P('en_nyxTrue', 1.9, 260, 0.85, 22, ['lasers', 'hands', 'darkNova', 'voidZones', 'spiral', 'meteors'], 'shadow', 'shadow', 'voidEye', 2.6, 'boss250p3', 0xff9ad8),
       // the seal cut off his arm: wild and fast
-      P('en_nyxBroken', 1.9, 220, 1.2, 34, ['charge', 'teleport', 'spiral', 'lasers', 'hands', 'charge', 'voidZones'], 'shadow', 'shadow', 'shade', 2.3, 'boss250p4'),
+      P('en_nyxBroken', 1.9, 270, 0.95, 34, ['charge', 'teleport', 'spiral', 'lasers', 'hands', 'charge', 'voidZones'], 'shadow', 'shadow', 'shade', 2.3, 'boss250p4'),
       // the heart of the depths: the last and hardest stage
-      P('en_nyxBroken', 2.0, 260, 1.4, 40, ['lasers', 'hands', 'darkNova', 'voidZones', 'spiral', 'meteors', 'charge', 'nova'], 'shadow', 'shadow', 'voidEye', 1.9, 'boss250p5', 0xff5a8a),
+      P('en_nyxBroken', 2.0, 300, 1.45, 42, ['lasers', 'hands', 'darkNova', 'voidZones', 'spiral', 'meteors', 'charge', 'nova'], 'shadow', 'shadow', 'voidEye', 1.8, 'boss250p5', 0xff5a8a),
     ],
   },
 ];
@@ -472,8 +473,8 @@ const HERO_DPS: [number, number][] = [
   [100, 60],
   [125, 56],
   [150, 52],
-  [200, 85],
-  [250, 32],
+  [200, 70],
+  [250, 28],
 ];
 export function heroDps(floor: number) {
   let k = HERO_DPS[0][1];

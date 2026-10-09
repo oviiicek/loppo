@@ -209,16 +209,26 @@ export class Combat {
     if (el === 'phys' && !o.thorns) dmg *= 1 - e.armor / (e.armor + 120);
     if (o.fromAlly && p.save.cls === 'necro') dmg *= 1.3;
     if (el === 'lightning' && p.save.cls === 'shaman') dmg *= 1.2;
-    // a story guardian's stage can't go faster than three quarters of its time (with a 5 % burst reserve); damage
-    // beyond that is mostly absorbed, so even a very strong hero gets the whole fight while weaker ones are unaffected
+    // a story guardian's stage can't go much faster than its time (nine tenths of it, with a 5 % burst reserve);
+    // damage beyond that is mostly absorbed, so even a very strong hero gets the whole fight while weaker ones are
+    // unaffected (life steal still counts the whole blow)
+    const full = dmg;
+    let resisted = false;
     if (e.story && !(window as any).__noCap) {
       const now = sc.time.now / 1000;
       const rate = e.capRate || e.maxHp * 0.065;
       e.capBudget = Math.min(e.maxHp * 0.05, e.capBudget + (now - e.capT) * rate);
       e.capT = now;
       const free = Math.max(0, e.capBudget);
-      if (dmg > free) dmg = free + (dmg - free) * 0.05;
+      if (dmg > free) {
+        dmg = free + (dmg - free) * 0.02;
+        resisted = dmg < full * 0.5;
+      }
       e.capBudget -= dmg;
+      if (resisted && !e.capNoted && !o.dot) {
+        e.capNoted = true;
+        sc.ui.toast(`${e.name} odolává – tenhle souboj nejde uspěchat, vydrž`, '#9fc8ff');
+      }
     }
     dmg = Math.max(1, dmg);
     // any touch breaks an illusion
@@ -281,7 +291,7 @@ export class Combat {
     if (!o.silent || crit) {
       const txt = Math.round(dmg).toString();
       // a weak spot hit shows big, a resisted one dim
-      const col = crit ? '#ffd23a' : o.thorns ? '#c8ff6a' : o.dot ? '#c8a8a8' : em < 1 ? '#8a8494' : EL_TEXT[el] ?? '#fff';
+      const col = resisted ? '#7f9ab4' : crit ? '#ffd23a' : o.thorns ? '#c8ff6a' : o.dot ? '#c8a8a8' : em < 1 ? '#8a8494' : EL_TEXT[el] ?? '#fff';
       sc.fx.number(e.x, e.y - 14 * e.baseScale, crit ? txt + '!' : txt, col, crit || (em > 1 && !o.dot));
     }
     if (crit) {
@@ -302,7 +312,8 @@ export class Combat {
         ls *= 0.2;
         ms *= 0.2;
       }
-      if (ls > 0 || ms > 0) p.leech(dmg * ls, dmg * ms);
+      const drawn = e.story ? full : dmg;
+      if (ls > 0 || ms > 0) p.leech(drawn * ls, drawn * ms);
       if (o.isAttack && p.d.manaOnHit) p.mp = Math.min(p.d.maxMp, p.mp + p.d.manaOnHit);
       if (o.isAttack && !o.dot) this.onHitProcs(e, dmg);
     }

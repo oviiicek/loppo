@@ -110,6 +110,8 @@ export interface RunState {
   lastChance?: boolean;
   /** coming back from the last chance arena: the floor starts with the hero at 1 HP */
   revived?: boolean;
+  /** coming back after a death: on a guardian's floor the hero wakes by the fire in the preparation room */
+  fallen?: boolean;
 }
 
 /** a talent counts when it belongs to the hero's class (or the second class of a multiclass hero) */

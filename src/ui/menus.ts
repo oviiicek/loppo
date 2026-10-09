@@ -730,7 +730,7 @@ export class Menus {
     const back = sc.deathReturnFloor();
     const where =
       back === floor
-        ? `Patro ${floor} začneš znovu od schodů.`
+        ? `Patro ${floor} začneš znovu ${isBossFloor(floor) && !sc.inVillage ? 'v přípravné místnosti u ohně' : 'od schodů'}.`
         : `Výprava se vrací na checkpoint: <b style="color:#ffd76a">patro ${back}</b> (${isBossFloor(back) ? 'příprava na strážce' : isCampFloor(back) ? 'tábor' : 'začátek desítky'}).`;
     const p = el(`<div class="panel small" style="border-color:#8a2a2a"><div class="head" style="background:linear-gradient(#3a1414,#1a0a0a)"><h2 style="color:#ff6b6b">Porážka</h2></div>
       <div style="padding:16px;text-align:center">

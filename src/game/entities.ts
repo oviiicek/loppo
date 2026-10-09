@@ -205,6 +205,10 @@ export class Enemy extends Actor {
   // damage budget of a story guardian (see Combat.damageEnemy)
   capBudget = 0;
   capT = 0;
+  /** the hero was told once that this guardian can't be hurried */
+  capNoted = false;
+  /** how much softer the blows of a story guardian's long stage are (its servants hit as softly) */
+  blowScale = 1;
   /** how much of a story guardian's stage may go per second (the damage cap) */
   capRate = 0;
   // boss state
@@ -448,11 +452,13 @@ export class Enemy extends Actor {
     this.phase = i;
     this.bossTier = 1 + i;
     const dif = this.scene.diff;
-    // the stage lasts about its time for a hero of the expected strength; even a far stronger one needs at least
-    // three quarters of it (the damage cap), and the difficulty makes it hit harder, not last longer
+    // the stage lasts about its time for a hero of the expected strength; even a far stronger one needs most of
+    // it (the damage cap), and the difficulty makes it hit harder, not last longer
     this.maxHp = this.hp = Math.round(storyStageHp(floor, ph.time));
-    this.capRate = this.maxHp / (ph.time * 0.75);
-    this.dmg = base.dmg * ph.dmg;
+    this.capRate = this.maxHp / (ph.time * 0.9);
+    // a long stage hits a little softer per blow (it is a fight of endurance and dodging, not of one hit)
+    this.blowScale = Math.pow(60 / Math.max(60, ph.time), 0.7);
+    this.dmg = base.dmg * ph.dmg * this.blowScale;
     this.speed = ph.speed * (dif?.enemySpeed ?? 1);
     this.enraged = false;
     this.patternIdx = 0;

@@ -102,7 +102,13 @@ export class FX {
     this.scene.tweens.add({ targets: r, scale: (radius * 2) / 256, alpha: 0, duration: dur, ease: 'Cubic.easeOut', onComplete: () => r.destroy() });
   }
 
+  /** the warnings on the ground right now (the test bot steps out of them) */
+  warnings: { x: number; y: number; r: number; until: number }[] = [];
+
   telegraph(x: number, y: number, radius: number, dur: number, color = 0xff3030) {
+    const now = this.scene.time.now;
+    this.warnings = this.warnings.filter((w) => w.until > now);
+    this.warnings.push({ x, y, r: radius, until: now + dur });
     // drawn above the darkness so a warning is never hidden in an unlit corner
     const r = this.scene.add.image(x, y, 'disc').setDepth(D.glow).setTint(color).setAlpha(0.15).setScale((radius * 2) / 256);
     const inner = this.scene.add.image(x, y, 'disc').setDepth(D.glow).setTint(color).setAlpha(0.3).setScale(0.01);

@@ -72,9 +72,10 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
   | 250 | Nyx'thar, Pán hlubin | 5 | asi 20 minut |
 
   Nyx'thar bojuje v pěti fázích: nejdřív se drží zpátky (pomalý, ale silný), pak ho střepy pečeti spálí a probudí se, potom ukáže pravou podobu, pečeť mu usekne paži (zuří a je rychlý) a poslední fáze – srdce hlubin – je opravdu těžká. Každá fáze má vlastní ukazatel zdraví a v poslední fázi strážce ještě přitvrdí na 70, 40 a 10 % zdraví.
-  Délka boje se drží u všech hrdinů: fáze nejde zkrátit pod tři čtvrtiny jejího času (velmi silný hrdina přebytek poškození neuplatní) a když se fáze táhne přes 1,3násobek času, začnou strážce spalovat střepy pečeti. Na vyšší obtížnosti strážci víc bolí, ale boj netrvá déle.
+  Délka boje se drží u všech hrdinů: fáze nejde uspěchat pod zhruba devět desetin jejího času (přebytek poškození velmi silného hrdiny strážce pohltí, krádež života se ale počítá z celého zásahu) a když se fáze táhne přes 1,3násobek času, začnou strážce spalovat střepy pečeti. V dlouhých fázích je každý úder strážce i jeho služebníků slabší – je to boj o vytrvalost a uhýbání, ne o jednu ránu. Na vyšší obtížnosti strážci víc bolí, ale boj netrvá déle.
+  Po smrti v aréně se hrdina probudí u ohně v přípravné místnosti a souboj začíná znovu od první fáze.
 - **Pečetní střepy:** za každého strážce zámku (50, 100, 150, 200) získáš střep, který dává trvale +4 % zdraví, poškození a síly kouzel. Za záchranu Elary navíc dostaneš požehnání +10 %.
-- **Poslední kapitola (201–250) je hodně těžká:** nestvůry mají postupně až o 60 % víc zdraví a o 35 % víc poškození, je víc šampionů (a za ně víc zkušeností).
+- **Poslední kapitola (201–250) je hodně těžká:** nestvůry mají postupně až o 60 % víc zdraví a o 20 % víc poškození, je víc šampionů (a za ně víc zkušeností).
 - **Nekonečná hlubina:** po skončení příběhu pokračují patra 251+ – oblasti se vracejí (Stará krypta II …) a obtížnost dál roste.
 
 ### Dungeon

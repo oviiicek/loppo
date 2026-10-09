@@ -148,6 +148,8 @@ export class GameScene extends Phaser.Scene {
   diff!: Difficulty;
   /** the stairs the hero came down (the start of the floor) */
   upStairs: { x: number; y: number } | null = null;
+  /** where the hero woke after a death on a guardian's floor (by the fire in the preparation room) */
+  wokeAt: { x: number; y: number } | null = null;
   /** the hero is walking the stairs: the world holds still and input is ignored */
   cinematic = false;
   cinematicMove = false;
@@ -225,6 +227,7 @@ export class GameScene extends Phaser.Scene {
     this.bossDefeated = false;
     this.stairsObj = null;
     this.upStairs = null;
+    this.wokeAt = null;
     this.cinematic = true;
     this.cinematicMove = false;
     this.descending = false;
@@ -315,6 +318,8 @@ export class GameScene extends Phaser.Scene {
       run.revived = false;
       this.player.hp = 1;
     }
+    const fallen = !!run?.fallen;
+    if (run) run.fallen = false;
     // the floor's fate (about every third regular floor, more often on the dangerous path), kept for a reload
     const forced = (window as any).__forceMod as string | undefined; // dev testing hook
     if (run && !this.calm && !isBossFloor(this.floor) && this.floor > 1) {
@@ -346,6 +351,13 @@ export class GameScene extends Phaser.Scene {
     if (calm === 'camp') this.placeAlchemist(true);
     // the preparation room before a guardian has an alchemist too
     if (guard) this.placeAlchemist(true, this.dungeon.rooms.find((r) => r.type === 'prep'));
+    // a death before a guardian: the hero wakes by the fire in the preparation room, not at the stairs
+    const woke = fallen && guard ? this.wakeSpot() : null;
+    if (woke) {
+      this.player.x = woke.x;
+      this.player.y = woke.y;
+      this.wokeAt = woke;
+    }
     if (calm === 'puzzle') this.placePuzzle();
     // the pet and the mercenary come down the stairs right after the hero (shown in arrive)
     this.spawnPet(ux, uy + 4, false);
@@ -476,7 +488,8 @@ export class GameScene extends Phaser.Scene {
         UI.banner(`Osud patra: ${f.name}`, f.desc);
       });
     } else if (this.calm === 'camp') this.time.delayedCall(700, () => UI.banner('Tábor', 'Bezpečné místo · odpočinek u ohně, obchodník a úložiště · checkpoint'));
-    else if (this.guard && !this.bossDefeated) this.time.delayedCall(700, () => UI.banner('Příprava na strážce', 'Odpočiň si u ohně, nakup a vybav se · za tebou je checkpoint'));
+    else if (this.guard && !this.bossDefeated)
+      this.time.delayedCall(700, () => UI.banner('Příprava na strážce', this.wokeAt ? 'Zpátky u ohně · odpočiň si, vybav se a zkus to znovu' : 'Odpočiň si u ohně, nakup a vybav se · za tebou je checkpoint'));
     if (this.floor === 1 && save.kills === 0 && save.level === 1) this.tutorial();
   }
 
@@ -509,7 +522,7 @@ export class GameScene extends Phaser.Scene {
         pendingPetNews = null;
       }
     };
-    if (!u || p.dead) return done();
+    if (!u || p.dead || this.wokeAt) return done();
     // first free spot next to the stairs, below them if possible
     let tx = u.x,
       ty = u.y + 15;
@@ -1728,7 +1741,7 @@ export class GameScene extends Phaser.Scene {
   /** the pet hops off the stairs after the hero (and the mercenary follows) */
   petArrives() {
     const m = this.merc;
-    const u0 = this.upStairs;
+    const u0 = this.wokeAt ?? this.upStairs;
     if (m && u0) {
       m.x = u0.x + 6;
       m.y = u0.y + 4;
@@ -1737,7 +1750,7 @@ export class GameScene extends Phaser.Scene {
       this.tweens.add({ targets: m.sprite, alpha: 1, duration: 300 });
     }
     const pet = this.pet;
-    const u = this.upStairs;
+    const u = this.wokeAt ?? this.upStairs;
     if (!pet || !u) return;
     pet.x = u.x;
     pet.y = u.y + 3;
@@ -1802,6 +1815,32 @@ export class GameScene extends Phaser.Scene {
         },
       });
     }
+  }
+
+  /** a free tile beside the fire of the preparation room (where a fallen hero wakes), in world pixels */
+  wakeSpot(): { x: number; y: number } | null {
+    const d = this.dungeon;
+    const r = d.rooms.find((rm) => rm.type === 'prep');
+    if (!r) return null;
+    // clear of the objects and a step away from the people in the room (the alchemist, the merchant)
+    const busy = new Set(d.objects.map((o) => o.y * d.w + o.x));
+    for (const it of this.interactables) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) busy.add((it.ty + dy) * d.w + it.tx + dx);
+    for (const [dx, dy] of [
+      [2, 0],
+      [-2, 0],
+      [0, -2],
+      [2, 1],
+      [-2, -1],
+      [2, -1],
+      [3, 0],
+      [-3, 0],
+      [0, -3],
+    ]) {
+      const x = r.cx + dx,
+        y = r.cy + dy;
+      if (d.grid[y * d.w + x] === T_FLOOR && !busy.has(y * d.w + x)) return { x: x * TS + 8, y: y * TS + 8 };
+    }
+    return null;
   }
 
   /** a free floor tile near the middle of a regular room away from the start, with nothing around it */
@@ -2650,6 +2689,7 @@ export class GameScene extends Phaser.Scene {
     this.save.floor = back;
     run.kind = 'normal';
     run.fate = undefined;
+    run.fallen = true;
     saveGame(this.save);
     this.scene.restart({ save: this.save });
   }
