@@ -112,6 +112,8 @@ export interface RunState {
   revived?: boolean;
   /** coming back after a death: on a guardian's floor the hero wakes by the fire in the preparation room */
   fallen?: boolean;
+  /** the kind of the floor before this one (no kind of floor twice in a row, no two quiet floors in a row) */
+  lastKind?: FloorKind | 'camp';
 }
 
 /** a talent counts when it belongs to the hero's class (or the second class of a multiclass hero) */

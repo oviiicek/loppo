@@ -3741,10 +3741,10 @@ textarea.code {
   gap: 2px;
 }
 .mercdet {
-  min-height: 70px;
-  max-height: 34vh;
+  min-height: 56px;
+  max-height: 26vh;
   overflow-y: auto;
-  margin: 6px 0;
+  margin: 6px 0 0;
 }
 .mercorders {
   display: flex;
@@ -3811,6 +3811,53 @@ textarea.code {
 }
 .lrrow .btn:not(.green):not(.gold):not(.purple) {
   opacity: 0.5;
+}
+
+/* "sell everything up to …" quick buttons in the loot rules */
+.lrquick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  font-size: 15px;
+  color: #c8bca4;
+}
+.lrquick .btn {
+  padding-left: 9px;
+  padding-right: 9px;
+}
+/* selling by quality: a tick per colour */
+.sellpick .spbody {
+  padding: 8px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 82vh;
+  overflow-y: auto;
+}
+.panel.sellpick {
+  width: min(96vw, 780px);
+}
+.sellpick .sprows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 5px;
+}
+.sellpick .hcbox {
+  margin: 0;
+  padding: 4px 8px;
+}
+.sellpick .hcbox b {
+  font-size: 16px;
+}
+.sellpick .hcbox small {
+  font-size: 13px;
+}
+.sellpick .hint {
+  margin: 0;
+}
+.sellpick .sprow.empty {
+  opacity: 0.45;
 }
 
 /* the alchemist's cauldron */
@@ -4589,6 +4636,58 @@ textarea.code {
 /* the bag's items that fit a tapped equipment slot */
 .fits {
   margin-bottom: 8px;
+}
+/* what the mercenary can wear: one row per item, best first */
+.mfits {
+  flex: 1;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mfit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+.mfit.sel {
+  background: rgba(255, 214, 120, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 214, 120, 0.45);
+}
+.mfit img {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  image-rendering: pixelated;
+}
+.mfit .nm {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mfit .msl {
+  flex: none;
+  font-size: 13px;
+  color: #a89c88;
+}
+.mfit .up {
+  color: #9dff7a;
+}
+.mfit .down {
+  color: #ff8a7a;
+}
+.mfit .same {
+  color: #a89c88;
+}
+.mfit .btn {
+  flex: none;
 }
 .fit {
   display: flex;

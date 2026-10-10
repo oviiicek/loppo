@@ -114,6 +114,9 @@ const SHRINES: Record<string, { name: string; mods: BuffMods; xp?: number; mf?: 
   gems: { name: 'Svatyně klenotů', mods: {}, mf: 30, color: 0xff9ab0 },
 };
 
+/** floors without monsters to fight (the doors never lead to two of them in a row) */
+const QUIET_KINDS: (FloorKind | 'camp')[] = ['merchant', 'camp', 'vault', 'puzzle', 'npc'];
+
 /** guardians' portraits for the dialogue box, kept across floors */
 const PORTRAIT_CACHE = new Map<string, string>();
 
@@ -286,6 +289,8 @@ export class GameScene extends Phaser.Scene {
         if (k === 'unknown') {
           const roll = Math.random();
           k = roll < 0.25 ? 'vault' : roll < 0.5 ? 'puzzle' : roll < 0.7 ? 'npc' : 'normal';
+          // never the same kind as the floor before, and never two quiet floors in a row
+          if (k !== 'normal' && (k === run.lastKind || QUIET_KINDS.includes(run.lastKind ?? 'normal'))) k = 'normal';
           if (k === 'normal') run.fate = FLOOR_MODS[Math.floor(Math.random() * FLOOR_MODS.length)].id;
           run.kind = k;
         }
@@ -296,7 +301,7 @@ export class GameScene extends Phaser.Scene {
     }
     const calmKind: CalmKind | undefined = this.kind === 'camp' || this.kind === 'merchant' || this.kind === 'vault' || this.kind === 'puzzle' || this.kind === 'npc' ? this.kind : undefined;
     // pity: guarantee merchants regularly
-    const forceMerchant = save.merchantPity >= 3;
+    const forceMerchant = save.merchantPity >= 5;
     this.dungeon = this.inVillage ? generateVillage(this.floor) : generateDungeon(this.floor, (Math.random() * 1e9) | 0, { forceMerchant, rift: rift ?? undefined, calm: calmKind });
     if (!rift && !this.inVillage) {
       if (this.dungeon.hasMerchant) save.merchantPity = 0;
@@ -2806,7 +2811,9 @@ export class GameScene extends Phaser.Scene {
 
   /** the doors after a floor: the dangerous path, a plain one or the merchant's, and the unknown */
   pathOptions(): FloorKind[] {
-    const second: FloorKind = Math.random() < 0.4 ? 'merchant' : 'normal';
+    // after a quiet floor (a merchant, a camp, a treasury, a puzzle, a meeting) the next one has monsters again
+    const quiet = QUIET_KINDS.includes(this.kind);
+    const second: FloorKind = !quiet && Math.random() < 0.25 ? 'merchant' : 'normal';
     return Math.random() < 0.25 ? [second, 'danger'] : [second, 'danger', 'unknown'];
   }
 
@@ -2926,6 +2933,8 @@ export class GameScene extends Phaser.Scene {
     // the village the floor keeps its kind and fate
     if (!stay) {
       const run = runOf(this.save);
+      // remembered so the next floors do not repeat it (a camp or a guardian's floor counts as its own kind)
+      run.lastKind = isCampFloor(this.floor) ? 'camp' : this.kind;
       run.kind = this.nextKind ?? 'normal';
       run.fate = undefined;
       this.nextKind = null;

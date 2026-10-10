@@ -765,7 +765,9 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
     for (const t of want[calm]) take(t);
     hasMerchant = rooms.some((rm) => rm.type === 'merchant');
   } else if (!rift) {
-    if (opts.forceMerchant || r.chance(0.42)) {
+    // a merchant on a regular floor is a welcome surprise, not a fixture (the merchant's door, camps and the
+    // guardians' preparation rooms always have one)
+    if (opts.forceMerchant || r.chance(0.18)) {
       hasMerchant = !!take('merchant');
     }
     if (r.chance(0.5)) take('treasure');

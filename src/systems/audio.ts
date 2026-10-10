@@ -226,6 +226,8 @@ export const settings = {
   lootRules: [] as LootRule[],
   /** items better than the equipped ones are always kept */
   keepUpgrades: true,
+  /** the qualities ticked last time in "sell by quality" */
+  sellPick: [0, 1] as number[],
 };
 try {
   const raw = localStorage.getItem('loppo-settings');

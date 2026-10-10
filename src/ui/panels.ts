@@ -48,7 +48,7 @@ import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
 import { TALENT_TREES, TALENT_GATE, TalentDef, COND_NAME, spentIn, canLearn, talentPoints, TALENT_CLASS } from '../data/talents';
 import { MULTI_LEVEL, MULTI_COST, MULTI_TALENT_CAP, multiTitle } from '../data/multiclass';
 import type { Mercenary } from '../game/merc';
-import { MAT_INFO, MatKey } from '../game/loot';
+import { MAT_INFO, MatKey, UPGRADE_KEEP } from '../game/loot';
 import { stashSize, respecMult, forgeMods, buildingLevel } from '../data/village';
 import { sfx, settings, saveSettings, LootRule, vibrate } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -755,7 +755,7 @@ export class Panels {
             ? `<div class="row multibar"><span class="mcount">Vybráno <b>${marked.length}</b></span><button class="btn small gold" data-a="msell">Prodat · ${markedValue.toLocaleString('cs-CZ')} zl.</button><button class="btn small purple" data-a="msalv">Rozebrat</button><button class="btn small" data-a="mnone">✕ Zrušit</button></div>`
             : ''
         }
-        <div class="row invacts ${mode}"${multi ? ' hidden' : ''}>${mode === 'sell' ? '<button class="btn small twoline" data-a="sellcommon">Prodat běžné<br>a neobvyklé</button>' : ''}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙<span class="lootlbl"> Kořist</span></button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}</div>
+        <div class="row invacts ${mode}"${multi ? ' hidden' : ''}>${mode === 'sell' ? '<button class="btn small twoline gold" data-a="sellpick">Prodat podle<br>kvality ☑</button>' : ''}<button class="btn small blue" data-a="sort">Seřadit</button><button class="btn small" data-a="lootrules" title="Co se má stát se sebranými předměty">⚙<span class="lootlbl"> Kořist</span></button>${mode === 'normal' && upgrades ? `<button class="btn small green" data-a="equipbest">Nasadit lepší ▲ (${upgrades})</button>` : ''}</div>
       </div>
       <div class="col detail box scroll" style="width:min(300px,34%)"></div>`;
     // gold and materials sit in the header next to the title, so the bag gets the room
@@ -1056,22 +1056,9 @@ export class Panels {
       if (best >= 3) this.ui.confirm(`Rozebrat ${plural(idx.length)}?`, `Je mezi nimi i ${RARITIES[best].name.toLowerCase()} předmět – rozebrání se nedá vzít zpět.`, go, 'Rozebrat', 'Ponechat');
       else go();
     });
-    body.querySelector('[data-a=sellcommon]')?.addEventListener('click', () => {
-      let n = 0,
-        g = 0;
-      s.inventory.forEach((it, i) => {
-        if (it && !it.locked && it.rarity <= 1 && !this.sc.loot.isUpgrade(it)) {
-          g += itemValue(it);
-          returnGems(s, it);
-          this.sold(it, itemValue(it));
-          s.inventory[i] = null;
-          n++;
-        }
-      });
-      s.gold += g;
-      if (n) sfx('coin');
-      this.ui.toast(n ? `Prodáno ${n} předmětů za ${g} zlata` : 'Nic k prodeji', '#ffd76a');
-      rerender();
+    body.querySelector('[data-a=sellpick]')?.addEventListener('click', () => {
+      sfx('ui');
+      this.sellByQuality(rerender);
     });
     body.querySelector('[data-a=equipbest]')?.addEventListener('click', () => {
       // equip one upgrade at a time – each swap changes what counts as better
@@ -1380,10 +1367,21 @@ export class Panels {
     const def = MERC_BY_ROLE[m.role];
     const ms = this.sc.merc?.s ?? mercStats(m, s.level, derive(s).maxHp);
     const live = this.sc.merc;
-    const fits = s.inventory.map((it) => !!it && !!mercSlotFor(m.role, it));
+    // everything in the bag the mercenary can wear, best first (by what it adds to their fight)
+    const heroMax = derive(s).maxHp;
+    const mscore = (eq: typeof m.equip) => {
+      const st = mercStats({ ...m, equip: eq }, s.level, heroMax);
+      return (st.dmg / Math.max(0.3, st.atkCd)) * (1 + (st.crit / 100) * (st.critDmg / 100 - 1)) + st.heal * 0.8 + st.armor * 1.5 + st.maxHp * 0.06;
+    };
+    const now = mscore(m.equip);
+    const fitList = s.inventory
+      .map((it, i) => ({ it, i, slot: it ? mercSlotFor(m.role, it) : null }))
+      .filter((x): x is { it: Item; i: number; slot: MercSlot } => !!x.it && !!x.slot)
+      .map((x) => ({ ...x, delta: mscore({ ...m.equip, [x.slot]: x.it }) / Math.max(0.001, now) - 1 }))
+      .sort((a, b) => b.delta - a.delta);
     const sel = this.mercSel;
     const selItem = sel?.slot ? m.equip[sel.slot] : sel?.idx !== undefined ? s.inventory[sel.idx] : null;
-    let detail = `<div class="hint">Vyber předmět z batohu (svítí ty, které ${esc(m.name)} unese) nebo jeho slot.</div>`;
+    let detail = `<div class="hint">Klepni na předmět v seznamu nebo na slot žoldáka.</div>`;
     if (selItem) {
       const slot = sel?.slot ?? mercSlotFor(m.role, selItem);
       const acts = sel?.slot ? `<button class="btn small" data-ma="off">Sundat do batohu</button>` : slot ? `<button class="btn green small" data-ma="give">Dát žoldákovi</button>` : `<span class="hint">Tohle ${esc(m.name)} nepoužije.</span>`;
@@ -1409,9 +1407,18 @@ export class Panels {
       <div class="col" style="flex:1;min-width:0">
         <div class="orn"><span>Vybavení žoldáka</span></div>
         <div class="mercslots">${MERC_SLOTS.map((sl) => `<div class="mslotwrap"><span class="hint">${sl.name}</span>${this.slotHtml(m.equip[sl.id], `mslot ${sel?.slot === sl.id ? 'sel' : ''}" data-ms="${sl.id}`)}</div>`).join('')}</div>
+        <div class="orn"><span>Co mu můžeš dát · ${fitList.length}</span></div>
+        <div class="scroll mfits">${
+          fitList.length
+            ? fitList
+                .map(({ it, i, slot, delta }) => {
+                  const mark = delta > 0.005 ? `<b class="up">▲${Math.round(delta * 100)} %</b>` : delta < -0.005 ? `<b class="down">▼</b>` : `<b class="same">=</b>`;
+                  return `<div class="mfit ${sel?.idx === i ? 'sel' : ''}" data-idx="${i}"><img src="${iconURL(itemIcon(it), 32)}"><span class="nm" style="color:${itemColor(it)}">${it.upgrade ? '+' + it.upgrade + ' ' : ''}${esc(it.name)}</span><span class="msl">${MERC_SLOTS.find((x) => x.id === slot)!.name}</span>${mark}<button class="btn green small" data-give="${i}">Dát</button></div>`;
+                })
+                .join('')
+            : `<p class="hint">V batohu nemáš nic, co by ${esc(m.name)} unesl. ${esc(def.title)} používá: ${esc(def.uses.map((u) => BASE_BY_ID[u]?.noun ?? u).join(', '))}, každou zbroj a šperky.</p>`
+        }</div>
         <div class="mercdet box">${detail}</div>
-        <div class="orn"><span>Batoh</span></div>
-        <div class="scroll" style="flex:1;min-height:60px"><div class="grid">${s.inventory.map((it, i) => this.slotHtml(it, `minv ${fits[i] ? 'fits' : it ? 'dim' : ''} ${sel?.idx === i ? 'sel' : ''}" data-idx="${i}`)).join('')}</div></div>
       </div>`;
     const redraw = () => this.merc(p);
     body.querySelectorAll<HTMLElement>('[data-ms]').forEach((c) =>
@@ -1422,12 +1429,29 @@ export class Panels {
         redraw();
       }),
     );
-    body.querySelectorAll<HTMLElement>('.minv').forEach((c) =>
-      c.addEventListener('click', () => {
+    body.querySelectorAll<HTMLElement>('.mfit').forEach((c) =>
+      c.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('[data-give]')) return;
         const i = +c.dataset.idx!;
         if (!s.inventory[i]) return;
         sfx('ui');
         this.mercSel = { idx: i };
+        redraw();
+      }),
+    );
+    // a direct "give" from the list
+    body.querySelectorAll<HTMLElement>('[data-give]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const i = +b.dataset.give!;
+        const it = s.inventory[i];
+        const slot = it ? mercSlotFor(m.role, it) : null;
+        if (!it || !slot || !mercFits(m.role, slot, it)) return;
+        const old = m.equip[slot] ?? null;
+        m.equip[slot] = it;
+        s.inventory[i] = old;
+        this.mercSel = { slot };
+        sfx('upgrade');
+        this.afterMercGear();
         redraw();
       }),
     );
@@ -1612,6 +1636,79 @@ export class Panels {
 
   // ------------------------------------------------------------------ LOOT RULES
   /** for each rarity: keep picked-up items, sell them at once or salvage them at once */
+  /** selling by quality: a tick for each colour, what it would bring, then everything ticked goes at once
+   *  (locked items and set pieces stay; clear upgrades too while that box is ticked) */
+  sellByQuality(onDone: () => void) {
+    const s = this.sc.save;
+    const d = el(`<div class="panel small sellpick"><div class="head"><h2>Prodat podle kvality</h2><button class="close">✕</button></div><div class="spbody"></div></div>`);
+    const close = this.ui.dialog(d);
+    $('.close', d).addEventListener('click', close);
+    const body = $('.spbody', d);
+    const pick = new Set(settings.sellPick.filter((r) => r >= 0 && r < RARITIES.length));
+    let keepUp = settings.keepUpgrades;
+    const matching = (r: number) =>
+      s.inventory.map((it, i) => ({ it, i })).filter(({ it }) => !!it && it.rarity === r && !it.locked && !it.set && !(keepUp && this.sc.loot.isUpgrade(it!, UPGRADE_KEEP)));
+    const render = () => {
+      let n = 0,
+        g = 0;
+      const rows = RARITIES.map((r, i) => {
+        const m = matching(i);
+        const v = m.reduce((a, x) => a + itemValue(x.it!), 0);
+        if (pick.has(i)) {
+          n += m.length;
+          g += v;
+        }
+        return `<button class="hcbox sprow ${pick.has(i) ? 'on' : ''} ${m.length ? '' : 'empty'}" data-r="${i}"><span class="tick"></span><span class="hctext"><b style="color:${r.color}">${esc(r.name)}</b><small>${m.length ? `${m.length}× · ${v.toLocaleString('cs-CZ')} zl.` : 'nic v batohu'}</small></span></button>`;
+      }).join('');
+      body.innerHTML = `<p class="hint">Zaškrtni barvy, které chceš prodat. Zamčené předměty a části sad zůstanou.</p>
+        <div class="sprows">${rows}</div>
+        <button class="hcbox ${keepUp ? 'on' : ''}" data-a="upg"><span class="tick"></span><span class="hctext"><b>Vylepšení si nechat</b><small>Předmět aspoň o 12 % lepší než ten, co máš na sobě (▲), se neprodá.</small></span></button>
+        <div class="row" style="justify-content:center;gap:10px"><button class="btn gold" data-a="sell" ${n ? '' : 'disabled'}>Prodat ${n}× za ${g.toLocaleString('cs-CZ')} zl.</button></div>`;
+      body.querySelectorAll<HTMLElement>('[data-r]').forEach((b) =>
+        b.addEventListener('click', () => {
+          sfx('ui');
+          const r = +b.dataset.r!;
+          if (pick.has(r)) pick.delete(r);
+          else pick.add(r);
+          settings.sellPick = [...pick].sort();
+          saveSettings();
+          render();
+        }),
+      );
+      $('[data-a=upg]', body).addEventListener('click', () => {
+        sfx('ui');
+        keepUp = !keepUp;
+        render();
+      });
+      $('[data-a=sell]', body).addEventListener('click', () => {
+        const all = [...pick].flatMap((r) => matching(r));
+        if (!all.length) return;
+        const go = () => {
+          let total = 0;
+          for (const { it, i } of all) {
+            const price = itemValue(it!);
+            if (returnGems(s, it!)) this.ui.toast('Drahokamy se vrátily do váčku', '#d08aff');
+            this.sold(it!, price);
+            s.inventory[i] = null;
+            total += price;
+          }
+          s.gold += total;
+          this.multi = null;
+          this.sel = null;
+          sfx('coin');
+          this.ui.toast(`Prodáno: ${all.length}× za ${total.toLocaleString('cs-CZ')} zlata`, '#ffd76a');
+          close();
+          onDone();
+        };
+        // something valuable among them: ask first
+        const best = Math.max(...all.map((x) => x.it!.rarity));
+        if (best >= 3) this.ui.confirm(`Prodat ${all.length} předmětů?`, `Je mezi nimi i ${RARITIES[best].name.toLowerCase()} předmět – prodej se nedá vzít zpět.`, go, 'Prodat', 'Ponechat');
+        else go();
+      });
+    };
+    render();
+  }
+
   lootRules(onClose?: () => void) {
     const d = el(`<div class="panel small lootrules"><div class="head"><h2>Automatická kořist</h2><button class="close">✕</button></div><div class="lrbody"></div></div>`);
     const close = this.ui.dialog(d);
@@ -1623,12 +1720,24 @@ export class Panels {
     const names: Record<LootRule, string> = { keep: 'Nechat', sell: 'Prodat', salvage: 'Rozebrat' };
     const render = () => {
       body.innerHTML = `<p class="hint">Co se stane s předmětem, když ho sebereš. Prodané dají zlato hned, rozebrané zlato a materiál. Sady a zamčené věci se nechávají vždy.</p>
+        <div class="lrquick"><span>Prodávat vše až po:</span>${[1, 2, 3]
+          .map((q) => `<button class="btn small" data-upto="${q}" style="color:${RARITIES[q].color}">${esc(RARITIES[q].name)}</button>`)
+          .join('')}</div>
         ${RARITIES.map(
           (r, i) => `<div class="lrrow"><span class="lrname" style="color:${r.color}">${esc(r.name)}</span>${(['keep', 'sell', 'salvage'] as LootRule[])
             .map((k) => `<button class="btn small ${(settings.lootRules[i] ?? 'keep') === k ? (k === 'keep' ? 'green' : k === 'sell' ? 'gold' : 'purple') : ''}" data-r="${i}" data-k="${k}">${names[k]}</button>`)
             .join('')}</div>`,
         ).join('')}
-        <button class="hcbox ${settings.keepUpgrades ? 'on' : ''}" data-a="upg"><span class="tick"></span><span class="hctext"><b>Vylepšení si vždy nechat</b><small>Předmět lepší než ten, co máš na sobě (▲), se nikdy neprodá ani nerozebere.</small></span></button>`;
+        <button class="hcbox ${settings.keepUpgrades ? 'on' : ''}" data-a="upg"><span class="tick"></span><span class="hctext"><b>Vylepšení si vždy nechat</b><small>Předmět aspoň o 12 % lepší než ten, co máš na sobě (▲), se neprodá ani nerozebere.</small></span></button>`;
+      body.querySelectorAll<HTMLElement>('[data-upto]').forEach((b) =>
+        b.addEventListener('click', () => {
+          sfx('ui');
+          const q = +b.dataset.upto!;
+          for (let i = 0; i < RARITIES.length; i++) settings.lootRules[i] = i <= q ? 'sell' : 'keep';
+          saveSettings();
+          render();
+        }),
+      );
       body.querySelectorAll<HTMLElement>('[data-k]').forEach((b) =>
         b.addEventListener('click', () => {
           sfx('ui');

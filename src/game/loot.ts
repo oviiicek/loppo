@@ -42,6 +42,10 @@ export interface Ground {
   warned?: boolean;
 }
 
+/** how much better than the worn item a pickup must be to escape the automatic selling and salvaging (and the
+ *  selling by quality) when upgrades are kept */
+export const UPGRADE_KEEP = 1.12;
+
 export class Loot {
   scene: GameScene;
   ground: Ground[] = [];
@@ -464,12 +468,14 @@ export class Loot {
   autoRule(it: Item): LootRule {
     const r = settings.lootRules[it.rarity] ?? 'keep';
     if (r === 'keep' || it.set || it.locked) return 'keep';
-    if (settings.keepUpgrades && this.isUpgrade(it)) return 'keep';
+    // only a clear upgrade is spared (an item barely better than the worn one would keep almost every green)
+    if (settings.keepUpgrades && this.isUpgrade(it, UPGRADE_KEEP)) return 'keep';
     return r;
   }
 
-  // would equipping this item raise damage output, armour or HP? (cheap estimate on a copy)
-  isUpgrade(it: Item) {
+  // would equipping this item raise damage output, armour or HP? (cheap estimate on a copy; `margin` is how much
+  // better it has to be)
+  isUpgrade(it: Item, margin = 1.02) {
     try {
       const s = this.scene.save;
       // weapons only count when they keep the current fighting style (melee / ranged / magic)
@@ -495,7 +501,7 @@ export class Loot {
       const after = derive(clone);
       const dps = (d: typeof before) => ((d.dmgMin + d.dmgMax) / 2) * d.aps * (1 + (d.crit / 100) * (d.critDmg / 100 - 1)) * (d.attack === 'magic' ? 1 : 1);
       const score = (d: typeof before) => dps(d) / Math.max(1, dps(before)) + d.armor / Math.max(10, before.armor) * 0.35 + d.maxHp / before.maxHp * 0.35 + d.spellMult / before.spellMult * 0.3;
-      return score(after) > score(before) * 1.02;
+      return score(after) > score(before) * margin;
     } catch {
       bus.muted = false;
       return false;
