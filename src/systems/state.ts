@@ -276,8 +276,8 @@ export function newCharacter(cls: ClassId, opts: { difficulty?: number; hardcore
     difficulty: opts.difficulty ?? DEFAULT_DIFFICULTY,
     hardcore: !!opts.hardcore,
   };
-  s.equip.main = generateItem(1, { base: def.weapon, rarity: 0 });
-  if (def.offhand) s.equip.off = generateItem(1, { base: def.offhand, rarity: 0 });
+  s.equip.main = generateItem(1, { base: def.weapon, rarity: 0, noSpell: true });
+  if (def.offhand) s.equip.off = generateItem(1, { base: def.offhand, rarity: 0, noSpell: true });
   s.equip.chest = generateItem(1, { base: 'chest', rarity: 0 });
   autoLoadout(s);
   return s;
@@ -474,6 +474,9 @@ export function derive(s: SaveData, buffs: BuffMods[] = []): Derived {
   aps *= 1 + attrs.spd * 0.015 + (g('atkSpdPct') + b('atkSpdPct')) / 100;
   aps = Math.min(aps, 6);
   if (attack !== 'melee') range *= 1 + (g('range') + b('range')) / 100;
+  // weapon bonuses: a longer reach, a wider arc of blows
+  if (specials.has('reach')) range *= 1.15;
+  if (specials.has('wideArc')) arc += 40;
 
   let armor = g('armor');
   armor *= 1 + (b('armorPct') + g('armorPct')) / 100 + (s.cls === 'warrior' ? 0.15 : 0);

@@ -21,12 +21,12 @@ import { Mercenary } from '../game/merc';
 import { MercRole, MERC_BY_ROLE, randomMercName, MercOrder, MercState } from '../data/mercs';
 import { RivalMood, RIVAL_PEOPLE, RIVAL_GREETING, rivalRole, rivalFoeBase, rivalToll } from '../data/rivals';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
-import { syncCodex } from '../data/codex';
+import { syncCodex, codexOf } from '../data/codex';
 import { Weather } from '../game/weather';
 import { PET_BY_ID, PetId, petTitle, cagePetFor, cageChance, petLevel } from '../data/pets';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { spellsForClass, BuffMods } from '../data/spells';
-import { generateItem } from '../data/items';
+import { generateItem, setUniqueWeight } from '../data/items';
 import { Item } from '../data/types';
 import { Element } from '../data/types';
 import { UI } from '../ui/ui';
@@ -47,6 +47,7 @@ import { BUILDINGS, villageOf } from '../data/village';
 import { ClassId } from '../data/types';
 import { potionMult } from '../data/village';
 import { BEASTS, bestiaryOf, KNOW_AT, EL_NAME } from '../data/bestiary';
+import { Procs } from '../game/procs';
 
 /** seconds between kills that keep a kill streak going */
 const STREAK_WINDOW = 2.6;
@@ -217,6 +218,8 @@ export class GameScene extends Phaser.Scene {
   quests!: QuestLog;
   /** the special powers of the monster families */
   powers!: Powers;
+  /** the bonus spells of the hero's weapons */
+  procs!: Procs;
 
   constructor() {
     super('Game');
@@ -315,6 +318,7 @@ export class GameScene extends Phaser.Scene {
     this.combat = new Combat(this);
     this.powers = new Powers(this);
     this.spells = new Spells(this);
+    this.procs = new Procs(this);
     this.loot = new Loot(this);
     this.bossAI = new BossAI(this);
     this.enc = new Encounters(this);
@@ -380,6 +384,8 @@ export class GameScene extends Phaser.Scene {
     this.spawnPet(ux, uy + 4, false);
     this.spawnMerc(ux, uy + 4, false);
     syncCodex(this.save);
+    // legendary finds favour the uniques the hero has not found yet
+    setUniqueWeight((u) => (codexOf(this.save).u.includes(u.id) ? 1 : 3));
     if (!rift && !home && !calm && !guard) this.spawnRival();
     else this.rival = null;
     // what else happens on this floor (a rift has its own rules, the village is home, a calm floor is quiet)
@@ -2034,6 +2040,7 @@ export class GameScene extends Phaser.Scene {
     const orig = proj.hitEnemy.bind(proj);
     let bounces = p.d.specials.has('ricochet') ? 2 : 0;
     let split = p.d.specials.has('splitShot');
+    let fork = p.d.specials.has('forkShot');
     let chained = false;
     proj.hitEnemy = (e: Enemy) => {
       this.combat.attackHit(e, proj.vx, proj.vy, mult);
@@ -2049,6 +2056,16 @@ export class GameScene extends Phaser.Scene {
         const a0 = Math.atan2(proj.vy, proj.vx);
         for (const da of [-0.5, 0.5]) {
           const sp = new Projectile(this, { x: proj.x, y: proj.y, angle: a0 + da, speed: 300, sprite, dmg: p.weaponHit() * 0.5 * mult, el: 'phys', owner: 'player', range: 110 });
+          sp.hitIds.add(e.id);
+          this.projectiles.push(sp);
+        }
+      }
+      // forkShot: the first hit splits the shot in two weaker halves
+      if (fork) {
+        fork = false;
+        const a0 = Math.atan2(proj.vy, proj.vx);
+        for (const da of [-0.35, 0.35]) {
+          const sp = new Projectile(this, { x: proj.x, y: proj.y, angle: a0 + da, speed: 300, sprite, dmg: p.weaponHit() * 0.4 * mult, el: 'phys', owner: 'player', range: 100 });
           sp.hitIds.add(e.id);
           this.projectiles.push(sp);
         }
@@ -2131,7 +2148,7 @@ export class GameScene extends Phaser.Scene {
     const brew = potionMult(this.save);
     this.quests.onPotion();
     if (kind === 'hpPotion') {
-      p.heal((p.d.maxHp * 0.45 + 30) * (p.d.specials.has('weakPotions') ? 0.5 : 1) * brew);
+      p.heal((p.d.maxHp * 0.45 + 30) * (p.d.specials.has('weakPotions') ? 0.5 : 1) * (p.d.specials.has('potionPower') ? 1.5 : 1) * brew);
       this.fx.burst(p.x, p.y - 6, 0xff5050, 12);
     } else {
       p.mp = Math.min(p.d.maxMp, p.mp + (p.d.maxMp * 0.6 + 20) * brew);
@@ -3105,6 +3122,7 @@ export class GameScene extends Phaser.Scene {
 
     for (const e of this.enemies) e.update(dt);
     this.powers.update(dt);
+    if (!p.dead) this.procs.tick(dt, p.calmT < 3);
     this.separate();
     if (this.enemies.some((e) => e.dead)) this.enemies = this.enemies.filter((e) => !e.dead);
     for (const a of this.allies) a.update(dt);

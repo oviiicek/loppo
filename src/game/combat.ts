@@ -79,6 +79,7 @@ export class Combat {
     const sc = this.scene;
     const p = sc.player;
     const s = p.d.specials;
+    sc.procs.onHit(e);
     if (s.has('chainOnHit') && Math.random() < 0.15) sc.spells.chain(e.x, e.y, 3, dmg * 0.6, 'lightning', new Set([e.id]));
     if (s.has('frostOnHit') && Math.random() < 0.1) {
       e.st.stunT = Math.max(e.st.stunT, 1.2);
@@ -95,6 +96,30 @@ export class Combat {
     if (s.has('markOfDeath')) {
       e.st.vulnT = 4;
       e.st.vuln = Math.max(e.st.vuln, 0.25);
+    }
+    // the weapon bonuses
+    if (s.has('bleedOnHit')) {
+      e.st.bleedT = 3;
+      e.st.bleedDps = Math.max(e.st.bleedDps, dmg * 0.25);
+    }
+    if (s.has('chillOnHit')) {
+      const m = e.boss ? 0.85 : 0.7;
+      e.st.slowMult = e.st.slowT > 0 ? Math.min(e.st.slowMult, m) : m;
+      e.st.slowT = Math.max(e.st.slowT, 2);
+    }
+    if (s.has('sunder')) {
+      e.st.vuln = e.st.vulnT > 0 ? Math.max(e.st.vuln, 0.12) : 0.12;
+      e.st.vulnT = Math.max(e.st.vulnT, 3);
+    }
+    if (s.has('frenzy')) p.frenzyHit();
+    if (s.has('stunOnHit') && !e.boss && Math.random() < 0.08) {
+      e.st.stunT = Math.max(e.st.stunT, 1);
+      sc.fx.burst(e.x, e.y - 10, 0xffe9a0, 5);
+    }
+    if (s.has('goldOnHit') && Math.random() < 0.04) sc.loot.dropGold(sc.loot.goldAmount(0.25), e.x, e.y);
+    if (s.has('holySmite') && Math.random() < 0.1) {
+      sc.spells.nova(e.x, e.y, 28, dmg * 0.6, 'holy', {});
+      p.heal(p.d.maxHp * 0.02, false);
     }
     // runes in the weapons
     for (const w of [p.save.equip.main, p.save.equip.off]) {
@@ -120,6 +145,8 @@ export class Combat {
 
   /** a meteor's own explosion does not call more meteors */
   private inMeteor = false;
+  /** a critical splash does not splash again */
+  private splashing = false;
   /** a mirrored champion's reflection does not reflect again */
   private reflecting = false;
   /** seconds until thunderClap can sound again */
@@ -187,7 +214,16 @@ export class Combat {
       const sp = p.d.specials;
       if (sp.has('executioner') && e.hp < e.maxHp * 0.25) dmg *= e.boss ? 1.5 : 3;
       if (sp.has('giantSlayer') && (e.elite || e.boss)) dmg *= 1.5;
+      if (sp.has('firstStrike') && o.isAttack && e.hp >= e.maxHp * 0.99) dmg *= 1.6;
+      if (sp.has('finisher') && e.hp < e.maxHp * 0.3) dmg *= 1.4;
+      // a critical blow splashes onto the foes around its target
+      if (crit && o.isAttack && sp.has('critSplash') && !this.splashing) {
+        this.splashing = true;
+        for (const n of sc.enemiesNear(e.x, e.y, 28)) if (n !== e) this.damageEnemy(n, dmg * 0.4, { el, noCrit: true, silent: true });
+        this.splashing = false;
+      }
       if (crit && sp.has('lifeTap')) p.heal(p.d.maxHp * 0.05, false);
+      if (crit) sc.procs.onCrit(e);
       if (crit && sp.has('meteorCrit') && !this.inMeteor && Math.random() < 0.2) {
         const x = e.x,
           y = e.y;
@@ -403,10 +439,13 @@ export class Combat {
     p.save.kills++;
     sc.onKill(e, gained);
     sc.loot.enemyDrops(e);
+    sc.procs.onKill(e);
     const s = p.d.specials;
     if (s.has('explodeOnKill')) sc.spells.explosion(e.x, e.y, 36, p.weaponHit() * 0.6, 'fire', {});
     if (s.has('healOnKill')) p.heal(p.d.maxHp * 0.04);
     if (s.has('cdrOnKill')) p.cds = p.cds.map((c) => Math.max(0, c - 0.5));
+    if (s.has('manaOnKill')) p.mp = Math.min(p.d.maxMp, p.mp + p.d.maxMp * 0.04);
+    if (s.has('speedOnKill')) p.addBuff('swiftKill', 'Rychlé nohy', { move: 25 }, 3, 0xb8f0ff);
     // unique powers
     if (s.has('soulRise') && !e.boss && !e.isMinion && Math.random() < 0.25) {
       const a = sc.addAlly('shadow', e.x, e.y, p.d.maxHp * 0.25, p.weaponHit() * 0.5, 15);
@@ -483,6 +522,8 @@ export class Combat {
       if (Math.random() * 100 < d.dodge) {
         sc.fx.number(p.x, p.y - 18, 'úhyb', '#9fe6ff');
         this.thunderClap();
+        sc.procs.onDodge();
+        if (d.specials.has('dodgeHeal')) p.heal(d.maxHp * 0.03, false);
         return;
       }
       if (d.block > 0 && Math.random() * 100 < d.block) {
@@ -490,6 +531,7 @@ export class Combat {
         sc.fx.burst(p.x - 5 * p.facing, p.y - 6, 0xc8d0d8, 5);
         amount *= 0.25;
         this.thunderClap();
+        sc.procs.onDodge();
       }
     }
     let dmg = amount;
@@ -503,9 +545,15 @@ export class Combat {
     if (taken) dmg *= 1 + taken / 100;
     // stone skin: standing still
     if (d.specials.has('stoneSkin') && Math.hypot(sc.moveVec[0], sc.moveVec[1]) < 0.1) dmg *= 0.7;
+    if (d.specials.has('lastStand') && p.hp < d.maxHp * 0.3) dmg *= 0.8;
     if (!isDot && d.specials.has('frostArmor') && Math.random() < 0.15) sc.spells.nova(p.x, p.y, 55, p.weaponHit() * 0.8, 'ice', { freeze: 1.2 });
     // thorns: the attacker gets part of the blow back (with a thorn aura also the one who shot or cast it)
     const melee = src instanceof Enemy ? src : null;
+    // skin of ice: who strikes the hero up close slows down
+    if (melee && !isDot && d.specials.has('iceSkin') && !melee.boss) {
+      melee.st.slowMult = melee.st.slowT > 0 ? Math.min(melee.st.slowMult, 0.6) : 0.6;
+      melee.st.slowT = Math.max(melee.st.slowT, 2);
+    }
     const thornFoe = melee ?? (d.specials.has('thornAura') && causeFoe && !causeFoe.dead && !causeFoe.boss ? causeFoe : null);
     if (thornFoe && !isDot) {
       let reflect = d.thorns + (amount * d.thornsPct) / 100;
@@ -575,6 +623,7 @@ export class Combat {
       sc.fx.ring(p.x, p.y - 6, 50, 0xff5a3a, 500);
       sfx('shout');
     }
+    if (!isDot && p.hp > 0) sc.procs.onHurt();
     if (!isDot) {
       sfx('hurt');
       vibrate(20);

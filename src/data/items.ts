@@ -4,6 +4,7 @@ import { AttackKind, Affix, Item, ItemCategory, Slot, StatKey, Stats } from './t
 import { RNG, rng as globalRng } from '../systems/rng';
 import { rollSockets, socketStats } from './gems';
 import { SETS, SET_BY_ID, SET_COLOR } from './sets';
+import { WEAPON_SPELL_CHANCE, rollWeaponSpell } from './weaponspells';
 
 // ---------------------------------------------------------------------------
 // Rarities
@@ -241,6 +242,8 @@ export interface SpecialDef {
   id: string;
   desc: string;
   cats: ItemCategory[] | 'all';
+  /** only on weapons that fight this way (shots for ranged and magic weapons, a wider arc for melee ones) */
+  kinds?: AttackKind[];
 }
 
 export const SPECIALS: SpecialDef[] = [
@@ -260,6 +263,30 @@ export const SPECIALS: SpecialDef[] = [
   { id: 'vampAura', desc: 'Nepřátelé v tvé blízkosti ztrácí 2 % HP/s a léčí tě', cats: ['chest', 'amulet', 'helmet'] },
   { id: 'ghostStep', desc: 'Po zásahu nepřítelem získáš na 2 s +40 % rychlosti pohybu', cats: ['boots', 'pants', 'belt'] },
   { id: 'arcaneOrbit', desc: 'Kolem tebe krouží 2 magické koule', cats: ['amulet', 'offhand', 'helmet', 'ring'] },
+  // more bonuses for weapons, so the same ones turn up less often
+  { id: 'bleedOnHit', desc: 'Útoky způsobují krvácení', cats: WEAPONS },
+  { id: 'chillOnHit', desc: 'Útoky zpomalují nepřátele o 30 %', cats: WEAPONS },
+  { id: 'sunder', desc: 'Zásah oslabí nepřítele: 3 s dostává o 12 % víc poškození', cats: WEAPONS },
+  { id: 'firstStrike', desc: '+60 % poškození nepřátelům s plným zdravím', cats: WEAPONS },
+  { id: 'finisher', desc: '+40 % poškození nepřátelům pod 30 % zdraví', cats: [...WEAPONS, 'ring', 'amulet'] },
+  { id: 'critSplash', desc: 'Kritický zásah zasáhne i nepřátele kolem cíle (40 % poškození)', cats: WEAPONS },
+  { id: 'frenzy', desc: 'Každý zásah zrychlí útoky o 2 % (až o 20 %); po 3 s bez zásahu to vyprchá', cats: [...WEAPONS, 'bracer', 'ring'] },
+  { id: 'pierceShots', desc: 'Střely proletí jedním nepřítelem navíc', cats: WEAPONS, kinds: ['ranged', 'magic'] },
+  { id: 'homingShots', desc: 'Střely samy hledají cíl', cats: WEAPONS, kinds: ['ranged', 'magic'] },
+  { id: 'forkShot', desc: 'Střela se po prvním zásahu rozdvojí (každá půlka 40 % poškození)', cats: WEAPONS, kinds: ['ranged', 'magic'] },
+  { id: 'wideArc', desc: 'Širší oblouk úderů (+40°)', cats: WEAPONS, kinds: ['melee'] },
+  { id: 'stunOnHit', desc: '8 % šance při zásahu omráčit nepřítele na 1 s', cats: WEAPONS, kinds: ['melee'] },
+  { id: 'reach', desc: '+15 % dosahu zbraně', cats: WEAPONS },
+  { id: 'goldOnHit', desc: 'Zásahy občas vyrazí z nepřítele zlato', cats: [...WEAPONS, 'ring'] },
+  { id: 'holySmite', desc: '10 % šance při zásahu seslat svaté světlo, které tě vyléčí o 2 %', cats: WEAPONS },
+  // and for the rest of the gear
+  { id: 'manaOnKill', desc: 'Zabití obnoví 4 % many', cats: 'all' },
+  { id: 'speedOnKill', desc: 'Zabití ti na 3 s zrychlí pohyb o 25 %', cats: 'all' },
+  { id: 'potionPower', desc: 'Lektvary zdraví léčí o 50 % víc', cats: ['belt', 'amulet', 'ring'] },
+  { id: 'dodgeHeal', desc: 'Úhyb tě vyléčí o 3 % zdraví', cats: ['boots', 'pants', 'ring', 'bracer'] },
+  { id: 'iceSkin', desc: 'Kdo tě udeří zblízka, ten se na 2 s zpomalí', cats: ['chest', 'shield', 'helmet', 'pants'] },
+  { id: 'lastStand', desc: 'Pod 30 % zdraví dostáváš o 20 % méně poškození', cats: ['chest', 'belt', 'shield', 'pants', 'helmet'] },
+  { id: 'calmRegen', desc: 'Mimo boj se léčíš třikrát rychleji', cats: ['helmet', 'amulet', 'belt', 'chest'] },
 ];
 
 export const SPECIAL_BY_ID: Record<string, SpecialDef> = Object.fromEntries([...SPECIALS, ...POWERS.map((p) => ({ ...p, cats: 'all' as const }))].map((s) => [s.id, s]));
@@ -341,6 +368,12 @@ export function pickBase(r: RNG, filter?: (b: BaseType) => boolean): BaseType {
   return r.weighted(pool, (b) => (isWeaponBase(b) ? WEAPON_WEIGHT : b.cat === 'ring' ? 1.2 : 1));
 }
 
+/** how much each unique is favoured when a legendary is rolled (the game favours the ones not found yet) */
+let uniqueWeight: (u: UniqueDef) => number = () => 1;
+export function setUniqueWeight(f: (u: UniqueDef) => number) {
+  uniqueWeight = f;
+}
+
 function buildName(base: BaseType, rarity: number, ilvl: number, affixes: Affix[], r: RNG): string {
   if (rarity >= 4) {
     const group = base.cat.startsWith('weapon') ? 'weapon' : ['ring', 'amulet', 'bracer'].includes(base.cat) ? 'jewel' : 'armor';
@@ -361,14 +394,14 @@ function buildName(base: BaseType, rarity: number, ilvl: number, affixes: Affix[
   return name;
 }
 
-export function generateItem(ilvl: number, opts: { rarity?: number; base?: string; magicFind?: number; rarityBonus?: number; r?: RNG; filter?: (b: BaseType) => boolean; noCurse?: boolean; noUnique?: boolean } = {}): Item {
+export function generateItem(ilvl: number, opts: { rarity?: number; base?: string; magicFind?: number; rarityBonus?: number; r?: RNG; filter?: (b: BaseType) => boolean; noCurse?: boolean; noUnique?: boolean; noSpell?: boolean } = {}): Item {
   const r = opts.r ?? globalRng;
   const rarity = opts.rarity ?? rollRarity(r, opts.magicFind ?? 0, opts.rarityBonus ?? 0);
   // a legendary (or better) find is one of the named uniques with a power of its own
   let unique: UniqueDef | null = null;
   if (rarity >= 4 && !opts.noUnique) {
     const pool = opts.base ? uniquesFor(opts.base) : UNIQUES.filter((u) => !opts.filter || opts.filter(BASE_BY_ID[u.base]));
-    unique = pool.length ? r.pick(pool) : opts.base ? null : r.pick(UNIQUES);
+    unique = pool.length ? r.weighted(pool, uniqueWeight) : opts.base ? null : r.pick(UNIQUES);
   }
   const base = unique ? BASE_BY_ID[unique.base] : opts.base ? BASE_BY_ID[opts.base] : pickBase(r, opts.filter);
   const rar = RARITIES[rarity];
@@ -404,15 +437,18 @@ export function generateItem(ilvl: number, opts: { rarity?: number; base?: strin
     used.add(def.key);
     item.affixes.push({ key: def.key, value: affixValue(def, ilvl, rar.mult, r) });
   }
-  const specPool = SPECIALS.filter((s) => s.cats === 'all' || s.cats.includes(base.cat));
-  // a unique's own power comes first and takes the place of one random special
+  const specPool = SPECIALS.filter((s) => (s.cats === 'all' || s.cats.includes(base.cat)) && (!s.kinds || (!!base.attack && s.kinds.includes(base.attack))));
+  // a unique's own power comes first and takes the place of one random special; now and then an epic find has one too
   if (unique) item.specials.push(unique.power);
-  for (let i = unique ? 1 : 0; i < rar.specials && specPool.length; i++) {
+  const nSpec = rar.specials + (rarity === 3 && r.next() < 0.3 ? 1 : 0);
+  for (let i = unique ? 1 : 0; i < nSpec && specPool.length; i++) {
     const s = r.pick(specPool.filter((x) => !item.specials.includes(x.id)));
     if (s) item.specials.push(s.id);
   }
   item.name = unique ? unique.name : buildName(base, rarity, ilvl, item.affixes, r);
   if (unique) item.unique = unique.id;
+  // some weapons carry a bonus spell (the better the weapon, the likelier)
+  if (isWeaponBase(base) && !opts.noSpell && r.next() < WEAPON_SPELL_CHANCE[rarity]) item.spell = rollWeaponSpell(r);
   const sockets = rollSockets(base.cat, rarity, () => r.next());
   if (sockets) item.sockets = sockets;
   // now and then a rare (or better) find carries a curse: a big bonus with a price

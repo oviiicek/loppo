@@ -126,6 +126,9 @@ export class Player extends Actor {
   // unique powers: stacks and timers
   lustN = 0;
   lustT = 0;
+  /** the frenzy bonus: stacks of attack speed from hits in a row */
+  frenzyN = 0;
+  frenzyT = 0;
   cheatT = 0;
   windT = 0;
   roarT = 0;
@@ -333,7 +336,7 @@ export class Player extends Actor {
     // spell buffs and shrine blessings
     const regenPct = [...this.buffs, ...this.scene.shrineBuffs].reduce((a, b) => a + (b.mods.regenPct ?? 0), 0);
     // a curse of madness stops the natural regeneration (blessings still heal)
-    const natural = this.d.specials.has('noRegen') ? 0 : this.d.hpRegen;
+    const natural = this.d.specials.has('noRegen') ? 0 : this.d.hpRegen * (this.calmT > 4 && this.d.specials.has('calmRegen') ? 3 : 1);
     // a floor without healing: no regeneration of health at all
     if (!this.scene.mod?.noHeal) this.hp = Math.min(this.d.maxHp, this.hp + (natural + (this.d.maxHp * regenPct) / 100) * dt);
     this.mp = Math.min(this.d.maxMp, this.mp + this.d.mpRegen * dt);
@@ -343,6 +346,10 @@ export class Player extends Actor {
 
     // timers of the unique powers
     if (this.lustT > 0) this.lustT -= dt;
+    if (this.frenzyT > 0) {
+      this.frenzyT -= dt;
+      if (this.frenzyT <= 0) this.frenzyN = 0;
+    }
     if (this.cheatT > 0) this.cheatT -= dt;
     if (this.windT > 0) this.windT -= dt;
     if (this.roarT > 0) this.roarT -= dt;
@@ -610,6 +617,19 @@ export class Player extends Actor {
     }
   }
 
+  /** a hit with the frenzy bonus: one more stack of attack speed (up to ten) */
+  frenzyHit() {
+    this.frenzyT = 3;
+    if (this.frenzyN >= 10) {
+      const b = this.buffs.find((x) => x.id === 'frenzy');
+      if (b) b.t = 3;
+      return;
+    }
+    this.frenzyN++;
+    this.buffs = this.buffs.filter((b) => b.id !== 'frenzy');
+    this.addBuff('frenzy', `Šílenství ×${this.frenzyN}`, { atkSpdPct: 2 * this.frenzyN }, 3, 0xffa04a);
+  }
+
   spellBase() {
     const L = this.save.level;
     return (8 + 3 * L + 0.05 * L * L) * this.d.spellMult;
@@ -701,7 +721,9 @@ export class Player extends Actor {
       const mult = base && (base.shots || base.burst) ? (base.shotDmg ?? 1) : 1;
       const spread = magic ? 0.15 : base?.shots ? 0.1 : 0.12;
       const spr = base?.proj ?? (magic ? 'pr_magic' : 'pr_arrow');
-      const opts = { mult, chain: base?.chain ?? 0, homing: !!base?.homing, fx: SHOT_FX[spr] ?? 0xffffff };
+      const sp = this.d.specials;
+      const opts = { mult, chain: base?.chain ?? 0, homing: !!base?.homing || sp.has('homingShots'), fx: SHOT_FX[spr] ?? 0xffffff };
+      const pierce = (base?.pierce ?? 0) + (sp.has('pierceShots') ? 1 : 0);
       const volley = () => {
         const tt = !t.dead ? t : this.target && !this.target.dead ? this.target : null;
         if (!tt) return;
@@ -709,7 +731,7 @@ export class Player extends Actor {
         for (let i = 0; i < n; i++) {
           const a = this.aim + (i - (n - 1) / 2) * spread;
           const [sx, sy] = this.shotOrigin(tt, a, magic ? 8 : 6);
-          sc.spawnPlayerAttackProjectile(sx, sy, a, spr, base?.pierce ?? 0, opts);
+          sc.spawnPlayerAttackProjectile(sx, sy, a, spr, pierce, opts);
         }
         if (magic) sc.fx.burst(this.x + Math.cos(this.aim) * 8, this.y - 10, opts.fx === 0xffffff ? 0xc77dff : opts.fx, 4);
       };

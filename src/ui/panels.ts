@@ -1,4 +1,5 @@
 import type { MerchantStock } from '../scenes/GameScene';
+import { parseWeaponSpell } from '../data/weaponspells';
 import { $, el, esc, keepScrollOn } from './ui';
 import type { UI as UIType } from './ui';
 import { iconURL, spellIcon } from '../gfx/textures';
@@ -155,7 +156,8 @@ export class Panels {
     const socks = it.sockets?.length ? `<span class="socks">${it.sockets.map((g) => `<i${g ? ` style="background:${parseGem(g)?.def.color}"` : ''}></i>`).join('')}</span>` : '';
     const lock = it.locked ? '<span class="lockmark">🔒</span>' : '';
     const curse = it.curse ? '<span class="cursemark">☠</span>' : '';
-    return `<div class="slot r${it.rarity}${it.set ? ' set' : ''}${it.curse ? ' cursed' : ''} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}${lock}${curse}</div>`;
+    const spell = it.spell ? '<span class="spellmark">✧</span>' : '';
+    return `<div class="slot r${it.rarity}${it.set ? ' set' : ''}${it.curse ? ' cursed' : ''} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}${lock}${curse}${spell}</div>`;
   }
 
   /** gold and materials in a panel's header, next to its title and tabs (the body keeps the room) */
@@ -228,6 +230,8 @@ export class Panels {
     for (const a of it.affixes) h += `<div class="aff">${formatStat(a.key, scaledAffix(a.key, a.value, am))}</div>`;
     if (it.enchant) h += `<div class="ench">✧ Očarování: ${formatStat(it.enchant.key, scaledAffix(it.enchant.key, it.enchant.value, am))}</div>`;
     for (const sp of it.specials) h += POWER_BY_ID[sp] ? `<div class="power">✦ ${esc(POWER_BY_ID[sp].desc)}</div>` : `<div class="spec">★ ${esc(SPECIAL_BY_ID[sp]?.desc ?? sp)}</div>`;
+    const ws = parseWeaponSpell(it.spell);
+    if (ws) h += `<div class="wspell"><b style="color:${ws.eff.color}">✧ ${esc(ws.eff.name)}</b> – ${esc(ws.trig.text)}<div class="wsdesc">${esc(ws.eff.desc)}</div></div>`;
     if (socketLines && it.sockets?.length) {
       const place = gemPlace(base.cat);
       for (const g of it.sockets) {

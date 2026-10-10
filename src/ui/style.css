@@ -1628,6 +1628,23 @@ img.px {
   color: #d08aff;
   margin: 2px 0;
 }
+/* a weapon's bonus spell and the moment it casts itself */
+.wspell {
+  font-size: 17px;
+  color: #d8d0e8;
+  margin: 4px 0 3px;
+  padding: 3px 6px;
+  border-left: 2px solid rgba(200, 170, 255, 0.55);
+  background: rgba(150, 110, 220, 0.1);
+  border-radius: 0 4px 4px 0;
+}
+.wspell .wsdesc {
+  font-size: 15px;
+  color: #a8a0b8;
+}
+.istats.small .wspell {
+  font-size: 15px;
+}
 /* what makes a kind of weapon different (three arrows at once, a bolt that jumps on ...) */
 .trait {
   font-size: 17px;
@@ -3939,6 +3956,16 @@ textarea.code {
   font-size: 12px;
   color: #e080ff;
   text-shadow: 0 0 3px #000, 1px 1px 0 #000;
+}
+
+/* a weapon with a bonus spell */
+.slot .spellmark {
+  position: absolute;
+  right: 3px;
+  top: 17px;
+  font-size: 13px;
+  color: #d8b8ff;
+  text-shadow: 0 0 4px #8a5aff, 1px 1px 0 #000;
 }
 
 /* legendary uniques: their power and a line of lore */

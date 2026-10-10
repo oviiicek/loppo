@@ -142,6 +142,8 @@ export interface Item {
   tamed?: boolean;
   /** the named legendary this item is (id in UNIQUES) */
   unique?: string;
+  /** a weapon's bonus spell that casts itself: "effect@trigger" (see data/weaponspells.ts) */
+  spell?: string;
   // rolled base values
   dmgMin?: number;
   dmgMax?: number;

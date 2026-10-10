@@ -126,6 +126,7 @@ export class Spells {
     this.execute(sp);
     // mage hunters jump at the caster, mirror demons copy the spell
     this.scene.powers.onSpell(sp);
+    this.scene.procs.onCast();
     if (p.d.specials.has('spellEcho') && Math.random() < 0.1) {
       this.scene.time.delayedCall(350, () => {
         if (!p.dead) {
