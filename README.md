@@ -161,6 +161,7 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
 - Útoky jsou vidět: zbraň se máchá nebo míří a šípy letí.
 - Dvě jednoruční zbraně se střídají v útoku a dávají +15 % rychlosti útoku.
 - Kritické zásahy, úhyb, blok štítem, brnění, vysávání života a many, trny a elementální poškození (oheň, mráz, blesk, jed).
+- **Salvy:** střely, které nestvůra vypálí naráz (kruh, vějíř), zasáhnou hrdinu jen jednou – ani bojovník těsně u strážce nedostane celý kruh střel najednou.
 - **Vysávání s limitem:** vysávání života a many léčí z rozdaného poškození, ale nejvýš 8 % maximálního zdraví a 10 % many za sekundu – hrdina nemůže být nesmrtelný.
 - **Trny jako styl boje:** pevné trny i odraz části přijatého poškození (nový atribut na zbroji, štítu, helmě a náramku) se vrací útočníkům a jdou přes jejich brnění. Sada Hradba trnů (helma, krunýř, štít, náramek) a unikáty Ostnatý krunýř (brnění zesiluje trny), Trnová koruna a Ježek (trny zasáhnou i střelce a každou sekundu nestvůry těsně u hrdiny) z toho dělají celý build.
 - Stavy nepřátel: zpomalení, omráčení, zmrazení, hoření, otrava, krvácení, zranitelnost.

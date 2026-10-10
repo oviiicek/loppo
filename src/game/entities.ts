@@ -1336,6 +1336,8 @@ export interface ProjOpts {
   srcFoe?: Enemy;
   /** what a monster's shot does besides damage: 'web', 'drain', 'curse:<id>' */
   effect?: string;
+  /** the salvo a monster's shot belongs to (see GameScene.spawnEnemyProjectile) */
+  salvo?: number;
 }
 
 export class Projectile {
@@ -1450,7 +1452,10 @@ export class Projectile {
       }
     } else {
       const p = sc.player;
-      if (Math.abs(p.x - this.x) < 6 && Math.abs(p.y - 6 - this.y) < 9) {
+      // one salvo hurts the hero once; its other shots fly through
+      const salvo = this.o.salvo;
+      const spent = salvo !== undefined && sc.salvoHits.has(salvo);
+      if (!spent && Math.abs(p.x - this.x) < 6 && Math.abs(p.y - 6 - this.y) < 9) {
         // reflect: the shot turns back on its shooter, twice as strong
         if (p.d.specials.has('reflect') && !p.dead && Math.random() < 0.25) {
           this.o.owner = 'player';
@@ -1463,6 +1468,7 @@ export class Projectile {
           sc.fx.number(p.x, p.y - 18, 'odraženo', '#ffd76a');
           return false;
         }
+        if (salvo !== undefined) sc.noteSalvoHit(salvo);
         sc.combat.cause = this.o.srcName ?? null;
         sc.combat.causeFoe = this.o.srcFoe ?? null;
         sc.combat.damagePlayer(this.o.dmg, null, this.o.el);

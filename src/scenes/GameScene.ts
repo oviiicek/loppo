@@ -175,6 +175,12 @@ export class GameScene extends Phaser.Scene {
   currentAction: Interactable | null = null;
   playTimeT = 0;
   floorKills = 0;
+  /** shots fired together by one monster (a ring, a fan) form a salvo that hurts the hero only once – a hero
+   *  standing right at a guardian is not hit by a whole ring at the moment it is fired */
+  salvoKey = '';
+  salvoId = 0;
+  /** the salvos that already hit the hero (salvo → time) */
+  salvoHits = new Map<number, number>();
   /** lingering danger zones (spore clouds, void pools) left by story guardians */
   hazards: { x: number; y: number; r: number; dps: number; el: Element; t: number; tick: number; img: Phaser.GameObjects.Image; src?: string; slow?: boolean; a?: number; foe?: Enemy }[] = [];
   /** the pet travelling with the hero */
@@ -218,6 +224,8 @@ export class GameScene extends Phaser.Scene {
     this.enemies = [];
     this.allies = [];
     this.projectiles = [];
+    this.salvoKey = '';
+    this.salvoHits = new Map();
     this.interactables = [];
     this.lamps = [];
     this.glows = [];
@@ -1984,9 +1992,22 @@ export class GameScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- projectiles
   spawnEnemyProjectile(x: number, y: number, angle: number, sprite: string, dmg: number, el: Element, speed: number, srcName?: string, srcFoe?: Enemy) {
-    const pr = new Projectile(this, { x, y, angle, speed, sprite, dmg, el, owner: 'enemy', range: 260, srcName, srcFoe });
+    // the shots one monster fires at the same moment are one salvo
+    const key = `${srcFoe?.id ?? srcName ?? ''}@${this.time.now}`;
+    if (key !== this.salvoKey) {
+      this.salvoKey = key;
+      this.salvoId++;
+    }
+    const pr = new Projectile(this, { x, y, angle, speed, sprite, dmg, el, owner: 'enemy', range: 260, srcName, srcFoe, salvo: this.salvoId });
     this.projectiles.push(pr);
     return pr;
+  }
+
+  /** a salvo hit the hero: its other shots fly through (salvos older than a few seconds are forgotten) */
+  noteSalvoHit(id: number) {
+    const now = this.time.now;
+    for (const [k, t] of this.salvoHits) if (now - t > 3000) this.salvoHits.delete(k);
+    this.salvoHits.set(id, now);
   }
 
   spawnAllyProjectile(x: number, y: number, angle: number, sprite: string, dmg: number, el: Element) {
