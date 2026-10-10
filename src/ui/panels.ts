@@ -5,6 +5,7 @@ import type { UI as UIType } from './ui';
 import { iconURL, spellIcon } from '../gfx/textures';
 import {
   BASE_BY_ID,
+  mainBonus,
   RARITIES,
   CATEGORY_NAMES,
   SPECIAL_BY_ID,
@@ -220,6 +221,8 @@ export class Panels {
       const kind = base.attack === 'melee' ? 'na blízko' : base.attack === 'ranged' ? 'na dálku' : 'magická';
       h += `<div class="main">Poškození: <b>${a}–${b}</b></div><div class="main">Útoků za sekundu: ${base.aps?.toFixed(2).replace('.', ',')} • zbraň ${kind}</div>`;
       h += `<div class="hint">Dosah: ${base.attack === 'melee' ? 'krátký (' + Math.round(((base.range ?? 0) / 16) * 10) / 10 + ' pole)' : Math.round((base.range ?? 0) / 16) + ' polí'}</div>`;
+      const mb = mainBonus(it);
+      if (mb) h += `<div class="mainb"><span>Hlavní bonus</span> ${formatStat(mb.key, mb.value)}</div>`;
       if (base.trait) h += `<div class="trait">➤ ${esc(base.trait)}</div>`;
     }
     const st = itemStats(it);
@@ -993,7 +996,7 @@ export class Panels {
       } else if (a === 'drop' && sel.from === 'inv') {
         const it = s.inventory[sel.idx]!;
         s.inventory[sel.idx] = null;
-        this.sc.loot.dropItem(it, this.sc.player.x, this.sc.player.y + 8);
+        this.sc.loot.throwItem(it);
         this.sel = null;
       }
       rerender();

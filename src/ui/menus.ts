@@ -65,6 +65,7 @@ export class Menus {
       <button class="btn blue" data-a="help">Jak hrát</button>
       <div class="row" style="justify-content:center"><button class="btn small" data-a="sound" style="min-width:0;font-size:18px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>${isStandalone() ? '' : `<button class="btn small" data-a="fs" data-fs="label" style="min-width:0;font-size:18px">${fsButtonHTML('label')}</button>`}</div>
       <div class="sprites">${CLASSES.map((c, i) => `<img src="${iconURL('pl_' + c.id, 64)}" style="animation-delay:${i * 0.15}s">`).join('')}</div>
+      <div class="version">verze ${__APP_VERSION__} beta</div>
     </div>`);
     this.ui.root.appendChild(m);
     m.addEventListener('click', (e) => {

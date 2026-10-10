@@ -1628,6 +1628,22 @@ img.px {
   color: #d08aff;
   margin: 2px 0;
 }
+/* the main bonus every kind of weapon has */
+.mainb {
+  font-size: 18px;
+  color: #ffe2a0;
+  margin: 3px 0 2px;
+}
+.mainb span {
+  font-size: 13px;
+  color: #c8a860;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 4px;
+}
+.istats.small .mainb {
+  font-size: 15px;
+}
 /* a weapon's bonus spell and the moment it casts itself */
 .wspell {
   font-size: 17px;
@@ -2242,6 +2258,16 @@ img.px {
   color: var(--gold2);
   letter-spacing: 6px;
   text-shadow: 4px 4px 0 #000, 0 0 30px rgba(255, 170, 50, 0.45);
+}
+/* the version in the corner of the main menu */
+.menu .version {
+  position: absolute;
+  right: calc(10px + env(safe-area-inset-right, 0px));
+  bottom: 6px;
+  font-size: 13px;
+  color: rgba(232, 220, 192, 0.55);
+  letter-spacing: 0.04em;
+  pointer-events: none;
 }
 .menu .subtitle {
   font-size: min(4vh, 22px);

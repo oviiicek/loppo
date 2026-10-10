@@ -48,6 +48,8 @@ export interface Ground {
   ready: number;
   dead: boolean;
   warned?: boolean;
+  /** thrown away from the bag: not picked up again until the hero has walked away from it */
+  held?: boolean;
 }
 
 /** how much better than the worn item a pickup must be to escape the automatic selling and salvaging (and the
@@ -259,7 +261,7 @@ export class Loot {
     this.scene.quests.maybeMap(({ wood: 0.015, iron: 0.04, gold: 0.08, boss: 0.1 } as Record<string, number>)[tier] ?? 0);
   }
 
-  private popTo(obj: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, x: number, y: number): [number, number] {
+  private popTo(obj: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, x: number, y: number, far = false): [number, number] {
     const sc = this.scene;
     let tx = x,
       ty = y;
@@ -268,9 +270,11 @@ export class Loot {
       x = tx = sc.player.x;
       y = ty = sc.player.y;
     }
-    for (let t = 0; t < 10; t++) {
-      const a = Math.random() * Math.PI * 2,
-        r = 8 + Math.random() * 18;
+    // a thrown item flies a few steps ahead of the hero (to the sides when a wall is in the way)
+    const face = sc.player.facing > 0 ? 0 : Math.PI;
+    for (let t = 0; t < (far ? 16 : 10); t++) {
+      const a = far ? face + (t % 2 ? 1 : -1) * Math.ceil(t / 2) * 0.45 : Math.random() * Math.PI * 2,
+        r = far ? 34 + Math.random() * 10 : 8 + Math.random() * 18;
       const nx = x + Math.cos(a) * r,
         ny = y + Math.sin(a) * r;
       if (!sc.map.collides(nx, ny, 3)) {
@@ -284,12 +288,18 @@ export class Loot {
     return [tx, ty];
   }
 
-  dropItem(it: Item, x: number, y: number) {
+  /** an item thrown away from the bag: it lands a few steps from the hero and stays there until picked up on purpose */
+  throwItem(it: Item) {
+    const p = this.scene.player;
+    this.dropItem(it, p.x, p.y, true);
+  }
+
+  dropItem(it: Item, x: number, y: number, thrown = false) {
     const sc = this.scene;
     const s = sc.add.image(x, y, itemIcon(it)).setScale(0.55).setDepth(D.entityBase + y - 2);
-    const [tx, ty] = this.popTo(s, x, y);
+    const [tx, ty] = this.popTo(s, x, y, thrown);
     const col = itemColor(it);
-    const g: Ground = { kind: 'item', item: it, amount: 1, x: tx, y: ty, sprite: s, ready: sc.time.now + 450, dead: false };
+    const g: Ground = { kind: 'item', item: it, amount: 1, x: tx, y: ty, sprite: s, ready: sc.time.now + 450, dead: false, held: thrown };
     if (it.rarity >= 1) {
       g.beam = sc.add.image(tx, ty + 2, 'beam').setOrigin(0.5, 1).setTint(Phaser.Display.Color.HexStringToColor(col).color).setAlpha(it.rarity >= 3 ? 0.7 : 0.4).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow).setScale(it.rarity >= 4 ? 1.2 : 0.8, it.rarity >= 3 ? 1 : 0.6);
       sc.tweens.add({ targets: g.beam, alpha: g.beam.alpha * 0.5, yoyo: true, repeat: -1, duration: 700 });
@@ -400,6 +410,11 @@ export class Loot {
         const sp = 160 * dt;
         g.sprite.x += (dx / (d || 1)) * Math.min(sp, d);
         g.sprite.y += (dy / (d || 1)) * Math.min(sp, d);
+      }
+      // a thrown item waits until the hero has walked away from it once
+      if (g.held) {
+        if (d > 26) g.held = false;
+        continue;
       }
       if (d < 10) this.pickup(g);
       else if (g.kind === 'item' && d > 30) g.warned = false;

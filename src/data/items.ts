@@ -78,15 +78,15 @@ export const BASES: BaseType[] = [
   // one-handed weapons
   { id: 'sword', noun: 'meč', gender: 'm', cat: 'weapon1h', icon: 'ic_sword', attack: 'melee', dmg: [5, 9], aps: 1.4, range: 30, arc: 110 },
   { id: 'axe', noun: 'sekera', gender: 'f', cat: 'weapon1h', icon: 'ic_axe', attack: 'melee', dmg: [6, 11], aps: 1.2, range: 28, arc: 120 },
-  { id: 'mace', noun: 'palcát', gender: 'm', cat: 'weapon1h', icon: 'ic_mace', attack: 'melee', dmg: [7, 11], aps: 1.1, range: 28, arc: 100, implicit: { armor: 4 } },
-  { id: 'dagger', noun: 'dýka', gender: 'f', cat: 'weapon1h', icon: 'ic_dagger', attack: 'melee', dmg: [4, 7], aps: 1.9, range: 24, arc: 80, implicit: { crit: 4 } },
-  { id: 'knuckle', noun: 'kastet', gender: 'm', cat: 'weapon1h', icon: 'ic_knuckle', attack: 'melee', dmg: [3, 5], aps: 2.2, range: 22, arc: 80, implicit: { dodge: 2 } },
+  { id: 'mace', noun: 'palcát', gender: 'm', cat: 'weapon1h', icon: 'ic_mace', attack: 'melee', dmg: [7, 11], aps: 1.1, range: 28, arc: 100 },
+  { id: 'dagger', noun: 'dýka', gender: 'f', cat: 'weapon1h', icon: 'ic_dagger', attack: 'melee', dmg: [4, 7], aps: 1.9, range: 24, arc: 80 },
+  { id: 'knuckle', noun: 'kastet', gender: 'm', cat: 'weapon1h', icon: 'ic_knuckle', attack: 'melee', dmg: [3, 5], aps: 2.2, range: 22, arc: 80 },
   { id: 'wand', noun: 'hůlka', gender: 'f', cat: 'weapon1h', icon: 'ic_wand', attack: 'magic', dmg: [4, 7], aps: 1.3, range: 110, implicit: { int: 2 } },
   { id: 'rapier', noun: 'rapír', gender: 'm', cat: 'weapon1h', icon: 'ic_rapier', attack: 'melee', dmg: [4, 8], aps: 1.7, range: 34, arc: 50, thrust: true, implicit: { crit: 3, critDmg: 10 }, trait: 'Rychlé bodnutí s delším dosahem' },
   { id: 'scimitar', noun: 'šavle', gender: 'f', cat: 'weapon1h', icon: 'ic_scimitar', attack: 'melee', dmg: [4, 8], aps: 1.6, range: 28, arc: 150, implicit: { dex: 2 }, trait: 'Široký rychlý sek' },
   { id: 'flail', noun: 'řemdih', gender: 'm', cat: 'weapon1h', icon: 'ic_flail', attack: 'melee', dmg: [8, 14], aps: 0.95, range: 32, arc: 110, knock: 2.2, implicit: { critDmg: 15 }, trait: 'Těžká rána odhodí nepřátele' },
   { id: 'claws', noun: 'drápy', gender: 'p', cat: 'weapon1h', icon: 'ic_claws', attack: 'melee', dmg: [3, 5], aps: 2.4, range: 22, arc: 90, implicit: { lifesteal: 1 }, trait: 'Nejrychlejší údery ze všech zbraní' },
-  { id: 'handcrossbow', noun: 'ruční kuše', gender: 'f', cat: 'weapon1h', icon: 'ic_handcrossbow', attack: 'ranged', dmg: [4, 7], aps: 1.45, range: 115, implicit: { crit: 2 }, trait: 'Střelba jednou rukou – jde nosit se štítem' },
+  { id: 'handcrossbow', noun: 'ruční kuše', gender: 'f', cat: 'weapon1h', icon: 'ic_handcrossbow', attack: 'ranged', dmg: [4, 7], aps: 1.45, range: 115, trait: 'Střelba jednou rukou – jde nosit se štítem' },
   { id: 'throwknives', noun: 'vrhací nože', gender: 'p', cat: 'weapon1h', icon: 'ic_throwknives', attack: 'ranged', dmg: [4, 7], aps: 1.5, range: 105, shots: 2, shotDmg: 0.6, proj: 'pr_knife', implicit: { crit: 3 }, trait: 'Hází dva nože najednou (každý 60 % poškození)' },
   { id: 'throwaxes', noun: 'vrhací sekery', gender: 'p', cat: 'weapon1h', icon: 'ic_throwaxes', attack: 'ranged', dmg: [6, 10], aps: 1.05, range: 100, pierce: 1, proj: 'pr_axe', implicit: { critDmg: 10 }, trait: 'Sekera proletí prvním nepřítelem' },
   { id: 'scepter', noun: 'žezlo', gender: 'n', cat: 'weapon1h', icon: 'ic_scepter', attack: 'magic', dmg: [4, 7], aps: 1.25, range: 110, homing: true, proj: 'pr_holy', implicit: { int: 2, armor: 3 }, trait: 'Svaté střely samy hledají cíl' },
@@ -96,11 +96,11 @@ export const BASES: BaseType[] = [
   { id: 'hammer', noun: 'válečné kladivo', gender: 'n', cat: 'weapon2h', icon: 'ic_hammer', attack: 'melee', dmg: [17, 26], aps: 0.8, range: 32, arc: 130, implicit: { armor: 8 } },
   { id: 'spear', noun: 'kopí', gender: 'n', cat: 'weapon2h', icon: 'ic_spear', attack: 'melee', dmg: [10, 16], aps: 1.1, range: 46, arc: 40, thrust: true },
   { id: 'bow', noun: 'luk', gender: 'm', cat: 'weapon2h', icon: 'ic_bow', attack: 'ranged', dmg: [7, 12], aps: 1.25, range: 140 },
-  { id: 'crossbow', noun: 'kuše', gender: 'f', cat: 'weapon2h', icon: 'ic_crossbow', attack: 'ranged', dmg: [12, 19], aps: 0.8, range: 150, pierce: 1, implicit: { crit: 5 }, trait: 'Šipka proletí prvním nepřítelem' },
-  { id: 'staff', noun: 'hůl', gender: 'f', cat: 'weapon2h', icon: 'ic_staff', attack: 'magic', dmg: [9, 15], aps: 1.0, range: 120, implicit: { int: 4, mp: 15 } },
+  { id: 'crossbow', noun: 'kuše', gender: 'f', cat: 'weapon2h', icon: 'ic_crossbow', attack: 'ranged', dmg: [12, 19], aps: 0.8, range: 150, pierce: 1, trait: 'Šipka proletí prvním nepřítelem' },
+  { id: 'staff', noun: 'hůl', gender: 'f', cat: 'weapon2h', icon: 'ic_staff', attack: 'magic', dmg: [9, 15], aps: 1.0, range: 120, implicit: { mp: 15 } },
   { id: 'halberd', noun: 'halapartna', gender: 'f', cat: 'weapon2h', icon: 'ic_halberd', attack: 'melee', dmg: [13, 21], aps: 0.85, range: 44, arc: 100, implicit: { armor: 5 }, trait: 'Dlouhý dosah a široký sek' },
-  { id: 'scythe', noun: 'kosa', gender: 'f', cat: 'weapon2h', icon: 'ic_scythe', attack: 'melee', dmg: [11, 18], aps: 0.95, range: 38, arc: 220, implicit: { lifesteal: 1 }, trait: 'Seče skoro dokola' },
-  { id: 'quarterstaff', noun: 'bojová tyč', gender: 'f', cat: 'weapon2h', icon: 'ic_quarterstaff', attack: 'melee', dmg: [8, 13], aps: 1.35, range: 36, arc: 160, implicit: { dodge: 3 }, trait: 'Rychlé široké údery a úhyb' },
+  { id: 'scythe', noun: 'kosa', gender: 'f', cat: 'weapon2h', icon: 'ic_scythe', attack: 'melee', dmg: [11, 18], aps: 0.95, range: 38, arc: 220, trait: 'Seče skoro dokola' },
+  { id: 'quarterstaff', noun: 'bojová tyč', gender: 'f', cat: 'weapon2h', icon: 'ic_quarterstaff', attack: 'melee', dmg: [8, 13], aps: 1.35, range: 36, arc: 160, trait: 'Rychlé široké údery a úhyb' },
   { id: 'shortbow', noun: 'krátký luk', gender: 'm', cat: 'weapon2h', icon: 'ic_shortbow', attack: 'ranged', dmg: [5, 9], aps: 1.65, range: 115, implicit: { move: 3 }, trait: 'Rychlá střelba na kratší vzdálenost' },
   { id: 'longbow', noun: 'dlouhý luk', gender: 'm', cat: 'weapon2h', icon: 'ic_longbow', attack: 'ranged', dmg: [10, 17], aps: 0.95, range: 180, pierce: 1, trait: 'Největší dostřel, šíp proletí prvním nepřítelem' },
   { id: 'compoundbow', noun: 'kladkový luk', gender: 'm', cat: 'weapon2h', icon: 'ic_compoundbow', attack: 'ranged', dmg: [7, 12], aps: 1.1, range: 150, shots: 3, shotDmg: 0.5, trait: 'Střílí tři šípy najednou (každý 50 % poškození)' },
@@ -123,6 +123,41 @@ export const BASES: BaseType[] = [
 ];
 
 export const BASE_BY_ID: Record<string, BaseType> = Object.fromEntries(BASES.map((b) => [b.id, b]));
+
+/** the main bonus of every kind of weapon: it grows with the item's level and rarity (custom scales for the
+ *  keys that are not random properties) */
+export const WEAPON_MAIN: Record<string, { key: StatKey; base?: number; perLevel?: number; cap?: number }> = {
+  sword: { key: 'dmgPct' },
+  axe: { key: 'critDmg' },
+  mace: { key: 'armor' },
+  dagger: { key: 'crit' },
+  knuckle: { key: 'dodge' },
+  wand: { key: 'spellDmg' },
+  rapier: { key: 'atkSpdPct' },
+  scimitar: { key: 'move' },
+  flail: { key: 'str' },
+  claws: { key: 'dex' },
+  handcrossbow: { key: 'crit' },
+  throwknives: { key: 'critDmg' },
+  throwaxes: { key: 'dmg' },
+  scepter: { key: 'hpRegen' },
+  greatsword: { key: 'hpPct' },
+  greataxe: { key: 'critDmg' },
+  hammer: { key: 'vit' },
+  spear: { key: 'crit' },
+  halberd: { key: 'hp' },
+  scythe: { key: 'lifesteal' },
+  quarterstaff: { key: 'dodge' },
+  bow: { key: 'dex' },
+  shortbow: { key: 'atkSpdPct' },
+  longbow: { key: 'range', base: 5, perLevel: 0.1, cap: 25 },
+  compoundbow: { key: 'dmgPct' },
+  crossbow: { key: 'crit' },
+  repeater: { key: 'atkSpdPct' },
+  staff: { key: 'int' },
+  stormstaff: { key: 'lightDmg', base: 6, perLevel: 0.25, cap: 40 },
+  crook: { key: 'poisonDmg', base: 6, perLevel: 0.25, cap: 40 },
+};
 
 export const CATEGORY_NAMES: Record<ItemCategory, string> = {
   weapon1h: 'Jednoruční zbraň',
@@ -493,11 +528,27 @@ export function upgradeAffixMult(it: Item) {
   return 1 + 0.04 * it.upgrade;
 }
 
+/** a weapon's main bonus: the same for every weapon of its kind, level and rarity (four fifths of a property) */
+export function mainBonus(it: Item): Affix | null {
+  const m = WEAPON_MAIN[it.base];
+  if (!m) return null;
+  const def = AFFIX_BY_KEY[m.key];
+  const base = m.base ?? def?.base ?? 1,
+    per = m.perLevel ?? def?.perLevel ?? 0.1,
+    cap = m.cap ?? def?.cap;
+  let v = (base + per * it.ilvl) * RARITIES[it.rarity].mult * 0.8;
+  if (cap) v = Math.min(cap, v);
+  v *= upgradeAffixMult(it);
+  return { key: m.key, value: DECIMAL_KEYS.has(m.key) ? Math.max(0.1, Math.round(v * 10) / 10) : Math.max(1, Math.round(v)) };
+}
+
 export function itemStats(it: Item): Stats {
   const base = BASE_BY_ID[it.base];
   const s: Stats = {};
   const add = (k: StatKey, v: number) => (s[k] = (s[k] ?? 0) + v);
   if (base.implicit) for (const [k, v] of Object.entries(base.implicit)) add(k as StatKey, v as number);
+  const mb = mainBonus(it);
+  if (mb) add(mb.key, mb.value);
   if (it.armor) add('armor', Math.round(it.armor * upgradeMult(it)));
   if (it.block) add('block', it.block);
   const am = upgradeAffixMult(it);
