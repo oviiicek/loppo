@@ -314,6 +314,8 @@ class UIManager {
 
   // ---------------------------------------------------------------- HUD
   buildHud() {
+    // a new HUD: nothing has been written into it yet
+    this.hudWrites.clear();
     const s = this.scene!.save;
     const hud = el(`<div class="passthrough" style="position:absolute;inset:0">
       <div class="vignette"></div>
@@ -459,6 +461,7 @@ class UIManager {
   }
 
   refreshSkills() {
+    this.forgetWrites('sk');
     const sc = this.scene;
     if (!sc || !this.hud) return;
     const s = sc.save;
@@ -588,6 +591,20 @@ class UIManager {
     (this as any)._joyHome?.();
   }
 
+  /** what was last written into each spot of the HUD: writing even the same value again makes the browser redo
+   *  its layout, so only changes are written */
+  private hudWrites = new Map<string, string>();
+  private put(key: string, value: string, write: () => void) {
+    if (this.hudWrites.get(key) === value) return;
+    this.hudWrites.set(key, value);
+    write();
+  }
+  private dimT = 0;
+  /** the HUD drew some of its parts anew: what was written there before is gone */
+  private forgetWrites(prefix: string) {
+    for (const k of [...this.hudWrites.keys()]) if (k.startsWith(prefix)) this.hudWrites.delete(k);
+  }
+
   tick(dt: number) {
     const sc = this.scene;
     if (!sc || !this.hud) return;
@@ -598,17 +615,34 @@ class UIManager {
     const p = sc.player;
     const s = sc.save;
     const hud = this.hud;
+    const txt = (sel: string, v: string) => this.put(sel, v, () => ($(sel, hud).textContent = v));
+    const tf = (sel: string, v: string) => this.put(sel + '|t', v, () => (($(sel, hud) as HTMLElement).style.transform = v));
+    const sx = (f: number) => `scaleX(${Math.max(0, Math.min(1, f)).toFixed(3)})`;
+    // a message with the hero (or the guardian) behind it fades, so the fight stays in sight (measured before
+    // anything is written, so the browser does not have to lay the page out again just for this)
+    this.dimT += 0.066;
+    if (this.dimT >= 0.25) {
+      this.dimT = 0;
+      const seen = [this.onScreen(p.x, p.y - 8)];
+      const boss = this.bossRef;
+      if (boss && !boss.dead) seen.push(this.onScreen(boss.x, boss.y - 10));
+      hud.querySelectorAll<HTMLElement>('.feeds, .banner, .hintbox').forEach((n) => {
+        const r = n.getBoundingClientRect();
+        const over = r.width > 0 && seen.some((q) => q.x > r.left - 28 && q.x < r.right + 28 && q.y > r.top - 36 && q.y < r.bottom + 28);
+        if (n.classList.contains('dim') !== over) n.classList.toggle('dim', over);
+      });
+    }
     // bars
     const hpF = Math.max(0, p.hp / p.d.maxHp);
-    ($('.bar.hp .fill', hud) as HTMLElement).style.transform = `scaleX(${hpF})`;
-    ($('.bar.hp .shieldfill', hud) as HTMLElement).style.transform = `scaleX(${Math.min(1, p.shield / p.d.maxHp)})`;
-    $('.bar.hp .txt', hud).textContent = `${Math.ceil(p.hp)} / ${p.d.maxHp}`;
-    ($('.bar.mp .fill', hud) as HTMLElement).style.transform = `scaleX(${Math.max(0, p.mp / p.d.maxMp)})`;
-    $('.bar.mp .txt', hud).textContent = `${Math.floor(p.mp)} / ${p.d.maxMp}`;
-    $('.lv', hud).textContent = `LV ${s.level}`;
-    ($('.bar.xp .fill', hud) as HTMLElement).style.transform = `scaleX(${Math.min(1, s.xp / xpForLevel(s.level))})`;
-    $('.gold', hud).textContent = s.gold.toLocaleString('cs-CZ');
-    $('.floorlbl .fl', hud).textContent = sc.inVillage ? 'Loppo · domov' : `Patro ${sc.floor} · ${sc.placeName}${sc.rift ? (sc.rift === 'dream' ? ' · sen' : sc.rift === 'last' ? ' · poslední šance' : ' · trhlina') : ''}`;
+    tf('.bar.hp .fill', sx(hpF));
+    tf('.bar.hp .shieldfill', sx(p.shield / p.d.maxHp));
+    txt('.bar.hp .txt', `${Math.ceil(p.hp)} / ${p.d.maxHp}`);
+    tf('.bar.mp .fill', sx(p.mp / p.d.maxMp));
+    txt('.bar.mp .txt', `${Math.floor(p.mp)} / ${p.d.maxMp}`);
+    txt('.lv', `LV ${s.level}`);
+    tf('.bar.xp .fill', sx(s.xp / xpForLevel(s.level)));
+    txt('.gold', s.gold.toLocaleString('cs-CZ'));
+    txt('.floorlbl .fl', sc.inVillage ? 'Loppo · domov' : `Patro ${sc.floor} · ${sc.placeName}${sc.rift ? (sc.rift === 'dream' ? ' · sen' : sc.rift === 'last' ? ' · poslední šance' : ' · trhlina') : ''}`);
     // the floor's fate (and the dangerous path) on a short line of its own, coloured by what it means
     const fate = $('.floorlbl .flfate', hud);
     const ft = sc.fate ? sc.fate.name + (sc.kind === 'danger' ? ' ☠' : '') : sc.kind === 'danger' ? '☠ Nebezpečná cesta' : sc.calm === 'camp' ? '⛺ Tábor' : '';
@@ -616,40 +650,32 @@ class UIManager {
       fate.textContent = ft;
       fate.className = 'flfate ' + (sc.fate?.tone ?? (sc.kind === 'danger' ? 'danger' : 'gift'));
     }
-    // a message with the hero (or the guardian) behind it fades, so the fight stays in sight
-    const seen = [this.onScreen(p.x, p.y - 8)];
-    const boss = this.bossRef;
-    if (boss && !boss.dead) seen.push(this.onScreen(boss.x, boss.y - 10));
-    hud.querySelectorAll<HTMLElement>('.feeds, .banner, .hintbox').forEach((n) => {
-      const r = n.getBoundingClientRect();
-      const over = r.width > 0 && seen.some((q) => q.x > r.left - 28 && q.x < r.right + 28 && q.y > r.top - 36 && q.y < r.bottom + 28);
-      n.classList.toggle('dim', over);
-    });
     // low hp vignette
-    const vig = $('.vignette', hud);
-    vig.classList.toggle('low', hpF < 0.3 && !p.dead);
+    const flag = (el: Element, name: string, on: boolean) => {
+      if (el.classList.contains(name) !== on) el.classList.toggle(name, on);
+    };
+    flag($('.vignette', hud), 'low', hpF < 0.3 && !p.dead);
     // badges
     const at = $('.badge.at', hud);
-    at.textContent = String(s.attrPoints);
-    at.classList.toggle('on', s.attrPoints > 0);
-    $('.portrait', hud).classList.toggle('glow', s.attrPoints > 0);
-    const sp = $('.badge.sp', hud);
+    txt('.badge.at', String(s.attrPoints));
+    flag(at, 'on', s.attrPoints > 0);
+    flag($('.portrait', hud), 'glow', s.attrPoints > 0);
     const tp = freeTalentPoints(s);
-    sp.textContent = String(s.spellPoints + Math.max(0, tp));
-    sp.classList.toggle('on', s.spellPoints > 0 || tp > 0);
-    $('.rbtn.spellsbtn', hud).classList.toggle('glow', s.spellPoints > 0 || tp > 0);
-    const inv = $('.badge.inv', hud);
+    txt('.badge.sp', String(s.spellPoints + Math.max(0, tp)));
+    flag($('.badge.sp', hud), 'on', s.spellPoints > 0 || tp > 0);
+    flag($('.rbtn.spellsbtn', hud), 'glow', s.spellPoints > 0 || tp > 0);
     const free = s.inventory.filter((x) => !x).length;
-    inv.textContent = free === 0 ? 'plno' : this.newItems > 0 ? String(this.newItems) : '';
-    inv.classList.toggle('on', free === 0 || this.newItems > 0);
+    txt('.badge.inv', free === 0 ? 'plno' : this.newItems > 0 ? String(this.newItems) : '');
+    flag($('.badge.inv', hud), 'on', free === 0 || this.newItems > 0);
     // potions
-    $('.php .cnt', hud).textContent = String(s.mats.hpPotion);
-    $('.pmp .cnt', hud).textContent = String(s.mats.mpPotion);
+    txt('.php .cnt', String(s.mats.hpPotion));
+    txt('.pmp .cnt', String(s.mats.mpPotion));
     // a potion takes effect before the next one can be drunk: the button darkens and clears like a spell
     for (const [sel, kind] of [['.php', 'hpPotion'], ['.pmp', 'mpPotion']] as const) {
       const cd = sc.potionCd[kind];
-      const pct = cd > 0 ? Math.min(1, cd / POTION_CD[kind]) * 360 : 0;
-      ($(sel + ' .cd', hud) as HTMLElement).style.background = pct ? `conic-gradient(rgba(0,0,0,.7) ${pct}deg, transparent ${pct}deg)` : '';
+      const pct = cd > 0 ? Math.round(Math.min(1, cd / POTION_CD[kind]) * 360) : 0;
+      const bg = pct ? `conic-gradient(rgba(0,0,0,.7) ${pct}deg, transparent ${pct}deg)` : '';
+      this.put(sel + '|cd', bg, () => (($(sel + ' .cd', hud) as HTMLElement).style.background = bg));
     }
     // skills cooldown
     hud.querySelectorAll<HTMLElement>('.skill').forEach((b) => {
@@ -657,48 +683,52 @@ class UIManager {
       const id = s.loadout[i];
       const cdEl = $('.cd', b),
         cdt = $('.cdt', b);
+      const bg = (v: string) => this.put('sk' + i + 'bg', v, () => (cdEl.style.background = v));
+      const t = (v: string) => this.put('sk' + i + 't', v, () => (cdt.textContent = v));
       if (!id) {
-        cdEl.style.background = '';
-        cdt.textContent = '';
+        bg('');
+        t('');
         return;
       }
       const spd = SPELL_BY_ID[id];
       const cd = p.cds[i];
       const total = sc.spells.cooldown(spd);
       if (cd > 0) {
-        const pct = Math.min(1, cd / total) * 360;
-        cdEl.style.background = `conic-gradient(rgba(0,0,0,.72) ${pct}deg, transparent ${pct}deg)`;
-        cdt.textContent = cd >= 1 ? Math.ceil(cd).toString() : cd.toFixed(1);
-        b.classList.remove('ready');
+        const pct = Math.round(Math.min(1, cd / total) * 360);
+        bg(`conic-gradient(rgba(0,0,0,.72) ${pct}deg, transparent ${pct}deg)`);
+        t(cd >= 1 ? Math.ceil(cd).toString() : cd.toFixed(1));
+        flag(b, 'ready', false);
       } else {
-        cdEl.style.background = '';
-        cdt.textContent = '';
-        b.classList.add('ready');
+        bg('');
+        t('');
+        flag(b, 'ready', true);
       }
-      b.classList.toggle('nomana', p.mp < sc.spells.manaCost(spd));
+      flag(b, 'nomana', p.mp < sc.spells.manaCost(spd));
     });
     // buff timers
     hud.querySelectorAll<HTMLElement>('.buff').forEach((b) => {
       const id = b.dataset.id!;
       const bf = p.buffs.find((x) => x.id === id) ?? sc.shrineBuffs.find((x) => 'shrine_' + x.id === id);
-      const t = $('.bt', b);
-      if (bf) t.textContent = bf.t > 3600 ? '∞' : Math.ceil(bf.t).toString();
+      if (bf) {
+        const v = bf.t > 3600 ? '∞' : Math.ceil(bf.t).toString();
+        this.put('bf' + id, v, () => ($('.bt', b).textContent = v));
+      }
     });
     // the mercenary
     const mc = $('.mercchip', hud);
     const merc = sc.merc;
-    mc.classList.toggle('on', !!merc);
+    flag(mc, 'on', !!merc);
     if (merc) {
       const img = $('img', mc) as HTMLImageElement;
       const want = iconURL(merc.spriteKey, 32);
       if (img.getAttribute('src') !== want) img.setAttribute('src', want);
-      ($('b', mc) as HTMLElement).style.transform = `scaleX(${merc.down ? 0 : Math.max(0, merc.hp / merc.maxHp)})`;
-      mc.classList.toggle('down', merc.down);
+      tf('.mercchip b', sx(merc.down ? 0 : merc.hp / merc.maxHp));
+      flag(mc, 'down', merc.down);
     }
     // boss
     if (this.bossRef) {
       const b = this.bossRef;
-      ($('.bossbar .fill', hud) as HTMLElement).style.transform = `scaleX(${Math.max(0, b.hp / b.maxHp)})`;
+      tf('.bossbar .fill', sx(b.hp / b.maxHp));
       if (b.dead) this.hideBoss();
     }
     if (this.mapT > 0.25) {
@@ -925,6 +955,7 @@ class UIManager {
   }
 
   renderBuffs() {
+    this.forgetWrites('bf');
     const sc = this.scene;
     if (!sc || !this.hud) return;
     const box = $('.buffs', this.hud);

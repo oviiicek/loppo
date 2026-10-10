@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { settings } from '../systems/audio';
+import { gfxParticles } from '../systems/audio';
+import { NUM_FONT, ensureNumberFont, fitsNumberFont } from '../gfx/numfont';
 
 export const D = {
   floorDeco: 2,
@@ -28,11 +29,15 @@ export class FX {
   scene: Phaser.Scene;
   emitters = new Map<string, Phaser.GameObjects.Particles.ParticleEmitter>();
   textPool: Phaser.GameObjects.Text[] = [];
+  /** floating numbers in the bitmap font (see gfx/numfont.ts) */
+  numPool: Phaser.GameObjects.BitmapText[] = [];
+  private numFont = false;
   res: number;
 
   constructor(scene: Phaser.Scene, zoom: number) {
     this.scene = scene;
     this.res = Math.min(8, Math.ceil(zoom * (window.devicePixelRatio || 1)));
+    this.numFont = ensureNumberFont(scene);
   }
 
   private emitter(color: number, kind: 'spark' | 'puff' | 'pix' = 'spark') {
@@ -51,10 +56,11 @@ export class FX {
   }
 
   burst(x: number, y: number, color: number, n = 8, kind: 'spark' | 'puff' | 'pix' = 'spark') {
-    this.emitter(color, kind).explode(settings.lowFx ? Math.ceil(n / 2) : n, x, y);
+    this.emitter(color, kind).explode(gfxParticles(n), x, y);
   }
 
   number(x: number, y: number, text: string, color: string, big = false) {
+    if (this.numFont && fitsNumberFont(text)) return this.bitmapNumber(x, y, text, color, big);
     let t = this.textPool.pop();
     if (!t) {
       t = this.scene.add.text(0, 0, '', { fontFamily: '"Jersey 10", monospace', fontSize: '10px', color: '#fff', stroke: '#000', strokeThickness: 2 });
@@ -75,6 +81,38 @@ export class FX {
           onComplete: () => {
             t!.setVisible(false).setActive(false);
             this.textPool.push(t!);
+          },
+        });
+      },
+    });
+  }
+
+  /** a floating number drawn from the bitmap font: nothing new goes to the graphics card */
+  private bitmapNumber(x: number, y: number, text: string, color: string, big: boolean) {
+    let t = this.numPool.pop();
+    if (!t) t = this.scene.add.bitmapText(0, 0, NUM_FONT, '', 10).setOrigin(0.5).setDepth(D.ui);
+    t.setText(text)
+      .setFontSize(big ? 14 : 10)
+      .setTint(Phaser.Display.Color.HexStringToColor(color).color)
+      .setPosition(x + (Math.random() - 0.5) * 8, y)
+      .setAlpha(1)
+      .setScale(big ? 1.2 : 1)
+      .setVisible(true)
+      .setActive(true);
+    this.scene.tweens.add({
+      targets: t,
+      y: y - 18 - (big ? 6 : 0),
+      scale: 1,
+      duration: 650,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        this.scene.tweens.add({
+          targets: t,
+          alpha: 0,
+          duration: 200,
+          onComplete: () => {
+            t!.setVisible(false).setActive(false);
+            this.numPool.push(t!);
           },
         });
       },

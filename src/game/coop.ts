@@ -24,7 +24,7 @@ import { itemColor, itemIcon } from '../data/items';
 import { iconURL } from '../gfx/textures';
 
 /** how often the world is sent (per second) */
-const SNAP_HZ = 12;
+const SNAP_HZ = 15;
 /** monsters further than this from the guest's hero are not sent (they would be off its screen) */
 const NEAR = 340;
 /** at most this many monsters are introduced with one snapshot (the rest with the next ones) */
@@ -468,6 +468,16 @@ export class Coop {
     for (const u of (m.e as Upd[]) ?? []) {
       const e = this.puppets.get(u[0]);
       if (!e || e.dead) continue;
+      // its speed between the last two words: it keeps going until the next one (a jump is not a speed)
+      const gap = (now - e.seenAt) / 1000;
+      if (gap > 0.02 && gap < 0.4) {
+        const vx = (u[1] - e.ptx) / gap,
+          vy = (u[2] - e.pty) / gap;
+        if (Math.hypot(vx, vy) < 320) {
+          e.pvx = e.pvx * 0.35 + vx * 0.65;
+          e.pvy = e.pvy * 0.35 + vy * 0.65;
+        } else e.pvx = e.pvy = 0;
+      } else e.pvx = e.pvy = 0;
       e.ptx = u[1];
       e.pty = u[2];
       e.seenAt = now;
@@ -547,8 +557,8 @@ export class Coop {
       e.baseTint = n.tn;
       e.sprite.setTint(n.tn);
     }
-    if (e.elite && e.eliteAffix && ELITE_AFFIXES[e.eliteAffix]) e.sprite.preFX?.addGlow(ELITE_AFFIXES[e.eliteAffix].glow, e.affixes.length > 1 ? 3 : 2, 0, false, 0.1, 12);
-    if (e.corrupt) e.sprite.preFX?.addGlow(0x9a2aff, 4, 0, false, 0.1, 14);
+    if (e.elite && e.eliteAffix && ELITE_AFFIXES[e.eliteAffix]) e.addGlow(ELITE_AFFIXES[e.eliteAffix].glow, e.affixes.length > 1 ? 3 : 2);
+    if (e.corrupt) e.addGlow(0x9a2aff, 4);
     // what the guest's hero does to a puppet (statuses, knockback) is sent to the host
     const raw = e.st;
     e.st = new Proxy(raw, {
@@ -588,13 +598,18 @@ export class Coop {
   /** a puppet moves to where the host says it is */
   tickPuppet(e: Enemy, dt: number) {
     if (e.dead) return;
-    const k = Math.min(1, dt * 12);
-    const dx = e.ptx - e.x,
-      dy = e.pty - e.y;
+    // where it should be now: the last word of the host carried on at its speed for a moment (no stop-and-go
+    // between the words), and the sprite glides there
+    const age = Math.min(0.12, (this.sc.time.now - e.seenAt) / 1000);
+    const tx = e.ptx + (e.pStun ? 0 : e.pvx * age),
+      ty = e.pty + (e.pStun ? 0 : e.pvy * age);
+    const k = Math.min(1, dt * 16);
+    const dx = tx - e.x,
+      dy = ty - e.y;
     const far = Math.hypot(dx, dy);
     if (far > 120) {
-      e.x = e.ptx;
-      e.y = e.pty;
+      e.x = tx;
+      e.y = ty;
     } else {
       e.x += dx * k;
       e.y += dy * k;

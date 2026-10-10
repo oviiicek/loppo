@@ -13,7 +13,7 @@ import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, listFallen, heroTitle, LEECH_CAP } from '../systems/state';
 import { DIFFICULTIES, DEFAULT_DIFFICULTY, difficultyOf, difficultyLines } from '../data/difficulty';
 import { areaForFloor } from '../data/biomes';
-import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic } from '../systems/audio';
+import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic, GFX_NAMES, GFX_HINTS, setGfx } from '../systems/audio';
 import { fsButtonHTML, isStandalone } from './fullscreen';
 import { CHRONICLE_ORDER, CUTSCENE_BY_ID } from '../data/story';
 import { LORE, LORE_BY_ID } from '../data/lore';
@@ -42,7 +42,7 @@ function salvageName() {
 }
 
 function fxName() {
-  return settings.lowFx ? 'Grafika: úsporná' : 'Grafika: plná';
+  return 'Grafika: ' + GFX_NAMES[settings.gfx];
 }
 
 /** coloured difficulty name with the hardcore skull */
@@ -493,9 +493,10 @@ export class Menus {
       } else if (a === 'salvage') {
         this.ui.panels.lootRules(() => (b.textContent = 'Kořist: ' + salvageName()));
       } else if (a === 'fx') {
-        settings.lowFx = !settings.lowFx;
-        saveSettings();
+        // round the four levels: very low → low → medium → high
+        setGfx((settings.gfx + 1) % 4);
         b.textContent = fxName();
+        this.ui.toast(`Grafika ${GFX_NAMES[settings.gfx]} – ${GFX_HINTS[settings.gfx]}`, '#9fe6ff');
       } else if (a === 'vibrate') {
         settings.vibrate = !settings.vibrate;
         saveSettings();

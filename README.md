@@ -274,7 +274,7 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
 
   Postup ukazuje štítek pod kulatým tlačítkem s vykřičníkem mezi kouzly. Za splnění padne k hrdinovým nohám zlato, předmět, materiály a někdy paklíč.
 - Prokletá truhla: vzácná černá truhla se zelenými runami. Po přijetí výzvy se 30 sekund kolem ní otevírají zelené portály s vlnami nestvůr. Nahoře běží čas a počet poražených. Na konci zbylé nestvůry zmizí a truhla se otevře; čím víc nestvůr padlo, tím víc předmětů v ní je (od 20 poražených i legendární nebo mýtický).
-- Atmosféra oblastí: v kryptách poletuje prach, v jeskyních svítící spory, v ledu sněží, ve výhni stoupají jiskry, v zatopených místech kape voda, nad hrobkou fouká písek, pod kořeny světa padá listí, krystaly a zrcadla se třpytí, na popelavých pláních padá popel a v propasti blikají fialové jiskřičky. Úsporná grafika je vypne.
+- Atmosféra oblastí: v kryptách poletuje prach, v jeskyních svítící spory, v ledu sněží, ve výhni stoupají jiskry, v zatopených místech kape voda, nad hrobkou fouká písek, pod kořeny světa padá listí, krystaly a zrcadla se třpytí, na popelavých pláních padá popel a v propasti blikají fialové jiskřičky. Nízká a velmi nízká grafika je vypne.
 - Přes 70 úspěchů s odměnami (zlato, materiály, paklíče, body atributů). Na druhé záložce panelu úspěchů jsou statistiky postavy: herní čas, poražení nepřátelé a šampioni, sebrané zlato a předměty, nejlepší nález, nejsilnější zásah, splněné úkoly, prokleté truhly, mazlíčci, smrti a další.
 - Barva kovu u zbraní a zbroje odpovídá materiálu předmětu (rezavý, železný, ocelový, runový, mithrilový, dračí, démonický, hvězdný). Vidět je to v inventáři i na zbrani v ruce postavy.
 
@@ -371,7 +371,13 @@ V pauze je tlačítko **👥 Hra pro dva**. Kdo hru založí, dostane pětimíst
 - Smrt znamená ztrátu části zlata a zkušeností (podle obtížnosti 5–25 % zlata) a návrat na checkpoint výpravy (začátek desítky, tábor, nebo přípravná místnost na patře strážce). V režimu Hardcore postava po smrti navždy zmizí.
 - Lektvary mají krátké přebíjení (zdraví 4 s, mana 3 s), na tlačítku je vidět jako u kouzel.
 - Tajemné zboží u obchodníka stojí zhruba trojnásobek toho, co v průměru dá, každý další kus u stejného obchodníka je o 40 % dražší a obchodník jich má jen čtyři.
-- Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání, automatické rozebírání slabých předmětů a úspornou grafiku (bez dynamického osvětlení, pro slabší telefony).
+- Nápověda na začátku hry. V pauze lze nastavit zvuk, hudbu, vibrace, velikost ovládání, automatické rozebírání slabých předmětů a grafiku ve čtyřech úrovních:
+  - **velmi nízká** – pro velmi slabé telefony: bez světel, počasí a záře, čtvrtina částic,
+  - **nízká** – pro slabší telefony: bez dynamických světel a počasí, polovina částic,
+  - **střední** – pro běžné telefony: světla a počasí, záře elitních nepřátel jako měkké světlo (shader jen u strážců),
+  - **vysoká** – pro výkonné telefony a počítače: všechno, zářící obrysy, víc částic.
+
+  Při prvním spuštění hra úroveň odhadne podle zařízení (paměť a počet jader telefonu). Čísla poškození se kreslí z bitmapového písma (nic nového se neposílá grafické kartě), HUD přepisuje jen hodnoty, které se změnily, a v multiplayeru se pohyb nepřátel a druhého hrdiny dopočítává mezi zprávami hostitele, takže se neseká.
 - Hlavní menu má živé pozadí, náhodně vygenerovaný dungeon s pochodněmi.
 - Tlačítko Zpět na Androidu otevře pauzu místo opuštění hry.
 

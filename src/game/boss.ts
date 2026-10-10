@@ -184,7 +184,7 @@ export class BossAI {
       b.lastStand = true;
       b.enraged = true;
       b.speed *= 1.25;
-      b.sprite.preFX?.addGlow(0xff2020, 5, 0, false, 0.1, 16);
+      b.addGlow(0xff2020, 5, true);
       b.patternT = 1.5;
       sc.time.delayedCall(1150, () => {
         if (!b.dead) this.run(b, 'nova');

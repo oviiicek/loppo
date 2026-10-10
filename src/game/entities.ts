@@ -5,7 +5,7 @@ import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
 import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, storyStageHp, PRIORITY_ROLES, corruptName } from '../data/enemies';
 import type { PowerState } from './powers';
-import { sfx } from '../systems/audio';
+import { sfx, gfxLevel } from '../systems/audio';
 import { ArenaKind, BOSS_PHASE_HP } from '../data/bossphases';
 import type { Nemesis } from '../data/nemesis';
 import { Element } from '../data/types';
@@ -157,6 +157,11 @@ export abstract class Actor {
     this.shadow.setPosition(sc.snap(this.x), sc.snap(this.y + 3));
     this.sprite.setDepth(D.entityBase + this.y + (this.flying ? 20 : 0));
     this.sprite.setFlipX(this.facing < 0);
+    if (this.glowImg) {
+      const s = this.sprite;
+      const g = this.glowImg;
+      g.setPosition(s.x, s.y - s.displayHeight * 0.45).setDepth(s.depth - 0.5).setScale((s.displayWidth * 1.8) / Math.max(1, g.width)).setVisible(s.visible && s.alpha > 0.05);
+    }
     if (this.animated === 'humanoid') this.chooseAnim(moving);
     void kx;
     void ky;
@@ -167,9 +172,30 @@ export abstract class Actor {
     if (this.sprite.anims.currentAnim?.key !== want) this.sprite.play(want, true);
   }
 
+  /** the soft light behind a glowing creature on the lower graphics levels (the shader glow, which needs a pass
+   *  of its own for every creature, is kept for high graphics and for guardians on medium) */
+  glowImg: Phaser.GameObjects.Image | null = null;
+  addGlow(color: number, strength: number, boss = false) {
+    const lv = gfxLevel();
+    if (lv >= 3 || (boss && lv >= 2)) {
+      this.sprite.preFX?.addGlow(color, strength, 0, false, 0.1, boss ? 16 : 12);
+      return;
+    }
+    if (lv <= 0 && !boss) return;
+    this.glowImg?.destroy();
+    this.glowImg = this.scene.add.image(this.x, this.y, 'glow').setTint(color).setBlendMode(Phaser.BlendModes.ADD).setAlpha(Math.min(0.6, 0.22 + strength * 0.07));
+  }
+  clearGlow() {
+    this.sprite.preFX?.clear();
+    this.glowImg?.destroy();
+    this.glowImg = null;
+  }
+
   destroyVisuals() {
     this.sprite.destroy();
     this.shadow.destroy();
+    this.glowImg?.destroy();
+    this.glowImg = null;
   }
 }
 
@@ -306,6 +332,9 @@ export class Enemy extends Actor {
   seenAt = 0;
   pStun = false;
   pTint = -1;
+  /** a puppet's speed from the last two words of the host (it keeps moving between them) */
+  pvx = 0;
+  pvy = 0;
   /** got the multiplayer strength already */
   mpScaled = false;
 
@@ -363,11 +392,11 @@ export class Enemy extends Actor {
       this.maxHp = this.hp = Math.round(this.maxHp * (1 + extra * 0.25));
       this.xp = Math.round(this.xp * (1 + extra * 0.5));
       this.name = `${def.name} (${list.join(', ')})`;
-      if (this.eliteAffix) this.sprite.preFX?.addGlow(ELITE_AFFIXES[this.eliteAffix].glow, extra ? 3 : 2, 0, false, 0.1, 12);
+      if (this.eliteAffix) this.addGlow(ELITE_AFFIXES[this.eliteAffix].glow, extra ? 3 : 2);
     }
     this.setScale(sc);
     if (def.behavior === 'mimic') this.aggro = true;
-    if (def.behavior === 'thief') this.sprite.preFX?.addGlow(0xffd23a, 3, 0, false, 0.1, 16);
+    if (def.behavior === 'thief') this.addGlow(0xffd23a, 3);
     if (def.role && PRIORITY_ROLES.includes(def.role) && scene.textures.exists('en_role_' + def.role)) this.roleIcon = scene.add.image(x, y, 'en_role_' + def.role).setScale(ACTOR_SCALE);
     scene.powers?.init(this);
     // playing for two: more health and harder blows
@@ -402,8 +431,8 @@ export class Enemy extends Actor {
     this.setScale((def.scale ?? 1) * 1.4);
     this.baseTint = 0x9a6ac0;
     this.sprite.setTint(this.baseTint);
-    this.sprite.preFX?.clear();
-    this.sprite.preFX?.addGlow(0x9a2aff, 4, 0, false, 0.1, 14);
+    this.clearGlow();
+    this.addGlow(0x9a2aff, 4);
     this.aura = sc.add.image(this.x, this.y + 2, 'disc').setTint(0x4a0a8a).setAlpha(0.6).setScale((this.r * this.baseScale * 6) / 256, (this.r * this.baseScale * 3) / 256).setDepth(D.floorDeco + 3);
   }
 
@@ -444,7 +473,7 @@ export class Enemy extends Actor {
     this.setScale(boss.scale);
     if (boss.tint) this.sprite.setTint(boss.tint);
     this.baseTint = boss.tint ?? null;
-    this.sprite.preFX?.addGlow(0xff3030, 3, 0, false, 0.1, 16);
+    this.addGlow(0xff3030, 3, true);
     this.aggro = false;
     this.mpScaled = false;
     this.scene.coop?.scaleEnemy(this);
@@ -500,8 +529,8 @@ export class Enemy extends Actor {
     this.baseTint = ph.tint ?? null;
     if (ph.tint) this.sprite.setTint(ph.tint);
     else this.sprite.clearTint();
-    this.sprite.preFX?.clear();
-    this.sprite.preFX?.addGlow(i === def.phases.length - 1 && def.phases.length > 1 ? 0xff40c0 : 0xff3030, 3, 0, false, 0.1, 16);
+    this.clearGlow();
+    this.addGlow(i === def.phases.length - 1 && def.phases.length > 1 ? 0xff40c0 : 0xff3030, 3, true);
   }
 
   destroyVisuals() {

@@ -222,6 +222,9 @@ export const settings = {
   uiScale: 1,
   autoSalvage: 0,
   lowFx: false,
+  /** graphics level: 0 very low (very weak phones), 1 low, 2 medium, 3 high (-1: not chosen yet, guessed from the
+   *  device); lowFx follows it (true on the two lowest levels) */
+  gfx: -1,
   /** what happens to a picked-up item of each rarity: kept, sold at once or salvaged at once */
   lootRules: [] as LootRule[],
   /** items better than the equipped ones are always kept */
@@ -240,6 +243,36 @@ if (!Array.isArray(settings.lootRules) || !settings.lootRules.length) {
   settings.lootRules = [];
   for (let r = 0; r < settings.autoSalvage; r++) settings.lootRules[r] = 'salvage';
 }
+/** a first guess of the graphics level from the device (a phone with little memory or few cores gets less) */
+function guessGfx(): number {
+  try {
+    const nav = navigator as Navigator & { deviceMemory?: number };
+    const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(nav.userAgent);
+    const mem = nav.deviceMemory ?? 4;
+    const cores = nav.hardwareConcurrency ?? 4;
+    if (!mobile) return 3;
+    if (mem <= 2 || cores <= 2) return 0;
+    if (mem <= 3 || cores <= 4) return 1;
+    return 2;
+  } catch {
+    return 2;
+  }
+}
+if (typeof settings.gfx !== 'number' || settings.gfx < 0 || settings.gfx > 3) settings.gfx = settings.lowFx ? 1 : guessGfx();
+settings.lowFx = settings.gfx <= 1;
+
+export const GFX_NAMES = ['velmi nízká', 'nízká', 'střední', 'vysoká'];
+export const GFX_HINTS = ['pro velmi slabé telefony: bez světel, počasí a záře, málo částic', 'pro slabší telefony: bez dynamických světel a počasí, méně částic', 'pro běžné telefony: světla a počasí, šetrné záře', 'pro výkonné telefony a počítače: všechno včetně zářících obrysů'];
+/** the graphics level (see settings.gfx) */
+export const gfxLevel = () => settings.gfx;
+/** how many particles an effect gets on this graphics level */
+export const gfxParticles = (n: number) => (settings.gfx <= 0 ? Math.max(1, Math.ceil(n / 4)) : settings.gfx === 1 ? Math.ceil(n / 2) : settings.gfx >= 3 ? Math.round(n * 1.25) : n);
+export function setGfx(level: number) {
+  settings.gfx = Math.max(0, Math.min(3, level));
+  settings.lowFx = settings.gfx <= 1;
+  saveSettings();
+}
+
 export function saveSettings() {
   try {
     localStorage.setItem('loppo-settings', JSON.stringify(settings));

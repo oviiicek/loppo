@@ -1314,7 +1314,7 @@ export class GameScene extends Phaser.Scene {
     e.nemesis = n;
     e.name = nemesisLabel(n);
     e.setScale(e.baseScale * 1.12);
-    e.sprite.preFX?.addGlow(0xff2a2a, 3, 0, false, 0.1, 14);
+    e.addGlow(0xff2a2a, 3);
     this.nemesis = e;
   }
 

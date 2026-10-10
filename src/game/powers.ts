@@ -614,7 +614,7 @@ export class Powers {
       m.pw.life = 16;
       m.pw.t = 99;
       m.name = e.name;
-      if (e.elite) m.sprite.preFX?.addGlow(0xffffff, 2, 0, false, 0.1, 12);
+      if (e.elite) m.addGlow(0xffffff, 2);
       copies.push(m);
     }
     // the real one hides among its copies

@@ -65,6 +65,9 @@ export class OtherHero extends Actor {
   lvl = 1;
   /** seconds since the other game last told where the hero is */
   quietT = 0;
+  /** its speed from the last two words (it keeps walking between them) */
+  private nvx = 0;
+  private nvy = 0;
   private snap: HeroSnap | null = null;
   private weapon: Phaser.GameObjects.Image | null = null;
   private offhand: Phaser.GameObjects.Image | null = null;
@@ -87,14 +90,26 @@ export class OtherHero extends Actor {
   }
 
   /** the latest word from the other game */
+  /** seconds between the last two words */
+  private quietT0 = 0;
   apply(s: HeroSnap) {
     this.snap = s;
+    this.quietT0 = this.quietT;
     this.quietT = 0;
     // a jump (stairs, a teleport, waking up elsewhere) is not glided over
     if (Math.hypot(s.x - this.x, s.y - this.y) > 80) {
       this.x = s.x;
       this.y = s.y;
     }
+    const gap = this.quietT0;
+    if (gap > 0.02 && gap < 0.4) {
+      const vx = (s.x - this.tx) / gap,
+        vy = (s.y - this.ty) / gap;
+      if (Math.hypot(vx, vy) < 320) {
+        this.nvx = this.nvx * 0.35 + vx * 0.65;
+        this.nvy = this.nvy * 0.35 + vy * 0.65;
+      } else this.nvx = this.nvy = 0;
+    } else this.nvx = this.nvy = 0;
     this.tx = s.x;
     this.ty = s.y;
     this.hp = s.hp;
@@ -107,9 +122,10 @@ export class OtherHero extends Actor {
 
   tick(dt: number) {
     this.quietT += dt;
-    const k = Math.min(1, dt * 14);
-    const dx = this.tx - this.x,
-      dy = this.ty - this.y;
+    const k = Math.min(1, dt * 16);
+    const age = Math.min(0.12, this.quietT);
+    const dx = this.tx + this.nvx * age - this.x,
+      dy = this.ty + this.nvy * age - this.y;
     this.x += dx * k;
     this.y += dy * k;
     const s = this.snap;
