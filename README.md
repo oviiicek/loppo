@@ -106,6 +106,8 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
 
   Pod 50 % HP se boss rozzuří. Bossové se v dalších prostředích vracejí v „Prastaré“ verzi s více pomocníky. Příběhoví strážci čekají na 25., 50., 100., 125., 150., 200. a 250. patře (viz Příběh).
 - **Patro strážce:** od schodů vede krátká chodba do **přípravné místnosti** – ohniště (plné zdraví a mana, posila na 5 minut), obchodník, kovadlina, alchymista a truhla úložiště – a za ní je aréna. Jakmile do ní hrdina vstoupí, zavře se za ním runová bariéra a otevře se až po porážce strážce (mazlíček a žoldák jdou s ním). Smrt v aréně vrací do přípravné místnosti stejného patra, takže jde změnit výbavu a zkusit to znovu.
+- **Bossové – souboje znovu:** brána v Loppu má záložku **Bossové** se všemi strážci, kteří už padli (strážci pater i příběhoví). Souboj začíná u ohně v přípravné místnosti jejich patra, strážce pokaždé promluví (scénu jde přeskočit) a výprava v kobkách zůstane, kde byla. Kořist je menší (dva předměty, trochu zlata, občas drahokam nebo runa, poloviční zkušenosti) a domů vede zlatý portál. Prohra nic nestojí – hrdina se jen vrátí do Loppa (v Hardcore je smrt i tady konečná). Funguje to i ve hře pro dva. Zkušební odkaz `#test-bosses` (nebo `?test=bosses`) otevře všechny strážce.
+- **Zbraně strážců:** každý ze 17 strážců má pro každou classu vlastní zbraň pojmenovanou po něm (např. *Dlouhý luk Isoldy*, *Meč Kostěného krále*) – s jeho schopností a kouzlem (Isolda mrazivou aurou a mrazivou novou, Vermithrax meteory, Upíří lord léčením z kritických zásahů…). Když strážce padne poprvé, nechá zbraň pro classu hrdiny s šancí 35 %, potom při každém dalším souboji s šancí 10 % – šance už neklesá, takže jde každou zbraň získat. Příběhoví a prastaří strážci dávají mýtickou verzi, úroveň zbraně odpovídá patru strážce.
 - **Poklad strážce:** poražený strážce vysype svůj poklad přímo v aréně – předměty (první aspoň epický), zlato, drahokam, materiály, často runu – a navíc jednu jistou epickou nebo lepší věc, kterou hrdina může použít. Příběhový strážce dá poklad dvakrát a jistá věc je legendární nebo mýtická.
 
 ### Obtížnost
@@ -204,7 +206,8 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
 - **Sady předmětů:** legendární kusy sad (od 10. patra) dávají bonusy za 2, 3 a 4 nasazené kusy.
 - **Prokleté předměty:** občas vzácný předmět nese kletbu – obrovský bonus za cenu postihu (např. +80 % poškození a −30 % zdraví, nebo lektvary léčí jen napůl). V chrámu v Loppu jde kletbu zkrotit: zůstane 60 % bonusu a postih zmizí.
 - **Transmutace:** u alchymisty (náhodně v kobkách nebo v laboratoři v Loppu) se 5 předmětů stejné kvality spojí v jeden – většinou o stupeň lepší, někdy o dva, výjimečně pradávný.
-- **Kodex:** sbírka všeho nalezeného (unikáty, kusy sad, drahokamy, runy, druhy předmětů podle kvality) v Úspěších.
+- **Kodex:** sbírka všeho nalezeného (unikáty, kusy sad, drahokamy, runy, druhy předmětů podle kvality, zbraně strážců) v Úspěších.
+- **Legenda zbraní:** záložka Zbraně v Úspěších ukazuje všechny druhy zbraní – které už hrdina našel a které ještě ne (i v jakých vzácnostech), filtr na zbraně vlastní classy, zbraně strážců pro classu hrdiny s tím, kde jejich strážce čeká, a legendární zbraně.
 - **Automatická kořist:** pro každou kvalitu jde v pauze nastavit, jestli se předmět nechá, hned prodá, nebo rozebere. Předměty jde **zamknout**, aby je hromadný prodej ani rozebrání nevzaly.
 - 23 typů předmětů a 32 typů bonusů. Názvy se generují česky se správným rodem, například „Runová sekera zuřivosti“ nebo „Dračí boty větru“.
 - Sloty vybavení:

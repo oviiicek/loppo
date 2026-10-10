@@ -3,7 +3,10 @@ import type { UI as UIType } from './ui';
 import { iconURL, spellIcon } from '../gfx/textures';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
 import { spellsForClass } from '../data/spells';
-import { BASE_BY_ID, RARITIES, BASES, CATEGORY_NAMES } from '../data/items';
+import { BASE_BY_ID, RARITIES, BASES, CATEGORY_NAMES, isWeaponBase } from '../data/items';
+import type { BaseType } from '../data/items';
+import { BOSS_ARMS, bossWeaponBase, bossWeaponKey, bossWeaponName, guardianName, guardianFloors } from '../data/bossweapons';
+import { PROC_EFFECT_BY_ID } from '../data/weaponspells';
 import { PETS, PET_BY_ID, petTitle, petLevel } from '../data/pets';
 import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
@@ -288,6 +291,7 @@ export class Menus {
         <p><b style="color:#ffd76a">Vysávání a trny:</b> vysávání života a many léčí z poškození, které rozdáš – nejvýš ale ${LEECH_CAP.hp} % zdraví a ${LEECH_CAP.mp} % many za sekundu. Trny vrací útočníkům pevné poškození, odraz vrací část přijaté rány; obojí jde přes jejich brnění. Sada Hradba trnů a unikáty Ostnatý krunýř, Trnová koruna a Ježek z toho udělají celý styl boje.</p>
         <p><b style="color:#ffd76a">Strážci:</b> při 70, 40 a 10 % zdraví změní útoky i arénu a v posledních 10 % zuří.</p>
         <p><b style="color:#ffd76a">Žoldák, soupeři a nemesis:</b> v pauze si najmi žoldáka (tank, léčitel, lučištník, mág) a dej mu vybavení a rozkazy. Jiní dobrodruzi v kobkách se mohou přidat, obchodovat, nebo bojovat. Šampion, který tě zabije, se může stát tvým nemesis – a vrátí se.</p>
+        <p><b style="color:#ff9a9a">Bossové a zbraně strážců:</b> v bráně v Loppu je záložka Bossové – strážce, který už padl, jde vyzvat znovu (menší kořist, prohra nic nestojí). Každý strážce má pro tvou classu vlastní zbraň: poprvé ji nechá s šancí 35 %, potom pokaždé s šancí 10 %. Co už máš a co ještě chybí, ukáže Legenda zbraní (Úspěchy → Zbraně).</p>
         <p><b style="color:#9fe6ff">Hra pro dva:</b> v pauze „Hra pro dva“ – kdo hru založí, dostane kód a druhý hráč ho zadá. Hraje se svět zakladatele; nestvůr je 1,5× víc, mají 2× víc zdraví a 1,5× silnější útoky. Každý sbírá svou kořist, zahozený předmět může vzít i ten druhý. Ke strážci a po schodech dolů se jde jen spolu (2/2).</p>
         <p><b style="color:#ffd76a">Události:</b> zajatci, oltáře, duchové, trhliny se strážcem, rvačky nestvůr, krvavá výzva, rozhodnutí s následky, kostlivci u karet, dopisy padlých a nápisy na zdech. Velmi vzácně i zlatá komnata, zlatý drak, snový portál nebo zlatý déšť.</p>
         <p><b style="color:#ffd76a">Loppo a úkoly:</b> z pauzy se vrátíš domů do Loppa, zpět do kobek vede brána ve zřícenině hradu. Zachránění vesničané tam otevřou kovárnu, obchod, nástěnku úkolů, laboratoř, věž mága, cvičiště a chrám – a budovy rostou za zlato. V tvém domě je truhla, postel (odpočinek dává zkušenosti navíc) a trofeje. Úkoly z nástěnky tě pošlou na konkrétní patra; odměnu si vyzvedneš zase na nástěnce.</p>
@@ -512,7 +516,7 @@ export class Menus {
         }
         const why = sc.canGoHome();
         if (why) return void this.ui.toast(why, '#ff8a7a');
-        this.ui.confirm('Domů do Loppa?', `Doma tě čeká osada a její budovy. Patro ${sc.floor} pak začneš znovu od schodů.`, () => {
+        this.ui.confirm('Domů do Loppa?', sc.rematch ? 'Souboj se strážcem tím skončí. Výprava v kobkách zůstane, kde byla.' : `Doma tě čeká osada a její budovy. Patro ${sc.floor} pak začneš znovu od schodů.`, () => {
           this.ui.closeOverlay();
           sc.goToVillage();
         }, 'Domů', 'Zůstat');
@@ -639,7 +643,7 @@ export class Menus {
   }
 
   /** achievements and, on the second tab, the hero's statistics */
-  achievements(tab: 'ach' | 'stats' | 'nem' | 'codex' | 'beast' = 'ach') {
+  achievements(tab: 'ach' | 'stats' | 'nem' | 'codex' | 'beast' | 'weapons' = 'ach') {
     const sc = this.ui.scene!;
     const s = sc.save;
     const got = s.achievements ?? [];
@@ -676,11 +680,13 @@ export class Menus {
         const ic = sr ? spellRuneIcon(sr.id) : parseGem(k) ? gemIcon(k) : runeIcon(k);
         return `<span class="cxp ${found ? 'found' : ''}" title="${found ? esc(sr ? sr.name : parseGem(k) ? gemName(k) : runeName(k)) : '???'}"><img src="${iconURL(ic, 30)}"></span>`;
       }).join('');
-      body = `<div class="codexhead">Objeveno <b>${codexCount(s)}/${CODEX_TOTAL}</b> · unikáty ${c.u.length}/${CODEX_TOTALS.u} · kusy sad ${c.s.length}/${CODEX_TOTALS.s} · druhy předmětů ${c.b.length}/${CODEX_TOTALS.b} · drahokamy a runy ${c.g.length}/${CODEX_TOTALS.g}</div>
+      body = `<div class="codexhead">Objeveno <b>${codexCount(s)}/${CODEX_TOTAL}</b> · unikáty ${c.u.length}/${CODEX_TOTALS.u} · kusy sad ${c.s.length}/${CODEX_TOTALS.s} · druhy předmětů ${c.b.length}/${CODEX_TOTALS.b} · drahokamy a runy ${c.g.length}/${CODEX_TOTALS.g} · zbraně strážců ${c.bw!.length}/${CODEX_TOTALS.bw} <button class="btn small" data-tab="weapons">⚔ Legenda zbraní</button></div>
         <h3 class="cxh">Legendární unikáty</h3><div class="cxgrid">${uq}</div>
         <h3 class="cxh">Sady</h3><div class="cxsets">${sets}</div>
         <h3 class="cxh">Drahokamy a runy</h3><div class="cxstones">${stones}</div>
         <h3 class="cxh">Druhy předmětů podle vzácnosti</h3><div style="overflow-x:auto">${kinds}</div>`;
+    } else if (tab === 'weapons') {
+      body = this.weaponLegendHtml();
     } else if (tab === 'beast') {
       const kills = s.bestiary ?? {};
       const known = Object.keys(BEASTS).filter((id) => (kills[id] ?? 0) > 0).length;
@@ -762,17 +768,73 @@ export class Menus {
       ];
       body = `<div class="statgrid">${tiles.map(([ic, lb, vl, col]) => `<div class="stattile"><span class="ic">${ic}</span><span><span class="lb">${lb}</span><br><b class="vl" ${col ? `style="color:${col}"` : ''}>${esc(vl)}</b></span></div>`).join('')}</div>`;
     }
-    const p = el(`<div class="panel"><div class="head"><h2>${tab === 'ach' ? `Úspěchy ${got.length}/${ACHIEVEMENTS.length}` : tab === 'nem' ? 'Nemesis' : tab === 'codex' ? `Kodex ${codexCount(s)}/${CODEX_TOTAL}` : tab === 'beast' ? 'Bestiář' : 'Statistiky'}</h2><div class="tabs"><button class="tab ${tab === 'ach' ? 'on' : ''}" data-tab="ach">Úspěchy</button><button class="tab ${tab === 'stats' ? 'on' : ''}" data-tab="stats">Statistiky</button><button class="tab ${tab === 'nem' ? 'on' : ''}" data-tab="nem">Nemesis${s.nemeses?.length ? ` (${s.nemeses.length})` : ''}</button><button class="tab ${tab === 'codex' ? 'on' : ''}" data-tab="codex">Kodex</button><button class="tab ${tab === 'beast' ? 'on' : ''}" data-tab="beast">Bestiář</button></div><button class="close">✕</button></div>
+    const p = el(`<div class="panel"><div class="head many"><h2>${tab === 'ach' ? `Úspěchy ${got.length}/${ACHIEVEMENTS.length}` : tab === 'nem' ? 'Nemesis' : tab === 'codex' ? `Kodex ${codexCount(s)}/${CODEX_TOTAL}` : tab === 'beast' ? 'Bestiář' : tab === 'weapons' ? 'Legenda zbraní' : 'Statistiky'}</h2><div class="tabs"><button class="tab ${tab === 'ach' ? 'on' : ''}" data-tab="ach">Úspěchy</button><button class="tab ${tab === 'stats' ? 'on' : ''}" data-tab="stats">Statistiky</button><button class="tab ${tab === 'nem' ? 'on' : ''}" data-tab="nem">Nemesis${s.nemeses?.length ? ` (${s.nemeses.length})` : ''}</button><button class="tab ${tab === 'codex' ? 'on' : ''}" data-tab="codex">Kodex</button><button class="tab ${tab === 'beast' ? 'on' : ''}" data-tab="beast">Bestiář</button><button class="tab ${tab === 'weapons' ? 'on' : ''}" data-tab="weapons">Zbraně</button></div><button class="close">✕</button></div>
       <div class="body scroll" style="display:block">${body}</div></div>`);
     this.ui.showOverlay(p, () => {});
     $('.close', p).addEventListener('click', () => this.ui.closeOverlay());
-    p.querySelectorAll<HTMLElement>('.tab').forEach((b) =>
+    p.querySelectorAll<HTMLElement>('.tab, .codexhead [data-tab]').forEach((b) =>
       b.addEventListener('click', () => {
         if (b.dataset.tab === tab) return;
         sfx('ui');
-        this.achievements(b.dataset.tab as 'ach' | 'stats' | 'nem' | 'codex' | 'beast');
+        this.achievements(b.dataset.tab as 'ach' | 'stats' | 'nem' | 'codex' | 'beast' | 'weapons');
       }),
     );
+    // the weapon legend: the hero's own weapons or all of them
+    p.querySelectorAll<HTMLElement>('.wlfilter button').forEach((b) =>
+      b.addEventListener('click', () => {
+        sfx('ui');
+        p.querySelectorAll<HTMLElement>('.wlfilter button').forEach((x) => x.classList.toggle('on', x === b));
+        p.querySelectorAll<HTMLElement>('.wlkinds .wlc').forEach((c) => (c.hidden = b.dataset.f === 'mine' && !c.classList.contains('mine')));
+      }),
+    );
+  }
+
+  /** the legend of weapons: every kind of weapon (found or still missing), the guardians' weapons for the hero's
+   *  class and where they wait, and the legendary weapons */
+  weaponLegendHtml() {
+    const s = this.ui.scene!.save;
+    const c = codexOf(s);
+    const cls = CLASS_BY_ID[s.cls];
+    const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
+    const weapons = BASES.filter((b) => isWeaponBase(b));
+    const got = new Set(c.b.map((k) => k.split(':')[0]));
+    const mine = (b: BaseType) => cls.gear.includes(b.id);
+    const kinds = [...weapons.filter(mine), ...weapons.filter((b) => !mine(b))]
+      .map((b) => {
+        const found = got.has(b.id);
+        const dots = RARITIES.map((r, i) => (c.b.includes(`${b.id}:${i}`) ? `<b style="color:${r.color}">●</b>` : '<i>·</i>')).join('');
+        const users = CLASSES.filter((x) => x.gear.includes(b.id)).map((x) => x.name).join(', ');
+        const kind = `${b.attack === 'melee' ? 'na blízko' : b.attack === 'ranged' ? 'na dálku' : 'magická'} · ${b.cat === 'weapon2h' ? 'obouruční' : 'jednoruční'}`;
+        return `<div class="wlc ${found ? 'found' : ''} ${mine(b) ? 'mine' : ''}" ${mine(b) ? '' : 'hidden'}><img src="${iconURL(`${b.icon}_t3`, 32)}"><div class="wli"><div class="nm">${esc(cap(b.noun))}${found ? ' <span class="ok">✔</span>' : ''}</div><div class="lv2">${kind}${b.trait ? ` · ${esc(b.trait)}` : ''}</div><div class="wlr"><span class="dots">${dots}</span><span class="users">${esc(users)}</span></div></div></div>`;
+      })
+      .join('');
+    const nKinds = weapons.filter((b) => got.has(b.id)).length;
+    const nMine = weapons.filter((b) => mine(b) && got.has(b.id)).length;
+    const boss = BOSS_ARMS.map((a) => {
+      const found = c.bw!.includes(bossWeaponKey(a.id, s.cls));
+      const base = BASE_BY_ID[bossWeaponBase(a.id, s.cls)];
+      const floors = guardianFloors(a.id);
+      const where = floors.length ? `${floors.slice(0, 3).join('., ')}. patro${floors.length > 3 ? ' …' : ''}` : 'hlouběji';
+      const fx = PROC_EFFECT_BY_ID[a.spell.split('@')[0]];
+      return `<div class="wlc boss ${found ? 'found' : ''}"><img src="${iconURL(`${base.icon}_t5`, 32)}"><div class="wli"><div class="nm">${esc(bossWeaponName(a.id, s.cls))}${found ? ' <span class="ok">✔</span>' : ''}</div><div class="lv2">☠ ${esc(guardianName(a.id))} · ${where}</div><div class="lv2 pw">${found ? `${esc(POWER_BY_ID[a.power]?.desc ?? '')} · ✧ ${esc(fx?.name ?? '')}` : 'Zatím nenalezeno'}</div></div></div>`;
+    }).join('');
+    const nBoss = BOSS_ARMS.filter((a) => c.bw!.includes(bossWeaponKey(a.id, s.cls))).length;
+    const legend = UNIQUES.filter((u) => isWeaponBase(BASE_BY_ID[u.base]));
+    const uq = legend
+      .map((u) => {
+        const found = c.u.includes(u.id);
+        return `<div class="wlc ${found ? 'found' : ''}"><img src="${iconURL(`${BASE_BY_ID[u.base].icon}_t4`, 32)}"><div class="wli"><div class="nm">${found ? esc(u.name) : '???'}</div><div class="lv2">${esc(cap(BASE_BY_ID[u.base].noun))}${found ? ` · ${esc(POWER_BY_ID[u.power]?.desc ?? '')}` : ''}</div></div></div>`;
+      })
+      .join('');
+    const nUq = legend.filter((u) => c.u.includes(u.id)).length;
+    return `<div class="codexhead">Druhy zbraní <b>${nKinds}/${weapons.length}</b> (tvoje classa ${nMine}/${weapons.filter(mine).length}) · zbraně strážců <b>${nBoss}/${BOSS_ARMS.length}</b> · legendární zbraně <b>${nUq}/${legend.length}</b></div>
+      <h3 class="cxh">Druhy zbraní <span class="wlfilter"><button class="btn small on" data-f="mine">${esc(cls.name)}</button><button class="btn small" data-f="all">Všechny</button></span></h3>
+      <div class="hint" style="margin-bottom:4px">Tečky ukazují vzácnosti, ve kterých už zbraň byla v tvém batohu (od běžné po pradávnou).</div>
+      <div class="wlgrid wlkinds">${kinds}</div>
+      <h3 class="cxh">Zbraně strážců – ${esc(cls.name)}</h3>
+      <div class="hint" style="margin-bottom:4px">Každý strážce má pro každou classu vlastní zbraň. Poprvé ji nechá s šancí 35 %, potom pokaždé s šancí 10 % – i při souboji znovu z brány v Loppu (záložka Bossové).</div>
+      <div class="wlgrid">${boss}</div>
+      <h3 class="cxh">Legendární zbraně</h3><div class="wlgrid">${uq}</div>`;
   }
 
   /** who dealt the last blow, how hard, and a tip fitting it */
@@ -797,22 +859,23 @@ export class Menus {
   death(floor: number, lostGold: number) {
     const sc = this.ui.scene!;
     const back = sc.deathReturnFloor();
-    const where =
-      back === floor
+    const where = sc.rematch
+      ? 'Strážce tentokrát zvítězil. Vracíš se do Loppa – souboj můžeš z brány zkusit znovu.'
+      : back === floor
         ? `Patro ${floor} začneš znovu ${isBossFloor(floor) && !sc.inVillage ? 'v přípravné místnosti u ohně' : 'od schodů'}.`
         : `Výprava se vrací na checkpoint: <b style="color:#ffd76a">patro ${back}</b> (${isBossFloor(back) ? 'příprava na strážce' : isCampFloor(back) ? 'tábor' : 'začátek desítky'}).`;
     const p = el(`<div class="panel small" style="border-color:#8a2a2a"><div class="head" style="background:linear-gradient(#3a1414,#1a0a0a)"><h2 style="color:#ff6b6b">Porážka</h2></div>
       <div style="padding:16px;text-align:center">
         <p style="font-size:20px;margin:0 0 4px">Tvoje cesta skončila v patře ${floor}.</p>
         <p style="font-size:17px;margin:0 0 6px">${where}</p>
-        <p class="hint">Přijdeš o ${lostGold} zlata a část zkušeností do další úrovně. Předměty i úroveň ti zůstanou.</p>
+        <p class="hint">${sc.rematch ? 'Souboj se strážcem znovu nic nestojí – zlato, zkušenosti i předměty ti zůstanou.' : `Přijdeš o ${lostGold} zlata a část zkušeností do další úrovně. Předměty i úroveň ti zůstanou.`}</p>
         ${this.recapHtml()}
         ${
           sc.lastChanceOffer
             ? `<div class="lastch"><b>⚔ Poslední šance</b><span>Smrt váhá. Vydrž 40 sekund v aréně proti vlnám nestvůr – a vrátíš se do patra ${floor} s jediným bodem zdraví. Prohra tě pošle na checkpoint.</span><button class="btn red" data-a="last">Bojovat o život</button></div>`
             : ''
         }
-        <div class="row" style="justify-content:center;margin-top:10px"><button class="btn green" data-a="retry">Pokračovat (patro ${back})</button><button class="btn" data-a="menu">Hlavní menu</button></div>
+        <div class="row" style="justify-content:center;margin-top:10px"><button class="btn green" data-a="retry">${sc.rematch ? 'Zpět do Loppa' : `Pokračovat (patro ${back})`}</button><button class="btn" data-a="menu">Hlavní menu</button></div>
       </div></div>`);
     this.ui.showOverlay(p, undefined, true, true);
     $('[data-a=retry]', p).addEventListener('click', () => {

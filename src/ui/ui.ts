@@ -1443,9 +1443,9 @@ class UIManager {
   }
 
   /** the village's gate: continue the expedition or start a new one in a band of ten floors */
-  expedition() {
+  expedition(tab: 'bands' | 'bosses' = 'bands') {
     if (this.panel) this.closeOverlay(false, true);
-    this.expeditions.expedition();
+    this.expeditions.expedition(tab);
   }
 
   /** the doors after a floor */

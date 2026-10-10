@@ -144,6 +144,8 @@ export interface Item {
   unique?: string;
   /** a weapon's bonus spell that casts itself: "effect@trigger" (see data/weaponspells.ts) */
   spell?: string;
+  /** a guardian's weapon: "guardianId:class" (see data/bossweapons.ts) */
+  boss?: string;
   // rolled base values
   dmgMin?: number;
   dmgMax?: number;

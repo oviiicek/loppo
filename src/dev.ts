@@ -752,7 +752,19 @@ Object.assign(dev, {
   },
 });
 import { UNIQUE_BY_ID } from './data/uniques';
+import { makeBossWeapon } from './data/bossweapons';
+import { discoverItem } from './data/codex';
 Object.assign(dev, {
+  /** a guardian's weapon for the hero's class into the bag (and the codex) */
+  bossWeapon(id = 'isolda', ilvl = 30, rarity = 4) {
+    const s = (window as any).__scene.save;
+    const at = s.inventory.findIndex((x: unknown) => !x);
+    const it = makeBossWeapon(id, s.cls, ilvl, rarity);
+    if (at < 0 || !it) return -1;
+    s.inventory[at] = it;
+    discoverItem(s, it);
+    return it.name;
+  },
   /** every spell rune into the bag */
   spellRunes(n = 1) {
     const s = (window as any).__scene.save;

@@ -74,6 +74,8 @@ export interface SaveData {
   merc?: MercState;
   /** everything ever found (see data/codex.ts) */
   codex?: Codex;
+  /** how many times each guardian fell (by its id): the first fall gives the best chance of its weapon */
+  bossKills?: Record<string, number>;
   /** spell runes the hero carries (id: count) and the rune set into each spell (spell id: rune id) */
   spellRuneBag?: Record<string, number>;
   spellRunes?: Record<string, string>;

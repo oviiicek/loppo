@@ -126,6 +126,11 @@ export class Loot {
       y = e.y;
     const potMult = this.scene.player.d.specials.has('goldRush') ? 2 : 1;
     if (e.boss) {
+      // a guardian fought again keeps only a little gold on itself (its hoard is the smaller one, see rematchHoard)
+      if (this.scene.rematch) {
+        for (let i = 0; i < 2; i++) this.dropGold(this.goldAmount(2), x, y);
+        return;
+      }
       const n = 3 + e.bossTier;
       for (let i = 0; i < n; i++) this.dropItem(this.item(f + 1, 2), x, y);
       if (f >= SET_MIN_FLOOR && Math.random() < 0.12) this.dropItem(generateSetItem(f + 1), x, y);
@@ -208,6 +213,16 @@ export class Loot {
     if (story) this.chestDrops('boss', x, y);
     const rarity = story ? (Math.random() < 0.3 ? 5 : 4) : Math.random() < 0.25 ? 4 : 3;
     this.dropItem(generateItem(this.scene.floor + 2, { rarity, filter: this.bias() }), x, y);
+  }
+
+  /** a guardian fought again keeps less: two finds, a little gold, now and then a gem or a rune */
+  rematchHoard(x: number, y: number) {
+    const f = this.scene.floor;
+    for (let i = 0; i < 2; i++) this.dropItem(generateItem(f + 2, { magicFind: this.mf, rarityBonus: 1, filter: this.bias() }), x, y);
+    for (let i = 0; i < 2; i++) this.dropGold(this.goldAmount(1.5), x, y);
+    if (Math.random() < 0.4) this.dropRandomGem(x, y, 0);
+    if (Math.random() < 0.15) this.dropRandomRune(x, y, 0);
+    if (Math.random() < 0.35) this.dropMat('dust', 1, x, y);
   }
 
   /** what a chest holds (a floor of double loot gives it all twice) */

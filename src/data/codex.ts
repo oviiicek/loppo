@@ -8,6 +8,8 @@ import { SETS } from './sets';
 import { GEMS, GEM_MAX_TIER, gemKey } from './gems';
 import { RUNES, RUNE_MAX_TIER, runeKey } from './runes';
 import { SPELL_RUNES } from './spellrunes';
+import { BOSS_ARMS, parseBossKey } from './bossweapons';
+import { CLASSES } from './classes';
 
 export interface Codex {
   /** uniques (ids) */
@@ -18,6 +20,8 @@ export interface Codex {
   b: string[];
   /** gems and runes ("ruby3", "fire2") */
   g: string[];
+  /** weapons of the guardians ("isolda:ranger") */
+  bw?: string[];
 }
 
 export function codexOf(s: SaveData): Codex {
@@ -26,6 +30,7 @@ export function codexOf(s: SaveData): Codex {
   c.s ??= [];
   c.b ??= [];
   c.g ??= [];
+  c.bw ??= [];
   return c;
 }
 
@@ -34,12 +39,13 @@ export const CODEX_TOTALS = {
   s: SETS.reduce((a, d) => a + d.pieces.length, 0),
   b: BASES.length * RARITIES.length,
   g: GEMS.length * GEM_MAX_TIER + RUNES.length * RUNE_MAX_TIER + SPELL_RUNES.length,
+  bw: BOSS_ARMS.length * CLASSES.length,
 };
-export const CODEX_TOTAL = CODEX_TOTALS.u + CODEX_TOTALS.s + CODEX_TOTALS.b + CODEX_TOTALS.g;
+export const CODEX_TOTAL = CODEX_TOTALS.u + CODEX_TOTALS.s + CODEX_TOTALS.b + CODEX_TOTALS.g + CODEX_TOTALS.bw;
 
 export function codexCount(s: SaveData) {
   const c = codexOf(s);
-  return c.u.length + c.s.length + c.b.length + c.g.length;
+  return c.u.length + c.s.length + c.b.length + c.g.length + c.bw!.length;
 }
 
 /** records an item; returns the name of a new unique or set piece (worth a word on screen), or null */
@@ -54,6 +60,10 @@ export function discoverItem(s: SaveData, it: Item): string | null {
   }
   if (it.set && !c.s.includes(it.set)) {
     c.s.push(it.set);
+    news = it.name;
+  }
+  if (it.boss && parseBossKey(it.boss) && !c.bw!.includes(it.boss)) {
+    c.bw!.push(it.boss);
     news = it.name;
   }
   return news;

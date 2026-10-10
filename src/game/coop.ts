@@ -51,6 +51,8 @@ export interface FloorInfo {
   diff: number;
   x: number;
   y: number;
+  /** the host fights a guardian again (the floor is its arena) */
+  rematch?: boolean;
 }
 
 /** a monster the guest's game has not seen yet */
@@ -346,6 +348,7 @@ export class Coop {
       diff: sc.save.difficulty ?? 1,
       x: Math.round(sc.player.x),
       y: Math.round(sc.player.y),
+      rematch: !!sc.rematch,
     };
     Net.send({ t: 'floor', f: info });
     // what is already sealed on this floor

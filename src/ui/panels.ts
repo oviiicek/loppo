@@ -44,6 +44,7 @@ import type { RivalMood } from '../data/rivals';
 import { TRANSMUTE_N, transmuteOdds, transmuteCost, transmute } from '../data/transmute';
 import { CURSE_BY_ID, curseStats } from '../data/curses';
 import { POWER_BY_ID, UNIQUE_BY_ID, UNIQUES } from '../data/uniques';
+import { parseBossKey, guardianName } from '../data/bossweapons';
 import { discoverItem } from '../data/codex';
 import { RUNES, RUNE_TIERS, RUNE_MAX_TIER, parseRune, runeName, runeIcon, runeDesc, runeKey, runeSlots, runeSlotCount, runeCombineCost, RuneType } from '../data/runes';
 import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
@@ -158,7 +159,7 @@ export class Panels {
     const lock = it.locked ? '<span class="lockmark">🔒</span>' : '';
     const curse = it.curse ? '<span class="cursemark">☠</span>' : '';
     const spell = it.spell ? '<span class="spellmark">✧</span>' : '';
-    return `<div class="slot r${it.rarity}${it.set ? ' set' : ''}${it.curse ? ' cursed' : ''} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}${lock}${curse}${spell}</div>`;
+    return `<div class="slot r${it.rarity}${it.set ? ' set' : ''}${it.boss ? ' bossw' : ''}${it.curse ? ' cursed' : ''} ${extra}"><img src="${iconURL(itemIcon(it), 48)}">${it.upgrade ? `<span class="up">+${it.upgrade}</span>` : ''}${better ? '<span class="better">▲</span>' : ''}${price !== undefined ? `<span class="price">${price}</span>` : ''}${socks}${lock}${curse}${spell}</div>`;
   }
 
   /** gold and materials in a panel's header, next to its title and tabs (the body keeps the room) */
@@ -207,7 +208,7 @@ export class Panels {
   itemHeadHtml(it: Item) {
     const base = BASE_BY_ID[it.base];
     const rar = RARITIES[it.rarity];
-    return `<div class="ihead"><div class="iicon r${it.rarity}${it.set ? ' set' : ''}"><img src="${iconURL(itemIcon(it), 48)}"></div><div class="iname"><h3 style="color:${itemColor(it)}">${it.upgrade ? '+' + it.upgrade + ' ' : ''}${esc(it.name)}</h3><div class="sub">${it.set ? 'Předmět sady' : rar.name} • ${CATEGORY_NAMES[base.cat]} • úroveň ${it.ilvl}</div></div></div>`;
+    return `<div class="ihead"><div class="iicon r${it.rarity}${it.set ? ' set' : ''}${it.boss ? ' bossw' : ''}"><img src="${iconURL(itemIcon(it), 48)}"></div><div class="iname"><h3 style="color:${itemColor(it)}">${it.upgrade ? '+' + it.upgrade + ' ' : ''}${esc(it.name)}</h3><div class="sub">${it.set ? 'Předmět sady' : it.boss ? `Zbraň strážce • ${rar.name}` : rar.name} • ${CATEGORY_NAMES[base.cat]} • úroveň ${it.ilvl}</div></div></div>`;
   }
 
   /** everything an item does */
@@ -216,6 +217,8 @@ export class Panels {
     let h = '';
     const uq = it.unique ? UNIQUE_BY_ID[it.unique] : null;
     if (uq) h += `<div class="lore">„${esc(uq.lore)}“</div>`;
+    const bw = parseBossKey(it.boss);
+    if (bw) h += `<div class="lore bosslore"><b>☠ ${esc(guardianName(bw.arms.id))}</b> „${esc(bw.arms.lore)}“</div>`;
     if (it.dmgMin !== undefined) {
       const [a, b] = weaponDamage(it);
       const kind = base.attack === 'melee' ? 'na blízko' : base.attack === 'ranged' ? 'na dálku' : 'magická';

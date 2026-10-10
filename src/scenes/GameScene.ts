@@ -51,6 +51,7 @@ import { Procs } from '../game/procs';
 import { Coop, FloorInfo, MP_COUNT } from '../game/coop';
 import { Net } from '../net/net';
 import { DIFFICULTIES } from '../data/difficulty';
+import { BOSS_ARMS_BY_ID, BOSS_WEAPON_FIRST, BOSS_WEAPON_AGAIN, makeBossWeapon } from '../data/bossweapons';
 
 /** seconds between kills that keep a kill streak going */
 const STREAK_WINDOW = 2.6;
@@ -228,6 +229,8 @@ export class GameScene extends Phaser.Scene {
   /** playing for two (see game/coop.ts): the link to the other game, and in the guest's game the host's floor */
   coop: Coop | null = null;
   guestInfo: FloorInfo | null = null;
+  /** a guardian fought again from the village's gate (its floor): the expedition stays where it was */
+  rematch: number | null = null;
   /** how this floor was generated (sent to the guest's game, which builds the same floor) */
   floorSeed = 0;
   floorOpts = { forceMerchant: false };
@@ -240,12 +243,13 @@ export class GameScene extends Phaser.Scene {
     super('Game');
   }
 
-  init(data: { save: SaveData; rift?: RiftKind; village?: boolean; coop?: FloorInfo }) {
+  init(data: { save: SaveData; rift?: RiftKind; village?: boolean; coop?: FloorInfo; rematch?: number }) {
     this.save = data.save;
     this.guestInfo = data.coop ?? null;
+    this.rematch = data.coop ? (data.coop.rematch ? data.coop.floor : null) : data.rematch ?? null;
     this.rift = data.coop ? data.coop.rift : data.rift ?? null;
-    this.inVillage = !data.coop && !!data.village;
-    this.floor = data.coop ? data.coop.floor : this.save.floor;
+    this.inVillage = !data.coop && !this.rematch && !!data.village;
+    this.floor = data.coop ? data.coop.floor : this.rematch ?? this.save.floor;
     // in the host's world its difficulty rules
     this.diff = data.coop ? DIFFICULTIES[data.coop.diff] ?? difficultyOf(this.save) : difficultyOf(this.save);
     this.coop = null;
@@ -304,7 +308,7 @@ export class GameScene extends Phaser.Scene {
     // in a game for two the guest's game builds the host's floor (same seed, same kind, same fate)
     const guest = this.guestInfo;
     // the expedition: what kind of floor the path down led to (a camp halfway down every band of ten)
-    const run = !rift && !this.inVillage && !guest ? runOf(save) : null;
+    const run = !rift && !this.inVillage && !guest && !this.rematch ? runOf(save) : null;
     if (run) {
       // a guardian's floor has its own layout (with the preparation room that is also the camp on 25 and 125)
       if (isBossFloor(this.floor)) this.kind = 'normal';
@@ -332,7 +336,7 @@ export class GameScene extends Phaser.Scene {
     this.floorSeed = guest ? guest.seed : (Math.random() * 1e9) | 0;
     this.floorOpts = { forceMerchant };
     this.dungeon = this.inVillage ? generateVillage(this.floor) : generateDungeon(this.floor, this.floorSeed, { forceMerchant, rift: rift ?? undefined, calm: calmKind });
-    if (!rift && !this.inVillage && !guest) {
+    if (!rift && !this.inVillage && !guest && !this.rematch) {
       if (this.dungeon.hasMerchant) save.merchantPity = 0;
       else save.merchantPity++;
     }
@@ -394,7 +398,7 @@ export class GameScene extends Phaser.Scene {
     this.lamps.push({ x: ux, y: uy, r: 56, flicker: 0 });
     const home = this.inVillage;
     const calm = this.calm;
-    if (!rift && !home && !guest) this.placeStoryPage();
+    if (!rift && !home && !guest && !this.rematch) this.placeStoryPage();
     // a calm floor has no monsters at all (no thief, no nemesis, no guardian); the guest's monsters are the host's
     if (!calm && !guest) this.spawnEnemies();
     const guard = this.guard;
@@ -407,8 +411,9 @@ export class GameScene extends Phaser.Scene {
     if (calm === 'camp') this.placeAlchemist(true);
     // the preparation room before a guardian has an alchemist too
     if (guard) this.placeAlchemist(true, this.dungeon.rooms.find((r) => r.type === 'prep'));
-    // a death before a guardian: the hero wakes by the fire in the preparation room, not at the stairs
-    const woke = fallen && guard ? this.wakeSpot() : null;
+    // a death before a guardian: the hero wakes by the fire in the preparation room, not at the stairs (and a
+    // guardian fought again is met from that fire too)
+    const woke = (fallen && guard) || (this.rematch && guard) ? this.wakeSpot() : null;
     if (woke) {
       this.player.x = woke.x;
       this.player.y = woke.y;
@@ -430,7 +435,9 @@ export class GameScene extends Phaser.Scene {
       /* the host's events */
     } else if (rift) this.enc.setupRift(rift);
     else if (home) this.vil.place();
-    else if (calm || guard) {
+    else if (this.rematch) {
+      /* only the guardian */
+    } else if (calm || guard) {
       if (calm === 'npc') this.enc.placeMeeting();
       this.quests.placeFloorQuests(true);
     } else {
@@ -482,7 +489,7 @@ export class GameScene extends Phaser.Scene {
     UI.attachGame(this);
     UI.bounty(this.bounty);
     // (a guest's own progress stays where it was: the floors of the host's world are not the guest's)
-    if (!guest) {
+    if (!guest && !this.rematch) {
       save.floor = this.floor;
       save.maxFloor = Math.max(save.maxFloor, this.floor);
     }
@@ -531,12 +538,14 @@ export class GameScene extends Phaser.Scene {
     // (in the host's world its story scenes come from the host's game)
     if (!st.seen.includes('prolog') && !this.inVillage && !this.guestInfo) queue.push('prolog');
     // every area of ten floors opens with its own scene (the first one's is the prologue's end)
-    const intro = this.inVillage || this.rift || this.guestInfo ? null : areaIntroForFloor(this.floor);
+    const intro = this.inVillage || this.rift || this.guestInfo || this.rematch ? null : areaIntroForFloor(this.floor);
     if (intro && !st.seen.includes(intro)) queue.push(intro);
     const story = storyBossForFloor(this.floor);
     const homeCount = BUILDINGS.filter((b) => b.who && (villageOf(save).lv[b.id] ?? 0) > 0).length;
     const sub = this.inVillage
       ? `Domov · zachráněno ${homeCount} ze ${BUILDINGS.filter((b) => b.who).length} vesničanů`
+      : this.rematch
+      ? `Souboj znovu: ${this.boss?.name ?? 'strážce'} · menší kořist, šance na zbraň strážce`
       : this.rift === 'rift'
       ? 'Trhlina: poraz nestvůry, přivolej strážce a zavři ji'
       : this.rift === 'dream'
@@ -585,6 +594,7 @@ export class GameScene extends Phaser.Scene {
         UI.banner(`Osud patra: ${f.name}`, f.desc);
       });
     } else if (this.calm === 'camp') this.time.delayedCall(700, () => UI.banner('Tábor', 'Bezpečné místo · odpočinek u ohně, obchodník a úložiště · checkpoint'));
+    else if (this.rematch && !this.bossDefeated) this.time.delayedCall(700, () => UI.banner('Souboj se strážcem', 'Připrav se u ohně a vstup do arény · domů se vrátíš portálem'));
     else if (this.guard && !this.bossDefeated)
       this.time.delayedCall(700, () => UI.banner('Příprava na strážce', this.wokeAt ? 'Zpátky u ohně · odpočiň si, vybav se a zkus to znovu' : 'Odpočiň si u ohně, nakup a vybav se · za tebou je checkpoint'));
     if (this.floor === 1 && save.kills === 0 && save.level === 1 && !this.guestInfo) this.tutorial();
@@ -1023,6 +1033,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnEnemies() {
+    // a guardian fought again: its arena and nothing else
+    if (this.rematch) return this.spawnGuardian();
     const m = this.mod;
     const spawns = [...this.dungeon.spawns];
     if (m?.extraEnemies) {
@@ -1060,10 +1072,15 @@ export class GameScene extends Phaser.Scene {
       this.spawnNemesis();
     }
     this.maybeCorrupt();
+    this.spawnGuardian();
+  }
+
+  /** the guardian of the floor in its arena (fought again: the story guardian of its floor, for half the experience) */
+  spawnGuardian() {
     const br = this.dungeon.bossRoom;
     if (br) {
       const story = storyBossForFloor(this.floor);
-      if (story && !storyOf(this.save).seen.includes(story.outro)) {
+      if (story && (this.rematch || !storyOf(this.save).seen.includes(story.outro))) {
         const e = this.spawnEnemy('skeleton', br.cx * TS + 8, br.cy * TS + 8, false, br.id, story.phases[0].sprite);
         e.makeStoryBoss(story, this.floor);
         this.boss = e;
@@ -1075,6 +1092,7 @@ export class GameScene extends Phaser.Scene {
       }
       // on a guardian's floor it waits in its arena, out of reach, until the hero steps in (see sealArena)
       if (this.guard) this.boss.invuln = true;
+      if (this.rematch) this.boss.xp = Math.round(this.boss.xp * 0.5);
     }
   }
 
@@ -2279,6 +2297,7 @@ export class GameScene extends Phaser.Scene {
     switch (it.kind) {
       case 'stairs':
         if (it.data.village) return 'Výprava do kobek';
+        if (it.data.home) return 'Návrat do Loppa';
         return it.data.portal ? `Projít portálem (patro ${this.floor + 1})` : `Sestoupit (patro ${this.floor + 1})`;
       case 'vb':
       case 'vilda':
@@ -2340,7 +2359,11 @@ export class GameScene extends Phaser.Scene {
         break;
       case 'stairs':
         if (it.data.village) UI.expedition();
-        else if (this.guestInfo) {
+        else if (it.data.home) {
+          // home from a guardian fought again (in a game for two the host leads the way)
+          if (this.guestInfo) UI.toast('Domů se vracíte spolu – portálem vede hostitel', '#9fe6ff');
+          else this.goToVillage();
+        } else if (this.guestInfo) {
           // the way down is the host's to choose
           Net.event({ k: 'ready' });
           UI.toast('Čekáš u schodů – cestu dolů vybírá hostitel', '#9fe6ff');
@@ -2818,14 +2841,16 @@ export class GameScene extends Phaser.Scene {
     }
     if (b.tag === 'secret') return this.enc.secretKilled(b);
     if (b.tag === 'riftGuard') return this.enc.riftCleared(b);
-    this.quests.onBossKilled();
-    if (b.story) {
+    // (a guardian fought again counts for no quest and changes nothing in the story)
+    if (!this.rematch) this.quests.onBossKilled();
+    if (b.story && !this.rematch) {
       void this.storyBossDefeated(b);
       return;
     }
     this.bossDefeated = true;
     bumpStat(this.save, 'bosses');
     UI.hideBoss();
+    if (b.story) this.clearBossField();
     UI.banner('Strážce poražen!', `${b.name} padl${b.boss?.fem ? 'a' : ''}`);
     this.fx.shake(0.012, 500);
     this.spawnBossRewards(b);
@@ -2846,10 +2871,23 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(450, () => {
       if (!this.sys.isActive()) return;
       sfx('chest');
-      this.loot.guardianHoard(x, y, story);
-      UI.toast(story ? 'Strážce odkázal svůj poklad – a mezi ním věc, která září víc než ostatní.' : 'Strážce padl a jeho poklad se rozsypal po aréně.', '#ffd23a');
+      // fought again it keeps less (and nothing of the story)
+      if (this.rematch) this.loot.rematchHoard(x, y);
+      else this.loot.guardianHoard(x, y, story);
+      UI.toast(this.rematch ? 'Strážce padl znovu – tentokrát měl u sebe méně.' : story ? 'Strážce odkázal svůj poklad – a mezi ním věc, která září víc než ostatní.' : 'Strážce padl a jeho poklad se rozsypal po aréně.', '#ffd23a');
     });
+    if (b) this.time.delayedCall(1100, () => this.sys.isActive() && this.rollBossWeapon(b, x, y));
     const ex = this.dungeon.exit;
+    // fought again: a golden portal takes the hero home (the expedition below stays where it was)
+    if (this.rematch) {
+      this.time.delayedCall(1200, () => {
+        if (!this.sys.isActive()) return;
+        const it = this.enc.exitPortal(ex.x * TS + 8, ex.y * TS + 8, true);
+        it.data.home = true;
+      });
+      if (!this.guestInfo) for (const e of this.enemies) if (!e.dead && e.isMinion) this.combat.killEnemy(e);
+      return;
+    }
     const st = this.add.image(ex.x * TS + 8, ex.y * TS + 8, 'stairs').setScale(ACTOR_SCALE).setDepth(D.floorDeco).setAlpha(0);
     this.tweens.add({ targets: st, alpha: 1, duration: 800, delay: 1200 });
     const it: Interactable = { kind: 'stairs', x: ex.x * TS + 8, y: ex.y * TS + 8, tx: ex.x, ty: ex.y, sprite: st, data: {} };
@@ -2858,6 +2896,25 @@ export class GameScene extends Phaser.Scene {
     this.lamps.push({ x: it.x, y: it.y, r: 70, flicker: 0 });
     // clear minions
     if (!this.guestInfo) for (const e of this.enemies) if (!e.dead && e.isMinion) this.combat.killEnemy(e);
+  }
+
+  /** a guardian may leave its weapon for the hero's class: 35 % the first time it falls, then 10 % every time */
+  rollBossWeapon(b: Enemy, x: number, y: number) {
+    const id = b.story?.id ?? b.boss?.id;
+    if (!id || !BOSS_ARMS_BY_ID[id]) return;
+    const s = this.save;
+    const kills = (s.bossKills ??= {});
+    const first = !kills[id];
+    kills[id] = (kills[id] ?? 0) + 1;
+    const forced = (window as any).__forceBossWeapon; // dev testing hook
+    if (!forced && Math.random() >= (first ? BOSS_WEAPON_FIRST : BOSS_WEAPON_AGAIN)) return;
+    // the story guardians and the ancient ones leave a mythic one
+    const it = makeBossWeapon(id, s.cls, this.floor + 2, b.story || b.bossTier > 0 ? 5 : 4);
+    if (!it) return;
+    this.loot.dropItem(it, x, y);
+    sfx('levelup');
+    this.fx.ring(x, y - 8, 46, 0xff4a5a, 700);
+    UI.banner('☠ Zbraň strážce!', it.name);
   }
 
   // ---------------------------------------------------------------- achievements
@@ -2896,7 +2953,7 @@ export class GameScene extends Phaser.Scene {
     if (this.save.hardcore) buryHero(this.save, this.floor);
     else this.recordNemesis();
     // very rarely a last chance (once per expedition, never in a rift or the arena itself)
-    this.lastChanceOffer = !this.save.hardcore && !this.rift && !this.inVillage && !runOf(this.save).lastChance && Math.random() < 0.12;
+    this.lastChanceOffer = !this.save.hardcore && !this.rift && !this.inVillage && !this.rematch && !runOf(this.save).lastChance && Math.random() < 0.12;
     this.time.delayedCall(900, () => UI.death(this.floor, this.deathGold()));
     this.deathAt = this.time.now;
   }
@@ -2905,11 +2962,14 @@ export class GameScene extends Phaser.Scene {
 
   /** gold a death costs on this difficulty */
   deathGold() {
+    // losing to a guardian fought again costs nothing but the way home
+    if (this.rematch) return 0;
     return Math.round(this.save.gold * this.diff.goldLoss);
   }
 
   /** the price of a death: part of the gold and of the progress to the next level */
   payForDeath() {
+    if (this.rematch) return;
     this.save.gold -= this.deathGold();
     this.save.xp = Math.round(this.save.xp * (1 - this.diff.xpLoss));
     saveGame(this.save);
@@ -2917,6 +2977,11 @@ export class GameScene extends Phaser.Scene {
 
   respawn() {
     if (this.save.hardcore) return;
+    if (this.rematch) {
+      saveGame(this.save);
+      this.scene.restart({ save: this.save, village: true });
+      return;
+    }
     this.payForDeath();
     // a death sends the hero back to the expedition's checkpoint (on the easy difficulty to the same floor)
     const back = this.deathReturnFloor();
@@ -2998,6 +3063,32 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /** from the village's gate into the arena of a guardian beaten before (the expedition stays where it was) */
+  startRematch(floor: number) {
+    if (this.descending || this.player.dead) return;
+    this.descending = true;
+    this.cinematic = true;
+    this.currentAction = null;
+    UI.setAction(null);
+    UI.joy = [0, 0];
+    const p = this.player;
+    p.target = null;
+    p.invulnT = 99;
+    this.targetMarker.setAlpha(0);
+    sfx('stairs');
+    this.fx.ring(p.x, p.y - 6, 44, 0xff4a5a, 700);
+    this.fx.burst(p.x, p.y - 8, 0xff4a5a, 24, 'puff');
+    const cam = this.cameras.main;
+    cam.zoomTo(this.zoom * 1.2, 900, 'Sine.easeIn');
+    this.time.delayedCall(300, () => cam.fadeOut(500, 0, 0, 0));
+    saveGame(this.save);
+    this.time.delayedCall(850, () => {
+      const st = storyBossForFloor(floor);
+      UI.floorCard({ ...this.floorCardInfo(floor), name: st ? st.name : bossForFloor(floor).def.name, region: `${st ? st.title + ' · ' : ''}souboj se strážcem ${floor}. patra`, color: '#ff7a7a', top: 'Souboj znovu' }, '', true);
+      this.scene.restart({ save: this.save, rematch: floor });
+    });
+  }
+
   /** whether the hero may go home now (not in the middle of a fight, not in a rift) */
   canGoHome(): string | null {
     if (this.guestInfo) return 'Ve hře pro dva vede výpravu hostitel – domů se vrátíte spolu.';
@@ -3068,6 +3159,7 @@ export class GameScene extends Phaser.Scene {
   /** walk onto the stairs and down into the dark; the title card of the next floor covers the loading */
   /** (stay: from the village back down to the floor the hero left, no floor further) */
   nextFloor(stay = false) {
+    if (this.rematch) return this.goToVillage();
     if (this.descending) return;
     this.descending = true;
     this.cinematic = true;

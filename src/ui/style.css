@@ -1380,6 +1380,18 @@ img.px {
     inset 0 0 14px rgba(47, 224, 176, 0.4),
     0 0 6px rgba(47, 224, 176, 0.45);
 }
+/* weapons of the guardians: a crimson rim with a golden glow */
+.slot.bossw,
+.iicon.bossw {
+  border-color: #ff4a5a;
+  box-shadow:
+    inset 0 0 14px rgba(255, 70, 80, 0.45),
+    0 0 6px rgba(255, 200, 80, 0.5);
+}
+.lore.bosslore b {
+  color: #ff8a8a;
+  font-style: normal;
+}
 .setbox {
   margin-top: 6px;
   padding: 5px 7px;
@@ -1596,6 +1608,33 @@ img.px {
 }
 .panel .head.notitle h2 {
   display: none;
+}
+/* a header with many tabs (achievements, codex, bestiary, weapons): the tabs scroll, the close button stays */
+.panel .head.many > h2 {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.panel .head.many > .tabs {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.panel .head.many > .tabs::-webkit-scrollbar {
+  display: none;
+}
+@media (max-width: 760px) {
+  .panel .head.many > h2 {
+    display: none;
+  }
+  .panel .head.many .tab {
+    flex: none;
+    font-size: 15px;
+    padding: 4px 7px;
+  }
 }
 
 .detail h3 {
@@ -4091,6 +4130,100 @@ textarea.code {
   margin-bottom: 3px;
 }
 
+/* the weapon legend */
+.wlgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.wlc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 1px solid #3a3446;
+  border-radius: 7px;
+  background: #17131f;
+  opacity: 0.55;
+}
+.wlc[hidden] {
+  display: none;
+}
+.wlc img {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  image-rendering: pixelated;
+  filter: grayscale(1) brightness(0.55);
+}
+.wlc.found {
+  opacity: 1;
+  border-color: #5a4a6a;
+}
+.wlc.found img {
+  filter: none;
+}
+.wlc.boss.found {
+  border-color: #8a3a44;
+  box-shadow: inset 0 0 10px rgba(255, 70, 80, 0.2);
+}
+.wlc .wli {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.wlc .nm {
+  color: #e8dcc4;
+  font-size: 16px;
+}
+.wlc.boss .nm {
+  color: #ff9a9a;
+}
+.wlc .ok {
+  color: #9dff7a;
+}
+.wlc .lv2 {
+  font-size: 13px;
+  color: #b8ac98;
+  line-height: 1.2;
+}
+.wlc .lv2.pw {
+  color: #d8b8ff;
+}
+.wlc .wlr {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 13px;
+  color: #9a94a8;
+  min-width: 0;
+}
+.wlc .wlr .dots {
+  flex: none;
+  letter-spacing: 1px;
+}
+.wlc .wlr .dots i {
+  color: #4a4456;
+  font-style: normal;
+}
+.wlc .wlr .users {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wlfilter {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.wlfilter .btn.on {
+  border-color: #ffd76a;
+  color: #ffd76a;
+}
+
 /* the codex */
 .codexhead {
   color: #e8dcc0;
@@ -4585,6 +4718,91 @@ textarea.code {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
   gap: 6px;
+}
+/* the guardians fought again ("Bossové") */
+.rm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border: 2px solid #4a2a30;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #22141a, #17121c);
+}
+.rm.story {
+  border-color: #8a5a2a;
+  background: linear-gradient(90deg, #2a1c10, #17121c);
+}
+.rm .rmp {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: radial-gradient(circle, rgba(255, 90, 90, 0.18), transparent 70%);
+}
+.rm .rmi {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.rm .rmn b {
+  color: #ffd0c0;
+  font-size: 19px;
+}
+.rm.story .rmn b {
+  color: #ffd76a;
+}
+.rm .rmf {
+  color: #b8ac98;
+  font-size: 15px;
+}
+.rm .rmt {
+  color: #c8bca4;
+  font-size: 15px;
+}
+.rm .lv.ok {
+  color: #9dff7a;
+}
+.rm .lv.near {
+  color: #ffd76a;
+}
+.rm .lv.far {
+  color: #ff8a7a;
+}
+.rm .rmw {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 15px;
+  color: #ff9a9a;
+  min-width: 0;
+}
+.rm .rmw img {
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+  flex: none;
+}
+.rm .rmw span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rm .rmw em {
+  flex: none;
+  font-style: normal;
+  color: #b8ac98;
+}
+.rm .rmw.found span {
+  color: #9dff7a;
+}
+.rm .btn {
+  flex: none;
 }
 .band {
   position: relative;
