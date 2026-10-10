@@ -24,6 +24,7 @@ import { T_FLOOR, T_WALL } from '../systems/dungeon';
 import { playCutscene, CutsceneOpts } from './cutscene';
 import { CUTSCENE_BY_ID, Shot } from '../data/story';
 import { storyOf } from '../systems/state';
+import { Net } from '../net/net';
 import { FS_HELP, autoFullscreen, fsActive, fsButtonHTML, fsSupported, isStandalone, onFullscreenChange, syncFsButtons, toggleFullscreen } from './fullscreen';
 
 export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
@@ -324,6 +325,7 @@ class UIManager {
           <div class="bar mp"><div class="fill"></div><div class="txt"></div></div>
           <div class="xprow"><span class="lv">LV 1</span><div class="bar xp"><div class="fill"></div></div></div>
           <div class="meta"><span><img src="${iconURL('ic_gold', 24)}"> <b class="gold">0</b></span><span class="kills"></span><span class="mercchip" title="Žoldák"><img><i><b></b></i></span></div>
+          <div class="mpchip"><span class="nm"></span><i><b></b></i></div>
           <div class="buffs"></div>
         </div>
       </div>
@@ -829,6 +831,18 @@ class UIManager {
       ctx.fillStyle = e.boss ? '#ff3030' : e.nemesis ? '#ff5a8a' : thief ? '#ffd23a' : e.elite ? '#ffa020' : '#e04040';
       ctx.fillRect(mx - (big ? 3 : 1.5), my - (big ? 3 : 1.5), big ? 6 : 3, big ? 6 : 3);
     }
+    // the other player's hero: a blue dot (an arrow on the rim when it is out of sight)
+    const q = sc.coop?.partner;
+    if (q) {
+      edgeArrow(q.x, q.y, '#7fd8ff');
+      const [qx, qy] = toMini(q.x, q.y);
+      ctx.fillStyle = q.dead ? '#7a8a96' : '#7fd8ff';
+      ctx.strokeStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(qx, qy, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
     // player arrow
     const [px, py] = toMini(p.x, p.y);
     ctx.save();
@@ -991,14 +1005,24 @@ class UIManager {
   cutsceneActive = false;
 
   /** plays a story scene (by id or as shots) with the game paused; remembers it as seen */
-  async cutscene(idOrShots: string | Shot[], opts: CutsceneOpts = {}) {
+  /** (share: a guardian's words, which the other player of a game for two hears too) */
+  async cutscene(idOrShots: string | Shot[], opts: CutsceneOpts = {}, share = false) {
     const shots = typeof idOrShots === 'string' ? CUTSCENE_BY_ID[idOrShots]?.shots : idOrShots;
     if (!shots?.length || this.cutsceneActive) return;
     const sc = this.scene;
+    // in a game for two the guest watches the host's guardian scenes too
+    if (share && sc?.coop?.isHost) {
+      Net.event({ k: 'cut', shots, o: opts });
+      Net.flush();
+    }
     this.cutsceneActive = true;
     if (sc) {
-      sc.paused = true;
-      this.game.scene.pause('Game');
+      // a game for two cannot stop (the link has to keep talking): its world only holds still
+      if (sc.coop) sc.storyHold = true;
+      else {
+        sc.paused = true;
+        this.game.scene.pause('Game');
+      }
     }
     this.joy = [0, 0];
     // the story has the whole screen: no health bars, buttons or minimap over it
@@ -1008,6 +1032,7 @@ class UIManager {
     } finally {
       this.hud?.classList.remove('cs-hidden');
       this.cutsceneActive = false;
+      if (sc) sc.storyHold = false;
       if (typeof idOrShots === 'string' && sc) {
         const st = storyOf(sc.save);
         if (!st.seen.includes(idOrShots)) st.seen.push(idOrShots);
@@ -1160,6 +1185,7 @@ class UIManager {
 
   showBoss(b: Enemy) {
     if (!this.hud) return;
+    if (this.scene?.coop?.isHost) Net.event({ k: 'boss', on: 1, id: b.id });
     this.bossRef = b;
     const bb = $('.bossbar', this.hud);
     const stages = b.phaseCount > 1 ? ` · fáze ${b.phase + 1}/${b.phaseCount}` : '';
@@ -1217,6 +1243,7 @@ class UIManager {
   /** a short line under the guardian's bar (who it is, which phase begins) instead of a banner over the fight */
   bossNote(text: string, ms = 4500) {
     if (!this.hud) return;
+    if (this.scene?.coop?.isHost) Net.event({ k: 'bnote', m: text });
     const n = $('.bossbar .note', this.hud);
     n.textContent = text;
     n.classList.add('on');
@@ -1303,6 +1330,7 @@ class UIManager {
   }
 
   hideBoss() {
+    if (this.scene?.coop?.isHost) Net.event({ k: 'boss', on: 0 });
     this.bossRef = null;
     if (this.hud) {
       $('.bossbar', this.hud).classList.remove('on');
@@ -1314,6 +1342,12 @@ class UIManager {
   // ---------------------------------------------------------------- panels
   pauseGame() {
     const sc = this.scene;
+    // a game for two never stops: the world goes on and the hero just stands while a panel is open
+    if (sc && (sc.coop || Net.active)) {
+      sc.menuOpen = true;
+      this.joy = [0, 0];
+      return;
+    }
     if (sc) {
       sc.paused = true;
       this.game.scene.pause('Game');
@@ -1321,13 +1355,40 @@ class UIManager {
     this.joy = [0, 0];
   }
 
+  /** a game for two began while a panel kept this game paused: the world goes on behind the panel */
+  keepRunning() {
+    const sc = this.scene;
+    if (!sc || !sc.paused || this.cutsceneActive) return;
+    sc.paused = false;
+    this.game.scene.resume('Game');
+    sc.menuOpen = !!this.panel;
+    this.joy = [0, 0];
+  }
+
   resumeGame() {
     const sc = this.scene;
+    if (sc) sc.menuOpen = false;
     if (sc && !this.cutsceneActive) {
       sc.paused = false;
       this.game.scene.resume('Game');
       saveGame(sc.save);
     }
+  }
+
+  /** the HUD shows (or hides) the other player of a game for two */
+  mpStatus(on: boolean) {
+    const c = this.hud?.querySelector<HTMLElement>('.mpchip');
+    if (c) c.classList.toggle('on', on);
+  }
+
+  /** the other player's name, level and health under the hero's bars */
+  mpPartner(name: string, frac: number, lvl: number, dead: boolean) {
+    const c = this.hud?.querySelector<HTMLElement>('.mpchip');
+    if (!c) return;
+    c.classList.add('on');
+    c.classList.toggle('dead', dead);
+    $('.nm', c).textContent = `👥 ${name} · ${lvl}`;
+    ($('b', c) as HTMLElement).style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`;
   }
 
   // a locked overlay (death screen) can only be closed by its own buttons

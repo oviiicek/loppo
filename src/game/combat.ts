@@ -246,6 +246,17 @@ export class Combat {
     if (el === 'phys' && !o.thorns) dmg *= 1 - e.armor / (e.armor + 120);
     if (o.fromAlly && p.save.cls === 'necro') dmg *= 1.3;
     if (el === 'lightning' && p.save.cls === 'shaman') dmg *= 1.2;
+    // a monster of the other player's world: the host's game decides what the blow does, this game shows it
+    if (e.puppet) return this.guestHit(e, dmg, o, el, crit, em);
+    return this.landHit(e, dmg, o, el, crit, em, false);
+  }
+
+  /** what a blow does to the monster it lands on (the monster's side of a hit); remote: a blow of the guest's hero
+   *  arriving in the host's game (its life steal and powers already happened over there) */
+  landHit(e: Enemy, dmg: number, o: HitOpts, el: Element, crit: boolean, em: number, remote: boolean): number {
+    if (e.dead || dmg <= 0 || e.invuln) return 0;
+    const sc = this.scene;
+    const p = sc.player;
     // a story guardian's stage can't go much faster than its time (nine tenths of it, with a 5 % burst reserve);
     // damage beyond that is mostly absorbed, so even a very strong hero gets the whole fight while weaker ones are
     // unaffected (life steal still counts the whole blow)
@@ -311,7 +322,7 @@ export class Combat {
     const mark = e.nextPhaseHp;
     if (mark !== null && e.hp < mark) e.hp = Math.max(1, mark - 0.5);
     // the hardest single hit of the hero (statistics)
-    if (!o.fromAlly && !o.dot && dmg > (p.save.stats?.maxHit ?? 0)) maxStat(p.save, 'maxHit', Math.round(dmg));
+    if (!remote && !o.fromAlly && !o.dot && dmg > (p.save.stats?.maxHit ?? 0)) maxStat(p.save, 'maxHit', Math.round(dmg));
     e.hpBarT = 3;
     if (!e.aggro) e.aggro = true;
     // knockback (bosses resist)
@@ -321,41 +332,13 @@ export class Combat {
       e.knockX += ((o.kx ?? 0) / l) * k;
       e.knockY += ((o.ky ?? 0) / l) * k;
     }
-    if (!o.dot) {
-      e.sprite.setTintFill(0xffffff);
-      e.hitFlash = 0.07;
+    this.showHit(e, dmg, o, el, crit, em, resisted);
+    if (!remote) this.heroGains(e, dmg, e.story ? full : dmg, o);
+    // a mirrored champion sends part of the hero's blow back (to the guest's hero when it was the guest's blow)
+    if (!o.fromAlly && !o.dot && !o.thorns && e.affixes.includes('zrcadlový')) {
+      if (remote) sc.coop?.partner?.takeDamage(dmg * 0.15, el, e);
+      else this.reflectToHero(e, dmg * 0.15, el, 'odraz');
     }
-    if (!o.silent || crit) {
-      const txt = Math.round(dmg).toString();
-      // a weak spot hit shows big, a resisted one dim
-      const col = resisted ? '#7f9ab4' : crit ? '#ffd23a' : o.thorns ? '#c8ff6a' : o.dot ? '#c8a8a8' : em < 1 ? '#8a8494' : EL_TEXT[el] ?? '#fff';
-      sc.fx.number(e.x, e.y - 14 * e.baseScale, crit ? txt + '!' : txt, col, crit || (em > 1 && !o.dot));
-    }
-    if (crit) {
-      sfx('crit');
-      // a crit that takes a big bite out of a tough monster shakes the screen a little
-      if (dmg > e.maxHp * 0.25 && (e.elite || e.boss)) {
-        sc.fx.shake(0.003, 90);
-        sc.freeze(0.05);
-      }
-    }
-    // life and mana steal (capped per second, see Player.leech) and mana on hit
-    if (!o.fromAlly && !o.thorns) {
-      let ls = (p.d.lifesteal + (o.lifesteal ?? 0)) / 100;
-      let ms = p.d.manasteal / 100;
-      if (o.spell && !o.lifesteal) ls *= 0.35;
-      if (o.spell) ms *= 0.35;
-      if (o.dot) {
-        ls *= 0.2;
-        ms *= 0.2;
-      }
-      const drawn = e.story ? full : dmg;
-      if (ls > 0 || ms > 0) p.leech(drawn * ls, drawn * ms);
-      if (o.isAttack && p.d.manaOnHit) p.mp = Math.min(p.d.maxMp, p.mp + p.d.manaOnHit);
-      if (o.isAttack && !o.dot) this.onHitProcs(e, dmg);
-    }
-    // a mirrored champion sends part of the hero's blow back
-    if (!o.fromAlly && !o.dot && !o.thorns && e.affixes.includes('zrcadlový')) this.reflectToHero(e, dmg * 0.15, el, 'odraz');
     if (e.hp <= 0) {
       // a story guardian with stages left changes instead of dying
       if (e.story && e.phase < e.phaseCount - 1) {
@@ -375,6 +358,57 @@ export class Combat {
         this.killEnemy(e);
       }
     }
+    return dmg;
+  }
+
+  /** the flash of a monster and the number over it */
+  private showHit(e: Enemy, dmg: number, o: HitOpts, el: Element, crit: boolean, em: number, resisted: boolean) {
+    const sc = this.scene;
+    if (!o.dot) {
+      e.sprite.setTintFill(0xffffff);
+      e.hitFlash = 0.07;
+    }
+    if (!o.silent || crit) {
+      const txt = Math.round(dmg).toString();
+      // a weak spot hit shows big, a resisted one dim
+      const col = resisted ? '#7f9ab4' : crit ? '#ffd23a' : o.thorns ? '#c8ff6a' : o.dot ? '#c8a8a8' : em < 1 ? '#8a8494' : EL_TEXT[el] ?? '#fff';
+      sc.fx.number(e.x, e.y - 14 * e.baseScale, crit ? txt + '!' : txt, col, crit || (em > 1 && !o.dot));
+    }
+    if (crit) {
+      sfx('crit');
+      // a crit that takes a big bite out of a tough monster shakes the screen a little
+      if (dmg > e.maxHp * 0.25 && (e.elite || e.boss)) {
+        sc.fx.shake(0.003, 90);
+        sc.freeze(0.05);
+      }
+    }
+  }
+
+  /** what the hero gets from a blow: life and mana steal (capped per second, see Player.leech), mana on hit and
+   *  the on-hit powers */
+  private heroGains(e: Enemy, dmg: number, drawn: number, o: HitOpts) {
+    if (o.fromAlly || o.thorns) return;
+    const p = this.scene.player;
+    let ls = (p.d.lifesteal + (o.lifesteal ?? 0)) / 100;
+    let ms = p.d.manasteal / 100;
+    if (o.spell && !o.lifesteal) ls *= 0.35;
+    if (o.spell) ms *= 0.35;
+    if (o.dot) {
+      ls *= 0.2;
+      ms *= 0.2;
+    }
+    if (ls > 0 || ms > 0) p.leech(drawn * ls, drawn * ms);
+    if (o.isAttack && p.d.manaOnHit) p.mp = Math.min(p.d.maxMp, p.mp + p.d.manaOnHit);
+    if (o.isAttack && !o.dot) this.onHitProcs(e, dmg);
+  }
+
+  /** a blow of this (the guest's) game on a monster of the host's world: sent over, shown here at once */
+  private guestHit(e: Enemy, dmg: number, o: HitOpts, el: Element, crit: boolean, em: number) {
+    const sc = this.scene;
+    if (!sc.coop || e.dead) return 0;
+    dmg = sc.coop.puppetHit(e, dmg, o, el, crit);
+    this.showHit(e, dmg, o, el, crit, em, false);
+    this.heroGains(e, dmg, dmg, o);
     return dmg;
   }
 
@@ -400,6 +434,8 @@ export class Combat {
     if (e.illusion) return sc.powers.vanish(e, 0xff8ae0);
     e.dead = true;
     const p = sc.player;
+    // the host's game tells the guest's game (which then rolls its own loot for its own hero)
+    if (!e.puppet) sc.coop?.onKill(e);
     sfx('enemyDie');
     sc.fx.burst(e.x, e.y - 6, 0xd8d0c0, 10, 'puff');
     sc.fx.burst(e.x, e.y - 6, e.boss ? 0xffd23a : 0xff6040, e.boss ? 40 : 8);
@@ -460,6 +496,13 @@ export class Combat {
       p.buffs = p.buffs.filter((b) => b.id !== 'bloodlust');
       p.addBuff('bloodlust', `Krvežíznivost ×${p.lustN}`, { atkSpdPct: 6 * p.lustN }, 6, 0xff3a4a);
     }
+    // (what a monster's death does to the world happens in the host's game)
+    if (e.puppet) {
+      if (e.def.role && PRIORITY_ROLES.includes(e.def.role)) bumpStat(p.save, 'priority');
+      if (e.boss) sc.onBossKilled(e);
+      bus.emit('kill', e);
+      return;
+    }
     if (e.affixes.includes('výbušný')) {
       sc.fx.telegraph(e.x, e.y, 34, 500);
       sc.time.delayedCall(500, () => {
@@ -468,6 +511,8 @@ export class Combat {
           this.cause = `${e.name} – výbuch`;
           this.damagePlayer(e.dmg * 1.5, null, 'fire');
         }
+        const q = sc.coop?.isHost ? sc.coop.partner : null;
+        if (q && !q.dead && Math.hypot(q.x - e.x, q.y - e.y) < 34) q.takeDamage(e.dmg * 1.5, 'fire', e);
       });
     }
     if (e.def.behavior === 'splitter' && !e.isMinion && e.baseScale >= 0.9 && !e.boss) {

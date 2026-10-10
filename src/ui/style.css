@@ -2269,6 +2269,92 @@ img.px {
   letter-spacing: 0.04em;
   pointer-events: none;
 }
+/* the other player of a game for two, under the hero's bars */
+.mpchip {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 14px;
+  color: #9fe6ff;
+  text-shadow: 1px 1px 0 #000;
+}
+.mpchip.on {
+  display: flex;
+}
+.mpchip i {
+  display: block;
+  width: 64px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(159, 230, 255, 0.45);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mpchip b {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: #5dff8a;
+}
+.mpchip.dead {
+  color: #8a96a0;
+}
+.mpchip.dead b {
+  background: #6a7480;
+}
+/* the panel of a game for two */
+.coop .mprules {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 15px;
+  color: #cfc6dc;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.coop .mpacts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.coop .mpjoin {
+  display: flex;
+  gap: 8px;
+}
+.coop .mpin {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 22px;
+  letter-spacing: 0.3em;
+  text-align: center;
+  text-transform: uppercase;
+  background: #120e18;
+  color: #ffe6a8;
+  border: 2px solid #5a4a30;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.coop .mpcode {
+  font-size: 44px;
+  letter-spacing: 0.25em;
+  text-align: center;
+  color: #ffd76a;
+  text-shadow: 0 0 10px rgba(255, 200, 80, 0.35), 2px 2px 0 #000;
+  margin: 6px 0;
+}
+.coop .mperr {
+  color: #ff8a7a;
+  margin-bottom: 8px;
+}
+.coop .mprules .mpwarn {
+  color: #ffc77a;
+}
+.coop .mpon {
+  font-size: 17px;
+  color: #9fe6ff;
+}
 .menu .subtitle {
   font-size: min(4vh, 22px);
   color: #cfc4b0;

@@ -113,8 +113,9 @@ export abstract class Actor {
     return this.st.stunT > 0;
   }
 
-  /** a monster's blow lands on this actor (allies and the mercenary take it; the hero goes through Combat) */
-  takeDamage(_amount: number) {}
+  /** a monster's blow lands on this actor (allies and the mercenary take it; the hero goes through Combat; the
+   *  other player's hero sends it over with its element, its source and what else the blow does) */
+  takeDamage(_amount: number, _el?: Element, _src?: Enemy | null, _fx?: { poison?: number; chill?: number; burn?: number }) {}
 
   get speedMult() {
     return this.st.slowT > 0 ? this.st.slowMult : 1;
@@ -296,6 +297,17 @@ export class Enemy extends Actor {
   /** the dark pool under a corrupted monster and the timer of its wisps */
   aura: Phaser.GameObjects.Image | null = null;
   wispT = 0;
+  /** a monster of the other player's world (only drawn here; see game/coop.ts): its id over there, where it is
+   *  going, when it was last heard of and whether it is stunned there */
+  puppet = false;
+  pid = 0;
+  ptx = 0;
+  pty = 0;
+  seenAt = 0;
+  pStun = false;
+  pTint = -1;
+  /** got the multiplayer strength already */
+  mpScaled = false;
 
   /** speed and attack rate: blessed, hastened or fed on a stolen buff */
   get haste() {
@@ -358,6 +370,8 @@ export class Enemy extends Actor {
     if (def.behavior === 'thief') this.sprite.preFX?.addGlow(0xffd23a, 3, 0, false, 0.1, 16);
     if (def.role && PRIORITY_ROLES.includes(def.role) && scene.textures.exists('en_role_' + def.role)) this.roleIcon = scene.add.image(x, y, 'en_role_' + def.role).setScale(ACTOR_SCALE);
     scene.powers?.init(this);
+    // playing for two: more health and harder blows
+    scene.coop?.scaleEnemy(this);
   }
 
   /** a corrupted monster: five times the health, three random traits, black and purple, rich loot */
@@ -432,6 +446,8 @@ export class Enemy extends Actor {
     this.baseTint = boss.tint ?? null;
     this.sprite.preFX?.addGlow(0xff3030, 3, 0, false, 0.1, 16);
     this.aggro = false;
+    this.mpScaled = false;
+    this.scene.coop?.scaleEnemy(this);
   }
 
   makeStoryBoss(def: StoryBossDef, floor: number) {
@@ -471,6 +487,9 @@ export class Enemy extends Actor {
     this.lastStand = false;
     this.capBudget = this.maxHp * 0.05;
     this.capT = this.scene.time.now / 1000;
+    // every stage gets the strength of a game for two again
+    this.mpScaled = false;
+    this.scene.coop?.scaleEnemy(this);
     this.boss = { id: def.id, name: def.name, sprite: ph.sprite, scale: ph.scale, hp: this.maxHp, dmg: ph.dmg, speed: ph.speed, patterns: ph.patterns, proj: ph.proj, el: ph.el, summon: ph.summon, tint: ph.tint };
     if (this.spriteKey !== ph.sprite) {
       this.spriteKey = ph.sprite;
@@ -819,6 +838,12 @@ export class Enemy extends Actor {
         sc.combat.damagePlayer(this.dmg * this.might * 1.2, this);
         if (def.ability === 'berserk') this.shove(sc.player, 240);
         this.charging = 0;
+      } else {
+        const q = sc.coop?.isHost ? sc.coop.partner : null;
+        if (q && !q.dead && Math.hypot(q.x - this.x, q.y - this.y) < this.r + 6) {
+          q.takeDamage(this.dmg * this.might * 1.2, def.el ?? 'phys', this);
+          this.charging = 0;
+        }
       }
       if (hit) this.charging = 0;
       this.syncSprite(true);
@@ -992,6 +1017,8 @@ export class Enemy extends Actor {
         sc.combat.damagePlayer(this.dmg * this.might * 1.3, this);
         this.shove(p, 90);
       }
+      const q = sc.coop?.isHost ? sc.coop.partner : null;
+      if (q && !q.dead && Math.hypot(q.x - this.x, q.y - this.y) < 18) q.takeDamage(this.dmg * this.might * 1.3, this.def.el ?? 'phys', this);
       this.atkT = Math.max(this.atkT, 0.4);
     }
     this.syncSprite(true);
@@ -1106,7 +1133,10 @@ export class Enemy extends Actor {
           sc.fx.beam(sc.player.x, sc.player.y - 6, this.x, this.y - 8, 0xc0101a, 1.5, 250);
         }
       } else {
-        target.takeDamage(dmg);
+        const poison = def.poison || this.mutation === 'jedovatý' ? dmg * 0.3 : 0;
+        const chill = this.affixes.includes('mrazivý') ? 1.5 : def.el === 'ice' ? 1.2 : 0;
+        target.takeDamage(dmg, def.el ?? 'phys', this, { poison, chill, burn: def.el === 'fire' ? dmg * 0.15 : 0 });
+        if (this.affixes.includes('upíří')) this.hp = Math.min(this.maxHp, this.hp + dmg * 0.5);
       }
     }
   }
@@ -1338,7 +1368,11 @@ export interface ProjOpts {
   effect?: string;
   /** the salvo a monster's shot belongs to (see GameScene.spawnEnemyProjectile) */
   salvo?: number;
+  /** a shot of the other player's game, only drawn here (it hits nothing) */
+  cosmetic?: boolean;
 }
+
+let nextShot = 1;
 
 export class Projectile {
   scene: GameScene;
@@ -1356,6 +1390,8 @@ export class Projectile {
   tickT = 0;
   maxRange: number;
   rotates: boolean;
+  /** this game's number for the shot (the other player's game draws it under it) */
+  netId = nextShot++;
 
   constructor(scene: GameScene, o: ProjOpts) {
     this.scene = scene;
@@ -1376,6 +1412,7 @@ export class Projectile {
     this.sprite.setScale(o.size ?? 1);
     this.sprite.setDepth(D.bright);
     if (['pr_fire', 'pr_bolt', 'pr_holy', 'pr_shadow', 'pr_magic', 'pr_soul', 'pr_poison', 'pr_blood', 'pr_ice_ball', 'pr_curse', 'pr_mind', 'pr_time'].includes(this.sprite.texture.key)) this.sprite.setBlendMode(Phaser.BlendModes.ADD);
+    scene.coop?.onShot(this);
   }
 
   update(dt: number) {
@@ -1440,6 +1477,7 @@ export class Projectile {
   // returns true when the projectile is gone
   checkHits(): boolean {
     const sc = this.scene;
+    if (this.o.cosmetic) return false;
     if (this.o.owner === 'player') {
       const hitR = 7 * (this.o.size ?? 1);
       for (const e of sc.enemies) {
@@ -1494,6 +1532,13 @@ export class Projectile {
           return true;
         }
       }
+      // the other player's hero (in the host's game the monsters' shots hit it too)
+      const q = sc.coop?.isHost ? sc.coop.partner : null;
+      if (q && !q.dead && Math.abs(q.x - this.x) < 6 && Math.abs(q.y - 6 - this.y) < 9) {
+        q.takeDamage(this.o.dmg, this.o.el, this.o.srcFoe ?? null, { poison: this.o.el === 'poison' ? this.o.dmg * 0.3 : 0, chill: this.o.el === 'ice' ? 1.2 : 0 });
+        this.kill();
+        return true;
+      }
     }
     return false;
   }
@@ -1534,6 +1579,11 @@ export class Projectile {
   impact(x: number, y: number) {
     const sc = this.scene;
     const o = this.o;
+    if (o.cosmetic) {
+      sc.fx.burst(x, y, EL_COLOR[o.el] ?? 0xffffff, 3);
+      this.kill();
+      return;
+    }
     if (o.explode && o.owner === 'player') {
       sc.spells.explosion(x, y, o.explode, o.dmg, o.el, { spell: o.spell, crit: o.crit, isAttack: o.isAttack });
     } else {
@@ -1544,8 +1594,10 @@ export class Projectile {
   }
 
   kill() {
+    if (this.dead) return;
     this.dead = true;
     this.sprite.destroy();
+    this.scene.coop?.onShotGone(this);
   }
 }
 

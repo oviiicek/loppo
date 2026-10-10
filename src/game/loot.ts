@@ -50,6 +50,8 @@ export interface Ground {
   warned?: boolean;
   /** thrown away from the bag: not picked up again until the hero has walked away from it */
   held?: boolean;
+  /** in a game for two: an item one of the heroes threw away (either may take it; the host's game decides) */
+  shared?: number;
 }
 
 /** how much better than the worn item a pickup must be to escape the automatic selling and salvaging (and the
@@ -288,16 +290,41 @@ export class Loot {
     return [tx, ty];
   }
 
-  /** an item thrown away from the bag: it lands a few steps from the hero and stays there until picked up on purpose */
+  /** an item thrown away from the bag: it lands a few steps from the hero and stays there until picked up on purpose;
+   *  in a game for two the other hero may take it */
   throwItem(it: Item) {
-    const p = this.scene.player;
-    this.dropItem(it, p.x, p.y, true);
+    const sc = this.scene;
+    const p = sc.player;
+    if (sc.coop?.isGuest) return sc.coop.guestDrop(it);
+    const g = this.dropItem(it, p.x, p.y, true);
+    if (sc.coop?.isHost) g.shared = sc.coop.hostShare(it, g.x, g.y);
   }
 
-  dropItem(it: Item, x: number, y: number, thrown = false) {
+  /** an item thrown away in a game for two lies exactly where its thrower's game put it */
+  dropShared(it: Item, x: number, y: number, gid: number) {
+    const p = this.scene.player;
+    const g = this.dropItem(it, x, y, false, true);
+    g.shared = gid;
+    // the thrower does not pick it up again at once
+    if (Math.hypot(p.x - x, p.y - y) < 30) g.held = true;
+  }
+
+  removeShared(gid: number) {
+    for (const g of this.ground) {
+      if (g.shared !== gid || g.dead) continue;
+      g.dead = true;
+      g.sprite.destroy();
+      g.label?.destroy();
+      g.beam?.destroy();
+    }
+  }
+
+  dropItem(it: Item, x: number, y: number, thrown = false, exact = false): Ground {
     const sc = this.scene;
     const s = sc.add.image(x, y, itemIcon(it)).setScale(0.55).setDepth(D.entityBase + y - 2);
-    const [tx, ty] = this.popTo(s, x, y, thrown);
+    let [tx, ty] = [x, y];
+    if (exact) sc.tweens.add({ targets: s, y: { from: y - 4, to: y }, duration: 380, ease: 'Bounce.easeOut' });
+    else [tx, ty] = this.popTo(s, x, y, thrown);
     const col = itemColor(it);
     const g: Ground = { kind: 'item', item: it, amount: 1, x: tx, y: ty, sprite: s, ready: sc.time.now + 450, dead: false, held: thrown };
     if (it.rarity >= 1) {
@@ -319,6 +346,7 @@ export class Loot {
       this.unclutter(g.label);
     });
     this.ground.push(g);
+    return g;
   }
 
   // move a new label up until it does not overlap other item labels
@@ -425,6 +453,15 @@ export class Loot {
   pickup(g: Ground) {
     const sc = this.scene;
     const p = sc.player;
+    // a shared item in the guest's game: the host's game says who was first (see Coop)
+    if (g.shared && sc.coop?.isGuest) {
+      sc.coop.guestTake(g.shared);
+      g.dead = true;
+      g.sprite.destroy();
+      g.label?.destroy();
+      g.beam?.destroy();
+      return;
+    }
     if (g.kind === 'gold') {
       p.save.gold += g.amount;
       bumpStat(p.save, 'goldEarned', g.amount);
@@ -449,7 +486,7 @@ export class Loot {
       p.save.mats[g.mat!] += g.amount;
       sfx('pickup');
       sc.ui.loot(`+${g.amount} ${MAT_INFO[g.mat!].name}`, MAT_INFO[g.mat!].color, iconURL(MAT_INFO[g.mat!].icon, 32));
-    } else if (g.item && this.autoRule(g.item) !== 'keep') {
+    } else if (g.item && !g.shared && this.autoRule(g.item) !== 'keep') {
       // the hero's loot rules: sell or salvage it on the spot
       const it = g.item;
       maxStat(p.save, 'bestRarity', it.rarity);
@@ -483,6 +520,7 @@ export class Loot {
       sc.onItemPicked(g.item);
       sc.ui.newItems++;
       sc.ui.loot(g.item.name + (this.isUpgrade(g.item) ? '  ▲' : ''), itemColor(g.item), iconURL(itemIcon(g.item), 32));
+      if (g.shared) sc.coop?.hostPicked(g.shared);
     }
     g.dead = true;
     g.sprite.destroy();

@@ -25,6 +25,7 @@ import { parseGem, gemIcon, gemName } from '../data/gems';
 import { runeIcon, runeName } from '../data/runes';
 import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
 import { isCampFloor } from '../data/bands';
+import { Net, embedded } from '../net/net';
 
 type UIM = typeof UIType;
 
@@ -287,6 +288,7 @@ export class Menus {
         <p><b style="color:#ffd76a">Vysávání a trny:</b> vysávání života a many léčí z poškození, které rozdáš – nejvýš ale ${LEECH_CAP.hp} % zdraví a ${LEECH_CAP.mp} % many za sekundu. Trny vrací útočníkům pevné poškození, odraz vrací část přijaté rány; obojí jde přes jejich brnění. Sada Hradba trnů a unikáty Ostnatý krunýř, Trnová koruna a Ježek z toho udělají celý styl boje.</p>
         <p><b style="color:#ffd76a">Strážci:</b> při 70, 40 a 10 % zdraví změní útoky i arénu a v posledních 10 % zuří.</p>
         <p><b style="color:#ffd76a">Žoldák, soupeři a nemesis:</b> v pauze si najmi žoldáka (tank, léčitel, lučištník, mág) a dej mu vybavení a rozkazy. Jiní dobrodruzi v kobkách se mohou přidat, obchodovat, nebo bojovat. Šampion, který tě zabije, se může stát tvým nemesis – a vrátí se.</p>
+        <p><b style="color:#9fe6ff">Hra pro dva:</b> v pauze „Hra pro dva“ – kdo hru založí, dostane kód a druhý hráč ho zadá. Hraje se svět zakladatele; nestvůr je 1,5× víc, mají 2× víc zdraví a 1,5× silnější útoky. Každý sbírá svou kořist, zahozený předmět může vzít i ten druhý. Ke strážci a po schodech dolů se jde jen spolu (2/2).</p>
         <p><b style="color:#ffd76a">Události:</b> zajatci, oltáře, duchové, trhliny se strážcem, rvačky nestvůr, krvavá výzva, rozhodnutí s následky, kostlivci u karet, dopisy padlých a nápisy na zdech. Velmi vzácně i zlatá komnata, zlatý drak, snový portál nebo zlatý déšť.</p>
         <p><b style="color:#ffd76a">Loppo a úkoly:</b> z pauzy se vrátíš domů do Loppa, zpět do kobek vede brána ve zřícenině hradu. Zachránění vesničané tam otevřou kovárnu, obchod, nástěnku úkolů, laboratoř, věž mága, cvičiště a chrám – a budovy rostou za zlato. V tvém domě je truhla, postel (odpočinek dává zkušenosti navíc) a trofeje. Úkoly z nástěnky tě pošlou na konkrétní patra; odměnu si vyzvedneš zase na nástěnce.</p>
         <p><b style="color:#ffd76a">Král Dobromil:</b> před zámkem dává královské úkoly. Za ně roste přízeň krále a s ní pocty s trvalými bonusy – až po Korunu Loppa. Ve vesnici se střídá den a noc podle hodin.</p>
@@ -455,7 +457,7 @@ export class Menus {
         <button class="btn green" data-a="resume">Pokračovat</button>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button><button class="btn" style="flex:1" data-a="merc">⚔️ Žoldák</button></div>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="pets">🐾 Mazlíčci</button><button class="btn" style="flex:1" data-a="ach">🏆 Úspěchy</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
-        <div class="row" style="flex-wrap:nowrap">${sc.save.maxFloor >= 2 || sc.inVillage ? `<button class="btn gold" style="flex:1" data-a="home">${sc.inVillage ? '⬇ Do kobek' : '🏠 Domů do Loppa'}</button>` : ''}<button class="btn" style="flex:1" data-a="quests">📜 Úkoly${(sc.save.village?.quests ?? []).some((q) => q.done) || sc.save.village?.royal?.quest?.done ? ' ✔' : ''}</button></div>
+        <div class="row" style="flex-wrap:nowrap">${sc.save.maxFloor >= 2 || sc.inVillage ? `<button class="btn gold" style="flex:1" data-a="home">${sc.inVillage ? '⬇ Do kobek' : '🏠 Domů do Loppa'}</button>` : ''}<button class="btn" style="flex:1" data-a="quests">📜 Úkoly${(sc.save.village?.quests ?? []).some((q) => q.done) || sc.save.village?.royal?.quest?.done ? ' ✔' : ''}</button><button class="btn blue" style="flex:1" data-a="coop">👥 Hra pro dva${Net.active ? ' ✔' : ''}</button></div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button>${isStandalone() ? '' : `<button class="btn small blue" data-a="fs" data-fs="label">${fsButtonHTML('label')}</button>`}</div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Kořist: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button></div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
@@ -500,6 +502,8 @@ export class Menus {
         this.chronicle();
       } else if (a === 'quests') {
         this.ui.quests.log();
+      } else if (a === 'coop') {
+        this.coop();
       } else if (a === 'home') {
         if (sc.inVillage) {
           this.ui.closeOverlay();
@@ -516,10 +520,73 @@ export class Menus {
         this.ui.closeOverlay();
         this.ui.openPanel(a === 'inv' ? 'inventory' : a === 'char' ? 'character' : a === 'pets' ? 'pets' : a === 'merc' ? 'merc' : 'spells');
       } else if (a === 'quit') {
+        Net.leave();
         saveGame(sc.save);
         this.ui.closeOverlay(false);
         this.ui.showMainMenu();
       }
+    });
+  }
+
+  /** playing for two: open a game (a code for the other player), join one, or end it */
+  coop() {
+    const sc = this.ui.scene!;
+    const me = { name: sc.save.heroName || CLASS_BY_ID[sc.save.cls].name, cls: sc.save.cls, lvl: sc.save.level };
+    const p = el(`<div class="panel small coop"><div class="head"><h2>👥 Hra pro dva</h2><button class="close">✕</button></div><div class="body scroll" style="display:block;padding:12px"></div></div>`);
+    const body = $('.body', p);
+    let err = '';
+    const rules = `<ul class="mprules">
+        <li>Hraje se svět toho, kdo hru založí. Druhý hráč se připojí kódem a objeví se ve stejném patře.</li>
+        <li>Nestvůr je o polovinu víc, mají dvojnásobné zdraví a o polovinu silnější útoky.</li>
+        <li>Každý vidí a sbírá svou vlastní kořist. Předmět, který někdo zahodí z batohu, může sebrat i ten druhý.</li>
+        <li>Po schodech dolů a do arény strážce se jde jen spolu (2/2) – kdo dorazí dřív, počká.</li>
+        <li>Kdo padne, za chvíli vstane u spoluhráče. Hra se při otevřeném menu nezastavuje.</li>
+        <li>Oba potřebujete internet (spojení jde přímo mezi zařízeními).</li>
+        ${embedded() ? '<li class="mpwarn">Tahle verze běží uvnitř jiné stránky, kde prohlížeč přímé spojení nedovolí. Pro hru pro dva ji otevři přímo na <b>oviiicek.github.io/loppo</b>.</li>' : ''}
+      </ul>`;
+    const render = () => {
+      const st = Net.status;
+      if (st === 'on')
+        body.innerHTML = `<div class="mpon">Hrajete spolu: <b>${esc(Net.partner?.name ?? '')}</b> (${esc(CLASS_BY_ID[Net.partner?.cls ?? 'warrior']?.name ?? '')}, úroveň ${Net.partner?.lvl ?? 1}).</div>
+          <div class="hint" style="margin:6px 0 10px">${Net.role === 'host' ? 'Hru hostíš ty: hraje se tvůj svět a ty vybíráš cestu dolů.' : 'Hraje se svět druhé strany. Tvoje zkušenosti, kořist a zlato zůstávají tvé.'}</div>
+          <button class="btn red" data-a="leave">Ukončit hru pro dva</button>`;
+      else if (st === 'waiting')
+        body.innerHTML = `<div class="hint">Kód tvé hry – dej ho druhému hráči:</div><div class="mpcode">${esc(Net.code)}</div>
+          <div class="hint" style="margin:6px 0 10px">Čekám, až se připojí… (druhý hráč otevře v pauze „Hra pro dva“ a zadá kód)</div>
+          <button class="btn" data-a="leave">Zrušit</button>`;
+      else if (st === 'connecting') body.innerHTML = `<div class="hint" style="padding:10px 0">Připojuji…</div><button class="btn" data-a="leave">Zrušit</button>`;
+      else
+        body.innerHTML = `${rules}${err ? `<div class="mperr">${esc(err)}</div>` : ''}
+          <div class="mpacts"><button class="btn green" data-a="host">Založit hru</button>
+          <div class="mpjoin"><input class="mpin" maxlength="5" placeholder="KÓD" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="btn blue" data-a="join">Připojit se</button></div></div>`;
+    };
+    const off = Net.onChange(() => render());
+    render();
+    this.ui.showOverlay(p, () => off());
+    $('.close', p).addEventListener('click', () => this.ui.closeOverlay());
+    p.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('button');
+      if (!b || b.classList.contains('close')) return;
+      sfx('ui');
+      const a = b.dataset.a;
+      if (a === 'host') {
+        err = '';
+        Net.host(me).catch((x: Error) => {
+          err = x.message;
+          render();
+        });
+      } else if (a === 'join') {
+        const code = (body.querySelector<HTMLInputElement>('.mpin')?.value ?? '').trim().toUpperCase();
+        if (code.length < 4) {
+          err = 'Zadej kód hry (5 znaků).';
+          return render();
+        }
+        err = '';
+        Net.join(code, me).catch((x: Error) => {
+          err = x.message;
+          render();
+        });
+      } else if (a === 'leave') Net.leave();
     });
   }
 

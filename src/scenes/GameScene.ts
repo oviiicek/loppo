@@ -48,6 +48,9 @@ import { ClassId } from '../data/types';
 import { potionMult } from '../data/village';
 import { BEASTS, bestiaryOf, KNOW_AT, EL_NAME } from '../data/bestiary';
 import { Procs } from '../game/procs';
+import { Coop, FloorInfo, MP_COUNT } from '../game/coop';
+import { Net } from '../net/net';
+import { DIFFICULTIES } from '../data/difficulty';
 
 /** seconds between kills that keep a kill streak going */
 const STREAK_WINDOW = 2.6;
@@ -163,6 +166,8 @@ export class GameScene extends Phaser.Scene {
   cinematicMove = false;
   descending = false;
   paused = false;
+  /** a story scene plays in a game for two: the world holds still, but the link keeps talking */
+  storyHold = false;
   zoom = 3;
   darkness = 0.48;
   revealedRooms = new Set<number>();
@@ -220,17 +225,32 @@ export class GameScene extends Phaser.Scene {
   powers!: Powers;
   /** the bonus spells of the hero's weapons */
   procs!: Procs;
+  /** playing for two (see game/coop.ts): the link to the other game, and in the guest's game the host's floor */
+  coop: Coop | null = null;
+  guestInfo: FloorInfo | null = null;
+  /** how this floor was generated (sent to the guest's game, which builds the same floor) */
+  floorSeed = 0;
+  floorOpts = { forceMerchant: false };
+  /** the barriers of the host's arena in the guest's game */
+  coopGateImgs: Phaser.GameObjects.Image[] = [];
+  /** a panel is open while the world goes on (playing for two never pauses) */
+  menuOpen = false;
 
   constructor() {
     super('Game');
   }
 
-  init(data: { save: SaveData; rift?: RiftKind; village?: boolean }) {
+  init(data: { save: SaveData; rift?: RiftKind; village?: boolean; coop?: FloorInfo }) {
     this.save = data.save;
-    this.rift = data.rift ?? null;
-    this.inVillage = !!data.village;
-    this.floor = this.save.floor;
-    this.diff = difficultyOf(this.save);
+    this.guestInfo = data.coop ?? null;
+    this.rift = data.coop ? data.coop.rift : data.rift ?? null;
+    this.inVillage = !data.coop && !!data.village;
+    this.floor = data.coop ? data.coop.floor : this.save.floor;
+    // in the host's world its difficulty rules
+    this.diff = data.coop ? DIFFICULTIES[data.coop.diff] ?? difficultyOf(this.save) : difficultyOf(this.save);
+    this.coop = null;
+    this.coopGateImgs = [];
+    this.menuOpen = false;
     this.enemies = [];
     this.allies = [];
     this.projectiles = [];
@@ -250,6 +270,7 @@ export class GameScene extends Phaser.Scene {
     this.cinematicMove = false;
     this.descending = false;
     this.paused = false;
+    this.storyHold = false;
     this.merchantStocks = new Map();
     this.currentAction = null;
     this.floorKills = 0;
@@ -280,8 +301,10 @@ export class GameScene extends Phaser.Scene {
   create() {
     const save = this.save;
     const rift = this.rift;
+    // in a game for two the guest's game builds the host's floor (same seed, same kind, same fate)
+    const guest = this.guestInfo;
     // the expedition: what kind of floor the path down led to (a camp halfway down every band of ten)
-    const run = !rift && !this.inVillage ? runOf(save) : null;
+    const run = !rift && !this.inVillage && !guest ? runOf(save) : null;
     if (run) {
       // a guardian's floor has its own layout (with the preparation room that is also the camp on 25 and 125)
       if (isBossFloor(this.floor)) this.kind = 'normal';
@@ -302,11 +325,14 @@ export class GameScene extends Phaser.Scene {
       // the band's first floor, its camp and a guardian's preparation room are the places a death sends the hero back to
       if (this.floor === bandStart(bandOf(this.floor)) || isCampFloor(this.floor) || isBossFloor(this.floor)) run.checkpoint = this.floor;
     }
+    if (guest) this.kind = guest.kind;
     const calmKind: CalmKind | undefined = this.kind === 'camp' || this.kind === 'merchant' || this.kind === 'vault' || this.kind === 'puzzle' || this.kind === 'npc' ? this.kind : undefined;
     // pity: guarantee merchants regularly
-    const forceMerchant = save.merchantPity >= 5;
-    this.dungeon = this.inVillage ? generateVillage(this.floor) : generateDungeon(this.floor, (Math.random() * 1e9) | 0, { forceMerchant, rift: rift ?? undefined, calm: calmKind });
-    if (!rift && !this.inVillage) {
+    const forceMerchant = guest ? guest.forceMerchant : save.merchantPity >= 5;
+    this.floorSeed = guest ? guest.seed : (Math.random() * 1e9) | 0;
+    this.floorOpts = { forceMerchant };
+    this.dungeon = this.inVillage ? generateVillage(this.floor) : generateDungeon(this.floor, this.floorSeed, { forceMerchant, rift: rift ?? undefined, calm: calmKind });
+    if (!rift && !this.inVillage && !guest) {
       if (this.dungeon.hasMerchant) save.merchantPity = 0;
       else save.merchantPity++;
     }
@@ -319,6 +345,9 @@ export class GameScene extends Phaser.Scene {
     this.powers = new Powers(this);
     this.spells = new Spells(this);
     this.procs = new Procs(this);
+    // playing for two: the host's game runs the world, the guest's game draws it
+    if (guest) this.coop = new Coop(this, 'guest');
+    else if (Net.isHost && !this.inVillage) this.coop = new Coop(this, 'host');
     this.loot = new Loot(this);
     this.bossAI = new BossAI(this);
     this.enc = new Encounters(this);
@@ -334,6 +363,11 @@ export class GameScene extends Phaser.Scene {
     if (!this.inVillage) this.add.image(ux, uy, 'stairs_up').setScale(ACTOR_SCALE).setDepth(D.floorDeco);
     this.upStairs = { x: ux, y: uy };
     this.player = new Player(this, ux, uy, save);
+    // joining in the middle of a floor: next to the host's hero
+    if (guest && Math.hypot(guest.x - ux, guest.y - uy) > 40 && !this.map.collides(guest.x, guest.y + 6, 4)) {
+      this.player.x = guest.x;
+      this.player.y = guest.y + 6;
+    }
     // back from the last chance arena: a single point of health
     if (run?.revived) {
       run.revived = false;
@@ -348,6 +382,7 @@ export class GameScene extends Phaser.Scene {
       else if (run.fate === undefined) run.fate = Math.random() < (this.kind === 'danger' ? 0.45 : FATE_CHANCE) ? FLOOR_MODS[Math.floor(Math.random() * FLOOR_MODS.length)].id : null;
       this.fate = run.fate ? FLOOR_MOD_BY_ID[run.fate] ?? null : null;
     }
+    if (guest) this.fate = guest.fate ? FLOOR_MOD_BY_ID[guest.fate] ?? null : null;
     this.mod = mergeMods(this.fate, this.kind === 'danger' ? DANGER_MOD : null);
     this.darkness = rift === 'dream' ? 0.16 : rift === 'last' ? 0.58 : this.theme.darkness;
     if (rift === 'last') this.darkColor = 0x1e0406;
@@ -359,11 +394,11 @@ export class GameScene extends Phaser.Scene {
     this.lamps.push({ x: ux, y: uy, r: 56, flicker: 0 });
     const home = this.inVillage;
     const calm = this.calm;
-    if (!rift && !home) this.placeStoryPage();
-    // a calm floor has no monsters at all (no thief, no nemesis, no guardian)
-    if (!calm) this.spawnEnemies();
+    if (!rift && !home && !guest) this.placeStoryPage();
+    // a calm floor has no monsters at all (no thief, no nemesis, no guardian); the guest's monsters are the host's
+    if (!calm && !guest) this.spawnEnemies();
     const guard = this.guard;
-    if (!rift && !home && !calm && !guard) {
+    if (!rift && !home && !calm && !guard && !guest) {
       this.placePetCage();
       this.placeCursedChest();
       this.placeAlchemist();
@@ -379,17 +414,21 @@ export class GameScene extends Phaser.Scene {
       this.player.y = woke.y;
       this.wokeAt = woke;
     }
-    if (calm === 'puzzle') this.placePuzzle();
-    // the pet and the mercenary come down the stairs right after the hero (shown in arrive)
+    if (calm === 'puzzle' && !guest) this.placePuzzle();
+    // the pet and the mercenary come down the stairs right after the hero (shown in arrive); a guest's
+    // mercenary stays at home
     this.spawnPet(ux, uy + 4, false);
-    this.spawnMerc(ux, uy + 4, false);
+    if (!guest) this.spawnMerc(ux, uy + 4, false);
     syncCodex(this.save);
     // legendary finds favour the uniques the hero has not found yet
     setUniqueWeight((u) => (codexOf(this.save).u.includes(u.id) ? 1 : 3));
-    if (!rift && !home && !calm && !guard) this.spawnRival();
+    if (!rift && !home && !calm && !guard && !guest) this.spawnRival();
     else this.rival = null;
-    // what else happens on this floor (a rift has its own rules, the village is home, a calm floor is quiet)
-    if (rift) this.enc.setupRift(rift);
+    // what else happens on this floor (a rift has its own rules, the village is home, a calm floor is quiet);
+    // in the guest's game all of it happens in the host's game
+    if (guest) {
+      /* the host's events */
+    } else if (rift) this.enc.setupRift(rift);
     else if (home) this.vil.place();
     else if (calm || guard) {
       if (calm === 'npc') this.enc.placeMeeting();
@@ -442,12 +481,46 @@ export class GameScene extends Phaser.Scene {
     this.updateGlowVisibility();
     UI.attachGame(this);
     UI.bounty(this.bounty);
-    save.floor = this.floor;
-    save.maxFloor = Math.max(save.maxFloor, this.floor);
+    // (a guest's own progress stays where it was: the floors of the host's world are not the guest's)
+    if (!guest) {
+      save.floor = this.floor;
+      save.maxFloor = Math.max(save.maxFloor, this.floor);
+    }
     saveGame(save);
     this.events.once('shutdown', () => this.cleanup());
     (window as any).__scene = this;
+    // the host's floor goes to the guest; on a guardian's floor the arena waits for both heroes
+    if (this.coop?.isHost) {
+      this.coop.sendFloor();
+      if (this.guard && !this.bossDefeated) this.coop.closeGate();
+    } else if (Net.isHost && this.inVillage) this.sendHomeToGuest();
+    UI.mpStatus(!!this.coop);
     void this.beginFloor();
+  }
+
+  /** the host went home to Loppo: the guest goes to its own village until the next descent */
+  sendHomeToGuest() {
+    Net.send({ t: 'floor', f: { floor: this.floor, seed: 0, forceMerchant: false, rift: null, calm: null, kind: 'normal', fate: null, village: true, diff: this.save.difficulty ?? 1, x: 0, y: 0 } satisfies FloorInfo });
+  }
+
+  /** a second player joined this (the host's) game */
+  startCoop() {
+    if (this.coop || this.guestInfo) return;
+    UI.toast(`Do hry přichází ${Net.partner?.name ?? 'druhý hráč'} – nestvůr je víc a jsou silnější`, '#9fe6ff');
+    if (this.inVillage) return this.sendHomeToGuest();
+    this.coop = new Coop(this, 'host');
+    this.coop.scaleExisting();
+    this.coop.sendFloor();
+    if (this.guard && !this.bossDefeated && !this.arenaGate) this.coop.closeGate();
+  }
+
+  /** the game for two ended (the other player left or the link broke) */
+  endCoop() {
+    this.coop?.destroy();
+    this.coop = null;
+    for (const i of this.coopGateImgs) i.destroy();
+    this.coopGateImgs = [];
+    UI.mpStatus(false);
   }
 
   // story scenes that belong to this point of the descent, then the floor banner
@@ -455,9 +528,10 @@ export class GameScene extends Phaser.Scene {
     const save = this.save;
     const st = storyOf(save);
     const queue: string[] = [];
-    if (!st.seen.includes('prolog') && !this.inVillage) queue.push('prolog');
+    // (in the host's world its story scenes come from the host's game)
+    if (!st.seen.includes('prolog') && !this.inVillage && !this.guestInfo) queue.push('prolog');
     // every area of ten floors opens with its own scene (the first one's is the prologue's end)
-    const intro = this.inVillage || this.rift ? null : areaIntroForFloor(this.floor);
+    const intro = this.inVillage || this.rift || this.guestInfo ? null : areaIntroForFloor(this.floor);
     if (intro && !st.seen.includes(intro)) queue.push(intro);
     const story = storyBossForFloor(this.floor);
     const homeCount = BUILDINGS.filter((b) => b.who && (villageOf(save).lv[b.id] ?? 0) > 0).length;
@@ -513,7 +587,7 @@ export class GameScene extends Phaser.Scene {
     } else if (this.calm === 'camp') this.time.delayedCall(700, () => UI.banner('Tábor', 'Bezpečné místo · odpočinek u ohně, obchodník a úložiště · checkpoint'));
     else if (this.guard && !this.bossDefeated)
       this.time.delayedCall(700, () => UI.banner('Příprava na strážce', this.wokeAt ? 'Zpátky u ohně · odpočiň si, vybav se a zkus to znovu' : 'Odpočiň si u ohně, nakup a vybav se · za tebou je checkpoint'));
-    if (this.floor === 1 && save.kills === 0 && save.level === 1) this.tutorial();
+    if (this.floor === 1 && save.kills === 0 && save.level === 1 && !this.guestInfo) this.tutorial();
   }
 
   /** title card of a floor: its number, the name of its ten-floor area and the biome */
@@ -631,6 +705,9 @@ export class GameScene extends Phaser.Scene {
     this.scale.off('resize', this.onResize, this);
     this.spells?.clear();
     this.loot?.clear();
+    // the link to the other game outlives the floor; this floor's listeners do not
+    this.coop?.destroy();
+    this.coop = null;
   }
 
   createAnims() {
@@ -952,6 +1029,14 @@ export class GameScene extends Phaser.Scene {
       const extra = Math.round(spawns.length * m.extraEnemies);
       for (let i = 0; i < extra; i++) {
         const b = spawns[Math.floor(Math.random() * spawns.length)];
+        if (b) spawns.push({ ...b, elite: false });
+      }
+    }
+    // playing for two: half again as many monsters
+    if (this.coop?.isHost) {
+      const extra = Math.round(this.dungeon.spawns.length * (MP_COUNT - 1));
+      for (let i = 0; i < extra; i++) {
+        const b = this.dungeon.spawns[Math.floor(Math.random() * this.dungeon.spawns.length)];
         if (b) spawns.push({ ...b, elite: false });
       }
     }
@@ -1975,7 +2060,16 @@ export class GameScene extends Phaser.Scene {
     const p = this.player;
     let best: Actor = p;
     let bd = Math.hypot(p.x - e.x, p.y - e.y);
-    if (p.stealthed) bd = 9999;
+    if (p.stealthed || p.dead) bd = 9999;
+    // the other player's hero is a hero like this one: the nearer of the two
+    const q = this.coop?.isHost ? this.coop.partner : null;
+    if (q && !q.dead && q.quietT < 5) {
+      const d = Math.hypot(q.x - e.x, q.y - e.y);
+      if (d < bd) {
+        bd = d;
+        best = q;
+      }
+    }
     // the mercenary: a taunted monster goes for it, others when it stands closer than the hero
     const m = this.merc;
     if (m && !m.dead && !m.down) {
@@ -2129,7 +2223,7 @@ export class GameScene extends Phaser.Scene {
 
   usePotion(kind: 'hpPotion' | 'mpPotion') {
     const p = this.player;
-    if (p.dead || this.paused) return;
+    if (p.dead || this.paused || this.storyHold) return;
     if (this.save.mats[kind] <= 0) {
       UI.toast(kind === 'hpPotion' ? 'Nemáš lektvar zdraví' : 'Nemáš lektvar many', '#ff8080');
       return;
@@ -2159,7 +2253,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   castSlot(i: number) {
-    if (this.paused || this.player.dead || this.cinematic) return;
+    if (this.paused || this.player.dead || this.cinematic || this.storyHold || this.menuOpen) return;
     this.spells.tryCast(i);
   }
 
@@ -2227,7 +2321,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   doAction() {
-    if (this.paused || this.player.dead || this.cinematic) return;
+    if (this.paused || this.player.dead || this.cinematic || this.storyHold || this.menuOpen) return;
     const it = this.currentAction;
     if (it) this.interact(it);
   }
@@ -2246,7 +2340,14 @@ export class GameScene extends Phaser.Scene {
         break;
       case 'stairs':
         if (it.data.village) UI.expedition();
-        else if (it.data.portal) UI.confirm(`Projít portálem do patra ${this.floor + 1}?`, 'Hra se uloží. Zpět se vrátit nelze.', () => this.nextFloor(), 'Projít', 'Ještě ne');
+        else if (this.guestInfo) {
+          // the way down is the host's to choose
+          Net.event({ k: 'ready' });
+          UI.toast('Čekáš u schodů – cestu dolů vybírá hostitel', '#9fe6ff');
+        } else if (this.coop?.isHost && !this.coop.partnerNear(it.x, it.y, 60)) {
+          UI.toast(`Schody 1/2 – počkej, až k nim dorazí i ${Net.partner?.name ?? 'spoluhráč'}`, '#ffd76a');
+          Net.event({ k: 'toast', m: `${this.save.heroName || 'Hostitel'} čeká u schodů – přijď k nim (1/2)`, c: '#ffd76a' });
+        } else if (it.data.portal) UI.confirm(`Projít portálem do patra ${this.floor + 1}?`, 'Hra se uloží. Zpět se vrátit nelze.', () => this.nextFloor(), 'Projít', 'Ještě ne');
         else this.chooseNextPath();
         break;
       case 'ev':
@@ -2429,7 +2530,7 @@ export class GameScene extends Phaser.Scene {
         it.used = true;
         it.sprite?.destroy();
         for (let i = 0; i < 4; i++) this.loot.dropGold(this.loot.goldAmount(1.5), it.x, it.y);
-      } else if (it.kind === 'mimic' && d < 22) {
+      } else if (it.kind === 'mimic' && d < 22 && !this.guestInfo) {
         it.used = true;
         it.sprite?.destroy();
         const m = this.spawnEnemy('mimic', it.x, it.y - 2, false, -1);
@@ -2447,17 +2548,22 @@ export class GameScene extends Phaser.Scene {
     const br = this.dungeon.bossRoom;
     if (!this.guard || !br || b !== this.boss) return true;
     const p = this.player;
-    return this.dungeon.roomId[Math.floor(p.y / TS) * this.dungeon.w + Math.floor(p.x / TS)] === br.id;
+    const inside = (x: number, y: number) => this.dungeon.roomId[Math.floor(y / TS) * this.dungeon.w + Math.floor(x / TS)] === br.id;
+    if (!inside(p.x, p.y)) return false;
+    // playing for two: the fight waits until both heroes are in
+    const q = this.coop?.isHost ? this.coop.partner : null;
+    return !q || q.dead || q.quietT > 5 || inside(q.x, q.y);
   }
 
   /** the gate of the arena: tiles just outside it that a barrier closes for the fight */
   arenaGate: { cells: number[]; imgs: Phaser.GameObjects.Image[] } | null = null;
 
   /** the fight begins: a barrier of runes closes the arena behind the hero (the pet and the mercenary come along) */
-  sealArena() {
+  /** the floor tiles just outside the arena (its gate) */
+  arenaCells(): number[] {
     const d = this.dungeon;
     const br = d.bossRoom;
-    if (!br || this.arenaGate) return;
+    if (!br) return [];
     const inside = new Set(br.cells);
     const cells: number[] = [];
     for (const c of br.cells) {
@@ -2473,6 +2579,14 @@ export class GameScene extends Phaser.Scene {
         if (!inside.has(n) && d.grid[n] === T_FLOOR && !cells.includes(n)) cells.push(n);
       }
     }
+    return cells;
+  }
+
+  sealArena() {
+    const d = this.dungeon;
+    const br = d.bossRoom;
+    if (!br || this.arenaGate) return;
+    const cells = this.arenaCells();
     const imgs: Phaser.GameObjects.Image[] = [];
     for (const n of cells) {
       this.map.solid[n] = 1;
@@ -2485,6 +2599,7 @@ export class GameScene extends Phaser.Scene {
       imgs.push(img);
     }
     this.arenaGate = { cells, imgs };
+    this.coop?.arenaChanged('sealed', cells);
     // the companions are pulled in with the hero
     const p = this.player;
     for (const c of [this.pet, this.merc]) {
@@ -2503,6 +2618,7 @@ export class GameScene extends Phaser.Scene {
     for (const n of g.cells) this.map.solid[n] = 0;
     for (const img of g.imgs) this.tweens.add({ targets: img, alpha: 0, duration: 600, onComplete: () => img.destroy() });
     this.arenaGate = null;
+    this.coop?.arenaChanged('open', g.cells);
   }
 
   onBossAggro(b: Enemy) {
@@ -2535,7 +2651,7 @@ export class GameScene extends Phaser.Scene {
       const shots: Shot[] = [];
       if (b.bossTier > 0) shots.push({ text: 'Prastarý strážce hlubin se probouzí…' });
       shots.push({ who, text: lines[Math.floor(Math.random() * lines.length)], fx: 'shake' });
-      await UI.cutscene(shots, { overlay: true });
+      await UI.cutscene(shots, { overlay: true }, true);
       b.invuln = false;
     }
     if (b.dead || !this.sys.isActive()) return;
@@ -2583,7 +2699,7 @@ export class GameScene extends Phaser.Scene {
     this.fx.shake(0.006, 300);
     b.invuln = true;
     // every fight begins with the guardian's words (a tap or the skip button moves on)
-    await UI.cutscene(def.intro, { overlay: true });
+    await UI.cutscene(def.intro, { overlay: true }, true);
     b.invuln = false;
     UI.showBoss(b);
     UI.bossNote(b.phaseCount > 1 ? `Fáze 1 z ${b.phaseCount}` : def.title);
@@ -2605,7 +2721,7 @@ export class GameScene extends Phaser.Scene {
     if (e.dead || !this.sys.isActive()) return;
     const next = e.story!.phases[e.phase + 1];
     // the stage's words play every time (a tap or the skip button moves on)
-    if (next.intro) await UI.cutscene(next.intro, { overlay: true });
+    if (next.intro) await UI.cutscene(next.intro, { overlay: true }, true);
     e.applyPhase(e.phase + 1, this.floor);
     this.fx.burst(e.x, e.y - 10, 0xb07dff, 40, 'puff');
     this.fx.ring(e.x, e.y - 10, 70, 0xb07dff, 600);
@@ -2639,7 +2755,7 @@ export class GameScene extends Phaser.Scene {
     saveGame(this.save);
     await new Promise<void>((r) => this.time.delayedCall(1400, () => r()));
     if (!this.sys.isActive()) return;
-    await UI.cutscene(def.outro);
+    await UI.cutscene(def.outro, {}, true);
     this.spawnBossRewards(b);
     if (def.floor === STORY_END) UI.storyEnd();
     else if (def.lock) UI.banner('Zámek pečeti obnoven!', `Pečetní střepy: ${st.shards}/4 · +${st.shards * 4 + (st.blessing ? 10 : 0)} % zdraví a poškození`);
@@ -2690,6 +2806,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   onBossKilled(b: Enemy) {
+    // the guest's game: the guardian fell in the host's world, the guest gets its own share of the hoard
+    if (this.guestInfo) {
+      this.bossDefeated = true;
+      bumpStat(this.save, 'bosses');
+      UI.hideBoss();
+      UI.banner('Strážce poražen!', `${b.name} padl${b.boss?.fem ? 'a' : ''}`);
+      this.fx.shake(0.012, 500);
+      this.spawnBossRewards(b);
+      return;
+    }
     if (b.tag === 'secret') return this.enc.secretKilled(b);
     if (b.tag === 'riftGuard') return this.enc.riftCleared(b);
     this.quests.onBossKilled();
@@ -2712,7 +2838,8 @@ export class GameScene extends Phaser.Scene {
     const x = b ? b.x : br.cx * TS + 8,
       y = b ? b.y : br.cy * TS + 8;
     const story = !!b?.story;
-    this.openArena();
+    // (in the guest's game the host opens the arena)
+    if (!this.guestInfo) this.openArena();
     this.fx.burst(x, y - 10, 0xffd23a, 40);
     this.fx.ring(x, y - 10, 70, 0xffd23a, 700);
     for (let i = 0; i < 3; i++) this.time.delayedCall(250 + i * 220, () => this.fx.burst(x + (Math.random() - 0.5) * 30, y - 10 - Math.random() * 16, 0xfff2c0, 14));
@@ -2730,7 +2857,7 @@ export class GameScene extends Phaser.Scene {
     this.stairsObj = it;
     this.lamps.push({ x: it.x, y: it.y, r: 70, flicker: 0 });
     // clear minions
-    for (const e of this.enemies) if (!e.dead && e.isMinion) this.combat.killEnemy(e);
+    if (!this.guestInfo) for (const e of this.enemies) if (!e.dead && e.isMinion) this.combat.killEnemy(e);
   }
 
   // ---------------------------------------------------------------- achievements
@@ -2762,6 +2889,9 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: p.sprite, angle: 90 * p.facing, alpha: 0.5, duration: 500 });
     p.weapon?.setVisible(false);
     p.offhand?.setVisible(false);
+    // in the host's world a fallen guest gets up again next to the host's hero
+    if (this.guestInfo && this.coop && !this.save.hardcore) return this.coop.guestDied();
+    if (this.coop?.isHost) Net.event({ k: 'down' });
     // a hardcore hero is gone at once (closing the game now must not save them)
     if (this.save.hardcore) buryHero(this.save, this.floor);
     else this.recordNemesis();
@@ -2870,6 +3000,7 @@ export class GameScene extends Phaser.Scene {
 
   /** whether the hero may go home now (not in the middle of a fight, not in a rift) */
   canGoHome(): string | null {
+    if (this.guestInfo) return 'Ve hře pro dva vede výpravu hostitel – domů se vrátíte spolu.';
     if (this.inVillage) return 'Už jsi doma';
     if (this.rift) return 'Z trhliny cesta domů nevede';
     if (this.boss && !this.boss.dead && this.boss.aggro) return 'Uprostřed souboje se strážcem se domů nedostaneš';
@@ -3051,6 +3182,9 @@ export class GameScene extends Phaser.Scene {
     }
     const dt = Math.min(0.05, dms / 1000);
     const p = this.player;
+    // the other player's game: what goes out and comes in (also while walking the stairs)
+    this.coop?.update(dt);
+    if (this.storyHold) return;
     this.potionCd.hpPotion = Math.max(0, this.potionCd.hpPotion - dt);
     this.potionCd.mpPotion = Math.max(0, this.potionCd.mpPotion - dt);
     this.weather?.update(this.cinematic ? 0 : Math.min(0.05, dms / 1000));
@@ -3082,6 +3216,8 @@ export class GameScene extends Phaser.Scene {
       mx /= ml;
       my /= ml;
     }
+    // a panel open in a game for two: the world goes on, the hero stands
+    if (this.menuOpen) mx = my = 0;
     // a mind mage's confusion turns the controls around
     if (p.buffs.some((b) => b.mods.confuse)) {
       mx = -mx;
@@ -3120,8 +3256,11 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    for (const e of this.enemies) e.update(dt);
-    this.powers.update(dt);
+    for (const e of this.enemies) {
+      if (e.puppet) this.coop?.tickPuppet(e, dt);
+      else e.update(dt);
+    }
+    if (!this.guestInfo) this.powers.update(dt);
     if (!p.dead) this.procs.tick(dt, p.calmT < 3);
     this.separate();
     if (this.enemies.some((e) => e.dead)) this.enemies = this.enemies.filter((e) => !e.dead);
@@ -3143,9 +3282,11 @@ export class GameScene extends Phaser.Scene {
     this.loot.update(dt);
     this.updateTraps(dt);
     this.updateHazards(dt);
-    this.updateNemesis();
-    this.enc.update(dt);
-    this.quests.update(dt);
+    if (!this.guestInfo) {
+      this.updateNemesis();
+      this.enc.update(dt);
+      this.quests.update(dt);
+    }
     if (this.inVillage) this.vil.update(dt);
 
     // shrine buffs

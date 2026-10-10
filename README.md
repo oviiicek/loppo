@@ -349,6 +349,16 @@ Na nástěnce v Loppu visí úkoly od vesničanů: najdi ztraceného dobrodruha 
 
 Deník úkolů se otevře kulatým tlačítkem s vykřičníkem vedle kouzel (nebo z pauzy); když čeká odměna nebo mapa pokladu, tlačítko zeleně pulzuje: nahoře hlavní úkol příběhu (další příběhový strážce a kapitola), pod ním úkol patra, vedlejší úkoly a mapy pokladů. Mapa pokladu občas leží v truhle (častěji ve zlaté), nosí ji šampion a skoro vždy zloděj. Přidá vedlejší úkol na jedno z dalších pater; tam na mapě i minimapě svítí zlatý křížek, kde se kope – vykopaná truhla dá předměty, zlato, drahokam a někdy runu. Najednou jdou nést 3 mapy.
 
+### Hra pro dva
+V pauze je tlačítko **👥 Hra pro dva**. Kdo hru založí, dostane pětimístný kód a druhý hráč ho zadá na svém zařízení (stačí internet, hra jde přímo mezi zařízeními přes WebRTC; server PeerJS je jen seznámí).
+- **Hraje se svět toho, kdo hru založil** – jeho patro, výprava, cesta dolů a obtížnost. Druhý hráč se objeví ve stejném patře a po skončení hry pro dva se vrátí do svého světa a na své patro; jeho nejhlubší patro se nemění.
+- **Silnější kobky:** nestvůr je 1,5× víc, mají 2× víc zdraví a útočí 1,5× silněji (strážci i příběhoví strážci také, v každé fázi).
+- **Kořist:** každý vidí a sbírá svou vlastní kořist (truhly, obchodníci, svatyně a padlé předměty jsou pro každého jiné). Zkušenosti, zlato a kořist z nestvůry dostanou oba, když jsou poblíž. Předmět, který někdo **zahodí z batohu**, vidí oba a vezme si ho ten, kdo k němu dojde první.
+- **Spolu ke strážci:** před arénou strážce stojí brána s počítadlem **Brána strážce 1/2** – otevře se, až u ní stojí oba, a souboj začne, až jsou v aréně oba. Stejně tak schody: **Schody 1/2 – počkej**, dolů se jde jen spolu (2/2) a cestu vybírá zakladatel hry.
+- **Smrt:** padlý druhý hráč za 8 s vstane vedle zakladatele hry; když padne zakladatel, oba se vrátí na checkpoint. Při otevřeném menu se hra pro dva nezastavuje (hrdina jen stojí) a scény strážců vidí oba (dají se přeskočit).
+- V HUD je vidět jméno, úroveň a zdraví spoluhráče, na minimapě modrá tečka. Když se spojení na 10 s ztratí, každý hraje dál ve svém světě.
+- Hra pro dva potřebuje stránku hry otevřenou přímo (např. na GitHub Pages). Ve verzi vložené do jiné stránky prohlížeč přímé spojení nedovolí a okno to napíše.
+
 ### Ostatní
 - Dynamické osvětlení s blikajícími pochodněmi, minimapa s mlhou války, čísla poškození, částicové efekty a otřesy obrazovky.
 - Automatické ukládání do `localStorage`: při změně patra, každých 20 s a při odchodu z aplikace. K dispozici jsou 3 sloty pro různé postavy.
@@ -372,7 +382,9 @@ src/
   systems/             generátor dungeonu, stav postavy a ukládání, RNG, zvuk
   gfx/                 procedurální pixel-art (textury, ikony kouzel)
   game/                mapa a kolize, hráč, nepřátelé a spojenci, boj, kouzla, loot, AI bossů, efekty,
-                       žoldák, události v kobkách (encounters), vesnice, úkoly
+                       žoldák, události v kobkách (encounters), vesnice, úkoly, hra pro dva (coop,
+                       otherhero)
+  net/                 spojení dvou zařízení pro hru pro dva (PeerJS / WebRTC)
   scenes/              Boot, Game (hlavní herní smyčka), Gallery (náhled grafiky)
   ui/                  HTML/CSS rozhraní: HUD, joystick, inventář, postava, kouzla, obchod, menu,
                        budovy Loppa, nástěnka úkolů
@@ -393,3 +405,4 @@ src/
   - `__dev.quest('lost')` přijme úkol, `__dev.questInfo()` ukáže úkoly,
   - `__dev.elite('orc', ['štítonoš', 'zrcadlový'])` postaví vedle hrdiny šampiona s danými vlastnostmi,
   - `__dev.evInfo()` vypíše stav událostí patra.
+- Hra pro dva se dá zkoušet ve dvou záložkách jednoho prohlížeče bez internetu: `?mp=local` (spojení přes BroadcastChannel), nebo s místním serverem PeerJS (`npx peerjs --port 9000 --host 127.0.0.1 --path /`) přes `?mp=peer-local`.
