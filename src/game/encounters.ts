@@ -1749,7 +1749,9 @@ export class Encounters {
       const left = Math.max(0, r.total - r.t);
       sc.ui.eventBar(`🌀 Trhlina · ${Math.round(pct * 100)} %${left > 0 ? ` · bonus za rychlost ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}` : ''}`, pct);
       if (pct >= 1) this.summonGuard();
-    } else sc.ui.eventBar('🌀 Strážce trhliny přichází!', 1);
+    } else if (!r.guard.aggro) sc.ui.eventBar('🌀 Strážce trhliny přichází!', 1);
+    // the guardian is fighting: its own bar is enough
+    else sc.ui.hideEventBar();
   }
 
   /** the hero held out: back to the floor of the death with a single point of health */

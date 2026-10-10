@@ -151,6 +151,12 @@ export function sfx(name: string) {
     case 'ui':
       tone('square', 800, 800, 0.03, 0.05);
       break;
+    case 'type': {
+      // a soft tick while a cutscene line is being written
+      const f = 520 + Math.random() * 140;
+      tone('triangle', f, f, 0.025, 0.035);
+      break;
+    }
     case 'stairs':
       [400, 300, 200].forEach((f, i) => tone('triangle', f, f * 0.8, 0.15, 0.12, i * 0.12));
       break;

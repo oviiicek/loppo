@@ -50,6 +50,7 @@ export function playCutscene(root: HTMLElement, shots: Shot[], opts: CutsceneOpt
     let titleTimer = 0;
     let finished = false;
     let typingStart = 0;
+    let lastSpeaker = '';
 
     const setScene = (id: SceneId) => {
       if (id === scene) return;
@@ -75,6 +76,8 @@ export function playCutscene(root: HTMLElement, shots: Shot[], opts: CutsceneOpt
     const typeStep = () => {
       const n = Math.min(full.length, Math.floor(((performance.now() - typingStart) / 1000) * CHARS_PER_SEC));
       if (n !== typed) {
+        // a soft tick every few letters while the line is being written
+        if (Math.floor(n / 3) !== Math.floor(typed / 3) && full[n - 1] !== ' ') sfx('type');
         typed = n;
         textEl.textContent = full.slice(0, n);
       }
@@ -115,13 +118,22 @@ export function playCutscene(root: HTMLElement, shots: Shot[], opts: CutsceneOpt
       }
       title.classList.remove('on');
       box.classList.remove('hidden', 'done');
-      const sp = SPEAKERS[s.speaker ?? 'narrator'];
-      box.classList.toggle('narrator', !s.speaker || s.speaker === 'narrator');
+      const sp = s.who ?? SPEAKERS[s.speaker ?? 'narrator'];
+      box.classList.toggle('narrator', !s.who && (!s.speaker || s.speaker === 'narrator'));
       nameEl.textContent = sp.name;
       nameEl.style.color = sp.color;
-      const url = s.speaker ? portraitURL(s.speaker) : '';
+      const url = s.who ? s.who.portrait ?? '' : s.speaker ? portraitURL(s.speaker) : '';
       if (url) img.src = url;
       box.classList.toggle('noportrait', !url);
+      // a new speaker slides in
+      const who = s.who ? s.who.name : s.speaker ?? '';
+      box.classList.toggle('newspeaker', who !== lastSpeaker);
+      if (who !== lastSpeaker) {
+        box.classList.remove('newspeaker');
+        void box.offsetWidth;
+        box.classList.add('newspeaker');
+      }
+      lastSpeaker = who;
       full = s.text;
       typed = 0;
       textEl.textContent = '';

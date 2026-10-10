@@ -1001,9 +1001,12 @@ class UIManager {
       this.game.scene.pause('Game');
     }
     this.joy = [0, 0];
+    // the story has the whole screen: no health bars, buttons or minimap over it
+    this.hud?.classList.add('cs-hidden');
     try {
       await playCutscene(this.root, shots, opts);
     } finally {
+      this.hud?.classList.remove('cs-hidden');
       this.cutsceneActive = false;
       if (typeof idOrShots === 'string' && sc) {
         const st = storyOf(sc.save);
@@ -1159,11 +1162,6 @@ class UIManager {
     if (!this.hud) return;
     this.bossRef = b;
     const bb = $('.bossbar', this.hud);
-    // between the health bars and the buttons, or below them on narrow screens
-    const { left, right, top } = this.topSlot(280);
-    bb.style.left = `${(left + right) / 2}px`;
-    bb.style.top = `${top}px`;
-    bb.style.width = `${Math.min(420, right - left)}px`;
     const stages = b.phaseCount > 1 ? ` · fáze ${b.phase + 1}/${b.phaseCount}` : '';
     $('.name', bb).textContent = b.story ? `${b.name}, ${b.story.title}${stages}` : `${b.name} · fáze ${b.bphase + 1}/${BOSS_PHASES}`;
     bb.classList.toggle('story', !!b.story);
@@ -1179,6 +1177,30 @@ class UIManager {
         bar.appendChild(t);
       });
     bb.classList.add('on');
+    this.layoutTop();
+  }
+
+  /** the guardian's bar, an event's bar and the streak counter share the slot at the top centre: stacked under
+   *  each other (never on top of each other), between the health bars and the buttons or below the buttons */
+  layoutTop() {
+    if (!this.hud) return;
+    const { left, right, top } = this.topSlot(260);
+    const cx = (left + right) / 2;
+    const w = Math.min(360, right - left);
+    let y = top;
+    for (const sel of ['.bossbar', '.eventbar']) {
+      const n = $(sel, this.hud);
+      if (!n.classList.contains('on')) continue;
+      n.style.left = `${cx}px`;
+      n.style.top = `${y}px`;
+      n.style.width = `${w}px`;
+      y += n.offsetHeight + 4;
+    }
+    const st = $('.streak', this.hud);
+    if (st.classList.contains('on')) {
+      st.style.left = `${cx}px`;
+      st.style.top = `${y}px`;
+    }
   }
 
   /** a guardian entered its next phase: the bar flashes and the change is written under it */
@@ -1198,8 +1220,12 @@ class UIManager {
     const n = $('.bossbar .note', this.hud);
     n.textContent = text;
     n.classList.add('on');
+    this.layoutTop();
     clearTimeout((n as any)._t);
-    (n as any)._t = setTimeout(() => n.classList.remove('on'), ms);
+    (n as any)._t = setTimeout(() => {
+      n.classList.remove('on');
+      this.layoutTop();
+    }, ms);
   }
 
   /** the kill streak counter at the top (from three kills on); n = 0 hides it */
@@ -1213,11 +1239,8 @@ class UIManager {
     if (!st.classList.contains('on') || st.classList.contains('end')) {
       clearTimeout((st as any)._t);
       st.classList.remove('end');
-      const { left, right, top } = this.topSlot(170);
-      const busy = $('.bossbar', this.hud).classList.contains('on') || $('.eventbar', this.hud).classList.contains('on');
-      st.style.left = `${(left + right) / 2}px`;
-      st.style.top = `${top + (busy ? 42 : 0)}px`;
       st.classList.add('on');
+      this.layoutTop();
       $('span', st).textContent = 'série zabití';
     }
     const b = $('b', st);
@@ -1263,19 +1286,20 @@ class UIManager {
     if (!this.hud) return;
     const b = $('.eventbar', this.hud);
     if (!b.classList.contains('on')) {
-      const { left, right, top } = this.topSlot(260);
-      b.style.left = `${(left + right) / 2}px`;
-      b.style.top = `${top}px`;
-      b.style.width = `${Math.min(380, right - left)}px`;
+      b.classList.add('on');
+      this.layoutTop();
     }
-    b.classList.add('on');
     const n = $('.name', b);
     if (n.textContent !== text) n.textContent = text;
     ($('.fill', b) as HTMLElement).style.transform = `scaleX(${frac})`;
   }
 
   hideEventBar() {
-    if (this.hud) $('.eventbar', this.hud).classList.remove('on');
+    if (!this.hud) return;
+    const b = $('.eventbar', this.hud);
+    if (!b.classList.contains('on')) return;
+    b.classList.remove('on');
+    this.layoutTop();
   }
 
   hideBoss() {
@@ -1283,6 +1307,7 @@ class UIManager {
     if (this.hud) {
       $('.bossbar', this.hud).classList.remove('on');
       $('.bossbar .note', this.hud).classList.remove('on');
+      this.layoutTop();
     }
   }
 

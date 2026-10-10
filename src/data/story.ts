@@ -46,6 +46,8 @@ export type SceneId =
 export interface Shot {
   scene?: SceneId;
   speaker?: SpeakerId;
+  /** a speaker that is not one of the story's cast (a guardian of a floor): name, colour, portrait picture */
+  who?: { name: string; color: string; portrait?: string };
   text: string;
   /** chapter card: [small line, big line] */
   title?: [string, string];

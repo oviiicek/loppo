@@ -13,7 +13,8 @@ import { Powers } from '../game/powers';
 import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
 import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END, corruptName } from '../data/enemies';
-import { CHAPTERS, noteForFloor, areaIntroForFloor } from '../data/story';
+import { CHAPTERS, noteForFloor, areaIntroForFloor, Shot } from '../data/story';
+import { GUARDIAN_LINES, GUARDIAN_COLORS } from '../data/bosslines';
 import { SaveData, FloorKind, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory } from '../systems/state';
 import { PetFollower } from '../game/pet';
 import { Mercenary } from '../game/merc';
@@ -112,6 +113,9 @@ const SHRINES: Record<string, { name: string; mods: BuffMods; xp?: number; mf?: 
   storm: { name: 'Svatyně bouře', mods: { novaPulse: 0.5 }, color: 0x7ae0ff },
   gems: { name: 'Svatyně klenotů', mods: {}, mf: 30, color: 0xff9ab0 },
 };
+
+/** guardians' portraits for the dialogue box, kept across floors */
+const PORTRAIT_CACHE = new Map<string, string>();
 
 export class GameScene extends Phaser.Scene {
   save!: SaveData;
@@ -2485,13 +2489,60 @@ export class GameScene extends Phaser.Scene {
       void this.storyBossIntro(b);
       return;
     }
+    void this.guardianIntro(b);
+  }
+
+  /** a guardian of a floor has its say before every fight (a tap or the skip button moves on), then the fight starts */
+  async guardianIntro(b: Enemy) {
+    const def = b.boss!;
     sfx('boss');
+    this.fx.shake(0.006, 300);
+    const lines = GUARDIAN_LINES[def.id];
+    if (lines?.length) {
+      b.invuln = true;
+      const who = { name: b.name, color: GUARDIAN_COLORS[def.el] ?? '#f0d8a8', portrait: this.guardianPortrait(def.sprite, def.tint) };
+      const shots: Shot[] = [];
+      if (b.bossTier > 0) shots.push({ text: 'Prastarý strážce hlubin se probouzí…' });
+      shots.push({ who, text: lines[Math.floor(Math.random() * lines.length)], fx: 'shake' });
+      await UI.cutscene(shots, { overlay: true });
+      b.invuln = false;
+    }
+    if (b.dead || !this.sys.isActive()) return;
     UI.showBoss(b);
     // who it is goes under its bar at the top – nothing big over the arena while it attacks
     UI.bossNote(b.bossTier > 0 ? 'Prastarý strážce hlubin' : 'Strážce patra');
-    this.fx.shake(0.006, 300);
     // first boss ever: teach the one thing that matters
     if (!this.save.stats?.bosses) this.time.delayedCall(1800, () => UI.hint('Červené kruhy ukazují, kam strážce udeří – včas z nich uhni!', 6000));
+  }
+
+  /** a guardian's look as a picture for the dialogue box: its first frame, tinted like the guardian */
+  guardianPortrait(key: string, tint?: number) {
+    const id = `${key}:${tint ?? ''}`;
+    const known = PORTRAIT_CACHE.get(id);
+    if (known !== undefined) return known;
+    let url = '';
+    if (this.textures.exists(key)) {
+      const fr = this.textures.getFrame(key, 0) ?? this.textures.getFrame(key);
+      const img = fr.source.image as CanvasImageSource;
+      const w = fr.cutWidth,
+        h = fr.cutHeight;
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext('2d')!;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, fr.cutX, fr.cutY, w, h, 0, 0, w, h);
+      if (tint !== undefined) {
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.fillStyle = '#' + tint.toString(16).padStart(6, '0');
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(img, fr.cutX, fr.cutY, w, h, 0, 0, w, h);
+      }
+      url = c.toDataURL();
+    }
+    PORTRAIT_CACHE.set(id, url);
+    return url;
   }
 
   // ---------------------------------------------------------------- story guardians
@@ -2500,7 +2551,8 @@ export class GameScene extends Phaser.Scene {
     sfx('boss');
     this.fx.shake(0.006, 300);
     b.invuln = true;
-    if (!storyOf(this.save).seen.includes(def.intro)) await UI.cutscene(def.intro, { overlay: true });
+    // every fight begins with the guardian's words (a tap or the skip button moves on)
+    await UI.cutscene(def.intro, { overlay: true });
     b.invuln = false;
     UI.showBoss(b);
     UI.bossNote(b.phaseCount > 1 ? `Fáze 1 z ${b.phaseCount}` : def.title);
@@ -2521,8 +2573,8 @@ export class GameScene extends Phaser.Scene {
     await new Promise<void>((r) => this.time.delayedCall(900, () => r()));
     if (e.dead || !this.sys.isActive()) return;
     const next = e.story!.phases[e.phase + 1];
-    // (a second try at the guardian does not repeat its words)
-    if (next.intro && !storyOf(this.save).seen.includes(next.intro)) await UI.cutscene(next.intro, { overlay: true });
+    // the stage's words play every time (a tap or the skip button moves on)
+    if (next.intro) await UI.cutscene(next.intro, { overlay: true });
     e.applyPhase(e.phase + 1, this.floor);
     this.fx.burst(e.x, e.y - 10, 0xb07dff, 40, 'puff');
     this.fx.ring(e.x, e.y - 10, 70, 0xb07dff, 600);

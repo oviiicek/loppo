@@ -324,7 +324,7 @@ img.px {
 .streak b {
   display: inline-block;
   color: #ffb347;
-  font-size: 30px;
+  font-size: 24px;
   line-height: 1;
   text-shadow:
     2px 2px 0 #000,
@@ -344,7 +344,7 @@ img.px {
 .streak span {
   display: block;
   color: #ffd9a8;
-  font-size: 14px;
+  font-size: 12px;
   letter-spacing: 1px;
   text-shadow: 1px 1px 0 #000;
 }
@@ -834,14 +834,17 @@ img.px {
 }
 .bossbar .name {
   text-align: center;
-  font-size: 19px;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 700;
   color: #ff8c6a;
   text-shadow: 2px 2px 0 #000;
   margin-bottom: 2px;
 }
 .bossbar .bar {
-  height: 14px;
+  height: 10px;
 }
 /* who the guardian is and which phase begins: a line under its bar for a few seconds */
 .bossbar .note {
@@ -908,14 +911,16 @@ img.px {
 }
 .eventbar .name {
   text-align: center;
-  font-size: 18px;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: #9dff9a;
   text-shadow: 2px 2px 0 #000;
   margin-bottom: 2px;
   white-space: nowrap;
 }
 .eventbar .bar {
-  height: 10px;
+  height: 7px;
 }
 .eventbar .fill {
   background: linear-gradient(#b8ffb0, #3fae5a 60%, #2a7a3e) !important;
@@ -3189,12 +3194,16 @@ textarea.code {
 .cutscene.out {
   animation: csOut 0.32s ease-in forwards;
 }
+/* over the paused game: the edges darken so the guardian and the words stand out (the HUD is hidden) */
 .cutscene.overlay {
-  background: transparent;
+  background: radial-gradient(ellipse at 50% 42%, rgba(0, 0, 0, 0.08) 25%, rgba(0, 0, 0, 0.66) 100%);
 }
-.cutscene.overlay .cs-stage,
-.cutscene.overlay .cs-skip {
+.cutscene.overlay .cs-stage {
   display: none;
+}
+/* the HUD steps aside while a story scene plays */
+.passthrough.cs-hidden {
+  visibility: hidden;
 }
 @keyframes csIn {
   from {
@@ -3230,8 +3239,21 @@ textarea.code {
   aspect-ratio: 16 / 9;
   transform: translateX(-50%);
   overflow: hidden;
-  border-radius: 4px;
-  box-shadow: 0 0 0 2px #000, 0 10px 30px #000c;
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 2px #000,
+    0 0 0 4px rgba(184, 144, 46, 0.55),
+    0 12px 34px #000c;
+}
+/* a soft vignette and a thin gold edge make the picture look like a painted frame */
+.cs-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 46%, transparent 58%, rgba(0, 0, 0, 0.5) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 214, 140, 0.22);
 }
 .cs-art,
 .cs-fx {
@@ -3270,12 +3292,14 @@ textarea.code {
 }
 .cs-bar.top {
   top: 0;
+  box-shadow: 0 1px 0 rgba(255, 210, 120, 0.35);
 }
 .cs-bar.bottom {
   bottom: 0;
+  box-shadow: 0 -1px 0 rgba(255, 210, 120, 0.35);
 }
 .cutscene.overlay .cs-bar {
-  height: 11vh;
+  height: 9vh;
   animation: csBar 0.45s ease-out;
 }
 @keyframes csBar {
@@ -3357,6 +3381,22 @@ textarea.code {
   letter-spacing: 3px;
   text-align: center;
   text-shadow: 3px 3px 0 #000, 0 0 32px rgba(255, 170, 50, 0.5);
+  animation: csTitleIn 1.1s ease-out;
+}
+.cs-title b::after {
+  content: '';
+  display: block;
+  width: 70%;
+  height: 2px;
+  margin: 10px auto 0;
+  background: linear-gradient(90deg, transparent, var(--gold2), transparent);
+  box-shadow: 0 0 10px rgba(255, 200, 90, 0.6);
+}
+@keyframes csTitleIn {
+  from {
+    letter-spacing: 12px;
+    opacity: 0;
+  }
 }
 .cs-box {
   position: absolute;
@@ -3372,8 +3412,26 @@ textarea.code {
   padding: 12px 40px 14px 14px;
   border: 3px solid transparent;
   border-radius: 12px;
-  background: linear-gradient(rgba(12, 10, 16, 0.93), rgba(12, 10, 16, 0.93)) padding-box, var(--ring) border-box;
-  box-shadow: 0 0 0 2px #120c06, 0 8px 24px #000c;
+  background: linear-gradient(180deg, rgba(30, 24, 36, 0.95), rgba(10, 8, 14, 0.96)) padding-box, var(--ring) border-box;
+  box-shadow: 0 0 0 2px #120c06, 0 8px 24px #000c, inset 0 1px 0 rgba(255, 220, 150, 0.08);
+  animation: csBoxIn 0.35s ease-out;
+}
+/* a faint glow along the top edge of the dialogue box */
+.cs-box::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: -3px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 214, 120, 0.85), transparent);
+  pointer-events: none;
+}
+@keyframes csBoxIn {
+  from {
+    transform: translate(-50%, 12px);
+    opacity: 0;
+  }
 }
 .cs-box.hidden {
   display: none;
@@ -3390,7 +3448,25 @@ textarea.code {
 .cs-portrait img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
   image-rendering: pixelated;
+  transform-origin: 50% 90%;
+  animation: csBreath 3.4s ease-in-out infinite;
+}
+@keyframes csBreath {
+  50% {
+    transform: scale(1.035);
+  }
+}
+/* a new speaker slides in */
+.cs-box.newspeaker .cs-portrait {
+  animation: csPortIn 0.35s ease-out;
+}
+@keyframes csPortIn {
+  from {
+    transform: translateX(-12px);
+    opacity: 0;
+  }
 }
 .cs-box.narrator .cs-portrait,
 .cs-box.noportrait .cs-portrait {
@@ -3401,10 +3477,16 @@ textarea.code {
   flex: 1;
 }
 .cs-name {
+  display: inline-block;
   font-size: 22px;
   line-height: 1.1;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid rgba(255, 214, 120, 0.28);
   text-shadow: 2px 2px 0 #000;
+}
+.cs-name:empty {
+  display: none;
 }
 .cs-text {
   font-size: 21px;
