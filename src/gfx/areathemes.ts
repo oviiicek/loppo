@@ -5,13 +5,15 @@ import type { Theme } from './textures';
 const T = (name: string, t: Omit<Theme, 'name' | 'title'>): Theme => ({ name, title: name, ...t });
 
 export const AREA_THEMES: Theme[] = [
-  // 6 · the old crypt: grey-blue flagstones, green moss, candle light
+  // 6 · the old crypt: the monks' worn wooden floors between cold grey stone walls (warm wood against grey stone,
+  // so the way is never mistaken for the wall), green moss, candle light
   T('Stará krypta', {
     style: 'bricks',
-    floor: ['#5e5a62', '#59555d', '#635f68', '#55515a'],
-    mortar: '#2a272e',
+    planks: true,
+    floor: ['#7a5232', '#734d2f', '#80583a', '#6b482b'],
+    mortar: '#24170e',
     moss: ['#3a5a3a', '#4a6e44', '#2e4a30'],
-    stone: { top: '#4a4852', topHi: '#58565f', topLo: '#3e3c45', line: '#1e1d24', edge: '#121117' },
+    stone: { top: '#575663', topHi: '#666573', topLo: '#4a4955', line: '#1e1d24', edge: '#121117' },
     brick: ['#4c4a55', '#46444f', '#53515c', '#42404a'],
     brickMortar: '#221f27',
     glow: ['#ffe08a', '#ffb24a', '#fff4c8'],

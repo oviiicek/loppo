@@ -163,6 +163,8 @@ export interface Theme {
   propTint?: number; // crates, barrels and pots take on the biome's colour
   /** small cobbles instead of big flagstones (the village square) */
   cobble?: boolean;
+  /** wooden planks instead of flagstones (the floor then reads clearly against the stone walls) */
+  planks?: boolean;
   /** the furniture, torches and wall hangings (the painter's own set when missing) */
   deco?: DecoStyle;
   /** the drifting particles (see game/weather.ts; the painter's own when missing) */
@@ -327,7 +329,53 @@ function mottle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, 
   }
 }
 
+/** a floor of wooden planks: four rows a tile, staggered joints, grain, knots and nails, worn by many feet */
+function drawPlanks(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  const S = TILE_RES;
+  const gap = th.mortar;
+  rect(ctx, ox, 0, S, S, gap);
+  const H = S / 4;
+  for (let r = 0; r < 4; r++) {
+    const y = r * H;
+    // where one plank ends and the next begins (each row and tile differently); the tile edge is a joint too
+    const cut = 7 + Math.floor(hash(v, r, 81) * 18);
+    const pieces: [number, number][] = hash(r, v, 82) > 0.3 ? [[1, cut], [cut + 1, S]] : [[1, S]];
+    pieces.forEach(([x0, x1], k) => {
+      const c = th.floor[Math.floor(hash(v * 7 + r, k, 83) * th.floor.length)];
+      const w = x1 - x0;
+      rect(ctx, ox + x0, y, w, H - 1, c);
+      rect(ctx, ox + x0, y, w, 1, shade(c, 0.14));
+      rect(ctx, ox + x0, y + H - 2, w, 1, shade(c, -0.16));
+      // grain along the plank
+      for (let g = 0; g < 3; g++) {
+        const gy = y + 2 + Math.floor(hash(r, g, v + 84) * (H - 4));
+        const gx = x0 + Math.floor(hash(g, r, v + 85) * w * 0.5);
+        const gl = 3 + Math.floor(hash(v, g, r + 86) * w * 0.6);
+        rect(ctx, ox + gx, gy, Math.max(1, Math.min(gl, x1 - gx - 1)), 1, shade(c, -0.07));
+      }
+      // a knot now and then
+      if (w > 8 && hash(v, r, k + 87) > 0.72) {
+        const kx = x0 + 3 + Math.floor(hash(r, k, v + 88) * (w - 7));
+        rect(ctx, ox + kx, y + 3, 2, 2, shade(c, -0.22));
+        px(ctx, ox + kx, y + 3, shade(c, -0.38));
+      }
+      // nails at both ends
+      for (const nx of [x0 + 1, x1 - 2]) {
+        px(ctx, ox + nx, y + 2, shade(gap, 0.55));
+        px(ctx, ox + nx, y + H - 3, shade(gap, 0.4));
+      }
+    });
+  }
+  // wear and old stains (dust, wax, damp) so a large floor does not look flat
+  mottle(ctx, ox, 0, S, S, th.floor[v % th.floor.length], v * 13 + 7, 0.035);
+  if (v === 3 || v === 6) {
+    const c = shade(th.floor[0], -0.18);
+    for (let k = 0; k < 5; k++) px(ctx, ox + 6 + Math.floor(hash(k, v, 89) * 20), 4 + Math.floor(hash(v, k, 90) * 24), c);
+  }
+}
+
 function drawFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: Theme) {
+  if (th.planks) return drawPlanks(ctx, ox, v, th);
   const S = TILE_RES;
   const mortar = th.mortar;
   const col = (i: number) => th.floor[(v + i) % th.floor.length];
@@ -2914,8 +2962,21 @@ function iconCanvas(draw: Drawer, doOutline = true) {
   const [c, ctx] = canvas(24, 24);
   draw(ctx);
   crisp(c);
-  if (doOutline) outline(c, OUT);
+  if (doOutline) {
+    clearBorder(c);
+    outline(c, OUT);
+  }
   return c;
+}
+
+/** a drawing that runs over the edge of its canvas would lose its outline on that side (only stray bits of it
+ *  would show further out, which looked like a doubled outline): the outermost ring is kept free for the outline */
+function clearBorder(c: HTMLCanvasElement) {
+  const ctx = c.getContext('2d')!;
+  ctx.clearRect(0, 0, c.width, 1);
+  ctx.clearRect(0, c.height - 1, c.width, 1);
+  ctx.clearRect(0, 0, 1, c.height);
+  ctx.clearRect(c.width - 1, 0, 1, c.height);
 }
 
 function buildIcons() {
@@ -3748,8 +3809,12 @@ export function iconCanvasSized(w: number, h: number, draw: Drawer, doOutline = 
   const [c, ctx] = canvas(w + 2, h + 2);
   ctx.translate(1, 1);
   draw(ctx);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   crisp(c);
-  if (doOutline) outline(c, OUT);
+  if (doOutline) {
+    clearBorder(c);
+    outline(c, OUT);
+  }
   return c;
 }
 

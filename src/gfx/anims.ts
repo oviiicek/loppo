@@ -4,7 +4,7 @@ import { HERO_FRAMES as H } from './heroes';
 // Hero strips (see heroes.ts): breathing idle and walk with and without the weapon in hand, blinks and
 // one-shot idle fidgets. Drawing / putting away the weapon sets its frames directly (Player).
 function createHeroAnims(a: Phaser.Animations.AnimationManager, key: string) {
-  if (a.exists(key + '_idleA')) return;
+  if (a.exists(key + '_idle2')) return;
   const mk = (name: string, frames: number[], frameRate: number, repeat = -1) => {
     if (a.exists(key + '_' + name)) a.remove(key + '_' + name);
     a.create({ key: key + '_' + name, frames: a.generateFrameNumbers(key, { frames }), frameRate, repeat });
@@ -16,6 +16,10 @@ function createHeroAnims(a: Phaser.Animations.AnimationManager, key: string) {
   mk('walkA', run(H.walkA, 6), 11);
   mk('blink', [H.blink], 7, 0);
   mk('blinkA', [H.blinkA], 7, 0);
+  // both hands on a two-handed weapon
+  mk('idle2', run(H.idle2, 4), 3.5);
+  mk('walk2', run(H.walk2, 6), 11);
+  mk('blink2', [H.blink2], 7, 0);
   const s = H.scratch;
   mk('scratch', [s, s + 1, s + 2, s + 3, s + 4, s + 3, s + 4, s + 3, s + 4, s + 5], 8, 0);
   const l = H.look;

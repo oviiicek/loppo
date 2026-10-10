@@ -40,28 +40,29 @@ interface Sheath {
 }
 const PI = Math.PI;
 const SHEATH: Record<string, Sheath> = {
-  // blades hang hilt-up on the back, hafted weapons and staves head-up
-  sword: { dx: -5, dy: -14, rot: PI + 0.3 },
-  greatsword: { dx: -5, dy: -16, rot: PI + 0.42 },
+  // long weapons cross the back behind the body: blades with the hilt over the weapon shoulder and the tip by
+  // the other hip, hafted weapons and staves with the head over the far shoulder and the shaft to the near hip
+  sword: { dx: 4.5, dy: -11, rot: PI + 0.62 },
+  greatsword: { dx: 4.5, dy: -11, rot: PI + 0.62 },
   axe: { dx: -3, dy: -2, rot: -0.35 },
-  greataxe: { dx: -2, dy: 0, rot: -0.4 },
-  hammer: { dx: -2, dy: -1, rot: -0.35 },
+  greataxe: { dx: 4, dy: 1, rot: -0.62 },
+  hammer: { dx: 4, dy: 1, rot: -0.62 },
   mace: { dx: -3, dy: -2, rot: -0.35 },
-  spear: { dx: -2, dy: 1, rot: -0.3 },
-  halberd: { dx: -2, dy: 1, rot: -0.3 },
-  scythe: { dx: -2, dy: 0, rot: -0.35 },
-  quarterstaff: { dx: -3, dy: 0, rot: -0.45 },
-  staff: { dx: -3, dy: 0, rot: -0.25 },
-  stormstaff: { dx: -3, dy: 0, rot: -0.25 },
-  crook: { dx: -3, dy: 0, rot: -0.25 },
-  bow: { dx: -5, dy: -8, rot: -0.5, ox: 0.5, oy: 0.5 },
-  shortbow: { dx: -5, dy: -8, rot: -0.5, ox: 0.5, oy: 0.5 },
-  longbow: { dx: -5, dy: -9, rot: -0.45, ox: 0.5, oy: 0.5 },
-  compoundbow: { dx: -5, dy: -8, rot: -0.5, ox: 0.5, oy: 0.5 },
-  crossbow: { dx: -4, dy: -8, rot: -0.8, ox: 0.5, oy: 0.5 },
-  repeater: { dx: -4, dy: -8, rot: -0.8, ox: 0.5, oy: 0.5 },
-  rapier: { dx: -5, dy: -14, rot: PI + 0.3 },
-  scimitar: { dx: -5, dy: -13, rot: PI + 0.35 },
+  spear: { dx: 3, dy: 3, rot: -0.9 },
+  halberd: { dx: 3, dy: 3, rot: -0.9 },
+  scythe: { dx: 4, dy: 1, rot: -0.6 },
+  quarterstaff: { dx: 3, dy: 3, rot: -0.9 },
+  staff: { dx: 3, dy: 3, rot: -0.95 },
+  stormstaff: { dx: 3, dy: 3, rot: -0.95 },
+  crook: { dx: 3, dy: 3, rot: -0.95 },
+  bow: { dx: 0, dy: -8, rot: -0.7, ox: 0.5, oy: 0.5 },
+  shortbow: { dx: 0, dy: -8, rot: -0.7, ox: 0.5, oy: 0.5 },
+  longbow: { dx: 0, dy: -8, rot: -0.65, ox: 0.5, oy: 0.5 },
+  compoundbow: { dx: 0, dy: -8, rot: -0.7, ox: 0.5, oy: 0.5 },
+  crossbow: { dx: 0, dy: -8, rot: -0.9, ox: 0.5, oy: 0.5 },
+  repeater: { dx: 0, dy: -8, rot: -0.9, ox: 0.5, oy: 0.5 },
+  rapier: { dx: 4.5, dy: -11, rot: PI + 0.62 },
+  scimitar: { dx: 4.5, dy: -11, rot: PI + 0.65 },
   flail: { dx: -3, dy: -2, rot: -0.35 },
   throwaxes: { dx: -3, dy: -2, rot: -0.35 },
   // short weapons at the belt (the shield hangs on the back under the weapon)
@@ -72,7 +73,7 @@ const SHEATH: Record<string, Sheath> = {
   scepter: { dx: -3, dy: -1, rot: -0.5 },
   knuckle: { dx: 5, dy: -2, rot: 0.5, alpha: 0 },
   claws: { dx: 5, dy: -2, rot: 0.5, alpha: 0 },
-  shield: { dx: -6, dy: -8, rot: 0.1, ox: 0.5, oy: 0.5, depth: -0.7 },
+  shield: { dx: 0, dy: -8, rot: 0.1, ox: 0.5, oy: 0.5, depth: -0.7 },
   orb: { dx: -5, dy: -8, rot: 0, ox: 0.5, oy: 0.5, alpha: 0 },
 };
 // the second weapon of a pair crosses the first one
@@ -82,13 +83,18 @@ const SHEATH_OFF: Record<string, Sheath> = {
   axe: { dx: -5, dy: -2, rot: 0.45, depth: -0.5 },
   throwaxes: { dx: -5, dy: -2, rot: 0.45, depth: -0.5 },
   flail: { dx: -5, dy: -2, rot: 0.45, depth: -0.5 },
-  rapier: { dx: -3, dy: -14, rot: PI - 0.3, depth: -0.5 },
-  scimitar: { dx: -3, dy: -13, rot: PI - 0.35, depth: -0.5 },
+  rapier: { dx: -3, dy: -11, rot: PI - 0.62, depth: -0.5 },
+  scimitar: { dx: -3, dy: -11, rot: PI - 0.65, depth: -0.5 },
   handcrossbow: { dx: 3, dy: -3, rot: 0.6, ox: 0.5, oy: 0.5, depth: -0.5 },
   knuckle: { dx: -5, dy: -2, rot: -0.5, alpha: 0 },
   claws: { dx: -5, dy: -2, rot: -0.5, alpha: 0 },
 };
 const FIDGETS = ['_scratch', '_look', '_stretch'];
+/** weapons held in both hands (the back hand on the shaft just below the weapon hand) */
+export const twoHandGrip = (base: string | undefined) => {
+  const b = base ? BASE_BY_ID[base] : undefined;
+  return !!b && b.cat === 'weapon2h' && b.attack === 'melee';
+};
 
 interface Placement {
   x: number;
@@ -450,12 +456,14 @@ export class Player extends Actor {
     const cur = s.anims.currentAnim?.key ?? '';
     const dt = this.animDt;
     const armedPose = this.armT >= 0.5;
+    // with a two-handed weapon in hand both hands hold it
+    const A = armedPose && twoHandGrip(this.save.equip.main?.base) ? '2' : 'A';
     this.blinkAt -= dt;
     let want: string;
     if (moving) {
       this.idleT = 0;
       this.blinkAt = Math.max(this.blinkAt, 0.8);
-      want = armedPose ? '_walkA' : '_walk';
+      want = armedPose ? '_walk' + A : '_walk';
     } else if (this.armT > 0 && this.armT < 1) {
       // reaching over the shoulder for the weapon (or putting it back)
       s.anims.stop();
@@ -464,8 +472,8 @@ export class Player extends Actor {
     } else {
       // standing: breathe, blink now and then; without a weapon in hand also scratch the head, look around, stretch
       const running = s.anims.isPlaying && s.anims.currentAnim?.repeat === 0;
-      if (running && (armedPose ? cur === k + '_blinkA' : cur !== k + '_blinkA' && cur.startsWith(k + '_'))) return;
-      want = armedPose ? '_idleA' : '_idle';
+      if (running && (armedPose ? cur === k + '_blink' + A : cur !== k + '_blinkA' && cur !== k + '_blink2' && cur.startsWith(k + '_'))) return;
+      want = armedPose ? '_idle' + A : '_idle';
       if (armedPose) this.idleT = 0;
       else this.idleT += dt;
       if (!armedPose && this.idleT > this.fidgetAt) {
@@ -478,7 +486,7 @@ export class Player extends Actor {
         this.blinkAt = Math.max(this.blinkAt, 1.5);
       } else if (this.blinkAt <= 0) {
         this.blinkAt = 2.2 + Math.random() * 3.5;
-        want = armedPose ? '_blinkA' : '_blink';
+        want = armedPose ? '_blink' + A : '_blink';
       }
     }
     want = k + want;
@@ -785,6 +793,15 @@ export class Player extends Actor {
           p.rot = a + Math.PI / 2;
           p.x = this.x + Math.cos(this.aim) * 2;
           p.y = this.y - 5 + Math.sin(this.aim) * 2;
+        } else if (twoHandGrip(baseKey)) {
+          // both hands on the shaft: it runs from the weapon hand down through the back hand, and the hands are
+          // drawn over it (the weapon itself goes just behind the hero)
+          p.rot = 0.64 * f;
+          p.oy = 0.8;
+          // the weapon hand holds the grip right under the guard
+          p.x = hx - 0.5 * f;
+          p.y = hy - 1;
+          p.depth = depth - 0.2;
         } else p.rot = 0.5 * f;
         if (BASE_BY_ID[baseKey]?.thrust && this.swinging > 0 && this.swingHand === 0) {
           p.rot = this.aim + Math.PI / 2;

@@ -28,6 +28,8 @@ interface Pose {
   head: Pt;
   /** robe hem sway */
   hem: number;
+  /** the back arm reaches in front of the body (both hands on a two-handed weapon) */
+  over?: boolean;
 }
 
 // hands hang relaxed while the weapon is put away; in combat the weapon hand is held forward (where the
@@ -36,13 +38,16 @@ const HB: Pt = [8, 27];
 const HF: Pt = [24, 27];
 const HBA: Pt = [6, 26];
 const HFA: Pt = [26, 26];
+// both hands on the shaft of a two-handed weapon: the weapon hand higher, the back hand just below it
+const HB2: Pt = [22, 28];
+const HF2: Pt = [25, 24];
 
 function pose(p: Partial<Pose>): Pose {
   return { bob: 0, legB: [0, 0], legF: [0, 0], handB: HB, handF: HF, eyes: 'open', mouth: 'line', head: [0, 0], hem: 0, ...p };
 }
 
 // breathing: the upper body sinks by a pixel and rises again
-const idleSet = (hb: Pt, hf: Pt) => [0, 1, 1, 0].map((b) => pose({ bob: b, handB: [hb[0], hb[1] + b], handF: [hf[0], hf[1] + b] }));
+const idleSet = (hb: Pt, hf: Pt, over = false) => [0, 1, 1, 0].map((b) => pose({ bob: b, handB: [hb[0], hb[1] + b], handF: [hf[0], hf[1] + b], over }));
 const WALK_LEG: [Pt, Pt, number][] = [
   [[-2, 0], [2, 0], 1],
   [[-1, -1], [1, 0], 0],
@@ -52,10 +57,11 @@ const WALK_LEG: [Pt, Pt, number][] = [
   [[0, 0], [0, -2], 0],
 ];
 // arms swing while walking; the weapon hand stays steady when it holds the weapon
-const walkSet = (hb: Pt, hf: Pt, armed: boolean) =>
+const walkSet = (hb: Pt, hf: Pt, armed: boolean, both = false) =>
   WALK_LEG.map(([b, f, bob], i) => {
     const swing = [2, 1, 0, -2, -1, 0][i];
-    return pose({ bob, legB: b, legF: f, handF: [hf[0] + (armed ? 0 : swing), hf[1] + bob], handB: [hb[0] - swing, hb[1] + bob], hem: i < 3 ? 1 : -1 });
+    // (both hands on a two-handed weapon: they move together, the back hand does not swing)
+    return pose({ bob, legB: b, legF: f, handF: [hf[0] + (armed ? 0 : swing), hf[1] + bob], handB: [hb[0] - (both ? 0 : swing), hb[1] + bob], hem: i < 3 ? 1 : -1, over: both });
   });
 
 const IDLE = idleSet(HB, HF);
@@ -64,6 +70,9 @@ const WALK = walkSet(HB, HF, false);
 const IDLE_A = idleSet(HBA, HFA);
 const BLINK_A = [pose({ eyes: 'closed', handB: HBA, handF: HFA })];
 const WALK_A = walkSet(HBA, HFA, true);
+const IDLE_2 = idleSet(HB2, HF2, true);
+const BLINK_2 = [pose({ eyes: 'closed', handB: HB2, handF: HF2, over: true })];
+const WALK_2 = walkSet(HB2, HF2, true, true);
 // idle fidgets (only without a weapon in hand)
 const SCRATCH = [
   pose({ handF: [26, 18], elbowF: [26, 21] }),
@@ -85,7 +94,7 @@ const STRETCH = [
 // reaching over the shoulder to draw or put away the weapon
 const REACH = [pose({ handB: HBA, handF: [25, 17], elbowF: [27, 21] }), pose({ handB: HBA, handF: [21, 10], elbowF: [27, 15], head: [1, 0] })];
 
-const SETS = { idle: IDLE, blink: BLINK, walk: WALK, idleA: IDLE_A, blinkA: BLINK_A, walkA: WALK_A, scratch: SCRATCH, look: LOOK, stretch: STRETCH, reach: REACH };
+const SETS = { idle: IDLE, blink: BLINK, walk: WALK, idleA: IDLE_A, blinkA: BLINK_A, walkA: WALK_A, scratch: SCRATCH, look: LOOK, stretch: STRETCH, reach: REACH, idle2: IDLE_2, blink2: BLINK_2, walk2: WALK_2 };
 type SetName = keyof typeof SETS;
 /** first frame of every animation in the strip (and the frame count) */
 export const HERO_FRAMES = {} as Record<SetName | 'count', number>;
@@ -243,8 +252,8 @@ function eyes(ctx: Ctx, P: Pal, cx: number, cy: number, mode: Pose['eyes']) {
     pupil = P.e,
     lid = shade(P.d, -0.35);
   for (const [ex, w] of [
-    [cx - 3, 2],
-    [cx + 2, 2],
+    [cx - 2, 2],
+    [cx + 3, 2],
   ] as [number, number][]) {
     if (mode === 'closed') {
       rect(ctx, ex, cy + 1, w, 1, lid);
@@ -266,23 +275,25 @@ function eyes(ctx: Ctx, P: Pal, cx: number, cy: number, mode: Pose['eyes']) {
 function face(ctx: Ctx, L: Look, p: Pose, cx: number, cy: number) {
   const P = L.pal;
   oval(ctx, cx, cy, 6.5, 6.5, P.s);
-  // shadow on the far side and under the chin, a touch of light on the brow
-  oval(ctx, cx - 4.5, cy + 0.5, 2.5, 5.5, P.d);
-  oval(ctx, cx - 3.6, cy, 2.2, 5, P.s);
+  // shadow on the far side and under the chin, a touch of light on the brow (the face is turned towards the
+  // weapon hand, so the far side shows more)
+  oval(ctx, cx - 4.5, cy + 0.5, 2.8, 5.8, P.d);
+  oval(ctx, cx - 3.2, cy, 2.2, 5, P.s);
   rect(ctx, cx - 3, cy + 6, 6, 1, P.d);
   px(ctx, cx + 3, cy - 4, shade(P.s, 0.25));
   // ear on the far side
   oval(ctx, cx - 6, cy + 1, 1.3, 1.8, P.d);
   eyes(ctx, P, Math.round(cx), Math.round(cy - 1), p.eyes);
   // nose and mouth
-  px(ctx, Math.round(cx + 4), Math.round(cy + 2), P.d);
+  px(ctx, Math.round(cx + 5), Math.round(cy + 2), P.d);
+  px(ctx, Math.round(cx + 4), Math.round(cy + 2), shade(P.s, -0.08));
   const my = Math.round(cy + 4);
   if (p.mouth === 'open') {
-    rect(ctx, Math.round(cx + 1), my - 1, 2, 2, '#5a2a2a');
+    rect(ctx, Math.round(cx + 2), my - 1, 2, 2, '#5a2a2a');
   } else if (p.mouth === 'smile') {
-    rect(ctx, Math.round(cx), my, 3, 1, '#8a4a3a');
-    px(ctx, Math.round(cx - 1), my - 1, '#8a4a3a');
-  } else rect(ctx, Math.round(cx), my, 3, 1, shade(P.d, -0.2));
+    rect(ctx, Math.round(cx + 1), my, 3, 1, '#8a4a3a');
+    px(ctx, Math.round(cx), my - 1, '#8a4a3a');
+  } else rect(ctx, Math.round(cx + 1), my, 3, 1, shade(P.d, -0.2));
 }
 
 // headgear drawn over the face; cx, cy = centre of the face
@@ -505,7 +516,7 @@ function drawHero(ctx: Ctx, L: Look, p: Pose) {
   const shoulderB: Pt = [10, 20 + p.bob],
     shoulderF: Pt = [22, 20 + p.bob];
   behind(ctx, L, p);
-  arm(ctx, L, shoulderB, p.handB, p.elbowB, true);
+  if (!p.over) arm(ctx, L, shoulderB, p.handB, p.elbowB, true);
   if (!L.robe) legs(ctx, L, p);
   else {
     // feet peeking out under the robe
@@ -523,6 +534,8 @@ function drawHero(ctx: Ctx, L: Look, p: Pose) {
   if (L.head !== 'hood' && L.head !== 'hoodMask') face(ctx, L, p, cx, cy);
   headgear(ctx, L, p, Math.round(cx), Math.round(cy));
   front(ctx, L, p);
+  // a two-handed grip: the back arm crosses in front of the body to the shaft
+  if (p.over) arm(ctx, L, shoulderB, p.handB, [shoulderB[0] + 3, shoulderB[1] + 6], true);
   arm(ctx, L, shoulderF, p.handF, p.elbowF, false);
 }
 

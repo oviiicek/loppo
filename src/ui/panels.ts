@@ -92,7 +92,7 @@ export class Panels {
       requestAnimationFrame(() => this.ui.root?.querySelectorAll<HTMLElement>('.headmats').forEach((b) => b.parentElement && this.fitHead(b.parentElement))),
     );
     // a panel drawn anew (a point added, an item upgraded) stays scrolled where it was
-    keepScrollOn(this, ['runes', 'gems', 'inventory', 'character', 'pets', 'merc', 'transmute', 'spells', 'merchant', 'forge', 'stash', 'classChange']);
+    keepScrollOn(this, ['runes', 'gems', 'inventory', 'character', 'pets', 'merc', 'transmute', 'spells', 'talentsView', 'merchant', 'forge', 'stash', 'classChange']);
   }
 
   private headSig = '';
