@@ -2573,6 +2573,278 @@ const WEAPON_DRAW: Record<string, [number, number, Drawer]> = {
       px(c, 2, 3, '#e3d4ff');
     },
   ],
+  // the newer kinds of weapons (a few for every class)
+  rapier: [
+    7,
+    18,
+    (c) => {
+      rect(c, 3, 1, 1, 11, STEEL);
+      rect(c, 4, 3, 1, 9, STEEL_D);
+      px(c, 3, 0, STEEL_H);
+      rect(c, 3, 2, 1, 4, STEEL_H);
+      // a swept guard curling round the hand
+      rect(c, 1, 12, 5, 1, GOLD);
+      px(c, 0, 11, GOLD);
+      px(c, 6, 11, GOLD);
+      rect(c, 2, 13, 3, 1, GOLD_D);
+      rect(c, 3, 14, 1, 3, WOOD_D);
+      px(c, 3, 17, GOLD);
+    },
+  ],
+  scimitar: [
+    8,
+    16,
+    (c) => {
+      poly(c, [3, 12, 3, 5, 4, 2, 7, 0, 7, 2, 6, 6, 5, 9, 5, 12], STEEL);
+      line(c, 4, 11, 4, 4, STEEL_H);
+      px(c, 5, 2, STEEL_H);
+      line(c, 5, 11, 6, 6, STEEL_D);
+      rect(c, 1, 12, 6, 1, GOLD);
+      px(c, 1, 11, GOLD_D);
+      rect(c, 4, 13, 1, 2, WOOD);
+      px(c, 4, 15, GOLD);
+    },
+  ],
+  flail: [
+    11,
+    16,
+    (c) => {
+      rect(c, 3, 8, 1, 8, WOOD);
+      px(c, 3, 15, WOOD_D);
+      rect(c, 2, 8, 3, 1, STEEL_D);
+      // the chain
+      px(c, 4, 7, STEEL_D);
+      px(c, 5, 6, STEEL);
+      px(c, 5, 5, STEEL_D);
+      // the spiked ball
+      circle(c, 7, 3, 2.4, STEEL_D);
+      circle(c, 7, 3, 1.5, STEEL);
+      px(c, 6, 2, STEEL_H);
+      px(c, 7, 0, STEEL);
+      px(c, 10, 3, STEEL);
+      px(c, 9, 0, STEEL_D);
+      px(c, 9, 6, STEEL_D);
+    },
+  ],
+  claws: [
+    7,
+    8,
+    (c) => {
+      for (const x of [1, 3, 5]) {
+        rect(c, x, 1, 1, 4, STEEL);
+        px(c, x + 1, 0, STEEL_H);
+      }
+      rect(c, 0, 5, 7, 3, '#5a3416');
+      rect(c, 0, 5, 7, 1, '#7a4a26');
+      px(c, 0, 7, STEEL_D);
+      px(c, 6, 7, STEEL_D);
+    },
+  ],
+  handcrossbow: [
+    10,
+    10,
+    (c) => {
+      rect(c, 4, 2, 2, 6, WOOD);
+      rect(c, 4, 2, 1, 6, '#a87a4a');
+      rect(c, 5, 7, 2, 3, WOOD_D);
+      c.strokeStyle = STEEL_D;
+      c.lineWidth = 1.4;
+      c.beginPath();
+      c.arc(5, 7, 4.5, -2.7, -0.45);
+      c.stroke();
+      line(c, 1, 5, 9, 5, '#e8e2cf');
+      rect(c, 4, 0, 1, 2, STEEL);
+    },
+  ],
+  throwknives: [
+    9,
+    11,
+    (c) => {
+      for (const x of [1, 5]) {
+        rect(c, x, 1, 2, 5, STEEL);
+        rect(c, x, 1, 1, 5, STEEL_H);
+        px(c, x, 0, STEEL_H);
+        rect(c, x - 1, 6, 4, 1, STEEL_D);
+        rect(c, x, 7, 2, 2, '#3b2a20');
+        px(c, x, 9, STEEL_D);
+        px(c, x + 1, 9, STEEL_D);
+        px(c, x, 10, STEEL_D);
+      }
+    },
+  ],
+  throwaxes: [
+    11,
+    12,
+    (c) => {
+      rect(c, 2, 2, 1, 10, WOOD);
+      poly(c, [3, 2, 6, 1, 6, 6, 3, 5], STEEL);
+      rect(c, 5, 1, 1, 5, STEEL_H);
+      rect(c, 7, 3, 1, 9, WOOD_D);
+      poly(c, [8, 3, 11, 2, 11, 7, 8, 6], STEEL);
+      rect(c, 10, 2, 1, 5, STEEL_H);
+    },
+  ],
+  scepter: [
+    7,
+    13,
+    (c) => {
+      rect(c, 3, 5, 1, 7, GOLD_D);
+      px(c, 3, 12, GOLD);
+      rect(c, 2, 4, 3, 1, GOLD);
+      rect(c, 1, 1, 5, 3, GOLD);
+      px(c, 1, 0, GOLD);
+      px(c, 3, 0, GOLD);
+      px(c, 5, 0, GOLD);
+      rect(c, 2, 2, 3, 1, '#fff3b0');
+      px(c, 3, 2, '#ffffff');
+      px(c, 2, 1, '#ffe9a0');
+    },
+  ],
+  stormstaff: [
+    8,
+    23,
+    (c) => {
+      rect(c, 3, 7, 1, 16, '#4a3a2a');
+      rect(c, 4, 7, 1, 16, WOOD_D);
+      // an iron fork holding a captive storm
+      line(c, 1, 1, 2, 6, STEEL_D);
+      line(c, 6, 1, 5, 6, STEEL_D);
+      rect(c, 2, 6, 4, 1, STEEL);
+      circle(c, 3.5, 3, 1.7, '#ffe45c');
+      px(c, 3, 2, '#ffffff');
+      px(c, 0, 0, '#fff7a0');
+      px(c, 7, 0, '#fff7a0');
+      px(c, 4, 10, '#fff7a0');
+      px(c, 3, 14, '#ffe45c');
+    },
+  ],
+  crook: [
+    8,
+    23,
+    (c) => {
+      rect(c, 3, 4, 1, 19, WOOD);
+      rect(c, 2, 4, 1, 3, WOOD_D);
+      // the hook curling over
+      px(c, 3, 3, WOOD);
+      px(c, 3, 2, WOOD);
+      px(c, 4, 1, WOOD);
+      px(c, 5, 1, WOOD);
+      px(c, 6, 2, WOOD);
+      px(c, 6, 3, WOOD);
+      px(c, 5, 4, WOOD_D);
+      px(c, 5, 3, '#7adf6b');
+      // leaves growing from the wood
+      px(c, 2, 8, '#4fd06b');
+      px(c, 1, 9, '#3a9a4a');
+      px(c, 4, 12, '#4fd06b');
+      px(c, 5, 11, '#3a9a4a');
+    },
+  ],
+  halberd: [
+    9,
+    28,
+    (c) => {
+      rect(c, 4, 6, 1, 22, WOOD);
+      px(c, 4, 27, WOOD_D);
+      rect(c, 4, 0, 1, 7, STEEL);
+      px(c, 4, 0, STEEL_H);
+      poly(c, [5, 3, 9, 2, 9, 9, 5, 7], STEEL);
+      rect(c, 8, 2, 1, 7, STEEL_H);
+      poly(c, [4, 4, 1, 3, 2, 6, 4, 6], STEEL_D);
+      rect(c, 3, 8, 3, 1, GOLD);
+    },
+  ],
+  scythe: [
+    14,
+    26,
+    (c) => {
+      rect(c, 10, 3, 1, 23, WOOD);
+      rect(c, 8, 14, 3, 1, WOOD_D);
+      px(c, 10, 25, WOOD_D);
+      // the long curved blade
+      poly(c, [11, 1, 6, 0, 2, 1, 0, 4, 3, 3, 7, 3, 11, 4], STEEL);
+      line(c, 3, 1, 9, 1, STEEL_H);
+      line(c, 2, 3, 7, 3, STEEL_D);
+      rect(c, 9, 4, 3, 1, GOLD_D);
+    },
+  ],
+  quarterstaff: [
+    6,
+    26,
+    (c) => {
+      rect(c, 2, 0, 2, 26, WOOD);
+      rect(c, 2, 0, 1, 26, '#a87a4a');
+      rect(c, 1, 0, 4, 2, STEEL_D);
+      rect(c, 1, 24, 4, 2, STEEL_D);
+      px(c, 2, 0, STEEL);
+      rect(c, 2, 11, 2, 4, '#e8d8a8');
+      px(c, 3, 12, '#b8a878');
+      px(c, 2, 14, '#b8a878');
+    },
+  ],
+  shortbow: [
+    7,
+    14,
+    (c) => {
+      c.strokeStyle = WOOD;
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(-3, 7, 9, -0.9, 0.9);
+      c.stroke();
+      line(c, 2, 1, 2, 13, '#e8e2cf');
+      rect(c, 4, 6, 2, 2, '#3b2a20');
+    },
+  ],
+  longbow: [
+    8,
+    24,
+    (c) => {
+      c.strokeStyle = '#a0703a';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(-7, 12, 14.5, -0.95, 0.95);
+      c.stroke();
+      line(c, 2, 1, 2, 23, '#e8e2cf');
+      rect(c, 5, 11, 2, 3, '#3b2a20');
+      px(c, 2, 0, '#e8e2cf');
+    },
+  ],
+  compoundbow: [
+    9,
+    18,
+    (c) => {
+      // limbs of metal, wheels at the tips and a dark riser
+      line(c, 6, 5, 4, 2, STEEL_D);
+      line(c, 7, 5, 5, 2, STEEL);
+      line(c, 6, 12, 4, 15, STEEL_D);
+      line(c, 7, 12, 5, 15, STEEL);
+      rect(c, 6, 5, 2, 8, '#3a3a44');
+      rect(c, 6, 8, 2, 2, '#3b2a20');
+      circle(c, 3.5, 1.5, 1.4, GOLD);
+      circle(c, 3.5, 16.5, 1.4, GOLD);
+      line(c, 2, 2, 2, 16, '#e8e2cf');
+      line(c, 3, 3, 3, 15, '#a8a290');
+    },
+  ],
+  repeater: [
+    13,
+    15,
+    (c) => {
+      rect(c, 5, 2, 3, 13, WOOD);
+      rect(c, 6, 2, 1, 13, '#a87a4a');
+      c.strokeStyle = STEEL_D;
+      c.lineWidth = 1.6;
+      c.beginPath();
+      c.arc(6.5, 9, 6, -2.6, -0.5);
+      c.stroke();
+      line(c, 1, 6, 12, 6, '#e8e2cf');
+      rect(c, 6, 0, 1, 3, STEEL);
+      // the magazine of bolts and its lever
+      rect(c, 4, 7, 5, 4, WOOD_D);
+      rect(c, 5, 8, 3, 2, '#a87a4a');
+      line(c, 9, 10, 12, 13, STEEL_D);
+    },
+  ],
 };
 
 /** a stairwell seen from above: a stone rim, steps narrowing into the depth (down) or rising to the light (up) */
@@ -2647,14 +2919,16 @@ function iconCanvas(draw: Drawer, doOutline = true) {
 }
 
 function buildIcons() {
-  // weapons as icons: centred & rotated 45° for long ones
-  const mk = (key: string, wkey: string, rot = true) => {
+  // weapons as icons: centred & rotated 45° for long ones; a big head (scythe, halberd) is drawn smaller and
+  // pushed into view (shift: along the weapon, in pixels of the weapon picture)
+  const mk = (key: string, wkey: string, rot = true, scale = 1, shift = 0) => {
     const src = canvases.get('wp_' + wkey)!;
     const [c, ctx] = canvas(24, 24);
     ctx.save();
     ctx.translate(12, 12);
     if (rot && src.height > 14) ctx.rotate(Math.PI / 4);
-    ctx.drawImage(src, -Math.floor(src.width / 2), -Math.floor(src.height / 2));
+    ctx.scale(scale, scale);
+    ctx.drawImage(src, -Math.floor(src.width / 2), -Math.floor(src.height / 2) + shift);
     ctx.restore();
     crisp(c, 100);
     addCanvas(key, c);
@@ -2674,6 +2948,24 @@ function buildIcons() {
   mk('ic_wand', 'wand', false);
   mk('ic_shield', 'shield', false);
   mk('ic_orb', 'orb', false);
+  mk('ic_rapier', 'rapier');
+  mk('ic_scimitar', 'scimitar');
+  mk('ic_flail', 'flail');
+  mk('ic_claws', 'claws', false);
+  mk('ic_handcrossbow', 'handcrossbow', false);
+  mk('ic_throwknives', 'throwknives', false);
+  mk('ic_throwaxes', 'throwaxes', false);
+  mk('ic_scepter', 'scepter', false);
+  mk('ic_stormstaff', 'stormstaff', true, 0.8, 8);
+  mk('ic_crook', 'crook', true, 0.8, 10);
+  mk('ic_halberd', 'halberd', true, 0.72, 14);
+  mk('ic_scythe', 'scythe', true, 0.62, 12);
+  mk('ic_quarterstaff', 'quarterstaff');
+  // the bows stand upright and whole, so each kind is told apart at a glance
+  mk('ic_shortbow', 'shortbow', false, 0.72);
+  mk('ic_longbow', 'longbow', false, 0.46);
+  mk('ic_compoundbow', 'compoundbow', false, 0.58);
+  mk('ic_repeater', 'repeater', false);
 
   addCanvas(
     'ic_helmet',
@@ -4146,8 +4438,9 @@ export function spellIcon(glyph: string, color: string, size = 40): string {
 // (rusty, iron, steel, rune, mithril, dragon, demonic, star)
 // ---------------------------------------------------------------------------
 export const TIER_TINTS = ['#b07a52', '#a7aeb6', '#e2e8ee', '#7fb8ff', '#c8f4ff', '#ff6a4a', '#b47cff', '#ffd86a'];
-const TIERED_ICONS = ['ic_sword', 'ic_greatsword', 'ic_dagger', 'ic_knuckle', 'ic_axe', 'ic_greataxe', 'ic_mace', 'ic_hammer', 'ic_spear', 'ic_bow', 'ic_crossbow', 'ic_staff', 'ic_wand', 'ic_shield', 'ic_orb', 'ic_helmet', 'ic_chest', 'ic_pants', 'ic_belt', 'ic_boots', 'ic_ring', 'ic_amulet', 'ic_bracer'];
-const TIERED_WEAPONS = ['sword', 'greatsword', 'dagger', 'knuckle', 'axe', 'greataxe', 'mace', 'hammer', 'spear', 'bow', 'crossbow', 'staff', 'wand', 'shield', 'orb'];
+const NEW_WEAPONS = ['rapier', 'scimitar', 'flail', 'claws', 'handcrossbow', 'throwknives', 'throwaxes', 'scepter', 'stormstaff', 'crook', 'halberd', 'scythe', 'quarterstaff', 'shortbow', 'longbow', 'compoundbow', 'repeater'];
+const TIERED_ICONS = ['ic_sword', 'ic_greatsword', 'ic_dagger', 'ic_knuckle', 'ic_axe', 'ic_greataxe', 'ic_mace', 'ic_hammer', 'ic_spear', 'ic_bow', 'ic_crossbow', 'ic_staff', 'ic_wand', 'ic_shield', 'ic_orb', 'ic_helmet', 'ic_chest', 'ic_pants', 'ic_belt', 'ic_boots', 'ic_ring', 'ic_amulet', 'ic_bracer', ...NEW_WEAPONS.map((w) => 'ic_' + w)];
+const TIERED_WEAPONS = ['sword', 'greatsword', 'dagger', 'knuckle', 'axe', 'greataxe', 'mace', 'hammer', 'spear', 'bow', 'crossbow', 'staff', 'wand', 'shield', 'orb', ...NEW_WEAPONS];
 
 function recolorMetal(src: HTMLCanvasElement, tint: string): HTMLCanvasElement {
   const [c, ctx] = canvas(src.width, src.height);

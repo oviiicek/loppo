@@ -218,6 +218,7 @@ export class Panels {
       const kind = base.attack === 'melee' ? 'na blízko' : base.attack === 'ranged' ? 'na dálku' : 'magická';
       h += `<div class="main">Poškození: <b>${a}–${b}</b></div><div class="main">Útoků za sekundu: ${base.aps?.toFixed(2).replace('.', ',')} • zbraň ${kind}</div>`;
       h += `<div class="hint">Dosah: ${base.attack === 'melee' ? 'krátký (' + Math.round(((base.range ?? 0) / 16) * 10) / 10 + ' pole)' : Math.round((base.range ?? 0) / 16) + ' polí'}</div>`;
+      if (base.trait) h += `<div class="trait">➤ ${esc(base.trait)}</div>`;
     }
     const st = itemStats(it);
     if (st.armor) h += `<div class="main">Brnění: <b>${st.armor}</b></div>`;

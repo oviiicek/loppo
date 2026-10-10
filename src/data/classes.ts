@@ -7,6 +7,8 @@ export interface ClassDef {
   style: string;
   weapon: string; // base id of starting weapon
   offhand?: string;
+  /** the weapons and off-hands that suit the class: drops favour them over the gear of other classes */
+  gear: string[];
   attrs: Partial<Record<AttrKey, number>>; // starting attribute bonus
   passive: string;
   passiveStats: Stats;
@@ -26,6 +28,7 @@ export const CLASSES: ClassDef[] = [
     style: 'Boj zblízka • tank',
     weapon: 'sword',
     offhand: 'shield',
+    gear: ['sword', 'greatsword', 'axe', 'mace', 'hammer', 'spear', 'rapier', 'flail', 'halberd', 'handcrossbow', 'shield'],
     attrs: { str: 5, vit: 5 },
     passive: '+15 % brnění, +10 % maximálních HP',
     passiveStats: { hpPct: 10 },
@@ -40,6 +43,7 @@ export const CLASSES: ClassDef[] = [
     style: 'Boj zblízka • kritické zásahy',
     weapon: 'dagger',
     offhand: 'dagger',
+    gear: ['dagger', 'sword', 'rapier', 'scimitar', 'claws', 'throwknives', 'handcrossbow', 'crossbow'],
     attrs: { dex: 6, spd: 2, vit: 2 },
     passive: '+8 % kritický zásah, +25 % kritické poškození, +5 % úhyb, +2 % vysávání života',
     passiveStats: { crit: 8, critDmg: 25, dodge: 5, lifesteal: 2 },
@@ -53,6 +57,7 @@ export const CLASSES: ClassDef[] = [
     desc: 'Mistr luku, který útočí z velké vzdálenosti. Pasti, šípy a zvířecí společníci.',
     style: 'Na dálku • fyzické poškození',
     weapon: 'bow',
+    gear: ['bow', 'shortbow', 'longbow', 'compoundbow', 'crossbow', 'repeater', 'handcrossbow', 'throwknives', 'dagger', 'scimitar'],
     attrs: { dex: 7, spd: 3 },
     passive: '+20 % dosah střelby, +10 % poškození na dálku',
     passiveStats: { range: 20 },
@@ -66,6 +71,7 @@ export const CLASSES: ClassDef[] = [
     desc: 'Vládce živlů. Ohnivé koule, led a blesky ničí nepřátele z dálky.',
     style: 'Kouzla • plošné poškození',
     weapon: 'staff',
+    gear: ['staff', 'stormstaff', 'crook', 'wand', 'scepter', 'orb'],
     attrs: { int: 7, ene: 3 },
     passive: '+15 % poškození kouzel, +20 maximální many',
     passiveStats: { spellDmg: 15, mp: 20 },
@@ -80,6 +86,7 @@ export const CLASSES: ClassDef[] = [
     style: 'Boj zblízka • léčení',
     weapon: 'mace',
     offhand: 'shield',
+    gear: ['mace', 'hammer', 'sword', 'flail', 'halberd', 'scepter', 'handcrossbow', 'shield'],
     attrs: { str: 4, vit: 3, int: 3 },
     passive: '+1 % HP/s regenerace, +10 % poškození kouzel',
     passiveStats: { spellDmg: 10, hpRegen: 1 },
@@ -94,6 +101,7 @@ export const CLASSES: ClassDef[] = [
     style: 'Vyvolávání • temná magie',
     weapon: 'wand',
     offhand: 'orb',
+    gear: ['wand', 'staff', 'scythe', 'scepter', 'stormstaff', 'dagger', 'orb'],
     attrs: { int: 6, ene: 4 },
     passive: 'Vyvolaní spojenci mají +30 % poškození a HP',
     passiveStats: { spellDmg: 5 },
@@ -108,6 +116,7 @@ export const CLASSES: ClassDef[] = [
     style: 'Boj zblízka • zuřivost',
     weapon: 'axe',
     offhand: 'axe',
+    gear: ['axe', 'greataxe', 'hammer', 'scimitar', 'flail', 'throwaxes', 'claws', 'halberd'],
     attrs: { str: 6, spd: 4 },
     passive: '+1 % poškození za každá 2 % chybějícího HP',
     passiveStats: { lifesteal: 2 },
@@ -121,6 +130,7 @@ export const CLASSES: ClassDef[] = [
     desc: 'Strážce přírody. Vyvolává vlky a medvědy, léčí se a ovládá bouře.',
     style: 'Vyvolávání • příroda',
     weapon: 'staff',
+    gear: ['staff', 'crook', 'stormstaff', 'claws', 'spear', 'quarterstaff', 'scythe'],
     attrs: { int: 5, vit: 5 },
     passive: '+1,5 HP/s regenerace, vyvolaní spojenci +20 % HP',
     passiveStats: { hpRegen: 1.5 },
@@ -135,6 +145,7 @@ export const CLASSES: ClassDef[] = [
     style: 'Boj zblízka • rychlost',
     weapon: 'knuckle',
     offhand: 'knuckle',
+    gear: ['knuckle', 'claws', 'quarterstaff', 'throwknives', 'spear', 'scimitar'],
     attrs: { dex: 5, spd: 3, vit: 2 },
     passive: '+8 % úhyb, +10 % rychlost pohybu',
     passiveStats: { dodge: 8, move: 10 },
@@ -149,6 +160,7 @@ export const CLASSES: ClassDef[] = [
     style: 'Kouzla • totemy',
     weapon: 'mace',
     offhand: 'orb',
+    gear: ['mace', 'flail', 'stormstaff', 'crook', 'scepter', 'staff', 'throwaxes', 'orb'],
     attrs: { int: 5, str: 2, ene: 3 },
     passive: '+20 % poškození blesky, totemy vydrží o 20 % déle',
     passiveStats: { spellDmg: 8 },

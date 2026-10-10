@@ -268,6 +268,7 @@ export class Menus {
       <div class="body scroll" style="display:block;font-size:18px;line-height:1.45">
         <p><b style="color:#ffd76a">Pohyb:</b> virtuální joystick vlevo dole (na PC klávesy WASD / šipky).</p>
         <p><b style="color:#ffd76a">Útok:</b> automatický. Když se přiblížíš k nepříteli na dosah své zbraně, postava sama útočí. Meč musí přijít blízko, luk a hůl střílí z dálky.</p>
+        <p><b style="color:#ffd76a">Zbraně:</b> 30 druhů a každá classa má své – kladkový luk střílí tři šípy najednou, opakovací kuše dávky, hromová hůl blesk, který přeskakuje, kosa seče skoro dokola. Zbraně tvé classy padají častěji. Co dělá zbraň jinak, píše její popis (➤).</p>
         <p><b style="color:#ffd76a">Kouzla:</b> 3 běžná kouzla, 1 ultimátní (velké tlačítko) a 1 univerzální (zelené). Na PC klávesy 1–4 a Q. Kouzla se odemykají s úrovní a zesiluješ je body kouzel.</p>
         <p><b style="color:#ffd76a">Postava a kouzla:</b> klepnutím na portrét vlevo nahoře otevřeš postavu (klávesa C), kniha kouzel vpravo nahoře otevře kouzla a talenty (klávesa K). Když čekají nevyužité body, jejich zlatý rámeček září.</p>
         <p><b style="color:#ffd76a">Lektvary:</b> červený obnoví zdraví, modrý manu (klávesy H / J).</p>

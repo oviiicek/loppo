@@ -51,6 +51,26 @@ export interface BaseType {
   block?: number;
   implicit?: Stats; // always-on bonus
   minLevel?: number;
+  /** projectiles fired at once in a fan (the compound bow's three arrows) */
+  shots?: number;
+  /** share of the weapon damage each of those projectiles deals */
+  shotDmg?: number;
+  /** projectiles fired one after another with every attack (the repeater's bolts) */
+  burst?: number;
+  /** foes a shot flies through before it stops */
+  pierce?: number;
+  /** foes a magic bolt jumps on to after the first hit */
+  chain?: number;
+  /** shots that turn after the nearest foe */
+  homing?: boolean;
+  /** what the weapon shoots (an arrow unless it says otherwise) */
+  proj?: string;
+  /** the blow is a thrust (rapier, halberd), not a swing */
+  thrust?: boolean;
+  /** a blow that throws foes back further */
+  knock?: number;
+  /** one line about what makes the weapon different (shown in its description) */
+  trait?: string;
 }
 
 export const BASES: BaseType[] = [
@@ -61,14 +81,31 @@ export const BASES: BaseType[] = [
   { id: 'dagger', noun: 'dýka', gender: 'f', cat: 'weapon1h', icon: 'ic_dagger', attack: 'melee', dmg: [4, 7], aps: 1.9, range: 24, arc: 80, implicit: { crit: 4 } },
   { id: 'knuckle', noun: 'kastet', gender: 'm', cat: 'weapon1h', icon: 'ic_knuckle', attack: 'melee', dmg: [3, 5], aps: 2.2, range: 22, arc: 80, implicit: { dodge: 2 } },
   { id: 'wand', noun: 'hůlka', gender: 'f', cat: 'weapon1h', icon: 'ic_wand', attack: 'magic', dmg: [4, 7], aps: 1.3, range: 110, implicit: { int: 2 } },
+  { id: 'rapier', noun: 'rapír', gender: 'm', cat: 'weapon1h', icon: 'ic_rapier', attack: 'melee', dmg: [4, 8], aps: 1.7, range: 34, arc: 50, thrust: true, implicit: { crit: 3, critDmg: 10 }, trait: 'Rychlé bodnutí s delším dosahem' },
+  { id: 'scimitar', noun: 'šavle', gender: 'f', cat: 'weapon1h', icon: 'ic_scimitar', attack: 'melee', dmg: [4, 8], aps: 1.6, range: 28, arc: 150, implicit: { dex: 2 }, trait: 'Široký rychlý sek' },
+  { id: 'flail', noun: 'řemdih', gender: 'm', cat: 'weapon1h', icon: 'ic_flail', attack: 'melee', dmg: [8, 14], aps: 0.95, range: 32, arc: 110, knock: 2.2, implicit: { critDmg: 15 }, trait: 'Těžká rána odhodí nepřátele' },
+  { id: 'claws', noun: 'drápy', gender: 'p', cat: 'weapon1h', icon: 'ic_claws', attack: 'melee', dmg: [3, 5], aps: 2.4, range: 22, arc: 90, implicit: { lifesteal: 1 }, trait: 'Nejrychlejší údery ze všech zbraní' },
+  { id: 'handcrossbow', noun: 'ruční kuše', gender: 'f', cat: 'weapon1h', icon: 'ic_handcrossbow', attack: 'ranged', dmg: [4, 7], aps: 1.45, range: 115, implicit: { crit: 2 }, trait: 'Střelba jednou rukou – jde nosit se štítem' },
+  { id: 'throwknives', noun: 'vrhací nože', gender: 'p', cat: 'weapon1h', icon: 'ic_throwknives', attack: 'ranged', dmg: [4, 7], aps: 1.5, range: 105, shots: 2, shotDmg: 0.6, proj: 'pr_knife', implicit: { crit: 3 }, trait: 'Hází dva nože najednou (každý 60 % poškození)' },
+  { id: 'throwaxes', noun: 'vrhací sekery', gender: 'p', cat: 'weapon1h', icon: 'ic_throwaxes', attack: 'ranged', dmg: [6, 10], aps: 1.05, range: 100, pierce: 1, proj: 'pr_axe', implicit: { critDmg: 10 }, trait: 'Sekera proletí prvním nepřítelem' },
+  { id: 'scepter', noun: 'žezlo', gender: 'n', cat: 'weapon1h', icon: 'ic_scepter', attack: 'magic', dmg: [4, 7], aps: 1.25, range: 110, homing: true, proj: 'pr_holy', implicit: { int: 2, armor: 3 }, trait: 'Svaté střely samy hledají cíl' },
   // two-handed weapons
   { id: 'greatsword', noun: 'obouruční meč', gender: 'm', cat: 'weapon2h', icon: 'ic_greatsword', attack: 'melee', dmg: [13, 20], aps: 1.0, range: 36, arc: 150 },
   { id: 'greataxe', noun: 'válečná sekera', gender: 'f', cat: 'weapon2h', icon: 'ic_greataxe', attack: 'melee', dmg: [15, 23], aps: 0.9, range: 34, arc: 150 },
   { id: 'hammer', noun: 'válečné kladivo', gender: 'n', cat: 'weapon2h', icon: 'ic_hammer', attack: 'melee', dmg: [17, 26], aps: 0.8, range: 32, arc: 130, implicit: { armor: 8 } },
-  { id: 'spear', noun: 'kopí', gender: 'n', cat: 'weapon2h', icon: 'ic_spear', attack: 'melee', dmg: [10, 16], aps: 1.1, range: 46, arc: 40 },
+  { id: 'spear', noun: 'kopí', gender: 'n', cat: 'weapon2h', icon: 'ic_spear', attack: 'melee', dmg: [10, 16], aps: 1.1, range: 46, arc: 40, thrust: true },
   { id: 'bow', noun: 'luk', gender: 'm', cat: 'weapon2h', icon: 'ic_bow', attack: 'ranged', dmg: [7, 12], aps: 1.25, range: 140 },
-  { id: 'crossbow', noun: 'kuše', gender: 'f', cat: 'weapon2h', icon: 'ic_crossbow', attack: 'ranged', dmg: [12, 19], aps: 0.8, range: 150, implicit: { crit: 5 } },
+  { id: 'crossbow', noun: 'kuše', gender: 'f', cat: 'weapon2h', icon: 'ic_crossbow', attack: 'ranged', dmg: [12, 19], aps: 0.8, range: 150, pierce: 1, implicit: { crit: 5 }, trait: 'Šipka proletí prvním nepřítelem' },
   { id: 'staff', noun: 'hůl', gender: 'f', cat: 'weapon2h', icon: 'ic_staff', attack: 'magic', dmg: [9, 15], aps: 1.0, range: 120, implicit: { int: 4, mp: 15 } },
+  { id: 'halberd', noun: 'halapartna', gender: 'f', cat: 'weapon2h', icon: 'ic_halberd', attack: 'melee', dmg: [13, 21], aps: 0.85, range: 44, arc: 100, implicit: { armor: 5 }, trait: 'Dlouhý dosah a široký sek' },
+  { id: 'scythe', noun: 'kosa', gender: 'f', cat: 'weapon2h', icon: 'ic_scythe', attack: 'melee', dmg: [11, 18], aps: 0.95, range: 38, arc: 220, implicit: { lifesteal: 1 }, trait: 'Seče skoro dokola' },
+  { id: 'quarterstaff', noun: 'bojová tyč', gender: 'f', cat: 'weapon2h', icon: 'ic_quarterstaff', attack: 'melee', dmg: [8, 13], aps: 1.35, range: 36, arc: 160, implicit: { dodge: 3 }, trait: 'Rychlé široké údery a úhyb' },
+  { id: 'shortbow', noun: 'krátký luk', gender: 'm', cat: 'weapon2h', icon: 'ic_shortbow', attack: 'ranged', dmg: [5, 9], aps: 1.65, range: 115, implicit: { move: 3 }, trait: 'Rychlá střelba na kratší vzdálenost' },
+  { id: 'longbow', noun: 'dlouhý luk', gender: 'm', cat: 'weapon2h', icon: 'ic_longbow', attack: 'ranged', dmg: [10, 17], aps: 0.95, range: 180, pierce: 1, trait: 'Největší dostřel, šíp proletí prvním nepřítelem' },
+  { id: 'compoundbow', noun: 'kladkový luk', gender: 'm', cat: 'weapon2h', icon: 'ic_compoundbow', attack: 'ranged', dmg: [7, 12], aps: 1.1, range: 150, shots: 3, shotDmg: 0.5, trait: 'Střílí tři šípy najednou (každý 50 % poškození)' },
+  { id: 'repeater', noun: 'opakovací kuše', gender: 'f', cat: 'weapon2h', icon: 'ic_repeater', attack: 'ranged', dmg: [8, 13], aps: 0.75, range: 140, burst: 3, shotDmg: 0.5, implicit: { crit: 3 }, trait: 'Vystřelí dávku tří šipek (každá 50 % poškození)' },
+  { id: 'stormstaff', noun: 'hromová hůl', gender: 'f', cat: 'weapon2h', icon: 'ic_stormstaff', attack: 'magic', dmg: [8, 13], aps: 0.95, range: 125, chain: 2, proj: 'pr_bolt', implicit: { int: 4 }, trait: 'Blesk přeskočí na další dva nepřátele' },
+  { id: 'crook', noun: 'berla', gender: 'f', cat: 'weapon2h', icon: 'ic_crook', attack: 'magic', dmg: [8, 13], aps: 0.95, range: 115, shots: 3, shotDmg: 0.45, proj: 'pr_thorn', implicit: { int: 3, hpRegen: 1 }, trait: 'Vrhá tři trny najednou (každý 45 % poškození)' },
   // off-hand
   { id: 'shield', noun: 'štít', gender: 'm', cat: 'shield', icon: 'ic_shield', armor: 10, block: 12 },
   { id: 'orb', noun: 'magická koule', gender: 'f', cat: 'offhand', icon: 'ic_orb', implicit: { int: 3, mp: 20, spellDmg: 5 } },
@@ -291,10 +328,17 @@ export function rollRarity(r: RNG, magicFind = 0, bonus = 0): number {
   return Math.min(PRIMAL, bonus);
 }
 
+export const isWeaponBase = (b: BaseType) => b.cat === 'weapon1h' || b.cat === 'weapon2h';
+const BOWS = new Set(['bow', 'shortbow', 'longbow', 'compoundbow']);
+/** a bow is held across the line of the shot (the other ranged weapons point along it) */
+export const isBow = (id: string) => BOWS.has(id);
+// all the kinds of weapons together are found as often as the first thirteen were, however many kinds there are
+const WEAPON_WEIGHT = 14.3 / BASES.filter(isWeaponBase).length;
+
 export function pickBase(r: RNG, filter?: (b: BaseType) => boolean): BaseType {
   let pool = BASES.filter((b) => !filter || filter(b));
   if (!pool.length) pool = BASES;
-  return r.weighted(pool, (b) => (b.cat === 'weapon1h' || b.cat === 'weapon2h' ? 1.1 : b.cat === 'ring' ? 1.2 : 1));
+  return r.weighted(pool, (b) => (isWeaponBase(b) ? WEAPON_WEIGHT : b.cat === 'ring' ? 1.2 : 1));
 }
 
 function buildName(base: BaseType, rarity: number, ilvl: number, affixes: Affix[], r: RNG): string {

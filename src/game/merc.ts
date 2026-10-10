@@ -9,7 +9,7 @@ import { D, EL_COLOR } from './fx';
 import { ACTOR_SCALE, WEAPON_SCALE } from '../gfx/textures';
 import { heroHand, heroHandB } from '../gfx/heroes';
 import { MercState, MercDef, MERC_BY_ROLE, mercStats, MercStats, mercLook } from '../data/mercs';
-import { BASE_BY_ID, itemTier } from '../data/items';
+import { BASE_BY_ID, itemTier, isBow } from '../data/items';
 import { sfx } from '../systems/audio';
 
 const DOWN_TIME = 35;
@@ -524,7 +524,7 @@ export class Mercenary extends Actor {
         oy = 0.85;
       if (kind === 'ranged') {
         const a = this.target ? this.aim : f > 0 ? 0 : Math.PI;
-        rot = base === 'crossbow' ? a + Math.PI / 2 : a;
+        rot = isBow(base) ? a : a + Math.PI / 2;
         ox = 0.3;
         oy = 0.5;
         x = this.x + Math.cos(a) * 4;

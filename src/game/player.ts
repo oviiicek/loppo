@@ -4,7 +4,7 @@ import { Actor, Enemy } from './entities';
 import { D, EL_COLOR } from './fx';
 import { SaveData, derive, Derived, LEECH_CAP } from '../systems/state';
 import { BuffMods } from '../data/spells';
-import { BASE_BY_ID, itemTier } from '../data/items';
+import { BASE_BY_ID, itemTier, isBow } from '../data/items';
 import { bus } from '../systems/events';
 import { sfx } from '../systems/audio';
 import { ACTOR_SCALE, WEAPON_SCALE } from '../gfx/textures';
@@ -23,7 +23,8 @@ export interface Buff {
   glyph?: string;
 }
 
-const MAGIC_COLORS: Record<string, string> = { staff: 'pr_magic', wand: 'pr_magic' };
+/** the colour of the little burst where a shot of each kind hits */
+const SHOT_FX: Record<string, number> = { pr_magic: 0xc77dff, pr_holy: 0xffe45c, pr_bolt: 0xfff27a, pr_thorn: 0x7adf6b, pr_knife: 0xffffff, pr_axe: 0xffffff, pr_arrow: 0xffffff };
 
 /** where a put-away weapon sits (offset from the feet anchor and rotation when facing right; mirrored for the left) */
 interface Sheath {
@@ -47,21 +48,45 @@ const SHEATH: Record<string, Sheath> = {
   hammer: { dx: -2, dy: -1, rot: -0.35 },
   mace: { dx: -3, dy: -2, rot: -0.35 },
   spear: { dx: -2, dy: 1, rot: -0.3 },
+  halberd: { dx: -2, dy: 1, rot: -0.3 },
+  scythe: { dx: -2, dy: 0, rot: -0.35 },
+  quarterstaff: { dx: -3, dy: 0, rot: -0.45 },
   staff: { dx: -3, dy: 0, rot: -0.25 },
+  stormstaff: { dx: -3, dy: 0, rot: -0.25 },
+  crook: { dx: -3, dy: 0, rot: -0.25 },
   bow: { dx: -5, dy: -8, rot: -0.5, ox: 0.5, oy: 0.5 },
+  shortbow: { dx: -5, dy: -8, rot: -0.5, ox: 0.5, oy: 0.5 },
+  longbow: { dx: -5, dy: -9, rot: -0.45, ox: 0.5, oy: 0.5 },
+  compoundbow: { dx: -5, dy: -8, rot: -0.5, ox: 0.5, oy: 0.5 },
   crossbow: { dx: -4, dy: -8, rot: -0.8, ox: 0.5, oy: 0.5 },
+  repeater: { dx: -4, dy: -8, rot: -0.8, ox: 0.5, oy: 0.5 },
+  rapier: { dx: -5, dy: -14, rot: PI + 0.3 },
+  scimitar: { dx: -5, dy: -13, rot: PI + 0.35 },
+  flail: { dx: -3, dy: -2, rot: -0.35 },
+  throwaxes: { dx: -3, dy: -2, rot: -0.35 },
   // short weapons at the belt (the shield hangs on the back under the weapon)
   dagger: { dx: -2, dy: -5, rot: PI + 0.7 },
+  throwknives: { dx: -2, dy: -5, rot: PI + 0.7 },
+  handcrossbow: { dx: -3, dy: -3, rot: -0.6, ox: 0.5, oy: 0.5 },
   wand: { dx: -3, dy: -1, rot: -0.5 },
+  scepter: { dx: -3, dy: -1, rot: -0.5 },
   knuckle: { dx: 5, dy: -2, rot: 0.5, alpha: 0 },
+  claws: { dx: 5, dy: -2, rot: 0.5, alpha: 0 },
   shield: { dx: -6, dy: -8, rot: 0.1, ox: 0.5, oy: 0.5, depth: -0.7 },
   orb: { dx: -5, dy: -8, rot: 0, ox: 0.5, oy: 0.5, alpha: 0 },
 };
 // the second weapon of a pair crosses the first one
 const SHEATH_OFF: Record<string, Sheath> = {
   dagger: { dx: -1, dy: -5, rot: PI + 0.4, depth: -0.5 },
+  throwknives: { dx: -1, dy: -5, rot: PI + 0.4, depth: -0.5 },
   axe: { dx: -5, dy: -2, rot: 0.45, depth: -0.5 },
+  throwaxes: { dx: -5, dy: -2, rot: 0.45, depth: -0.5 },
+  flail: { dx: -5, dy: -2, rot: 0.45, depth: -0.5 },
+  rapier: { dx: -3, dy: -14, rot: PI - 0.3, depth: -0.5 },
+  scimitar: { dx: -3, dy: -13, rot: PI - 0.35, depth: -0.5 },
+  handcrossbow: { dx: 3, dy: -3, rot: 0.6, ox: 0.5, oy: 0.5, depth: -0.5 },
   knuckle: { dx: -5, dy: -2, rot: -0.5, alpha: 0 },
+  claws: { dx: -5, dy: -2, rot: -0.5, alpha: 0 },
 };
 const FIDGETS = ['_scratch', '_look', '_stretch'];
 
@@ -650,6 +675,7 @@ export class Player extends Actor {
       sfx('swing');
       const arc = (this.d.arc * Math.PI) / 180;
       const range = this.d.range;
+      const knock = 60 * (base?.knock ?? 1);
       sc.time.delayedCall(70, () => {
         if (this.dead) return;
         sc.fx.slash(this.x + Math.cos(this.aim) * 6, this.y - 5 + Math.sin(this.aim) * 6, this.aim, range * 0.6, 0xffffff, this.d.arc);
@@ -662,29 +688,33 @@ export class Player extends Actor {
           if (dist > range + e.r * e.baseScale + 4) continue;
           const ang = Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(ey, ex) - this.aim));
           if (ang > arc / 2 + 0.2 && dist > 10) continue;
-          sc.combat.attackHit(e, Math.cos(this.aim) * 60, Math.sin(this.aim) * 60);
+          sc.combat.attackHit(e, Math.cos(this.aim) * knock, Math.sin(this.aim) * knock);
           hits++;
         }
         if (hits) sfx('hit');
       });
-    } else if (kind === 'ranged') {
-      sfx('bow');
-      const n = 1 + (this.d.specials.has('extraProjectile') ? 1 : 0);
-      for (let i = 0; i < n; i++) {
-        const a = this.aim + (i - (n - 1) / 2) * 0.12;
-        const [sx, sy] = this.shotOrigin(t, a, 6);
-        sc.spawnPlayerAttackProjectile(sx, sy, a, base?.id === 'crossbow' ? 'pr_arrow' : 'pr_arrow', base?.id === 'crossbow' ? 1 : 0);
-      }
     } else {
-      sfx('magic');
-      const n = 1 + (this.d.specials.has('extraProjectile') ? 1 : 0);
-      const spr = MAGIC_COLORS[base?.id ?? 'staff'] ?? 'pr_magic';
-      for (let i = 0; i < n; i++) {
-        const a = this.aim + (i - (n - 1) / 2) * 0.15;
-        const [sx, sy] = this.shotOrigin(t, a, 8);
-        sc.spawnPlayerAttackProjectile(sx, sy, a, spr, 0);
-      }
-      sc.fx.burst(this.x + Math.cos(this.aim) * 8, this.y - 10, 0xc77dff, 4);
+      // shots: a fan of several at once (compound bow, throwing knives, the crook), a burst one after
+      // another (repeater), shots that fly through foes, bolts that jump on, holy shots that seek
+      const magic = kind === 'magic';
+      const n = (base?.shots ?? 1) + (this.d.specials.has('extraProjectile') ? 1 : 0);
+      const mult = base && (base.shots || base.burst) ? (base.shotDmg ?? 1) : 1;
+      const spread = magic ? 0.15 : base?.shots ? 0.1 : 0.12;
+      const spr = base?.proj ?? (magic ? 'pr_magic' : 'pr_arrow');
+      const opts = { mult, chain: base?.chain ?? 0, homing: !!base?.homing, fx: SHOT_FX[spr] ?? 0xffffff };
+      const volley = () => {
+        const tt = !t.dead ? t : this.target && !this.target.dead ? this.target : null;
+        if (!tt) return;
+        sfx(magic ? 'magic' : 'bow');
+        for (let i = 0; i < n; i++) {
+          const a = this.aim + (i - (n - 1) / 2) * spread;
+          const [sx, sy] = this.shotOrigin(tt, a, magic ? 8 : 6);
+          sc.spawnPlayerAttackProjectile(sx, sy, a, spr, base?.pierce ?? 0, opts);
+        }
+        if (magic) sc.fx.burst(this.x + Math.cos(this.aim) * 8, this.y - 10, opts.fx === 0xffffff ? 0xc77dff : opts.fx, 4);
+      };
+      volley();
+      for (let k = 1; k < (base?.burst ?? 1); k++) sc.time.delayedCall(k * 110, () => !this.dead && volley());
     }
   }
 
@@ -713,7 +743,8 @@ export class Player extends Actor {
       const p: Placement = { x: hx, y: hy + 2, rot: 0, ox: 0.5, oy: 0.85, depth: depth + (f > 0 ? 0.5 : -0.5) + (this.swinging > 0 ? 1 : 0) };
       if (kind === 'ranged') {
         const a = this.target ? this.aim : f > 0 ? 0 : Math.PI;
-        p.rot = baseKey === 'crossbow' ? a + Math.PI / 2 : a;
+        // a bow is held across the line of the shot, a crossbow or a throwing weapon points along it
+        p.rot = isBow(baseKey) ? a : a + Math.PI / 2;
         p.ox = 0.3;
         p.oy = 0.5;
         p.x = this.x + Math.cos(a) * 4;
@@ -733,7 +764,7 @@ export class Player extends Actor {
           p.x = this.x + Math.cos(this.aim) * 2;
           p.y = this.y - 5 + Math.sin(this.aim) * 2;
         } else p.rot = 0.5 * f;
-        if (baseKey === 'spear' && this.swinging > 0 && this.swingHand === 0) {
+        if (BASE_BY_ID[baseKey]?.thrust && this.swinging > 0 && this.swingHand === 0) {
           p.rot = this.aim + Math.PI / 2;
           const thrust = Math.sin(swingP * Math.PI) * 10;
           p.x = this.x + Math.cos(this.aim) * (2 + thrust);

@@ -4,6 +4,7 @@ import { Enemy } from './entities';
 import { D } from './fx';
 import { Item, Slot } from '../data/types';
 import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded, itemValue, PRIMAL } from '../data/items';
+import { CLASS_BY_ID } from '../data/classes';
 import { SET_MIN_FLOOR } from '../data/sets';
 import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData, addGem, addRune, addSpellRune } from '../systems/state';
 import { gemIcon, gemName, parseGem, randomGem } from '../data/gems';
@@ -14,6 +15,13 @@ import { sfx, settings, LootRule } from '../systems/audio';
 import { bus } from '../systems/events';
 import { iconURL } from '../gfx/textures';
 import { bandLootBonus } from '../data/bands';
+
+/** the weapon kinds that suit the hero's class (and the second class) */
+export function classGear(s: SaveData): Set<string> {
+  const g = new Set(CLASS_BY_ID[s.cls]?.gear ?? []);
+  if (s.multi) for (const id of CLASS_BY_ID[s.multi]?.gear ?? []) g.add(id);
+  return g;
+}
 
 export type MatKey = keyof Materials;
 
@@ -67,13 +75,17 @@ export class Loot {
     return (1 + p.d.gold / 100 + (p.d.specials.has('goldRush') ? 0.6 : 0) + sc.shrineBuffs.reduce((a, b) => a + (b.mf ?? 0) / 100, 0) + (sc.mod?.gold ?? 0)) * sc.diff.gold * (p.d.specials.has('midas') ? 3 : 1);
   }
 
-  // "smart loot": some drops favour the weapon type / slots the player actually uses
+  // "smart loot": some drops favour the gear of the hero's class, the kind of weapon in hand and empty slots
   bias(): ((b: BaseType) => boolean) | undefined {
     const p = this.scene.player;
     const main = p.save.equip.main ? BASE_BY_ID[p.save.equip.main.base] : null;
     const r = Math.random();
-    if (main && r < 0.3) return (b) => !!b.attack && b.attack === main.attack;
-    if (r < 0.45) {
+    if (r < 0.3) {
+      const own = classGear(p.save);
+      return (b) => own.has(b.id);
+    }
+    if (main && r < 0.4) return (b) => !!b.attack && b.attack === main.attack;
+    if (r < 0.55) {
       // an empty equipment slot gets priority
       const empty = (['helmet', 'chest', 'pants', 'belt', 'boots', 'amulet', 'bracer'] as const).filter((sl) => !p.save.equip[sl]);
       if (!p.save.equip.ring1 || !p.save.equip.ring2) (empty as string[]).push('ring');

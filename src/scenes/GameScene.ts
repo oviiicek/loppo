@@ -2023,23 +2023,32 @@ export class GameScene extends Phaser.Scene {
     this.projectiles.push(new Projectile(this, { x, y, angle, speed: 220, sprite, dmg, el, owner: 'player', fromAlly: true, range: 180 }));
   }
 
-  spawnPlayerAttackProjectile(x: number, y: number, angle: number, sprite: string, pierce: number) {
+  /** a shot of the hero's weapon; mult = the share of the weapon damage it deals (one of several shots),
+   *  chain = foes a bolt jumps on to, homing = it turns after the nearest foe */
+  spawnPlayerAttackProjectile(x: number, y: number, angle: number, sprite: string, pierce: number, o: { mult?: number; chain?: number; homing?: boolean; fx?: number } = {}) {
     const p = this.player;
-    const dmg = p.d.dmgMin + Math.random() * (p.d.dmgMax - p.d.dmgMin);
-    const proj = new Projectile(this, { x, y, angle, speed: p.d.attack === 'ranged' ? 330 : 250, sprite, dmg, el: p.d.attack === 'magic' ? 'shadow' : 'phys', owner: 'player', pierce, range: p.d.range + 40, isAttack: true });
+    const mult = o.mult ?? 1;
+    const dmg = (p.d.dmgMin + Math.random() * (p.d.dmgMax - p.d.dmgMin)) * mult;
+    const proj = new Projectile(this, { x, y, angle, speed: p.d.attack === 'ranged' ? 330 : 250, sprite, dmg, el: p.d.attack === 'magic' ? 'shadow' : 'phys', owner: 'player', pierce, range: p.d.range + 40, isAttack: true, homing: o.homing });
     // basic attack projectiles use attackHit for on-hit effects
     const orig = proj.hitEnemy.bind(proj);
     let bounces = p.d.specials.has('ricochet') ? 2 : 0;
     let split = p.d.specials.has('splitShot');
+    let chained = false;
     proj.hitEnemy = (e: Enemy) => {
-      this.combat.attackHit(e, proj.vx, proj.vy);
-      this.fx.burst(proj.x, proj.y, p.d.attack === 'magic' ? 0xc77dff : 0xffffff, 4);
+      this.combat.attackHit(e, proj.vx, proj.vy, mult);
+      this.fx.burst(proj.x, proj.y, o.fx ?? (p.d.attack === 'magic' ? 0xc77dff : 0xffffff), 4);
+      // a storm bolt jumps on to the next foes (once per shot)
+      if (o.chain && !chained) {
+        chained = true;
+        this.spells.chain(e.x, e.y, o.chain, p.weaponHit() * 0.6 * mult, 'lightning', new Set([e.id]));
+      }
       // splitShot: the first hit breaks the shot into three
       if (split) {
         split = false;
         const a0 = Math.atan2(proj.vy, proj.vx);
         for (const da of [-0.5, 0.5]) {
-          const sp = new Projectile(this, { x: proj.x, y: proj.y, angle: a0 + da, speed: 300, sprite, dmg: p.weaponHit() * 0.5, el: 'phys', owner: 'player', range: 110 });
+          const sp = new Projectile(this, { x: proj.x, y: proj.y, angle: a0 + da, speed: 300, sprite, dmg: p.weaponHit() * 0.5 * mult, el: 'phys', owner: 'player', range: 110 });
           sp.hitIds.add(e.id);
           this.projectiles.push(sp);
         }

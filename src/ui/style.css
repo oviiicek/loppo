@@ -1628,6 +1628,12 @@ img.px {
   color: #d08aff;
   margin: 2px 0;
 }
+/* what makes a kind of weapon different (three arrows at once, a bolt that jumps on ...) */
+.trait {
+  font-size: 17px;
+  color: #9fe0c8;
+  margin: 2px 0 3px;
+}
 .detail .cmp {
   font-size: 17px;
   margin-top: 6px;
@@ -1810,6 +1816,7 @@ img.px {
 .istats.small .aff,
 .istats.small .spec,
 .istats.small .ench,
+.istats.small .trait,
 .istats.small .hint {
   font-size: 15px;
 }

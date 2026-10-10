@@ -48,29 +48,30 @@ export class Combat {
   }
 
   // Player basic attack hitting an enemy (applies weapon damage + on-hit effects)
-  attackHit(e: Enemy, kx = 0, ky = 0) {
+  /** a blow or shot of the hero's weapon; mult = its share of the damage (one of several shots at once) */
+  attackHit(e: Enemy, kx = 0, ky = 0, mult = 1) {
     const p = this.scene.player;
     const d = p.d;
-    const dmg = d.dmgMin + Math.random() * (d.dmgMax - d.dmgMin);
+    const dmg = (d.dmgMin + Math.random() * (d.dmgMax - d.dmgMin)) * mult;
     this.damageEnemy(e, dmg, { el: 'phys', isAttack: true, kx, ky });
     // elemental flat damage
     const el = d.elem;
     if (el.fire > 0) {
       e.st.burnT = 3;
-      e.st.burnDps = Math.max(e.st.burnDps, el.fire * 0.6);
-      this.damageEnemy(e, el.fire, { el: 'fire', silent: true, noCrit: true });
+      e.st.burnDps = Math.max(e.st.burnDps, el.fire * 0.6 * mult);
+      this.damageEnemy(e, el.fire * mult, { el: 'fire', silent: true, noCrit: true });
     }
     if (el.ice > 0) {
-      this.damageEnemy(e, el.ice, { el: 'ice', silent: true, noCrit: true });
+      this.damageEnemy(e, el.ice * mult, { el: 'ice', silent: true, noCrit: true });
       if (Math.random() < 0.25) {
         e.st.slowT = 2;
         e.st.slowMult = 0.6;
       }
     }
-    if (el.lightning > 0) this.damageEnemy(e, el.lightning * (0.5 + Math.random() * 1.0), { el: 'lightning', silent: true, noCrit: true });
+    if (el.lightning > 0) this.damageEnemy(e, el.lightning * mult * (0.5 + Math.random() * 1.0), { el: 'lightning', silent: true, noCrit: true });
     if (el.poison > 0) {
       e.st.poisonT = 4;
-      e.st.poisonDps = Math.max(e.st.poisonDps, el.poison * 0.8);
+      e.st.poisonDps = Math.max(e.st.poisonDps, el.poison * 0.8 * mult);
     }
   }
 

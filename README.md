@@ -154,10 +154,12 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
 
 ### Boj
 - Automatický útok podle zbraně:
-  - meč, sekera a palcát útočí obloukem na blízko,
-  - kopí bodá na delší vzdálenost,
-  - luk a kuše střílí šípy,
-  - hůl a hůlka vystřelují magické střely.
+  - meč, sekera, palcát, šavle, řemdih (odhazuje nepřátele) a kosa (seče skoro dokola) útočí obloukem na blízko, drápy a kastety nejrychleji,
+  - kopí, halapartna a rapír bodají na delší vzdálenost, bojová tyč dává úhyb,
+  - luky a kuše střílí šípy: krátký luk rychle, dlouhý luk nejdál a skrz prvního nepřítele, **kladkový luk tři šípy najednou**, opakovací kuše dávku tří šipek; ruční kuše, vrhací nože (dva naráz) a vrhací sekery jsou jednoruční, takže jdou nosit se štítem,
+  - hůl a hůlka vystřelují magické střely, hromová hůl blesk, který přeskočí na další dva nepřátele, berla tři trny najednou a žezlo svaté střely, které samy hledají cíl.
+- **Každá classa má své zbraně** (30 druhů zbraní, nové se dají najít jen v podzemí). Zbraně, které se k classe hodí, padají častěji než zbraně cizích class; multiclass přidá i zbraně druhé classy.
+- Když kladkový luk dostane schopnost rozštěpení šípu, každý ze tří šípů se po zásahu rozletí na další.
 - Útoky jsou vidět: zbraň se máchá nebo míří a šípy letí.
 - Dvě jednoruční zbraně se střídají v útoku a dávají +15 % rychlosti útoku.
 - Kritické zásahy, úhyb, blok štítem, brnění, vysávání života a many, trny a elementální poškození (oheň, mráz, blesk, jed).
@@ -193,7 +195,7 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
   - mýtická,
   - **pradávná** (krvavě rudá, nejvzácnější – jen z velkého štěstí nebo transmutace).
 
-  Legendární a lepší předměty jsou **unikáty** s vlastním jménem a vlastní mechanikou (61 unikátů, 30 schopností): luk, jehož šípy se odrážejí, meč, který z poražených vyvolá stíny, prsten, který jednou za minutu zachrání před smrtí, meteor při kritickém zásahu, bouřková aura, krvežíznivost…
+  Legendární a lepší předměty jsou **unikáty** s vlastním jménem a vlastní mechanikou (81 unikátů, 32 schopností): luk, jehož šípy se odrážejí, meč, který z poražených vyvolá stíny, prsten, který jednou za minutu zachrání před smrtí, meteor při kritickém zásahu, bouřková aura, krvežíznivost…
 - **Drahokamy a sokety:** předměty mívají sokety (další jde vyvrtat v kovárně). Drahokamy 6 druhů a 5 stupňů dávají podle místa (zbraň, zbroj, šperk) různé bonusy; tři stejné se spojí ve vyšší stupeň. Při rozebrání předmětu se drahokamy vrátí.
 - **Runy zbraní:** každá zbraň má runový soket (obouruční dva). Runa ohně, jedu, mrazu, bouře, krve, zkázy nebo upíra má podle stupně 10–50 % šanci při zásahu zapálit, otrávit, zmrazit, vyvolat blesk, způsobit krvácení, oslabit nebo vysát život.
 - **Runy kouzel:** do každého kouzla jde vložit jednu z 12 run, která změní, jak funguje – ozvěna, rozštěpení, oheň, mráz, bouře, jed, síla, spěch, upír, průraz, navádění, výbuch. Spolu s legendárními schopnostmi a vlastnostmi šampionů tak každé patro hraje jinak.
