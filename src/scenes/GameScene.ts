@@ -2477,7 +2477,7 @@ export class GameScene extends Phaser.Scene {
     if (b.tag === 'riftGuard') {
       sfx('boss');
       UI.showBoss(b);
-      UI.banner('Strážce trhliny', 'Poraz ho a trhlina se zavře');
+      UI.bossNote('Strážce trhliny · poraz ho a trhlina se zavře');
       this.fx.shake(0.006, 300);
       return;
     }
@@ -2487,7 +2487,8 @@ export class GameScene extends Phaser.Scene {
     }
     sfx('boss');
     UI.showBoss(b);
-    UI.banner(b.name, b.bossTier > 0 ? 'Prastarý strážce hlubin' : 'Strážce patra');
+    // who it is goes under its bar at the top – nothing big over the arena while it attacks
+    UI.bossNote(b.bossTier > 0 ? 'Prastarý strážce hlubin' : 'Strážce patra');
     this.fx.shake(0.006, 300);
     // first boss ever: teach the one thing that matters
     if (!this.save.stats?.bosses) this.time.delayedCall(1800, () => UI.hint('Červené kruhy ukazují, kam strážce udeří – včas z nich uhni!', 6000));
@@ -2502,7 +2503,7 @@ export class GameScene extends Phaser.Scene {
     if (!storyOf(this.save).seen.includes(def.intro)) await UI.cutscene(def.intro, { overlay: true });
     b.invuln = false;
     UI.showBoss(b);
-    UI.banner(b.name, def.title);
+    UI.bossNote(b.phaseCount > 1 ? `Fáze 1 z ${b.phaseCount}` : def.title);
     if (!this.save.stats?.bosses) this.time.delayedCall(1800, () => UI.hint('Červené kruhy ukazují, kam strážce udeří – včas z nich uhni!', 6000));
   }
 
@@ -2528,7 +2529,7 @@ export class GameScene extends Phaser.Scene {
     e.invuln = false;
     e.windup = 0.8;
     UI.showBoss(e);
-    UI.banner(`${e.name}`, `Fáze ${e.phase + 1} z ${e.phaseCount}`);
+    UI.bossNote(`Fáze ${e.phase + 1} z ${e.phaseCount}`);
   }
 
   clearBossField() {

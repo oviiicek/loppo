@@ -699,68 +699,126 @@ img.px {
   }
 }
 
-/* toasts, banner */
+/* messages (found things, events, trophies) and pickups: one small feed on the left, under the health bars,
+   so nothing covers the middle of the screen where the fight is */
+.feeds {
+  position: absolute;
+  left: calc(10px + var(--safe-l));
+  top: calc(8px + 112px * var(--hud-k, 1));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  max-width: min(44vw, 330px);
+  pointer-events: none;
+  transform: scale(var(--hud-k, 1));
+  transform-origin: top left;
+}
 .toasts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  max-width: 100%;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 2px 8px 2px 5px;
+  border-left: 3px solid currentColor;
+  border-radius: 0 6px 6px 0;
+  background: linear-gradient(90deg, rgba(10, 8, 14, 0.9), rgba(10, 8, 14, 0.5));
+  font-size: 15px;
+  line-height: 1.15;
+  text-shadow: 1px 1px 0 #000;
+  animation: lootin 0.25s ease-out;
+  transition:
+    opacity 0.45s,
+    transform 0.45s;
+}
+.toast span {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* a trophy: framed in gold, and it stays a little longer */
+.toast.ach {
+  border: 2px solid #b8902e;
+  border-left-width: 3px;
+  background: linear-gradient(90deg, rgba(58, 42, 12, 0.94), rgba(22, 16, 6, 0.62));
+}
+.toast .cnt {
+  flex: 0 0 auto;
+  color: #fff;
+  font-size: 13px;
+}
+.toast .cnt:empty {
+  display: none;
+}
+.toast.out {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+.toast img {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+}
+/* the hero or the guardian behind a message: it fades so the fight stays in sight (see UIManager.tick) */
+.feeds {
+  transition: opacity 0.25s;
+}
+.feeds.dim,
+.banner.on.dim,
+.hintbox.on.dim {
+  opacity: 0.22;
+}
+/* a short announcement: a small plaque at the top (placed by banner, below the guardian's bar) */
+.banner {
   position: absolute;
   left: 50%;
   top: 64px;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  pointer-events: none;
-  width: 60vw;
-}
-.toast {
-  background: rgba(14, 12, 20, 0.86);
-  border: 2px solid #4a3d2c;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 18px;
-  text-shadow: 1px 1px 0 #000;
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  animation: toastin 0.2s ease-out;
-  transition: opacity 0.4s;
-}
-.toast img {
-  width: 22px;
-  height: 22px;
-  image-rendering: pixelated;
-}
-@keyframes toastin {
-  from {
-    transform: translateY(-8px);
-    opacity: 0;
-  }
-}
-.banner {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 28%;
+  width: max-content;
+  max-width: min(64vw, 560px);
+  padding: 3px 16px 4px;
+  border: 2px solid #8a6a2a;
+  border-radius: 10px;
+  background: linear-gradient(rgba(30, 22, 10, 0.88), rgba(14, 10, 6, 0.88));
+  box-shadow:
+    0 0 0 2px #120c04,
+    0 4px 12px rgba(0, 0, 0, 0.45);
   text-align: center;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.6s;
+  transform-origin: top center;
+  transform: translate(-50%, -8px) scale(calc(0.92 * var(--hud-k, 1)));
+  transition:
+    opacity 0.4s,
+    transform 0.4s;
 }
 .banner.on {
   opacity: 1;
+  transform: translate(-50%, 0) scale(var(--hud-k, 1));
 }
 .banner h1 {
   margin: 0;
-  font-size: 56px;
+  font-size: 22px;
+  line-height: 1.1;
   color: var(--gold2);
-  text-shadow: 3px 3px 0 #000, 0 0 20px rgba(255, 180, 60, 0.4);
-  letter-spacing: 2px;
+  text-shadow: 2px 2px 0 #000;
+  letter-spacing: 1px;
 }
 .banner p {
-  margin: 4px 0 0;
-  font-size: 23px;
-  color: #ddd;
-  text-shadow: 2px 2px 0 #000;
+  margin: 1px 0 0;
+  font-size: 14px;
+  line-height: 1.2;
+  color: #e8e0d0;
+  text-shadow: 1px 1px 0 #000;
 }
 .bossbar {
   position: absolute;
@@ -784,6 +842,23 @@ img.px {
 }
 .bossbar .bar {
   height: 14px;
+}
+/* who the guardian is and which phase begins: a line under its bar for a few seconds */
+.bossbar .note {
+  margin-top: 2px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.2;
+  color: #ffe0b0;
+  text-shadow: 1px 1px 0 #000;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: opacity 0.35s;
+}
+.bossbar .note.on {
+  opacity: 1;
+  max-height: 40px;
 }
 /* marks where the guardian's next phases begin */
 .bossbar .bar .tick {
@@ -909,19 +984,13 @@ img.px {
   text-shadow: 1px 1px 0 #000;
 }
 
-/* picked up items and materials: a small feed on the left, under the health bars */
+/* picked up items and materials: under the messages in the feed on the left */
 .lootfeed {
-  position: absolute;
-  left: calc(10px + var(--safe-l));
-  top: calc(8px + 112px * var(--hud-k, 1));
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 3px;
-  max-width: min(46vw, 300px);
-  pointer-events: none;
-  transform: scale(var(--hud-k, 1));
-  transform-origin: top left;
+  max-width: 100%;
 }
 .lootline {
   display: flex;
@@ -2284,9 +2353,6 @@ img.px {
     font-size: 17px;
     padding: 6px 9px;
   }
-  .banner h1 {
-    font-size: 41px;
-  }
   .doll img {
     width: 64px;
     height: 80px;
@@ -2314,14 +2380,14 @@ img.px {
   left: 50%;
   bottom: 84px;
   transform: translateX(-50%);
-  max-width: min(56vw, 520px);
+  max-width: min(46vw, 420px);
   text-align: center;
-  padding: 8px 14px;
+  padding: 4px 10px;
   border-radius: 8px;
   border: 2px solid #4a6a8a;
-  background: rgba(12, 18, 28, 0.88);
+  background: rgba(12, 18, 28, 0.85);
   color: #cfe6ff;
-  font-size: 18px;
+  font-size: 14px;
   text-shadow: 1px 1px 0 #000;
   pointer-events: none;
   opacity: 0;

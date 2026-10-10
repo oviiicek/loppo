@@ -219,7 +219,7 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
 - Grafický inventář s 30 políčky. Po klepnutí na předmět jsou v detailu nahoře tlačítka Nasadit (u jednoručních zbraní „Do pravé ruky“ a „Do levé ruky“, u prstenů Prsten 1 a 2), Prodat, Rozebrat a Zahodit, pod nimi porovnání s nasazenou výbavou a pak vlastnosti předmětu. Předměty, které se vejdou do dvou slotů, se porovnávají s oběma nasazenými a lepší volba je označená ▲.
 - Klepnutí na nasazený slot (třeba helmu) ukáže všechny předměty z batohu, které se do něj vejdou, seřazené od nejlepšího – se šipkou ▲/▼ podle toho, jestli by byly lepší, a tlačítkem Nasadit. Klepnutí na řádek ukáže detail předmětu.
 - Prodávat jde přímo z inventáře kdekoliv (vzácné a lepší předměty se nejdřív potvrdí). Předměty jde také řadit a rozebírat na materiály. Zelená šipka ▲ označuje předměty, které jsou lepší než nasazená výbava, a tlačítko „Nasadit lepší“ je nasadí jedním klepnutím.
-- Sebrané předměty a materiály se ukazují v malém seznamu vlevo pod životy, oznámení o nové úrovni nahoře uprostřed.
+- Hlášky (nálezy, události, trofeje) a sebrané předměty se ukazují v malém sloupci vlevo pod životy. Hláška vydrží 5 s, trofej 7 s, stejná hláška se jen načítá (×2, ×3) a když je za sloupcem hrdina nebo strážce, sloupec zprůhlední. Oznámení (osud patra, tábor, nemesis …) je malý štítek nahoře, nová úroveň nahoře uprostřed. U strážce se jméno a nová fáze píšou jen pod jeho ukazatel zdraví, nic velkého přes arénu.
 - Obchodník:
   - náhodné zboží,
   - zpětný odkup omylem prodaných předmětů za stejnou cenu,

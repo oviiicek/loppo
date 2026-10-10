@@ -334,11 +334,10 @@ class UIManager {
         <div class="rbtn spellsbtn" data-a="spells" title="Kouzla (K)"><img src="${spellbookIcon()}" alt="Kouzla"><span class="badge sp"></span></div>
         <div class="rbtn" data-a="pause" title="Menu (Esc)">☰</div>
       </div>
-      <div class="bossbar"><div class="name"></div><div class="bar hp"><div class="fill"></div></div></div>
+      <div class="bossbar"><div class="name"></div><div class="bar hp"><div class="fill"></div></div><div class="note"></div></div>
       <div class="eventbar"><div class="name"></div><div class="bar ev"><div class="fill"></div></div></div>
       <div class="streak"><b></b><span>série zabití</span><i></i></div>
-      <div class="toasts"></div>
-      <div class="lootfeed"></div>
+      <div class="feeds"><div class="toasts"></div><div class="lootfeed"></div></div>
       <div class="banner"><h1></h1><p></p></div>
       <div class="levelup"><h2></h2><p>+3 body atributů • +1 bod kouzel</p></div>
       <div class="skills"></div>
@@ -615,6 +614,15 @@ class UIManager {
       fate.textContent = ft;
       fate.className = 'flfate ' + (sc.fate?.tone ?? (sc.kind === 'danger' ? 'danger' : 'gift'));
     }
+    // a message with the hero (or the guardian) behind it fades, so the fight stays in sight
+    const seen = [this.onScreen(p.x, p.y - 8)];
+    const boss = this.bossRef;
+    if (boss && !boss.dead) seen.push(this.onScreen(boss.x, boss.y - 10));
+    hud.querySelectorAll<HTMLElement>('.feeds, .banner, .hintbox').forEach((n) => {
+      const r = n.getBoundingClientRect();
+      const over = r.width > 0 && seen.some((q) => q.x > r.left - 28 && q.x < r.right + 28 && q.y > r.top - 36 && q.y < r.bottom + 28);
+      n.classList.toggle('dim', over);
+    });
     // low hp vignette
     const vig = $('.vignette', hud);
     vig.classList.toggle('low', hpF < 0.3 && !p.dead);
@@ -929,16 +937,45 @@ class UIManager {
     } else a.classList.remove('on');
   }
 
+  /** a message in the small feed on the left (found things, events, trophies), long enough to be read */
   toast(text: string, color = '#ffffff', item?: Item) {
     if (!this.toastBox) return;
+    const ach = text.startsWith('🏆');
+    const ms = ach ? 7000 : 5000;
+    // the same message again (a full bag, a locked door …) counts up instead of piling up
+    const last = this.toastBox.lastElementChild as HTMLElement | null;
+    if (last && last.dataset.text === text && !last.classList.contains('out')) {
+      const n = +(last.dataset.n ?? '1') + 1;
+      last.dataset.n = String(n);
+      $('.cnt', last).textContent = `×${n}`;
+      this.fadeLater(last, ms);
+      return;
+    }
     const icon = item ? `<img src="${iconURL(itemIcon(item), 32)}">` : '';
-    const t = el(`<div class="toast" style="color:${color}">${icon}<span>${esc(text)}</span></div>`);
+    const t = el(`<div class="toast${ach ? ' ach' : ''}" style="color:${color}">${icon}<span>${esc(text)}</span><b class="cnt"></b></div>`);
+    t.dataset.text = text;
     this.toastBox.appendChild(t);
-    while (this.toastBox.children.length > 4) this.toastBox.firstElementChild!.remove();
-    setTimeout(() => {
-      t.style.opacity = '0';
-      setTimeout(() => t.remove(), 400);
-    }, 2400);
+    this.trimFeeds();
+    this.fadeLater(t, ms);
+  }
+
+  /** a line of the feed fades after `ms` (from the start again when it repeats) */
+  private fadeLater(t: HTMLElement, ms: number) {
+    clearTimeout((t as any)._t);
+    t.classList.remove('out');
+    (t as any)._t = setTimeout(() => {
+      t.classList.add('out');
+      (t as any)._t = setTimeout(() => t.remove(), 450);
+    }, ms);
+  }
+
+  /** the feed stays short, so it never reaches down to the fight: three messages and the newest pickups */
+  private trimFeeds() {
+    if (!this.hud) return;
+    const msgs = $('.toasts', this.hud),
+      loot = $('.lootfeed', this.hud);
+    while (msgs.children.length > 3) msgs.firstElementChild!.remove();
+    while (loot.children.length > Math.max(2, 6 - msgs.children.length)) loot.firstElementChild!.remove();
   }
 
   hint(text: string, ms = 5000) {
@@ -1033,14 +1070,29 @@ class UIManager {
     });
   }
 
+  /** a short announcement: a small plaque at the top (below the guardian's bar, the level-up or the streak when
+   *  they are shown), never over the middle of the screen where the fight is */
   banner(title: string, sub = '') {
     if (!this.hud) return;
     const b = $('.banner', this.hud);
     $('h1', b).textContent = title;
-    $('p', b).textContent = sub;
+    const p = $('p', b);
+    p.textContent = sub;
+    p.style.display = sub ? '' : 'none';
+    const { left, right, top } = this.topSlot(300);
+    const rootTop = this.root.getBoundingClientRect().top;
+    let y = top;
+    this.hud.querySelectorAll<HTMLElement>('.bossbar.on, .eventbar.on, .streak.on, .levelup.on').forEach((n) => {
+      y = Math.max(y, n.getBoundingClientRect().bottom - rootTop + 6);
+    });
+    b.style.left = `${(left + right) / 2}px`;
+    b.style.top = `${y}px`;
+    b.style.maxWidth = `${Math.max(220, right - left)}px`;
+    b.classList.remove('on');
+    void b.offsetWidth;
     b.classList.add('on');
     clearTimeout((b as any)._t);
-    (b as any)._t = setTimeout(() => b.classList.remove('on'), 2600);
+    (b as any)._t = setTimeout(() => b.classList.remove('on'), 3800);
   }
 
   levelUp(level: number) {
@@ -1055,7 +1107,7 @@ class UIManager {
     void l.offsetWidth;
     l.classList.add('on');
     clearTimeout((l as any)._t);
-    (l as any)._t = setTimeout(() => l.classList.remove('on'), 2600);
+    (l as any)._t = setTimeout(() => l.classList.remove('on'), 3500);
   }
 
   /** free space at the top centre between the health bars and the buttons (on narrow phones that gap
@@ -1075,17 +1127,24 @@ class UIManager {
     return { left: left - root.left, right: right - root.left, top };
   }
 
+  /** where a point of the world is on the screen (client pixels) */
+  private onScreen(x: number, y: number) {
+    const sc = this.scene!;
+    const cam = sc.cameras.main;
+    const v = cam.worldView;
+    const cr = sc.game.canvas.getBoundingClientRect();
+    const k = cr.width / (sc.scale.width || 1);
+    return { x: cr.left + (x - v.x) * cam.zoom * k, y: cr.top + (y - v.y) * cam.zoom * k };
+  }
+
   /** small pickup line on the left side (items and materials picked up) */
   loot(text: string, color: string, icon: string) {
     if (!this.hud) return;
     const box = $('.lootfeed', this.hud);
     const t = el(`<div class="lootline" style="color:${color}"><img src="${icon}"><span>${esc(text)}</span></div>`);
     box.appendChild(t);
-    while (box.children.length > 4) box.firstElementChild!.remove();
-    setTimeout(() => {
-      t.classList.add('out');
-      setTimeout(() => t.remove(), 450);
-    }, 2800);
+    this.trimFeeds();
+    this.fadeLater(t, 4500);
   }
 
   hurtVignette() {
@@ -1122,7 +1181,7 @@ class UIManager {
     bb.classList.add('on');
   }
 
-  /** a guardian entered its next phase: the bar flashes and the change is announced */
+  /** a guardian entered its next phase: the bar flashes and the change is written under it */
   bossPhase(b: Enemy, line: string) {
     if (!this.hud) return;
     this.showBoss(b);
@@ -1130,7 +1189,17 @@ class UIManager {
     bb.classList.remove('flash');
     void bb.offsetWidth;
     bb.classList.add('flash');
-    this.banner(b.name, line);
+    this.bossNote(line);
+  }
+
+  /** a short line under the guardian's bar (who it is, which phase begins) instead of a banner over the fight */
+  bossNote(text: string, ms = 4500) {
+    if (!this.hud) return;
+    const n = $('.bossbar .note', this.hud);
+    n.textContent = text;
+    n.classList.add('on');
+    clearTimeout((n as any)._t);
+    (n as any)._t = setTimeout(() => n.classList.remove('on'), ms);
   }
 
   /** the kill streak counter at the top (from three kills on); n = 0 hides it */
@@ -1211,7 +1280,10 @@ class UIManager {
 
   hideBoss() {
     this.bossRef = null;
-    if (this.hud) $('.bossbar', this.hud).classList.remove('on');
+    if (this.hud) {
+      $('.bossbar', this.hud).classList.remove('on');
+      $('.bossbar .note', this.hud).classList.remove('on');
+    }
   }
 
   // ---------------------------------------------------------------- panels
