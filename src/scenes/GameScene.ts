@@ -15,7 +15,8 @@ import { BossAI } from '../game/boss';
 import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END, corruptName } from '../data/enemies';
 import { CHAPTERS, noteForFloor, areaIntroForFloor, Shot } from '../data/story';
 import { GUARDIAN_LINES, GUARDIAN_COLORS } from '../data/bosslines';
-import { SaveData, FloorKind, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory } from '../systems/state';
+import { SaveData, FloorKind, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory, addPearls } from '../systems/state';
+import { pearlState, pearlWord, TRAIL_BY_ID, dailyGift } from '../data/pearls';
 import { PetFollower } from '../game/pet';
 import { Mercenary } from '../game/merc';
 import { MercRole, MERC_BY_ROLE, randomMercName, MercOrder, MercState } from '../data/mercs';
@@ -505,6 +506,12 @@ export class GameScene extends Phaser.Scene {
     } else if (Net.isHost && this.inVillage) this.sendHomeToGuests();
     UI.mpStatus(!!this.coop);
     void this.beginFloor();
+    // a gift of pearls for every day of play (once the floor's title card is gone)
+    this.time.delayedCall(3200, () => {
+      if (!this.sys.isActive() || this.save.fallen) return;
+      const g = dailyGift(this.save);
+      if (g) this.givePearls(g.pearls, g.streak > 1 ? `Denní dar – ${g.streak}. den v řadě` : 'Denní dar');
+    });
   }
 
   /** the host went home to Loppo: the guests go to their own villages until the next descent (to = one guest) */
@@ -1274,6 +1281,9 @@ export class GameScene extends Phaser.Scene {
     if (e.rivalFoe) this.rivalDefeated(e);
     this.enc.onKill(e);
     if (!e.boss) this.learnBeast(e.def.id);
+    // now and then a champion carries a pearl of the depths (a corrupted one or a nemesis more often)
+    const pearl = e.nemesis ? 0.12 : e.corrupt ? 0.04 : e.elite ? 0.005 : 0;
+    if (pearl && !e.isMinion && Math.random() < pearl) this.givePearls(1, 'Na zemi se zaleskla perla');
   }
 
   /** the bestiary counts kills of each kind and tells what was learned */
@@ -2311,6 +2321,7 @@ export class GameScene extends Phaser.Scene {
       case 'vguard':
       case 'vgrave':
       case 'vsign':
+      case 'vfount':
         return this.vil.label(it);
       case 'ev':
         return this.enc.label(it);
@@ -2360,6 +2371,7 @@ export class GameScene extends Phaser.Scene {
       case 'vguard':
       case 'vgrave':
       case 'vsign':
+      case 'vfount':
         this.vil.interact(it);
         break;
       case 'stairs':
@@ -2910,6 +2922,8 @@ export class GameScene extends Phaser.Scene {
     const kills = (s.bossKills ??= {});
     const first = !kills[id];
     kills[id] = (kills[id] ?? 0) + 1;
+    // the first fall of every guardian: pearls of the depths (more from the guardians of the story)
+    if (first) this.givePearls(b.story ? 5 : 3, `${b.story?.name ?? b.boss?.name ?? 'Strážce'} – první vítězství`);
     const forced = (window as any).__forceBossWeapon; // dev testing hook
     if (!forced && Math.random() >= (first ? BOSS_WEAPON_FIRST : BOSS_WEAPON_AGAIN)) return;
     // the story guardians and the ancient ones leave a mythic one
@@ -2935,9 +2949,43 @@ export class GameScene extends Phaser.Scene {
       if (r.dust) s.mats.dust += r.dust;
       if (r.lockpick) s.mats.lockpick += r.lockpick;
       if (r.attr) s.attrPoints += r.attr;
+      // every achievement pays a pearl of the depths too
+      addPearls(s, 1);
+      pearlState(s).paidAch = got.length;
       sfx('levelup');
-      UI.toast(`🏆 Úspěch: ${a.name} – ${achievementReward(a.reward)}`, '#ffd23a');
+      UI.toast(`🏆 Úspěch: ${a.name} – ${achievementReward(a.reward)}, 1 perla`, '#ffd23a');
     }
+  }
+
+  /** where each hero's trail last left a mark (a new one every few pixels walked) */
+  private trailMarks = new WeakMap<object, { x: number; y: number; i: number }>();
+
+  /** a hero walks with a trail (bought with pearls): a few particles every few pixels it moves */
+  trailStep(h: { x: number; y: number }, id: string | null | undefined) {
+    const t = id ? TRAIL_BY_ID[id] : null;
+    if (!t) return;
+    const m = this.trailMarks.get(h) ?? { x: h.x, y: h.y, i: 0 };
+    if (Math.hypot(h.x - m.x, h.y - m.y) >= 5) {
+      m.x = h.x;
+      m.y = h.y;
+      m.i++;
+      this.fx.trail(h.x + (Math.random() - 0.5) * 4, h.y + 1, t.colors[m.i % t.colors.length], t.kind);
+    }
+    this.trailMarks.set(h, m);
+  }
+
+  /** pearls of the depths for the hero (with a word why and a glint over the hero) */
+  givePearls(n: number, why: string) {
+    if (n <= 0) return;
+    addPearls(this.save, n);
+    const p = this.player;
+    if (p) {
+      this.fx.burst(p.x, p.y - 14, 0xe6e2f6, 14, 'spark');
+      this.fx.ring(p.x, p.y - 10, 22, 0xc8b8ff, 500);
+    }
+    sfx('coin');
+    UI.toast(`💠 ${why}: +${n} ${pearlWord(n)} hlubin`, '#d8ccff');
+    saveGame(this.save);
   }
 
   /** the host at the stairs while other heroes are still on their way: everyone hears how many are there */
@@ -2973,6 +3021,20 @@ export class GameScene extends Phaser.Scene {
   onPlayerDeath() {
     const p = this.player;
     if (p.dead) return;
+    // a phoenix feather (bought with pearls) brings the hero back once – never a hardcore hero
+    const ps = this.save.pearl;
+    if (ps && (ps.phoenix ?? 0) > 0 && !this.save.hardcore) {
+      ps.phoenix = (ps.phoenix ?? 1) - 1;
+      p.hp = p.d.maxHp * 0.5;
+      p.invulnT = 2.5;
+      this.fx.burst(p.x, p.y - 8, 0xff8a3a, 40, 'spark');
+      this.fx.burst(p.x, p.y - 4, 0xffd06a, 24, 'puff');
+      this.fx.ring(p.x, p.y - 6, 50, 0xffc04a, 700);
+      sfx('heal');
+      UI.toast(`🔥 Pírko fénixe vzplálo – vracíš se do boje! (zbývá ${ps.phoenix})`, '#ffb070');
+      saveGame(this.save);
+      return;
+    }
     p.dead = true;
     bumpStat(this.save, 'deaths');
     sfx('death');
@@ -3385,6 +3447,7 @@ export class GameScene extends Phaser.Scene {
     this.moveVec = [mx, my];
 
     if (!p.dead) p.update(dt, mx, my);
+    if (!p.dead) this.trailStep(p, this.save.pearl?.trail);
 
     // flow field toward player for enemy pathing
     this.flowT -= dt;

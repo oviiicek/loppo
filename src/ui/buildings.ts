@@ -1,7 +1,13 @@
 import { $, esc, keepScrollOn } from './ui';
 import type { UI as UIType } from './ui';
-import { iconURL } from '../gfx/textures';
-import { BUILDING_BY_ID, BuildingId, BLESSINGS, BLESSING_BY_ID, blessingFloors, activeBlessing, buildingLevel, villageOf, runeMaxTier, restFloors, restedOf, BUILDINGS } from '../data/village';
+import { iconURL, spellIcon } from '../gfx/textures';
+import { BUILDING_BY_ID, BuildingId, BLESSINGS, BLESSING_BY_ID, blessingFloors, activeBlessing, buildingLevel, villageOf, runeMaxTier, restFloors, restedOf, BUILDINGS, prosperityLevel } from '../data/village';
+import { PROSPERITY_STEPS, PROSPERITY_RANKS, prosperityCost, prosperityStats, prosperityRank, nextRank, wishCost, rollWish, fountainLuck } from '../data/fountain';
+import { pearlWord } from '../data/pearls';
+import { generateItem, itemColor, itemIcon, formatStat } from '../data/items';
+import { randomGem, gemName, gemIcon } from '../data/gems';
+import { randomRune } from '../data/runes';
+import type { StatKey } from '../data/types';
 import { honorsOf } from '../data/royal';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { codexCount, CODEX_TOTAL } from '../data/codex';
@@ -10,7 +16,7 @@ import { RUNES, runeKey, runeName, runeIcon, runeDesc } from '../data/runes';
 import { SPELL_RUNES, spellRuneIcon } from '../data/spellrunes';
 import { CURSE_BY_ID } from '../data/curses';
 import { Item } from '../data/types';
-import { addRune, addSpellRune, saveGame } from '../systems/state';
+import { addRune, addSpellRune, saveGame, addGem, addPearls, addToInventory, bumpStat } from '../systems/state';
 import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
 import { MAT_INFO } from '../game/loot';
@@ -51,7 +57,7 @@ export class BuildingPanels {
   constructor(ui: UIM) {
     this.ui = ui;
     // a building's tab drawn anew (an upgrade bought, a potion brewed) stays scrolled where it was
-    keepScrollOn(this, ['potions', 'runes', 'blessings', 'curses', 'rest', 'trophies', 'upgrade']);
+    keepScrollOn(this, ['potions', 'runes', 'blessings', 'curses', 'rest', 'trophies', 'upgrade', 'wishes', 'prosperity']);
   }
 
   get P() {
@@ -404,6 +410,243 @@ export class BuildingPanels {
         this.ui.toast(`Kletba zkrocena: ${it.name}`, '#fff2a8');
         bus.emit('stats');
         this.curses(p);
+      }),
+    );
+  }
+
+  // ---------------------------------------------------------------- the fountain of wishes (see data/fountain.ts)
+  /** results of the last wishes (newest first) */
+  private wishLog: { text: string; color: string; icon: string }[] = [];
+
+  /** the fountain in the king's courtyard: a coin for a wish, or gold given for the prosperity of Loppo */
+  fountain(tab = 'wish') {
+    const tabs = [
+      { id: 'wish', label: 'Přání' },
+      { id: 'pros', label: 'Prosperita Loppa' },
+    ];
+    let active = tab;
+    const p = this.P.frame('Fontána přání', tabs, active);
+    p.querySelectorAll<HTMLElement>('.tab').forEach((t) =>
+      t.addEventListener('click', () => {
+        if (t.dataset.tab === active) return;
+        sfx('ui');
+        active = t.dataset.tab!;
+        p.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
+        this.fountainTab(p, active);
+      }),
+    );
+    this.ui.showOverlay(p, () => {});
+    this.fountainTab(p, active);
+  }
+
+  private fountainTab(p: HTMLElement, tab: string) {
+    this.P.headMats(p);
+    if (tab === 'pros') this.prosperity(p);
+    else this.wishes(p);
+  }
+
+  private wishes(p: HTMLElement) {
+    const body = $('.body', p);
+    const s = this.save;
+    const one = wishCost(s.maxFloor),
+      big = wishCost(s.maxFloor, true);
+    const luck = villageOf(s).luck;
+    const lucky = luck && s.floor <= luck.until ? `<div class="box" style="color:#52ff8f">Štěstí fontány: +${luck.mf} % magického nálezu do ${luck.until}. patra.</div>` : '';
+    body.innerHTML = `<div class="col" style="flex:1;min-width:0">
+      <div class="hint" style="font-size:17px">Na podstavci je vytesáno: „Dar krále Dobromila III. obyvatelům Loppa. Kdo hodí minci, ten se vrátí.“ Hoď do fontány minci a splní ti přání – co přinese, se nikdy neví.</div>
+      ${lucky}
+      <div class="wishes">
+        <div class="wish box"><img src="${iconURL('ic_gold', 40)}"><div class="winfo"><b>Malé přání</b><span class="hint">Materiál, lektvary, paklíče, drahokam, runa, předmět, štěstí fontány nebo zlato zpět – vzácně legendární předmět nebo perla.</span></div>
+          <div class="wbtns"><button class="btn small gold" data-wish="1" ${s.gold >= one ? '' : 'disabled'}>Hodit minci · ${n(one)}</button><button class="btn small" data-wish="10" ${s.gold >= one * 10 ? '' : 'disabled'}>10× · ${n(one * 10)}</button></div></div>
+        <div class="wish box big"><img src="${iconURL('chest_gold', 40) || iconURL('ic_gold', 40)}"><div class="winfo"><b>Velké přání</b><span class="hint">Hrst mincí: epický či legendární předmět, drahokamy, runy, delší štěstí fontány – vzácně mýtický předmět nebo perly.</span></div>
+          <div class="wbtns"><button class="btn small gold" data-big="1" ${s.gold >= big ? '' : 'disabled'}>Hodit hrst · ${n(big)}</button></div></div>
+      </div>
+      ${this.wishLog.length ? `<div class="wishlog">${this.wishLog.map((r) => `<div class="wl"><img src="${r.icon}"><span style="color:${r.color}">${esc(r.text)}</span></div>`).join('')}</div>` : ''}
+    </div>`;
+    const go = (count: number, isBig: boolean) => {
+      const cost = isBig ? big : one;
+      if (s.gold < cost * count) return;
+      let rare = false;
+      for (let i = 0; i < count; i++) {
+        if (s.gold < cost) break;
+        s.gold -= cost;
+        bumpStat(s, 'wishes');
+        const r = this.makeWish(isBig);
+        rare ||= r.rare;
+        this.wishLog.unshift(r);
+      }
+      this.wishLog = this.wishLog.slice(0, 12);
+      this.sc.vil.throwCoin(isBig || count > 1, rare);
+      this.sc.player.recalc();
+      saveGame(s);
+      bus.emit('stats');
+      this.P.headMats(p);
+      this.wishes(p);
+    };
+    body.querySelectorAll<HTMLElement>('[data-wish]').forEach((b) => b.addEventListener('click', () => go(+b.dataset.wish!, false)));
+    body.querySelector('[data-big]')?.addEventListener('click', () => go(1, true));
+  }
+
+  /** what one wish brings (applied at once) */
+  private makeWish(big: boolean): { text: string; color: string; icon: string; rare: boolean } {
+    const s = this.save;
+    const F = Math.max(1, s.maxFloor);
+    const rnd = (k: number) => Math.floor(Math.random() * k);
+    const kind = rollWish(big);
+    switch (kind) {
+      case 'mats': {
+        const d = big ? 8 + rnd(8) : 2 + rnd(4),
+          st = big ? 4 + rnd(6) : 1 + rnd(3);
+        s.mats.dust += d;
+        s.mats.stone += st;
+        if (big) s.mats.lockpick += 2;
+        return { text: `${d}× magický prach, ${st}× kámen${big ? ', 2× paklíč' : ''}`, color: '#c8b8ff', icon: iconURL('ic_dust', 32), rare: false };
+      }
+      case 'potions': {
+        const h = 2 + rnd(2),
+          m = 1 + rnd(2);
+        s.mats.hpPotion += h;
+        s.mats.mpPotion += m;
+        return { text: `${h}× lektvar zdraví, ${m}× lektvar many`, color: '#ff8a8a', icon: iconURL(MAT_INFO.hpPotion.icon, 32), rare: false };
+      }
+      case 'lockpick': {
+        const k = 1 + rnd(2);
+        s.mats.lockpick += k;
+        return { text: `${k}× paklíč`, color: '#e8d8b0', icon: iconURL(MAT_INFO.lockpick.icon, 32), rare: false };
+      }
+      case 'gold': {
+        const m = [0.5, 0.5, 1, 1, 1.5, 2, 3][rnd(7)];
+        const g = Math.round(wishCost(F, big) * m);
+        s.gold += g;
+        return { text: `Fontána vrátila ${n(g)} zlata${m >= 2 ? ' – štěstí!' : ''}`, color: '#ffd23a', icon: iconURL('ic_gold', 32), rare: m >= 3 };
+      }
+      case 'gem':
+      case 'gems': {
+        const k = kind === 'gems' ? 2 + rnd(2) : 1;
+        const got: string[] = [];
+        for (let i = 0; i < k; i++) {
+          const g = randomGem(F, big ? 1 : 0);
+          addGem(s, g);
+          got.push(g);
+        }
+        return { text: got.map((g) => gemName(g)).join(', '), color: '#7cc8ff', icon: iconURL(gemIcon(got[0]), 32), rare: false };
+      }
+      case 'rune':
+      case 'runes': {
+        const k = kind === 'runes' ? 2 : 1;
+        const got: string[] = [];
+        for (let i = 0; i < k; i++) {
+          const r = randomRune(F, big ? 1 : 0);
+          addRune(s, r);
+          got.push(r);
+        }
+        return { text: got.map((r) => runeName(r)).join(', '), color: '#ffb070', icon: iconURL(runeIcon(got[0]), 32), rare: false };
+      }
+      case 'srune': {
+        const r = SPELL_RUNES[rnd(SPELL_RUNES.length)];
+        addSpellRune(s, r.id);
+        return { text: r.name, color: r.color, icon: iconURL(spellRuneIcon(r.id), 32), rare: true };
+      }
+      case 'item':
+        return this.wishItem(generateItem(F + (big ? 2 : 0), { rarity: big ? (Math.random() < 0.6 ? 3 : 4) : Math.random() < 0.6 ? 2 : 3 }), false);
+      case 'legend':
+        return this.wishItem(generateItem(F + 2, { rarity: 4 }), true);
+      case 'mythic':
+        return this.wishItem(generateItem(F + 3, { rarity: 5 }), true);
+      case 'luck': {
+        const l = fountainLuck(big);
+        const v = villageOf(s);
+        const was = v.luck && s.floor <= v.luck.until ? v.luck : null;
+        v.luck = { until: Math.max(was?.until ?? 0, s.floor - 1) + l.floors, mf: Math.max(l.mf, was?.mf ?? 0) };
+        return { text: `Štěstí fontány: +${v.luck.mf} % magického nálezu do ${v.luck.until}. patra`, color: '#52ff8f', icon: spellIcon('star', '#52ff8f', 32), rare: false };
+      }
+      case 'pearl': {
+        const k = big ? 1 + rnd(3) : 1;
+        addPearls(s, k);
+        return { text: `${k} ${pearlWord(k)} hlubin!`, color: '#d8ccff', icon: iconURL('ic_pearl', 32), rare: true };
+      }
+    }
+    return { text: 'Mince zmizela pod hladinou…', color: '#9a9aa8', icon: iconURL('ic_gold', 32), rare: false };
+  }
+
+  /** an item from a wish: into the bag, or at the hero's feet when the bag is full */
+  private wishItem(it: Item, rare: boolean) {
+    const s = this.save;
+    if (!addToInventory(s, it)) {
+      const p = this.sc.player;
+      this.sc.loot.dropItem(it, p.x, p.y + 8);
+    }
+    this.ui.loot(it.name, itemColor(it), iconURL(itemIcon(it), 32));
+    return { text: it.name, color: itemColor(it), icon: iconURL(itemIcon(it), 32), rare: rare || it.rarity >= 4 };
+  }
+
+  /** the prosperity of Loppo: gold given to the village, a level at a time, without end */
+  private prosperity(p: HTMLElement) {
+    const body = $('.body', p);
+    const s = this.save;
+    const lv = prosperityLevel(s);
+    const rank = prosperityRank(lv);
+    const nr = nextRank(lv);
+    const cost = prosperityCost(lv);
+    const step = PROSPERITY_STEPS[lv % PROSPERITY_STEPS.length];
+    // how many levels the gold the hero has would buy
+    let k = 0,
+      sum = 0;
+    while (k < 50 && sum + prosperityCost(lv + k) <= s.gold) {
+      sum += prosperityCost(lv + k);
+      k++;
+    }
+    const stats = prosperityStats(lv);
+    const given = s.village?.prosperity?.given ?? 0;
+    const from = nr ? PROSPERITY_RANKS.filter((r) => r.lv <= lv).pop()!.lv : lv;
+    const frac = nr ? (lv - from) / (nr.lv - from) : 1;
+    body.innerHTML = `<div class="col" style="flex:1;min-width:0">
+      <div class="prosrank"><b>Loppo · ${esc(rank.name)}</b><span>prosperita ${lv}</span></div>
+      <div class="hint">Zlato darované osadě se promění v lepší Loppo: každá úroveň dá tvému hrdinovi trvalý bonus a každá pátá vesnici promění. Úrovní je neomezeně.</div>
+      <div class="prosnext box"><div style="min-width:0"><b>Úroveň ${lv + 1}:</b> ${esc(step.text)}<div class="hint">${n(cost)} zlata</div></div><button class="btn gold" data-give="1" ${s.gold >= cost ? '' : 'disabled'}>Darovat ${n(cost)}</button></div>
+      ${k >= 2 ? `<div class="row" style="justify-content:flex-end"><button class="btn small" data-give="${k}">Darovat na ${k} úrovní · ${n(sum)}</button></div>` : ''}
+      ${nr ? `<div class="prosbar"><span>Do hodnosti ${esc(nr.name)} (úroveň ${nr.lv}): ${esc(nr.adds)}</span><i><b style="width:${Math.round(frac * 100)}%"></b></i></div>` : '<div class="hint" style="color:#ffd76a">Loppo dosáhlo nejvyšší hodnosti – ale každá další úroveň dál přidává bonusy.</div>'}
+      <div class="prossum box"><b>Bonusy z prosperity</b>${
+        Object.keys(stats).length
+          ? `<div class="prostats">${Object.entries(stats)
+              .map(([key, v]) => `<span>${esc(formatStat(key as StatKey, v as number))}</span>`)
+              .join('')}</div>`
+          : '<div class="hint">Zatím žádné – první dar to změní.</div>'
+      }</div>
+      <div class="prosranks">${PROSPERITY_RANKS.slice(1)
+        .map((r) => `<div class="prk ${lv >= r.lv ? 'have' : ''}"><b>${r.lv}</b><span>${esc(r.name)}</span><span class="hint">${esc(r.adds)}</span>${lv >= r.lv ? '<em>✔</em>' : ''}</div>`)
+        .join('')}</div>
+      <div class="hint">Darováno celkem: ${n(given)} zlata.</div>
+    </div>`;
+    body.querySelectorAll<HTMLElement>('[data-give]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const want = +b.dataset.give!;
+        const v = villageOf(s);
+        const pr = (v.prosperity ??= { lv: 0, given: 0 });
+        const before = prosperityRank(pr.lv);
+        let bought = 0;
+        for (let i = 0; i < want; i++) {
+          const c = prosperityCost(pr.lv);
+          if (s.gold < c) break;
+          s.gold -= c;
+          pr.lv++;
+          pr.given += c;
+          bumpStat(s, 'donated', c);
+          bought++;
+        }
+        if (!bought) return;
+        const after = prosperityRank(pr.lv);
+        this.sc.player.recalc();
+        this.sc.vil.refreshProsperity();
+        saveGame(s);
+        bus.emit('stats');
+        sfx(after !== before ? 'levelup' : 'coin');
+        const pl = this.sc.player;
+        this.sc.fx.burst(pl.x, pl.y - 10, 0xffd76a, after !== before ? 40 : 14, 'spark');
+        if (after !== before) this.ui.toast(`🏰 Loppo je teď ${after.name}! Přibylo: ${after.adds}`, '#ffd76a');
+        else this.ui.toast(`Prosperita Loppa ${pr.lv}${bought > 1 ? ` (+${bought})` : ''}: ${PROSPERITY_STEPS[(pr.lv - 1) % PROSPERITY_STEPS.length].text}`, '#ffe9a8');
+        this.P.headMats(p);
+        this.prosperity(p);
       }),
     );
   }

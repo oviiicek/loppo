@@ -3180,6 +3180,24 @@ function buildIcons() {
       }
     }),
   );
+  // a pearl of the depths in its open shell
+  addCanvas(
+    'ic_pearl',
+    iconCanvas((c) => {
+      ell(c, 12, 18, 9, 3.6, '#9a6a82');
+      ell(c, 12, 17.4, 7.6, 2.6, '#f2cfdc');
+      ell(c, 12, 17.8, 5, 1.4, '#d8a8bc');
+      ell(c, 12, 11.5, 6.2, 6.2, '#8f88c0');
+      ell(c, 11.6, 11.1, 5.4, 5.4, '#d4cff0');
+      ell(c, 11, 10.4, 3.8, 3.8, '#eeebfb');
+      ell(c, 10.2, 9.6, 1.8, 1.8, '#ffffff');
+      px(c, 14, 14, '#b8b0e0');
+      px(c, 18, 4, '#ffffff');
+      px(c, 17, 5, '#e8f0ff');
+      px(c, 19, 5, '#e8f0ff');
+      px(c, 18, 6, '#e8f0ff');
+    }),
+  );
   addCanvas(
     'ic_scroll',
     iconCanvas((c) => {

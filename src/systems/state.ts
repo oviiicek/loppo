@@ -2,6 +2,7 @@ import type { Nemesis } from '../data/nemesis';
 import type { MercState } from '../data/mercs';
 import { VillageState, villageStats } from '../data/village';
 import type { Fate } from '../data/fates';
+import { PearlState, pearlState } from '../data/pearls';
 import { CURSE_BY_ID } from '../data/curses';
 import { Codex, discoverItem, discoverStone } from '../data/codex';
 import { TALENT_BY_ID, TALENT_CLASS, TalentCond, talentPoints } from '../data/talents';
@@ -51,7 +52,7 @@ export interface SaveData {
   playTime: number;
   stash?: (Item | null)[];
   slot?: number;
-  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number; rivals?: number; transmutes?: number; rescued?: number; events?: number; rifts?: number; lore?: number; wtf?: number; brawls?: number; arenas?: number; corrupted?: number; priority?: number; thornKills?: number; treasures?: number; puzzles?: number; camps?: number; lastChances?: number };
+  stats?: { bosses?: number; chests?: number; secrets?: number; locks?: number; maxUpgrade?: number; bestRarity?: number; deaths?: number; thieves?: number; cursed?: number; bounties?: number; elites?: number; goldEarned?: number; potions?: number; maxHit?: number; items?: number; gemsSet?: number; bestGem?: number; streak?: number; nemeses?: number; rivals?: number; transmutes?: number; rescued?: number; events?: number; rifts?: number; lore?: number; wtf?: number; brawls?: number; arenas?: number; corrupted?: number; priority?: number; thornKills?: number; treasures?: number; puzzles?: number; camps?: number; lastChances?: number; wishes?: number; donated?: number };
   achievements?: string[];
   story?: StoryState;
   /** combat difficulty (index into DIFFICULTIES, normal when missing) */
@@ -94,6 +95,9 @@ export interface SaveData {
   /** the expedition under way (see data/bands.ts): where a death sends the hero back, the kind of the floor
    *  the hero is on and the path chosen for the next one */
   run?: RunState;
+  /** pearls of the depths, the second currency (see data/pearls.ts), and what they bought */
+  pearls?: number;
+  pearl?: PearlState;
 }
 
 /** what a floor is: a regular one, the dangerous path, or one of the floors without fighting */
@@ -182,6 +186,32 @@ export function addRune(s: SaveData, key: string, n = 1) {
   const p = runePouch(s);
   p[key] = (p[key] ?? 0) + n;
   if (p[key] <= 0) delete p[key];
+}
+
+/** pearls come (or go, n < 0): the HUD and the panels hear about it */
+export function addPearls(s: SaveData, n: number) {
+  s.pearls = Math.max(0, (s.pearls ?? 0) + n);
+  if (n > 0) {
+    const st = pearlState(s);
+    st.earned = (st.earned ?? 0) + n;
+  }
+  bus.emit('stats');
+}
+
+/** the bag's size: 30 places and the rows bought with pearls */
+export function bagSize(s: SaveData) {
+  return INVENTORY_SIZE + 6 * (s.pearl?.bag ?? 0);
+}
+
+/** old saves: the achievements already earned pay their pearl (once), and the bag gets the rows bought */
+export function settlePearls(s: SaveData) {
+  const st = pearlState(s);
+  const got = (s.achievements ?? []).length;
+  if (st.paidAch === undefined) {
+    st.paidAch = got;
+    if (got) s.pearls = (s.pearls ?? 0) + got;
+  }
+  while (s.inventory.length < bagSize(s)) s.inventory.push(null);
 }
 
 export function addGem(s: SaveData, key: string, n = 1) {
@@ -655,6 +685,7 @@ export function loadGame(slot = activeSlot()): SaveData | null {
     const s = JSON.parse(raw) as SaveData;
     if (!s || s.version !== 1) return null;
     while (s.inventory.length < INVENTORY_SIZE) s.inventory.push(null);
+    settlePearls(s);
     s.slot = slot;
     return s;
   } catch {

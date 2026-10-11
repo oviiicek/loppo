@@ -352,6 +352,19 @@ Na nástěnce v Loppu visí úkoly od vesničanů: najdi ztraceného dobrodruha 
 
 Deník úkolů se otevře kulatým tlačítkem s vykřičníkem vedle kouzel (nebo z pauzy); když čeká odměna nebo mapa pokladu, tlačítko zeleně pulzuje: nahoře hlavní úkol příběhu (další příběhový strážce a kapitola), pod ním úkol patra, vedlejší úkoly a mapy pokladů. Mapa pokladu občas leží v truhle (častěji ve zlaté), nosí ji šampion a skoro vždy zloděj. Přidá vedlejší úkol na jedno z dalších pater; tam na mapě i minimapě svítí zlatý křížek, kde se kope – vykopaná truhla dá předměty, zlato, drahokam a někdy runu. Najednou jdou nést 3 mapy.
 
+### Fontána přání a prosperita Loppa
+Na nádvoří krále Dobromila stojí fontána s nápisem „Kdo hodí minci, ten se vrátí.“ Je to místo, kam se dá ukládat zlato, kterého jinak přibývá:
+- **Malé přání** (cena roste s nejhlubším patrem, kolem ceny epického předmětu, jde hodit i 10× naráz) přinese náhodně materiál, lektvary, paklíče, drahokam, runu, předmět, **štěstí fontány** (+30 % magického nálezu na 3 patra), někdy vrátí zlato (0,5–3×), vzácně legendární předmět nebo **perlu**.
+- **Velké přání** (8× dražší) přinese epický či legendární předmět, víc drahokamů a run, runu kouzla, delší štěstí (+60 % na 5 pater), vzácně mýtický předmět nebo 1–3 perly.
+- **Prosperita Loppa:** zlato darované osadě zvyšuje její úroveň – bez konce, každá úroveň stojí asi o třetinu víc (2 500, 3 300, 4 400 … přes 10 milionů na 30. úrovni). Úrovně dávají postupně trvalé bonusy: +2 % zkušeností, +3 % magického nálezu, +1 % zdraví, +1 % poškození a síly kouzel, +2 % zbroje (a znovu dokola). Každá pátá úroveň dá vesnici novou hodnost a promění ji: **Vesnice** (květinové záhony kolem studny), **Městys** (prapory podél cest), **Město** (girlandy světel na náměstí, večer svítí), **Královské město** (zlatá socha tvého hrdiny na náměstí), **Klenot Šedých hor** (večerní ohňostroje), **Zlaté Loppo** (zlatá fontána, která se třpytí). Hodnost je vidět v HUD („Loppo · Městys“).
+
+### Perly hlubin (druhá měna)
+Perly jsou vzácnější než zlato. Ukazují se v HUD vedle zlata (klepnutí otevře jejich obchod), v hlavičce panelů a v pauze (**💠 Perly**).
+- **Kde se berou:** denní dar (1 perla za den hry, každý sedmý den v řadě 3), každý nový úspěch 1 perla (úspěchy získané dřív se proplatí jednou při prvním načtení), první vítězství nad každým strážcem 3 perly (strážce příběhu 5), občas od šampiona (zkažení a nemesis častěji) a z Fontány přání.
+- **Obchod:** Kniha moudrosti (+50 % zkušeností na 10 pater), Měšec štěstí (+50 % magického nálezu na 10 pater), Pírko fénixe (až 3 v zásobě – když hrdina padne, jednou ho vrátí do boje s polovinou zdraví; v Hardcore nefunguje), Perlová truhla (jistý legendární, občas mýtický předmět, dva drahokamy a runa), Větší batoh (+6 míst, až 3×), Větší truhla doma (+42 míst, až 3×) a směna 5 perel za zlato podle nejhlubšího patra.
+- **Stopy za hrdinou:** Žhavé uhlíky, Padající listí, Mrazivé vločky, Hvězdný prach, Stínový závoj, Svatá zář, Duhová stopa a Zlatá stopa – koupená stopa zůstává navždy, nosí se jedna a ve společné hře ji vidí i ostatní.
+- Karta **Získat perly** ukazuje balíčky, které se budou prodávat za skutečné peníze (zatím „Brzy“). Všechno z obchodu jde získat i hraním.
+
 ### Společná hra (až 4 hráči)
 V pauze je tlačítko **👥 Společná hra**. Kdo hru založí, dostane pětimístný kód a až tři další hráči ho zadají na svých zařízeních (stačí internet, hra jde přímo mezi zařízeními přes WebRTC; server PeerJS je jen seznámí). Zařízení hostů mluví se zařízením zakladatele a to jim předává, co dělají ostatní hrdinové (kde stojí, jejich efekty a střely).
 - **Hraje se svět toho, kdo hru založil** – jeho patro, výprava, cesta dolů a obtížnost. Ostatní se objeví ve stejném patře a po skončení společné hry se vrátí do svého světa a na své patro; jejich nejhlubší patro se nemění.

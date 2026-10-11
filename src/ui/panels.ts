@@ -141,7 +141,10 @@ export class Panels {
     // the gem pouch in the materials bar opens the gems over the panel
     p.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
-      if (t.closest('[data-a=gemchip]')) {
+      if (t.closest('[data-a=pearlchip]')) {
+        sfx('ui');
+        if (!p.classList.contains('pearlpanel')) this.ui.pearls.open();
+      } else if (t.closest('[data-a=gemchip]')) {
         sfx('ui');
         this.gems(undefined, true);
       } else if (t.closest('[data-a=runechip]')) {
@@ -201,7 +204,8 @@ export class Panels {
     const rkeys = Object.keys(rp).filter((k) => rp[k] > 0 && parseRune(k));
     const rbest = rkeys.sort((a, b) => parseRune(b)!.tier - parseRune(a)!.tier)[0] ?? runeKey('fire', 1);
     const runes = `<button class="matbtn" data-a="runechip" title="Runy"><img src="${iconURL(runeIcon(rbest), 30)}"><b>${rkeys.reduce((a, k) => a + rp[k], 0)}</b></button>`;
-    return `<div class="mats"><span><img src="${iconURL('ic_gold', 32)}"><b style="color:#ffd76a">${s.gold.toLocaleString('cs-CZ')}</b></span>${m('hpPotion')}${m('mpPotion')}${m('lockpick')}${m('stone')}${m('dust')}${gems}${runes}</div>`;
+    const pearls = `<button class="matbtn" data-a="pearlchip" title="Perly hlubin"><img src="${iconURL('ic_pearl', 30)}"><b style="color:#d8ccff">${(s.pearls ?? 0).toLocaleString('cs-CZ')}</b></button>`;
+    return `<div class="mats"><span><img src="${iconURL('ic_gold', 32)}"><b style="color:#ffd76a">${s.gold.toLocaleString('cs-CZ')}</b></span>${pearls}${m('hpPotion')}${m('mpPotion')}${m('lockpick')}${m('stone')}${m('dust')}${gems}${runes}</div>`;
   }
 
   /** icon, name and kind of an item */

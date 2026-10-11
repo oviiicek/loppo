@@ -692,6 +692,81 @@ function buildProps() {
     px(c, 10, 5, '#c83a3a');
     px(c, 15, 6, '#3a6ac8');
   });
+  // what the prosperity of Loppo adds to the village (see data/fountain.ts): flower beds, banners on poles, the
+  // pedestal of the hero's statue
+  sprite('vh_flowers', 22, 12, (c) => {
+    ell(c, 11, 7, 10, 4.5, '#3e2818');
+    ell(c, 11, 6.6, 9, 3.8, '#5a3a24');
+    for (const [x, y] of [
+      [3, 6],
+      [6, 4],
+      [9, 7],
+      [12, 4],
+      [15, 6],
+      [17, 8],
+      [5, 8],
+      [13, 8],
+      [10, 3],
+      [18, 5],
+    ]) {
+      rect(c, x, y, 2, 1, '#3a7a2a');
+      px(c, x, y - 1, '#5aa83a');
+    }
+    const cols = ['#ff5a6a', '#ffd23a', '#c86aff', '#fff6e8', '#ff9a3a', '#6ac8ff'];
+    [
+      [4, 5],
+      [7, 3],
+      [10, 6],
+      [13, 3],
+      [16, 5],
+      [6, 7],
+      [14, 7],
+      [11, 2],
+      [18, 6],
+      [9, 4],
+    ].forEach(([x, y], i) => {
+      px(c, x, y, cols[i % cols.length]);
+      px(c, x + 1, y, cols[i % cols.length]);
+      px(c, x, y + 1, cols[(i + 3) % cols.length]);
+    });
+  });
+  for (const [k, col, light, dark] of [
+    ['red', '#c83a3a', '#e86a5a', '#8a2424'],
+    ['blue', '#3a6ac8', '#6a9ae8', '#24448a'],
+    ['gold', '#e8b030', '#ffd870', '#a87a18'],
+  ] as const)
+    sprite('vh_flag_' + k, 13, 32, (c) => {
+      rect(c, 2, 3, 2, 29, W.mid);
+      rect(c, 2, 3, 1, 29, W.hi);
+      rect(c, 1, 0, 4, 3, '#ffd23a');
+      px(c, 1, 0, '#fff2b0');
+      rect(c, 1, 30, 4, 2, W.dark);
+      // the banner and its swallowtail
+      rect(c, 4, 4, 8, 12, col);
+      rect(c, 4, 4, 8, 1, light);
+      rect(c, 11, 4, 1, 12, dark);
+      for (let i = 0; i < 3; i++) {
+        px(c, 4 + i, 16 + i, col);
+        px(c, 11 - i, 16 + i, i === 0 ? dark : col);
+      }
+      // Loppo's tower on it
+      rect(c, 7, 7, 2, 5, '#f4ead0');
+      px(c, 6, 7, '#f4ead0');
+      px(c, 9, 7, '#f4ead0');
+      px(c, 7, 9, dark);
+    });
+  sprite('vh_pedestal', 24, 16, (c) => {
+    rect(c, 1, 11, 22, 5, STONE.mid);
+    rect(c, 1, 11, 22, 1, STONE.hi);
+    rect(c, 3, 3, 18, 9, STONE.light);
+    rect(c, 3, 3, 18, 1, STONE.hi);
+    rect(c, 20, 3, 1, 9, STONE.dark);
+    rect(c, 1, 15, 22, 1, STONE.dark);
+    // the golden plaque
+    rect(c, 8, 6, 8, 4, '#c8961e');
+    rect(c, 8, 6, 8, 1, '#ffd870');
+    rect(c, 9, 8, 6, 1, '#8a6a14');
+  });
   // crates and barrels of the village
   sprite('vh_barrel', 12, 15, (c) => {
     ell(c, 6, 12, 5.5, 2.5, W.dark);

@@ -6,7 +6,8 @@ import { ACTOR_SCALE } from '../gfx/textures';
 import { VILLAGE_WINDOWS, VILLAGE_CHIMNEYS } from '../gfx/village';
 import { hash } from '../gfx/pixel';
 import { sfx } from '../systems/audio';
-import { BUILDINGS, BuildingDef, BuildingId, BUILDING_BY_ID, buildingLevel, villageOf, villagerDue, shopSize, activeBlessing, BLESSING_BY_ID } from '../data/village';
+import { BUILDINGS, BuildingDef, BuildingId, BUILDING_BY_ID, buildingLevel, villageOf, villagerDue, shopSize, activeBlessing, BLESSING_BY_ID, prosperityLevel } from '../data/village';
+import { prosperityRank } from '../data/fountain';
 import { PLOTS, RUINS, PALACE, KING, GUARDS, ILDA, POND, pondValue, VillageMap } from '../systems/villagemap';
 import { DObject } from '../systems/dungeon';
 import { generateItem } from '../data/items';
@@ -129,6 +130,13 @@ export class Village {
   private critters: { s: Phaser.GameObjects.Sprite; area: (x: number, y: number) => boolean; cx: number; cy: number; r: number; t: number; water: boolean }[] = [];
   private ghost: Phaser.GameObjects.Sprite | null = null;
   private lightObjs: { img: Phaser.GameObjects.GameObject & { setAlpha(a: number): unknown }; base: number }[] = [];
+  /** the fountain of wishes in the king's courtyard */
+  fountain: Phaser.GameObjects.Sprite | null = null;
+  /** what the prosperity of Loppo added to the village (made again when it grows) */
+  private deco: Phaser.GameObjects.GameObject[] = [];
+  private decoIts: Interactable[] = [];
+  private fireT = 3;
+  private sparkT = 1;
 
   constructor(sc: GameScene) {
     this.sc = sc;
@@ -159,6 +167,7 @@ export class Village {
     for (const o of d.objects) this.placeObj(o, fallen);
     this.placePeople();
     this.placeLife();
+    this.placeProsperity();
     this.shop = this.makeShop();
     // the notice board offers new work on every visit
     villageOf(sc.save).offers = [];
@@ -364,9 +373,10 @@ export class Village {
         break;
       }
       case 'v_fountain': {
-        const s = sc.add.sprite(cx, by + 4, 'vh_fountain', 0).setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + by + 4).play('vh_fountain_loop');
-        void s;
-        sc.interactables.push({ kind: 'vsign', x: cx, y: by + 10, tx, ty: ty + 1, data: { title: 'Fontána', text: 'Na podstavci je vytesáno: „Dar krále Dobromila III. obyvatelům Loppa. Kdo hodí minci, ten se vrátí.“ Na dně se leskne pár mincí.' } });
+        // King Dobromil III's gift: "whoever throws a coin will return" – the fountain of wishes (see data/fountain.ts)
+        this.fountain = sc.add.sprite(cx, by + 4, 'vh_fountain', 0).setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + by + 4).play('vh_fountain_loop');
+        sc.interactables.push({ kind: 'vfount', x: cx, y: by + 10, tx, ty: ty + 1, sprite: this.fountain, data: {} });
+        this.tag(cx, by - 30, 'Fontána přání', '#ffd76a');
         break;
       }
       case 'v_grave': {
@@ -624,6 +634,8 @@ export class Village {
         return it.data.hero ? 'Hrob hrdiny' : 'Přečíst náhrobek';
       case 'vsign':
         return it.data.title ?? 'Přečíst';
+      case 'vfount':
+        return 'Fontána přání';
     }
     const b = BUILDING_BY_ID[it.data.id as BuildingId];
     if (it.data.ruined) return `${b.name} (v troskách)`;
@@ -653,8 +665,188 @@ export class Village {
       case 'vsign':
         sfx('ui');
         return sc.ui.panels.note(it.data.title, it.data.text, it.data.wall ? 'wall' : 'note');
+      case 'vfount':
+        sfx('ui');
+        return sc.ui.buildings.fountain();
     }
     sc.ui.buildings.open(it.data.id as BuildingId);
+  }
+
+  // ---------------------------------------------------------------- the fountain of wishes and the prosperity of Loppo
+  /** a coin flies from the hero into the fountain (a great wish: a handful; something rare: a burst of light) */
+  throwCoin(big: boolean, rare: boolean) {
+    const sc = this.sc;
+    const f = this.fountain;
+    const p = sc.player;
+    if (!f) return;
+    const tx = f.x,
+      ty = f.y - 10;
+    const n = big ? 5 : 1;
+    for (let i = 0; i < n; i++) {
+      const c = sc.add.sprite(p.x, p.y - 10, 'coin').play('coin_loop').setDepth(D.ui - 5);
+      const dx = (Math.random() - 0.5) * 10;
+      sc.tweens.add({ targets: c, x: tx + dx, duration: 520, delay: i * 70, ease: 'Linear' });
+      sc.tweens.add({ targets: c, y: Math.min(p.y, ty) - 34, duration: 260, delay: i * 70, ease: 'Quad.easeOut', yoyo: false, onComplete: () => sc.tweens.add({ targets: c, y: ty, duration: 260, ease: 'Quad.easeIn' }) });
+      sc.time.delayedCall(540 + i * 70, () => {
+        c.destroy();
+        sc.fx.burst(tx + dx, ty, 0x9fd8ff, 8, 'pix');
+        if (i === 0) sfx('coin');
+      });
+    }
+    sc.time.delayedCall(620 + n * 70, () => {
+      sc.fx.burst(tx, ty - 6, rare ? 0xffd76a : 0xc8e8ff, rare ? 40 : 12, 'spark');
+      sc.fx.ring(tx, ty - 4, rare ? 46 : 24, rare ? 0xffd76a : 0x9fd8ff, rare ? 800 : 500);
+      if (rare) sfx('levelup');
+    });
+  }
+
+  /** the village grew a level of prosperity: what it adds appears at once */
+  refreshProsperity() {
+    for (const o of this.deco) {
+      this.sc.tweens.killTweensOf(o);
+      o.destroy();
+    }
+    this.deco = [];
+    this.sc.interactables = this.sc.interactables.filter((i) => !this.decoIts.includes(i));
+    this.decoIts = [];
+    this.placeProsperity();
+  }
+
+  /** flowers around the well, banners along the ways, garlands of lights over the square, the hero's statue, a
+   *  golden fountain – whatever the village's prosperity has reached */
+  private placeProsperity() {
+    const sc = this.sc;
+    const lv = prosperityLevel(sc.save);
+    const keep = <T extends Phaser.GameObjects.GameObject>(o: T) => {
+      this.deco.push(o);
+      return o;
+    };
+    if (lv >= 5)
+      for (const [x, y] of [
+        [30, 22.9],
+        [34, 22.9],
+        [30, 27.5],
+        [33.6, 27.7],
+      ])
+        keep(sc.add.image(x * TS, y * TS, 'vh_flowers').setScale(ACTOR_SCALE).setDepth(D.floorDeco + 2));
+    if (lv >= 10) {
+      const cols = ['red', 'blue', 'gold'];
+      [
+        [27.8, 20.7],
+        [36.7, 20.7],
+        [27.8, 29.3],
+        [36.7, 29.3],
+        [26.8, 12.4],
+        [43.4, 13.4],
+        [53.6, 13.4],
+        [34.6, 33.4],
+        [31.2, 42.4],
+      ].forEach(([x, y], i) => {
+        const px = x * TS,
+          py = (Math.floor(y) + 1) * TS + 2;
+        keep(this.img('vh_flag_' + cols[i % cols.length], px, py).setFlipX(i % 2 === 1));
+        keep(sc.add.image(px + 1, py - 1, 'shadow').setScale(0.5, 0.4).setAlpha(0.3).setDepth(D.floorDeco + 1));
+      });
+    }
+    if (lv >= 15) this.garlands(keep);
+    if (lv >= 20) {
+      // the hero's statue on the square, in gold
+      const x = 28.6 * TS,
+        y = 26 * TS;
+      keep(this.img('vh_pedestal', x, y));
+      const st = keep(sc.add.image(x, y - 7, 'pl_' + sc.save.cls, 0).setOrigin(0.5, 1).setScale(ACTOR_SCALE * 1.15).setTint(0xffe9a8, 0xf0c860, 0xd8a838, 0xc8901e).setDepth(D.entityBase + y));
+      void st;
+      keep(sc.add.image(x, y - 16, 'glow').setTint(0xffd76a).setAlpha(0.18).setScale(0.6).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow));
+      this.shadow(x, y, 26, 0.3);
+      const who = sc.save.heroName || CLASS_BY_ID[sc.save.cls].name;
+      const it: Interactable = { kind: 'vsign', x, y: y + 6, tx: Math.floor(x / TS), ty: Math.floor(y / TS), data: { title: 'Socha hrdiny', text: `Na zlaté destičce stojí: „${who} – naděje Loppa. Postaveno z darů osady, která znovu ožila.“ Kolem podstavce leží čerstvé květiny.` } };
+      sc.interactables.push(it);
+      this.decoIts.push(it);
+    }
+    if (this.fountain) {
+      // a golden fountain: warm light on the stone and a golden glow over the water (a dark gold tint would make
+      // the stone muddy)
+      if (lv >= 30) {
+        this.fountain.setTint(0xfff6d8, 0xfff6d8, 0xffe6a8, 0xffe6a8);
+        const f = this.fountain;
+        const g = keep(sc.add.image(f.x, f.y - 12, 'glow').setTint(0xffd76a).setScale(1.1, 0.7).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow));
+        sc.tweens.add({ targets: g, alpha: 0.18, yoyo: true, repeat: -1, duration: 1400, ease: 'Sine.easeInOut' });
+      } else this.fountain.clearTint();
+    }
+  }
+
+  /** strings of little lights between the lamps of the square (they glow in the evening) */
+  private garlands(keep: <T extends Phaser.GameObjects.GameObject>(o: T) => T) {
+    const sc = this.sc;
+    const ph = PHASE[this.phase];
+    const g = keep(sc.add.graphics().setDepth(D.entityBase + 21 * TS + 40));
+    const bulbs = [0xff5a5a, 0xffd23a, 0x5adf6a, 0x4aa8ff, 0xc86aff];
+    const lines: [number, number, number, number][] = [
+      [26.5 * TS, 21 * TS - 13, 37.5 * TS, 21 * TS - 13],
+      [26.5 * TS, 30 * TS - 13, 37.5 * TS, 30 * TS - 13],
+    ];
+    for (const [x0, y0, x1, y1] of lines) {
+      const n = 22;
+      let px0 = x0,
+        py0 = y0;
+      for (let i = 1; i <= n; i++) {
+        const t = i / n;
+        const x = x0 + (x1 - x0) * t,
+          y = y0 + (y1 - y0) * t + Math.sin(t * Math.PI) * 12;
+        g.lineStyle(1, 0x2a2420, 0.9).lineBetween(px0, py0, x, y);
+        if (i % 2 === 0 && i < n) {
+          const c = bulbs[(i / 2) % bulbs.length];
+          g.fillStyle(c, 1).fillRect(x - 1, y, 2, 2);
+          if (ph.lamps > 0) keep(sc.add.image(x, y + 1, 'glow').setTint(c).setScale(0.14).setAlpha(0.55 * ph.lamps).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow));
+        }
+        px0 = x;
+        py0 = y;
+      }
+    }
+  }
+
+  /** fireworks over Loppo in the evening (from the fifth rank of prosperity) and the sparkle of a golden fountain */
+  private festivities(dt: number) {
+    const sc = this.sc;
+    const lv = prosperityLevel(sc.save);
+    if (lv >= 30 && this.fountain) {
+      this.sparkT -= dt;
+      if (this.sparkT <= 0) {
+        this.sparkT = 0.35 + Math.random() * 0.4;
+        sc.fx.burst(this.fountain.x + (Math.random() - 0.5) * 30, this.fountain.y - 14 - Math.random() * 10, 0xffe08a, 2, 'spark');
+      }
+    }
+    if (lv < 25 || (this.phase !== 'night' && this.phase !== 'dusk')) return;
+    this.fireT -= dt;
+    if (this.fireT > 0) return;
+    this.fireT = 2.2 + Math.random() * 3;
+    const p = sc.player;
+    const x = p.x + (Math.random() - 0.5) * 220,
+      y0 = p.y + 40,
+      y1 = p.y - 70 - Math.random() * 50;
+    const cols = [0xff5a5a, 0xffd23a, 0x5adf6a, 0x4aa8ff, 0xc86aff, 0xff9ad8, 0xffffff];
+    const col = cols[Math.floor(Math.random() * cols.length)];
+    const rocket = sc.add.image(x, y0, 'glow').setTint(0xfff2c0).setScale(0.12).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.ui - 10);
+    sc.tweens.add({
+      targets: rocket,
+      y: y1,
+      duration: 800,
+      ease: 'Quad.easeOut',
+      onUpdate: () => sc.fx.trail(rocket.x, rocket.y + 2, 0xffc060, 'spark'),
+      onComplete: () => {
+        rocket.destroy();
+        sc.fx.trail(x, y1, col, 'spark');
+        sc.fx.burst(x, y1, col, 36, 'spark');
+        sc.fx.burst(x, y1, 0xffffff, 10, 'spark');
+        const flash = sc.add.image(x, y1, 'glow').setTint(col).setScale(1.2).setAlpha(0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.ui - 11);
+        sc.tweens.add({ targets: flash, alpha: 0, scale: 1.8, duration: 600, onComplete: () => flash.destroy() });
+      },
+    });
+  }
+
+  /** the rank of the village for its title card */
+  rankName() {
+    return prosperityRank(prosperityLevel(this.sc.save)).name;
   }
 
   /** a line above someone's head */
@@ -710,6 +902,7 @@ export class Village {
   update(dt: number) {
     const sc = this.sc;
     const p = sc.player;
+    this.festivities(dt);
     // smoke from the chimneys
     for (const c of this.chimneys) {
       c.t -= dt;

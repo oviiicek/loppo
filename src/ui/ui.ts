@@ -14,6 +14,7 @@ import { sfx, unlockAudio, startMusic, settings } from '../systems/audio';
 import { Panels } from './panels';
 import { Menus } from './menus';
 import { BuildingPanels } from './buildings';
+import { PearlPanels } from './pearls';
 import { QuestPanels } from './quests';
 import { ExpeditionPanels } from './expedition';
 import type { FloorKind } from '../systems/state';
@@ -129,6 +130,7 @@ class UIManager {
   menus = new Menus(this);
   /** the buildings of Loppo and the notice board's quests */
   buildings = new BuildingPanels(this);
+  pearls = new PearlPanels(this);
   quests = new QuestPanels(this);
   /** the bands of ten floors to start an expedition in, and the doors after a floor */
   expeditions = new ExpeditionPanels(this);
@@ -326,7 +328,7 @@ class UIManager {
           <div class="bar hp"><div class="fill"></div><div class="fill shieldfill" style="background:rgba(160,210,255,.55);transform:scaleX(0)"></div><div class="txt"></div></div>
           <div class="bar mp"><div class="fill"></div><div class="txt"></div></div>
           <div class="xprow"><span class="lv">LV 1</span><div class="bar xp"><div class="fill"></div></div></div>
-          <div class="meta"><span><img src="${iconURL('ic_gold', 24)}"> <b class="gold">0</b></span><span class="kills"></span><span class="mercchip" title="Žoldák"><img><i><b></b></i></span></div>
+          <div class="meta"><span><img src="${iconURL('ic_gold', 24)}"> <b class="gold">0</b></span><span class="pearlchip" data-a="pearls" title="Perly hlubin"><img src="${iconURL('ic_pearl', 24)}"> <b class="pearls">0</b></span><span class="kills"></span><span class="mercchip" title="Žoldák"><img><i><b></b></i></span></div>
           <div class="mpparty"></div>
           <div class="buffs"></div>
         </div>
@@ -381,6 +383,14 @@ class UIManager {
       e.stopPropagation();
       sfx('ui');
       this.openPanel('character');
+    });
+    // the pearls: a tap opens their shop
+    const pchip = $('.pearlchip', hud);
+    pchip.style.pointerEvents = 'auto';
+    pchip.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      sfx('ui');
+      this.pearls.open();
     });
     // the mercenary's chip: its health; a tap opens its panel
     const chip = $('.mercchip', hud);
@@ -643,7 +653,8 @@ class UIManager {
     txt('.lv', `LV ${s.level}`);
     tf('.bar.xp .fill', sx(s.xp / xpForLevel(s.level)));
     txt('.gold', s.gold.toLocaleString('cs-CZ'));
-    txt('.floorlbl .fl', sc.inVillage ? 'Loppo · domov' : `Patro ${sc.floor} · ${sc.placeName}${sc.rift ? (sc.rift === 'dream' ? ' · sen' : sc.rift === 'last' ? ' · poslední šance' : ' · trhlina') : ''}`);
+    txt('.pearls', (s.pearls ?? 0).toLocaleString('cs-CZ'));
+    txt('.floorlbl .fl', sc.inVillage ? `Loppo · ${sc.vil.rankName()}` : `Patro ${sc.floor} · ${sc.placeName}${sc.rift ? (sc.rift === 'dream' ? ' · sen' : sc.rift === 'last' ? ' · poslední šance' : ' · trhlina') : ''}`);
     // the floor's fate (and the dangerous path) on a short line of its own, coloured by what it means
     const fate = $('.floorlbl .flfate', hud);
     const ft = sc.fate ? sc.fate.name + (sc.kind === 'danger' ? ' ☠' : '') : sc.kind === 'danger' ? '☠ Nebezpečná cesta' : sc.calm === 'camp' ? '⛺ Tábor' : '';

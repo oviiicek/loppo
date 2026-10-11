@@ -1,5 +1,7 @@
 import type { Quest } from './quests';
 import { RoyalState, royalStats } from './royal';
+import { ProsperityState, prosperityStats } from './fountain';
+import { PearlState, pearlStats } from './pearls';
 
 // The village of Loppo above the dungeon: the hero's home. When the earth shook, monsters dragged
 // villagers down into the dungeon; each one the hero frees comes home and opens their workshop.
@@ -166,6 +168,10 @@ export interface VillageState {
   royal?: RoyalState;
   /** a night in the hero's own bed: rested up to this floor */
   rested?: { until: number; lv: number };
+  /** the prosperity of Loppo, raised with gold at the fountain (see data/fountain.ts) */
+  prosperity?: ProsperityState;
+  /** the fountain's luck from a wish: more magic find up to a floor */
+  luck?: { until: number; mf: number };
 }
 
 export function villageOf(s: { village?: VillageState }): VillageState {
@@ -185,9 +191,14 @@ export function villagerDue(s: { village?: VillageState }, floor: number): Build
 }
 
 // ---------------------------------------------------------------- what the buildings give
-/** room in the stash */
-export function stashSize(s: { village?: VillageState }) {
-  return 42 * Math.max(1, buildingLevel(s, 'stash'));
+/** room in the stash (the house's level and the chests bought with pearls) */
+export function stashSize(s: { village?: VillageState; pearl?: PearlState }) {
+  return 42 * Math.max(1, buildingLevel(s, 'stash')) + 42 * (s.pearl?.stash ?? 0);
+}
+
+/** the prosperity level of Loppo */
+export function prosperityLevel(s: { village?: VillageState }) {
+  return s.village?.prosperity?.lv ?? 0;
 }
 
 /** the village smithy is better than an anvil in the dungeon */
@@ -258,10 +269,14 @@ export function activeBlessing(s: { village?: VillageState; floor: number }) {
   return b;
 }
 
-/** permanent and temporary bonuses of the village (they count like gear) */
-export function villageStats(s: { village?: VillageState; floor: number }): Record<string, number> {
+/** permanent and temporary bonuses of the village (they count like gear), with the help bought with pearls */
+export function villageStats(s: { village?: VillageState; floor: number; pearl?: PearlState }): Record<string, number> {
   const out: Record<string, number> = {};
   const add = (k: string, v: number) => (out[k] = (out[k] ?? 0) + v);
+  for (const [k, v] of Object.entries(prosperityStats(prosperityLevel(s)))) add(k, v as number);
+  const luck = s.village?.luck;
+  if (luck && s.floor <= luck.until) add('magicFind', luck.mf);
+  for (const [k, v] of Object.entries(pearlStats(s))) add(k, v as number);
   const tr = buildingLevel(s, 'trainer');
   if (tr >= 2) add('xp', 5);
   if (tr >= 3) add('xp', 5);

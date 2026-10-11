@@ -59,6 +59,29 @@ export class FX {
     this.emitter(color, kind).explode(gfxParticles(n), x, y);
   }
 
+  /** a step of a hero's trail (bought with pearls): never sent to the other games – each draws the trails of
+   *  the heroes it shows by itself */
+  trail(x: number, y: number, color: number, kind: 'spark' | 'puff' | 'pix') {
+    const key = 'trail' + kind + color;
+    let e = this.emitters.get(key);
+    if (!e) {
+      // slow particles that hang in the air for a while (a burst's would scatter and be gone at once)
+      e = this.scene.add.particles(0, 0, kind, {
+        speed: { min: 3, max: 14 },
+        gravityY: kind === 'pix' ? 14 : -10,
+        scale: { start: kind === 'puff' ? 0.9 : 1.05, end: 0 },
+        alpha: { start: 0.95, end: 0 },
+        lifespan: { min: 650, max: 1100 },
+        tint: color,
+        emitting: false,
+        blendMode: kind === 'puff' ? 'NORMAL' : 'ADD',
+      });
+      e.setDepth(D.entityBase - 1);
+      this.emitters.set(key, e);
+    }
+    e.explode(gfxParticles(2), x, y);
+  }
+
   number(x: number, y: number, text: string, color: string, big = false) {
     if (this.numFont && fitsNumberFont(text)) return this.bitmapNumber(x, y, text, color, big);
     let t = this.textPool.pop();

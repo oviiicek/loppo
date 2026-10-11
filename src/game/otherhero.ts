@@ -26,6 +26,8 @@ export interface HeroSnap {
   mhp: number;
   lvl: number;
   dead: number;
+  /** the trail it wears (bought with pearls; each game draws it by itself) */
+  tr?: string;
 }
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
@@ -54,6 +56,7 @@ export function heroSnap(p: Player): HeroSnap {
     mhp: Math.round(p.d.maxHp),
     lvl: p.save.level,
     dead: p.dead ? 1 : 0,
+    tr: p.save.pearl?.trail ?? undefined,
   };
 }
 
@@ -151,6 +154,7 @@ export class OtherHero extends Actor {
     const name = `${this.info.name} · ${this.lvl}`;
     if (this.label.text !== name) this.label.setText(name);
     this.label.setPosition(this.x, this.y - 21);
+    if (!this.dead && s?.tr) sc.trailStep(this, s.tr);
     // a small health bar under the name
     const g = this.bar;
     g.clear();

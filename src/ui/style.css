@@ -5173,3 +5173,250 @@ textarea.code {
 .fit .btn {
   flex: none;
 }
+/* pearls of the depths: the violet buttons, the HUD chip and the shop */
+.btn.violet {
+  border-color: #8a6ad8;
+  background: linear-gradient(#3e2a6a, #1f1438);
+  color: #e6dcff;
+}
+.btn.violet:disabled {
+  opacity: 0.45;
+}
+.pearlchip {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.pearlchip b {
+  color: #d8ccff;
+}
+.pearlpanel .pshop {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.poffer {
+  --pc: #d8ccff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--pc);
+}
+.poffer.on {
+  box-shadow: 0 0 0 1px var(--pc), 0 0 12px rgba(200, 180, 255, 0.25);
+}
+.poffer img {
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+.poffer .pinfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.poffer .pinfo b {
+  color: var(--pc);
+  font-size: 18px;
+}
+.poffer .pown {
+  font-size: 14px;
+  color: #9dff9d;
+}
+.poffer .btn {
+  flex: none;
+  white-space: nowrap;
+}
+.pways {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 16px;
+  color: #d8d0e6;
+}
+.pways b {
+  color: #d8ccff;
+}
+.ppacks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.ppack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px;
+  opacity: 0.8;
+}
+.ppack img {
+  width: 40px;
+  height: 40px;
+}
+.ppack b {
+  font-size: 22px;
+  color: #e6dcff;
+}
+.ppack .pbonus {
+  font-size: 15px;
+  color: #9dff9d;
+}
+/* the fountain of wishes and the prosperity of Loppo */
+.wishes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 8px;
+  margin: 6px 0;
+}
+.wish {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid #ffd76a;
+}
+.wish.big {
+  border-left-color: #ff9f1c;
+  background: linear-gradient(90deg, rgba(255, 159, 28, 0.08), transparent);
+}
+.wish img {
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+.wish .winfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 160px;
+}
+.wish .winfo b {
+  font-size: 18px;
+  color: #ffe08a;
+}
+.wish .wbtns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.wishlog {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.wishlog .wl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.wishlog .wl:first-child {
+  font-size: 17px;
+}
+.wishlog img {
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+.prosrank {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.prosrank b {
+  font-size: 24px;
+  color: #ffd76a;
+  text-shadow: 0 0 8px rgba(255, 200, 80, 0.3), 2px 2px 0 #000;
+}
+.prosrank span {
+  color: #c9a35a;
+  font-size: 17px;
+}
+.prosnext {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 6px 0;
+  border-left: 3px solid #ffd76a;
+}
+.prosnext .btn {
+  flex: none;
+}
+.prosbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+  font-size: 15px;
+  color: #d8c8a0;
+}
+.prosbar i {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #6a5430;
+  overflow: hidden;
+}
+.prosbar i b {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #b8902e, #ffd76a);
+}
+.prossum {
+  margin: 6px 0;
+}
+.prossum > b {
+  color: #ffe08a;
+}
+.prostats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  color: #9dff9d;
+  font-size: 16px;
+}
+.prosranks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 4px 10px;
+  margin: 6px 0;
+}
+.prk {
+  display: grid;
+  grid-template-columns: 28px auto 1fr auto;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 15px;
+  color: #8a8296;
+}
+.prk b {
+  color: #c9a35a;
+}
+.prk.have {
+  color: #e8dcc0;
+}
+.prk.have b {
+  color: #ffd76a;
+}
+.prk em {
+  color: #9dff9d;
+  font-style: normal;
+}
