@@ -3,6 +3,7 @@
 import { Shot, SPEAKERS, SceneId } from '../data/story';
 import { sceneCanvas, runParticles, portraitURL, ART_W, ART_H } from '../gfx/story';
 import { sfx } from '../systems/audio';
+import { tr, setRaw } from '../i18n/i18n';
 
 export interface CutsceneOpts {
   /** in-engine dialogue over the paused game (no illustration) */
@@ -79,7 +80,8 @@ export function playCutscene(root: HTMLElement, shots: Shot[], opts: CutsceneOpt
         // a soft tick every few letters while the line is being written
         if (Math.floor(n / 3) !== Math.floor(typed / 3) && full[n - 1] !== ' ') sfx('type');
         typed = n;
-        textEl.textContent = full.slice(0, n);
+        // the line is translated once, before it is written letter by letter
+        setRaw(textEl, full.slice(0, n));
       }
       if (typed >= full.length) {
         clearInterval(typeTimer);
@@ -92,7 +94,7 @@ export function playCutscene(root: HTMLElement, shots: Shot[], opts: CutsceneOpt
       clearInterval(typeTimer);
       typeTimer = 0;
       typed = full.length;
-      textEl.textContent = full;
+      setRaw(textEl, full);
       box.classList.add('done');
     };
 
@@ -134,7 +136,7 @@ export function playCutscene(root: HTMLElement, shots: Shot[], opts: CutsceneOpt
         box.classList.add('newspeaker');
       }
       lastSpeaker = who;
-      full = s.text;
+      full = tr(s.text);
       typed = 0;
       textEl.textContent = '';
       typingStart = performance.now();

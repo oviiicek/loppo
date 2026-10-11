@@ -1026,3 +1026,32 @@ Object.assign(dev, {
   },
   musicTrack,
 });
+
+import { SETS } from './data/sets';
+import { BOSS_ARMS, bossWeaponName, guardianName } from './data/bossweapons';
+import { GEMS, GEM_MAX_TIER, gemName } from './data/gems';
+import { RUNES, RUNE_MAX_TIER, runeName } from './data/runes';
+import { PETS, petTitle } from './data/pets';
+import { areaForFloor } from './data/biomes';
+import { i18nMisses } from './i18n/i18n';
+Object.assign(dev, {
+  /** the names the game puts together from pieces (set pieces, guardians' weapons, gems, runes, the areas of
+   *  the endless depths …): the catalog of texts gets them whole */
+  i18nNames() {
+    const out = new Set<string>();
+    for (const s of SETS) {
+      out.add(s.name);
+      for (const p of s.pieces) out.add(p.name);
+    }
+    for (const a of BOSS_ARMS) {
+      out.add(guardianName(a.id));
+      for (const c of CLASSES) out.add(bossWeaponName(a.id, c.id));
+    }
+    for (const g of GEMS) for (let t = 1; t <= GEM_MAX_TIER; t++) out.add(gemName(g.id + t));
+    for (const r of RUNES) for (let t = 1; t <= RUNE_MAX_TIER; t++) out.add(runeName(r.id + t));
+    for (const p of PETS) out.add(petTitle(p));
+    for (let f = 1; f <= 2500; f += 10) out.add(areaForFloor(f).name);
+    return [...out];
+  },
+  i18nMisses,
+});

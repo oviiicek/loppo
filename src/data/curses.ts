@@ -30,6 +30,9 @@ export const CURSES: CurseDef[] = [
 
 export const CURSE_BY_ID = Object.fromEntries(CURSES.map((c) => [c.id, c])) as Record<string, CurseDef>;
 
+/** what a curse's special does to its bearer ("fragile": more damage taken …) */
+export const CURSE_SPECIAL_TEXT: Record<string, string> = Object.fromEntries(CURSES.filter((c) => c.special && c.malusText).map((c) => [c.special!, c.malusText!]));
+
 /** chance that a rare (or better) item comes cursed */
 export const CURSE_CHANCE = 0.04;
 

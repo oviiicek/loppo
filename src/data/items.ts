@@ -203,6 +203,21 @@ const ARMOR_TIERS: Adj[] = [adj('Otrhan'), adj('Kožen'), adj('Kroužkov'), adj(
 const JEWEL_TIERS: Adj[] = [adj('Měděn'), adj('Stříbrn'), adj('Zlat'), adj('Smaragdov'), adj('Rubínov'), adj('Diamantov'), adj('Prastar'), adj('Hvězdn')];
 const MAGIC_TIERS: Adj[] = [adj('Dubov'), adj('Tisov'), adj('Kostěn'), adj('Křišťálov'), adj('Runov'), soft('Dračí'), adj('Démonick'), adj('Hvězdn')];
 
+/** the Czech pieces of the common items' names (for the translations): every form of every tier adjective
+ *  with its stem, and the nouns of the bases */
+export function itemNameParts(): { adj: Map<string, string>; nouns: string[] } {
+  const adjs = new Map<string, string>();
+  for (const tiers of [WEAPON_TIERS, ARMOR_TIERS, JEWEL_TIERS, MAGIC_TIERS])
+    for (const forms of tiers) {
+      const stem = forms[0] === forms[1] ? forms[0] : forms[0].slice(0, -1);
+      for (const f of forms) {
+        adjs.set(f, stem);
+        adjs.set(f[0].toLowerCase() + f.slice(1), stem);
+      }
+    }
+  return { adj: adjs, nouns: BASES.map((b) => b.noun) };
+}
+
 function tierFor(ilvl: number): number {
   return Math.min(7, Math.floor(ilvl / 8));
 }

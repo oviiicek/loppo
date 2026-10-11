@@ -5444,3 +5444,44 @@ textarea.code {
   color: #9a90a8;
   font-size: 13px;
 }
+
+/* the languages */
+.langpanel {
+  width: min(94vw, 640px);
+  height: auto;
+  max-height: 92vh;
+}
+.langpanel .body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.langs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+}
+.langs .btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  min-width: 0;
+}
+.langs .flag {
+  font-size: 20px;
+  line-height: 1;
+}
+.langname {
+  font-family: var(--font), system-ui, sans-serif;
+}
+/* letters the pixel font does not have: Cyrillic in another pixel font, Chinese, Japanese and Korean in the
+   system's font */
+:root:lang(ru) {
+  --font: 'Jersey 10', 'Pixelify Sans', system-ui, sans-serif;
+}
+:root:lang(ja),
+:root:lang(zh),
+:root:lang(ko) {
+  --font: 'Jersey 10', system-ui, 'Noto Sans CJK JP', 'Hiragino Sans', 'Microsoft YaHei', 'Malgun Gothic', sans-serif;
+}

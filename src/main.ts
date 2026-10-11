@@ -6,6 +6,7 @@ import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 import { GalleryScene } from './scenes/GalleryScene';
 import { MenuScene } from './scenes/MenuScene';
+import { initI18n } from './i18n/i18n';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
@@ -26,8 +27,12 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: [BootScene, MenuScene, GameScene, GalleryScene],
 };
 
-const game = new Phaser.Game(config);
-(window as any).__game = game;
+// the language goes on before anything reaches the screen
+void initI18n()
+  .catch(() => {})
+  .then(() => {
+    (window as any).__game = new Phaser.Game(config);
+  });
 
 if (import.meta.env.DEV || import.meta.env.MODE === 'devtools') import('./dev');
 else if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

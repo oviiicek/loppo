@@ -29,6 +29,7 @@ import { runeIcon, runeName } from '../data/runes';
 import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
 import { isCampFloor } from '../data/bands';
 import { Net, embedded, MAX_PLAYERS, SLOT_CSS } from '../net/net';
+import { LANGS, currentLang, langInfo, saveLang, tr } from '../i18n/i18n';
 
 type UIM = typeof UIType;
 
@@ -39,6 +40,11 @@ function uiScaleName() {
 function salvageName() {
   const n = settings.lootRules.filter((r) => r && r !== 'keep').length;
   return n ? `${n}× auto` : 'vše nechat';
+}
+
+/** the language button: a globe and the language's own name (never translated, so anyone finds their way back) */
+function langButton() {
+  return `🌐 <span class="langname">${langInfo().name}</span>`;
 }
 
 function fxName() {
@@ -67,7 +73,7 @@ export class Menus {
       <button class="btn" data-a="new">Nová hra</button>
       <button class="btn" data-a="slots">Postavy</button>
       <button class="btn blue" data-a="help">Jak hrát</button>
-      <div class="row" style="justify-content:center"><button class="btn small" data-a="sound" style="min-width:0;font-size:18px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>${isStandalone() ? '' : `<button class="btn small" data-a="fs" data-fs="label" style="min-width:0;font-size:18px">${fsButtonHTML('label')}</button>`}</div>
+      <div class="row" style="justify-content:center"><button class="btn small" data-a="sound" style="min-width:0;font-size:18px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>${isStandalone() ? '' : `<button class="btn small" data-a="fs" data-fs="label" style="min-width:0;font-size:18px">${fsButtonHTML('label')}</button>`}<button class="btn small" data-a="lang" style="min-width:0;font-size:18px">${langButton()}</button></div>
       <div class="sprites">${CLASSES.map((c, i) => `<img src="${iconURL('pl_' + c.id, 64)}" style="animation-delay:${i * 0.15}s">`).join('')}</div>
       <div class="version">verze ${__APP_VERSION__} beta</div>
     </div>`);
@@ -92,11 +98,34 @@ export class Menus {
         } else this.slots(m, 'Všechny sloty jsou obsazené. Vyber postavu, kterou chceš nahradit.');
       } else if (a === 'slots') this.slots(m);
       else if (a === 'help') this.help(m);
+      else if (a === 'lang') this.languages();
       else if (a === 'fs') this.ui.toggleFullscreen();
       else if (a === 'sound') {
         setMuted(!isMuted());
         b.textContent = isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut';
       }
+    });
+  }
+
+  /** the languages of the game; the chosen one goes on as the game starts again (the hero is saved first) */
+  languages() {
+    const cur = currentLang();
+    const p = el(`<div class="overlay" style="z-index:95"><div class="panel langpanel"><div class="head"><h2>🌐 Jazyk</h2><button class="close">✕</button></div>
+      <div class="body scroll"><div class="langs">${LANGS.map((l) => `<button class="btn ${l.id === cur ? 'green' : ''}" data-lang="${l.id}"><span class="flag">${l.flag}</span><span class="langname">${l.name}</span></button>`).join('')}</div>
+      <div class="hint">Hra se v novém jazyce načte znovu, postava zůstane uložená. Překlady do jiných jazyků než češtiny pořídila umělá inteligence a mohou obsahovat chyby.</div></div></div></div>`);
+    this.ui.root.appendChild(p);
+    p.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest('button');
+      if (!b && e.target !== p) return;
+      if (!b || b.classList.contains('close')) return p.remove();
+      const id = b.dataset.lang;
+      if (!id) return;
+      sfx('ui');
+      if (id === cur) return p.remove();
+      saveLang(id);
+      if (this.ui.scene) saveGame(this.ui.scene.save);
+      b.classList.add('green');
+      setTimeout(() => location.reload(), 120);
     });
   }
 
@@ -465,7 +494,7 @@ export class Menus {
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="pets">🐾 Mazlíčci</button><button class="btn" style="flex:1" data-a="ach">🏆 Úspěchy</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
         <div class="row" style="flex-wrap:nowrap">${sc.save.maxFloor >= 2 || sc.inVillage ? `<button class="btn gold" style="flex:1" data-a="home">${sc.inVillage ? '⬇ Do kobek' : '🏠 Domů do Loppa'}</button>` : ''}<button class="btn" style="flex:1" data-a="quests">📜 Úkoly${(sc.save.village?.quests ?? []).some((q) => q.done) || sc.save.village?.royal?.quest?.done ? ' ✔' : ''}</button><button class="btn blue" style="flex:1" data-a="coop">👥 Společná hra${Net.active ? ` ${Net.count}/${MAX_PLAYERS}` : ''}</button><button class="btn violet" style="flex:1" data-a="pearls">💠 Perly ${(sc.save.pearls ?? 0).toLocaleString('cs-CZ')}</button></div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button>${isStandalone() ? '' : `<button class="btn small blue" data-a="fs" data-fs="label">${fsButtonHTML('label')}</button>`}</div>
-        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Kořist: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button></div>
+        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Kořist: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button><button class="btn small blue" data-a="lang">${langButton()}</button></div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
       </div></div>`);
     this.ui.showOverlay(p, () => {});
@@ -476,6 +505,7 @@ export class Menus {
       sfx('ui');
       const a = b.dataset.a;
       if (a === 'resume') this.ui.closeOverlay();
+      else if (a === 'lang') this.languages();
       else if (a === 'diff') this.changeDifficulty(() => (b.innerHTML = diffTag(sc.save) + ' ✎'));
       else if (a === 'fs') this.ui.toggleFullscreen();
       else if (a === 'sound') {
@@ -704,7 +734,7 @@ export class Menus {
       const sets = order
         .map((ai) => `<div class="cxarea ${ai === here ? 'here' : ''}"><div class="cxareah">${esc(AREAS[ai].name)} <span>patra ${ai * 10 + 1}–${ai * 10 + 10}${ai === here ? ' · tady jsi' : ''}</span></div>${areaSets(ai).map(setRow).join('')}</div>`)
         .join('');
-      const kinds = `<table class="cxtab"><tr><th></th>${RARITIES.map((r) => `<th style="color:${r.color}">${esc(r.name.slice(0, 3))}</th>`).join('')}</tr>${BASES.map(
+      const kinds = `<table class="cxtab"><tr><th></th>${RARITIES.map((r) => `<th style="color:${r.color}">${esc(tr(r.name).slice(0, 3))}</th>`).join('')}</tr>${BASES.map(
         (b) => `<tr><td>${esc(b.noun)}</td>${RARITIES.map((r, i) => `<td>${c.b.includes(`${b.id}:${i}`) ? `<b style="color:${r.color}">●</b>` : '<span class="cxno">·</span>'}</td>`).join('')}</tr>`,
       ).join('')}</table>`;
       const stones = ALL_STONES.map((k) => {

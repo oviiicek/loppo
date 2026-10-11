@@ -43,7 +43,7 @@ import { difficultyOf } from '../data/difficulty';
 import { MERCS, MERC_BY_ROLE, MERC_SLOTS, MERC_ORDERS, MercSlot, MercRole, MercOrder, mercFits, mercSlotFor, mercPrice, mercLook, mercStats } from '../data/mercs';
 import type { RivalMood } from '../data/rivals';
 import { TRANSMUTE_N, transmuteOdds, transmuteCost, transmute } from '../data/transmute';
-import { CURSE_BY_ID, curseStats } from '../data/curses';
+import { CURSE_BY_ID, CURSE_SPECIAL_TEXT, curseStats } from '../data/curses';
 import { POWER_BY_ID, UNIQUE_BY_ID, UNIQUES } from '../data/uniques';
 import { parseBossKey, guardianName } from '../data/bossweapons';
 import { discoverItem } from '../data/codex';
@@ -1192,7 +1192,8 @@ export class Panels {
     if (d.elem.ice) st.push(['Mrazivé poškození', '+' + fmt(d.elem.ice)]);
     if (d.elem.lightning) st.push(['Bleskové poškození', '+' + fmt(d.elem.lightning)]);
     if (d.elem.poison) st.push(['Jedové poškození', '+' + fmt(d.elem.poison)]);
-    const specials = [...d.specials].map((x) => `<div class="spec" style="color:#ffb347;font-size:17px">★ ${esc(SPECIAL_BY_ID[x]?.desc ?? POWER_BY_ID[x]?.desc ?? x)}</div>`).join('');
+    // a curse's special is its drawback (in red), the others are gifts
+    const specials = [...d.specials].map((x) => (CURSE_SPECIAL_TEXT[x] && !SPECIAL_BY_ID[x] ? `<div class="spec" style="color:#ff7a6a;font-size:17px">☠ ${esc(CURSE_SPECIAL_TEXT[x])}</div>` : `<div class="spec" style="color:#ffb347;font-size:17px">★ ${esc(SPECIAL_BY_ID[x]?.desc ?? POWER_BY_ID[x]?.desc ?? x)}</div>`)).join('');
     body.innerHTML = `
       <div class="col scroll" style="width:min(240px,28%)">
         <div class="box" style="text-align:center"><img class="px" style="height:96px;image-rendering:pixelated" src="${iconURL('pl_' + s.cls, 96)}">
