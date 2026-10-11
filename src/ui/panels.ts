@@ -31,7 +31,8 @@ import {
   upgradeAffixMult,
   PRIMAL,
 } from '../data/items';
-import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR } from '../data/sets';
+import { setOf, equippedSetCounts, SETS, SET_MIN_FLOOR, areaSets } from '../data/sets';
+import { areaIndex } from '../data/biomes';
 import { Item, Slot, SLOT_NAMES, ATTR_KEYS, ATTR_NAMES, ATTR_DESC, AttrKey, ClassId } from '../data/types';
 import { SPELL_BY_ID, spellsForClass, SpellDef, MAX_SPELL_RANK } from '../data/spells';
 import { CLASSES, CLASS_BY_ID } from '../data/classes';
@@ -330,7 +331,7 @@ export class Panels {
     let h = `<div class="setbox"><div class="setname">${esc(so.def.name)} <span>(${n}/${so.def.pieces.length})</span></div>`;
     h += so.def.pieces.map((p, i) => `<div class="setpiece ${worn.has(i) ? 'on' : ''}">${worn.has(i) ? '✓' : '·'} ${esc(p.name)}</div>`).join('');
     for (const b of so.def.bonuses) {
-      const parts = [...Object.entries(b.stats ?? {}).map(([k, v]) => formatStat(k as any, v as number)), ...(b.specials ?? []).map((sp) => '★ ' + esc(SPECIAL_BY_ID[sp]?.desc ?? sp))];
+      const parts = [...Object.entries(b.stats ?? {}).map(([k, v]) => formatStat(k as any, v as number)), ...(b.specials ?? []).map((sp) => '★ ' + esc(SPECIAL_BY_ID[sp]?.desc ?? POWER_BY_ID[sp]?.desc ?? sp))];
       h += `<div class="setbonus ${n >= b.n ? 'on' : ''}">(${b.n}) ${parts.join(', ')}</div>`;
     }
     return h + '</div>';
@@ -1191,7 +1192,7 @@ export class Panels {
     if (d.elem.ice) st.push(['Mrazivé poškození', '+' + fmt(d.elem.ice)]);
     if (d.elem.lightning) st.push(['Bleskové poškození', '+' + fmt(d.elem.lightning)]);
     if (d.elem.poison) st.push(['Jedové poškození', '+' + fmt(d.elem.poison)]);
-    const specials = [...d.specials].map((x) => `<div class="spec" style="color:#ffb347;font-size:17px">★ ${esc(SPECIAL_BY_ID[x]?.desc ?? x)}</div>`).join('');
+    const specials = [...d.specials].map((x) => `<div class="spec" style="color:#ffb347;font-size:17px">★ ${esc(SPECIAL_BY_ID[x]?.desc ?? POWER_BY_ID[x]?.desc ?? x)}</div>`).join('');
     body.innerHTML = `
       <div class="col scroll" style="width:min(240px,28%)">
         <div class="box" style="text-align:center"><img class="px" style="height:96px;image-rendering:pixelated" src="${iconURL('pl_' + s.cls, 96)}">
@@ -2233,7 +2234,8 @@ export class Panels {
     const rarity = x < 0.45 ? 1 : x < 0.77 ? 2 : x < 0.93 ? 3 : x < 0.99 ? 4 : 5;
     // a legendary roll can be a set piece of the asked kind (armour, jewel or anything)
     if (rarity === 4 && f >= SET_MIN_FLOOR && Math.random() < 0.35) {
-      const fit = SETS.flatMap((st) => st.pieces.map((pc, i) => ({ st, i, base: BASE_BY_ID[pc.base] }))).filter((c) => !filters[id] || filters[id]!(c.base));
+      // a piece of the sets of the area the hero is in
+      const fit = areaSets(areaIndex(f)).flatMap((st) => st.pieces.map((pc, i) => ({ st, i, base: BASE_BY_ID[pc.base] }))).filter((c) => !filters[id] || filters[id]!(c.base));
       const pick = fit[Math.floor(Math.random() * fit.length)];
       if (pick) return generateSetItem(f + 1, pick.st.id, pick.i);
     }

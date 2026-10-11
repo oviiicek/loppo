@@ -12,7 +12,7 @@ import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, listFallen, heroTitle, LEECH_CAP } from '../systems/state';
 import { DIFFICULTIES, DEFAULT_DIFFICULTY, difficultyOf, difficultyLines } from '../data/difficulty';
-import { areaForFloor } from '../data/biomes';
+import { areaForFloor, areaIndex, AREAS } from '../data/biomes';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic, GFX_NAMES, GFX_HINTS, setGfx } from '../systems/audio';
 import { fsButtonHTML, isStandalone } from './fullscreen';
 import { CHRONICLE_ORDER, CUTSCENE_BY_ID } from '../data/story';
@@ -23,7 +23,7 @@ import { FAMILIES } from '../data/families';
 import { cleanName } from '../data/nemesis';
 import { codexOf, codexCount, CODEX_TOTAL, CODEX_TOTALS, ALL_STONES } from '../data/codex';
 import { UNIQUES, POWER_BY_ID } from '../data/uniques';
-import { SETS, SET_COLOR } from '../data/sets';
+import { SETS, SET_COLOR, areaSets } from '../data/sets';
 import { parseGem, gemIcon, gemName } from '../data/gems';
 import { runeIcon, runeName } from '../data/runes';
 import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
@@ -689,15 +689,21 @@ export class Menus {
         const found = c.u.includes(u.id);
         return `<div class="cxe ${found ? 'found' : ''}"><img src="${icon(u.base)}"><div style="min-width:0"><div class="nm">${found ? esc(u.name) : '???'}</div><div class="lv2">${found ? esc(POWER_BY_ID[u.power]?.desc ?? '') : esc(BASE_BY_ID[u.base].noun)}</div></div></div>`;
       }).join('');
-      const sets = SETS.map(
-        (d) =>
-          `<div class="cxset"><span class="nm" style="color:${SET_COLOR}">${esc(d.name)}</span>${d.pieces
-            .map((pc, i) => {
-              const found = c.s.includes(`${d.id}:${i}`);
-              return `<span class="cxp ${found ? 'found' : ''}" title="${found ? esc(pc.name) : '???'}"><img src="${icon(pc.base)}"></span>`;
-            })
-            .join('')}</div>`,
-      ).join('');
+      // the sets by the areas that drop them (the area the hero is in first)
+      const here = areaIndex(sc.inVillage ? s.floor : sc.floor);
+      const setRow = (d: (typeof SETS)[number]) => {
+        const got = d.pieces.filter((_, i) => c.s.includes(`${d.id}:${i}`)).length;
+        return `<div class="cxset"><span class="nm" style="color:${SET_COLOR}">${esc(d.name)} <small>${got}/${d.pieces.length}</small></span>${d.pieces
+          .map((pc, i) => {
+            const found = c.s.includes(`${d.id}:${i}`);
+            return `<span class="cxp ${found ? 'found' : ''}" title="${found ? esc(pc.name) : '???'}"><img src="${icon(pc.base)}"></span>`;
+          })
+          .join('')}</div>`;
+      };
+      const order = [here, ...AREAS.map((_, i) => i).filter((i) => i !== here)];
+      const sets = order
+        .map((ai) => `<div class="cxarea ${ai === here ? 'here' : ''}"><div class="cxareah">${esc(AREAS[ai].name)} <span>patra ${ai * 10 + 1}–${ai * 10 + 10}${ai === here ? ' · tady jsi' : ''}</span></div>${areaSets(ai).map(setRow).join('')}</div>`)
+        .join('');
       const kinds = `<table class="cxtab"><tr><th></th>${RARITIES.map((r) => `<th style="color:${r.color}">${esc(r.name.slice(0, 3))}</th>`).join('')}</tr>${BASES.map(
         (b) => `<tr><td>${esc(b.noun)}</td>${RARITIES.map((r, i) => `<td>${c.b.includes(`${b.id}:${i}`) ? `<b style="color:${r.color}">●</b>` : '<span class="cxno">·</span>'}</td>`).join('')}</tr>`,
       ).join('')}</table>`;

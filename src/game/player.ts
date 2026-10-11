@@ -813,7 +813,7 @@ export class Player extends Actor {
       this.place(this.weapon, p, SHEATH[baseKey], e, -0.6);
     }
     if (this.offhand) {
-      const offBase = this.save.equip.off!.base;
+      const offBase = this.save.equip.off?.base ?? '';
       const ox = ax + bhx * ACTOR_SCALE * f,
         oy = ay + bhy * ACTOR_SCALE;
       const p: Placement = { x: ox, y: oy, rot: 0, ox: 0.5, oy: 0.5, depth: depth + 0.6 };

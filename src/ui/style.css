@@ -4357,9 +4357,9 @@ textarea.code {
   color: #ff9f1c;
 }
 .cxsets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: 6px 10px;
 }
 .cxset {
   display: flex;
@@ -5419,4 +5419,28 @@ textarea.code {
 .prk em {
   color: #9dff9d;
   font-style: normal;
+}
+/* the codex's sets, by the area that drops them (the hero's area first) */
+.cxarea {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.cxarea.here {
+  background: rgba(47, 224, 176, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(47, 224, 176, 0.35);
+}
+.cxareah {
+  font-size: 16px;
+  color: #e8dcc0;
+}
+.cxareah span {
+  font-size: 13px;
+  color: #9a90a8;
+}
+.cxset .nm small {
+  color: #9a90a8;
+  font-size: 13px;
 }

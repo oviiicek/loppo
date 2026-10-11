@@ -5,7 +5,8 @@ import { D } from './fx';
 import { Item, Slot } from '../data/types';
 import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded, itemValue, PRIMAL } from '../data/items';
 import { CLASS_BY_ID } from '../data/classes';
-import { SET_MIN_FLOOR } from '../data/sets';
+import { SET_MIN_FLOOR, pickSetPiece, heldSetPieces } from '../data/sets';
+import { areaIndex } from '../data/biomes';
 import { addToInventory, Materials, maxStat, bumpStat, derive, equipItem, SaveData, addGem, addRune, addSpellRune } from '../systems/state';
 import { gemIcon, gemName, parseGem, randomGem } from '../data/gems';
 import { parseRune, runeIcon, runeName, randomRune } from '../data/runes';
@@ -104,8 +105,16 @@ export class Loot {
   item(ilvl: number, rarityBonus = 0) {
     const it = generateItem(ilvl, { magicFind: this.mf, rarityBonus, filter: this.bias() });
     // from floor 10 on, some legendary finds are pieces of an item set
-    if (it.rarity >= 4 && this.scene.floor >= SET_MIN_FLOOR && Math.random() < 0.3) return generateSetItem(ilvl);
+    if (it.rarity >= 4 && this.scene.floor >= SET_MIN_FLOOR && Math.random() < 0.4) return this.setPiece(ilvl);
     return it;
+  }
+
+  /** a set piece of the area the hero is in: most likely one the hero does not hold yet, of the set the hero
+   *  holds most of (see pickSetPiece) */
+  setPiece(ilvl: number) {
+    const sc = this.scene;
+    const pick = pickSetPiece(areaIndex(sc.floor), heldSetPieces(sc.save));
+    return pick ? generateSetItem(ilvl, pick.id, pick.piece) : generateSetItem(ilvl);
   }
 
   goldAmount(mult = 1) {
@@ -133,7 +142,8 @@ export class Loot {
       }
       const n = 3 + e.bossTier;
       for (let i = 0; i < n; i++) this.dropItem(this.item(f + 1, 2), x, y);
-      if (f >= SET_MIN_FLOOR && Math.random() < 0.12) this.dropItem(generateSetItem(f + 1), x, y);
+      // every guardian leaves a piece of one of its area's sets
+      if (f >= SET_MIN_FLOOR) this.dropItem(this.setPiece(f + 1), x, y);
       for (let i = 0; i < 2; i++) this.dropRandomGem(x, y, 1);
       this.dropRandomRune(x, y, 1);
       if (Math.random() < 0.3) this.dropSpellRune(x, y);
@@ -148,7 +158,7 @@ export class Loot {
       const rar = Math.random() < 0.3 ? 4 : 3;
       this.dropItem(generateItem(f + 2, { rarity: rar, magicFind: this.mf, filter: this.bias() }), x, y);
       this.dropItem(this.item(f + 1, 2), x, y);
-      if (f >= SET_MIN_FLOOR && Math.random() < 0.15) this.dropItem(generateSetItem(f + 1), x, y);
+      if (f >= SET_MIN_FLOOR && Math.random() < 0.25) this.dropItem(this.setPiece(f + 1), x, y);
       this.dropRandomGem(x, y, 1);
       if (Math.random() < 0.5) this.dropRandomRune(x, y);
       if (Math.random() < 0.2) this.dropSpellRune(x, y);
@@ -176,6 +186,8 @@ export class Loot {
       if (Math.random() < 0.06) this.dropRandomRune(x, y);
       if (Math.random() < 0.015) this.dropSpellRune(x, y);
       if (Math.random() < 0.35) this.dropItem(this.item(f), x, y);
+      // now and then a champion carries a piece of one of the area's sets
+      if (f >= SET_MIN_FLOOR && Math.random() < 0.02) this.dropItem(this.setPiece(f + 1), x, y);
       this.dropGold(this.goldAmount(2.5), x, y);
       if (Math.random() < 0.28) this.dropMat(Math.random() < 0.6 ? 'hpPotion' : 'mpPotion', 1, x, y);
       if (Math.random() < 0.25) this.dropMat('stone', 1, x, y);
@@ -196,7 +208,7 @@ export class Loot {
   nemesisDrops(x: number, y: number, kills: number) {
     const f = this.scene.floor;
     const set = f >= SET_MIN_FLOOR && Math.random() < 0.35;
-    this.dropItem(set ? generateSetItem(f + 2) : generateItem(f + 2, { rarity: kills >= 3 && Math.random() < 0.5 ? 5 : 4, filter: this.bias() }), x, y);
+    this.dropItem(set ? this.setPiece(f + 2) : generateItem(f + 2, { rarity: kills >= 3 && Math.random() < 0.5 ? 5 : 4, filter: this.bias() }), x, y);
     for (let i = 0; i < 1 + Math.min(3, kills); i++) this.dropItem(this.item(f + 2, 2), x, y);
     for (let i = 0; i < 2 + Math.min(2, kills - 1); i++) this.dropRandomGem(x, y, 1);
     this.dropRandomRune(x, y, 1);
@@ -219,6 +231,8 @@ export class Loot {
   rematchHoard(x: number, y: number) {
     const f = this.scene.floor;
     for (let i = 0; i < 2; i++) this.dropItem(generateItem(f + 2, { magicFind: this.mf, rarityBonus: 1, filter: this.bias() }), x, y);
+    // now and then a piece of one of the guardian's area's sets (a way back to the sets of older areas)
+    if (f >= SET_MIN_FLOOR && Math.random() < 0.35) this.dropItem(this.setPiece(f + 1), x, y);
     for (let i = 0; i < 2; i++) this.dropGold(this.goldAmount(1.5), x, y);
     if (Math.random() < 0.4) this.dropRandomGem(x, y, 0);
     if (Math.random() < 0.15) this.dropRandomRune(x, y, 0);
