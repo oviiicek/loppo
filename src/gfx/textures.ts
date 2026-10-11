@@ -1413,6 +1413,90 @@ function cobbleFloor(ctx: CanvasRenderingContext2D, ox: number, v: number, th: T
 
 /** the tiles of a theme; the five biomes and the village are painted at the start, an area's own tiles the
  *  first time one of its floors is entered */
+/** soft shade where the floor meets the walls at its sides, below and in the corners (the shade under the walls
+ *  above is the 'wallshadow'): one tile for every arrangement of walls around a floor tile, laid as a tile layer
+ *  of its own over the floor. Bits: 1 north, 2 east, 4 south, 8 west, 16/32/64/128 the corners NE/SE/SW/NW (a
+ *  corner only when both its sides are open). */
+export const AO_COLS = 16;
+export function ensureAoTiles() {
+  if (SCENE.textures.exists('ao_tiles')) return;
+  const S = TILE_RES;
+  const [c, ctx] = canvas(S * AO_COLS, S * 16);
+  const band = (x0: number, y0: number, x1: number, y1: number, a: number) => {
+    const g = ctx.createLinearGradient(x0, y0, x1, y1);
+    g.addColorStop(0, `rgba(8,6,14,${a})`);
+    g.addColorStop(1, 'rgba(8,6,14,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0) || S, Math.abs(y1 - y0) || S);
+  };
+  const corner = (cx: number, cy: number, r: number, a: number) => {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, `rgba(8,6,14,${a})`);
+    g.addColorStop(1, 'rgba(8,6,14,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  };
+  for (let m = 1; m < 256; m++) {
+    const ox = (m % AO_COLS) * S,
+      oy = Math.floor(m / AO_COLS) * S;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ox, oy, S, S);
+    ctx.clip();
+    const W = 9,
+      Sb = 6;
+    // the side walls darken a strip next to them, the wall below a thinner one
+    if (m & 2) band(ox + S, oy, ox + S - W, oy, 0.34);
+    if (m & 8) band(ox, oy, ox + W, oy, 0.34);
+    if (m & 4) band(ox, oy + S, ox, oy + S - Sb, 0.22);
+    // a little more along the wall above, at the ends of its shadow
+    if (m & 1) band(ox, oy, ox, oy + 4, 0.16);
+    if (m & 16) corner(ox + S, oy, 11, 0.32);
+    if (m & 32) corner(ox + S, oy + S, 9, 0.26);
+    if (m & 64) corner(ox, oy + S, 9, 0.26);
+    if (m & 128) corner(ox, oy, 11, 0.32);
+    ctx.restore();
+  }
+  addCanvas('ao_tiles', c, false);
+}
+
+/** the walls must never melt into the floor: when the tops of the walls come out about as bright as the floor,
+ *  they are darkened (on a bright floor) or lightened (on a dark one) until the way is plain to see */
+function separateWalls(ctx: CanvasRenderingContext2D, S: number) {
+  const lum = (x0: number) => {
+    const d = ctx.getImageData(x0, 0, S, S).data;
+    let sum = 0,
+      n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 128) continue;
+      sum += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+      n++;
+    }
+    return n ? sum / n : 0;
+  };
+  let lf = 0;
+  for (let v = 0; v < 4; v++) lf += lum(S * (1 + v));
+  lf /= 4;
+  const lt = lum(S * TILE.top);
+  const gap = lt - lf;
+  if (Math.abs(gap) >= 0.16) return;
+  // the top faces go the other way from the floor: darker on a bright floor, lighter on a dark one, until they
+  // differ by the gap
+  const darken = lf > 0.42;
+  const k = darken ? Math.min(1, Math.max(0.45, (lf - 0.16) / Math.max(0.05, lt))) : 1;
+  const lift = darken ? 0 : Math.min(0.6, Math.max(0, (lf + 0.16 - lt) / Math.max(0.05, 1 - lt)));
+  for (let m = 0; m < 8; m++) {
+    const x0 = S * (TILE.top + m);
+    const img = ctx.getImageData(x0, 0, S, S);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] === 0) continue;
+      for (let j = 0; j < 3; j++) d[i + j] = darken ? d[i + j] * k : d[i + j] + (255 - d[i + j]) * lift;
+    }
+    ctx.putImageData(img, x0, 0);
+  }
+}
+
 export function ensureTileset(ti: number) {
   const th = THEMES[ti] ?? THEMES[0];
   if (SCENE.textures.exists('tiles_' + ti)) return;
@@ -1429,6 +1513,7 @@ export function ensureTileset(ti: number) {
     floor(ctx, S * 23, 0, th);
     rect(ctx, S * TILE.fog, 0, S, S, '#07060a');
     P.rock(ctx, S * TILE.rock, th);
+    separateWalls(ctx, S);
     addCanvas('tiles_' + ti, c);
     if (ti === 0) addCanvas('tiles', c);
   }

@@ -850,14 +850,17 @@ export class GameScene extends Phaser.Scene {
       case 'barrel':
       case 'pot': {
         const s = add(o.kind);
+        // a soft shadow keeps it standing on the floor instead of floating over it
+        const sh = this.add.image(px + 1, py + 6, 'shadow').setDepth(D.floorDeco + 1).setScale(o.kind === 'pot' ? 0.75 : 1, 0.7).setAlpha(0.6);
         // the village's crates are just furniture
         if (o.data?.decor) break;
         if (this.theme.propTint) s.setTint(this.theme.propTint);
-        this.interactables.push({ kind: 'breakable', x: px, y: py + 4, tx: o.x, ty: o.y, sprite: s, data: { what: o.kind } });
+        this.interactables.push({ kind: 'breakable', x: px, y: py + 4, tx: o.x, ty: o.y, sprite: s, data: { what: o.kind, shadow: sh } });
         break;
       }
       case 'table':
       case 'skull':
+        if (o.kind === 'table') this.add.image(px + 1, py + 7, 'shadow').setDepth(D.floorDeco + 1).setScale(1.5, 0.8).setAlpha(0.55);
         add(o.kind);
         if (o.kind === 'table') this.lamps.push({ x: px, y: py, r: 50, flicker: Math.random() * 10 });
         break;
@@ -2549,6 +2552,7 @@ export class GameScene extends Phaser.Scene {
     this.fx.burst(s.x, s.y - 6, 0x888888, 3, 'puff');
     sfx('hit');
     s.destroy();
+    (it.data.shadow as Phaser.GameObjects.Image | undefined)?.destroy();
     const r = Math.random();
     if (r < 0.25) this.loot.dropGold(this.loot.goldAmount(0.6), it.x, it.y - 4);
     else if (r < 0.29) this.loot.dropMat('hpPotion', 1, it.x, it.y - 4);

@@ -391,6 +391,8 @@ V pauze je tlačítko **👥 Společná hra**. Kdo hru založí, dostane pětim�
   - **střední** – pro běžné telefony: světla a počasí, záře elitních nepřátel jako měkké světlo (shader jen u strážců),
   - **vysoká** – pro výkonné telefony a počítače: všechno, zářící obrysy, víc částic.
 
+  Podlaha u bočních zdí a v rozích má jemný zapečený stín (od nízké grafiky výš, jako samostatná dlaždicová vrstva), sudy, bedny, džbány a stoly vrhají stín a vršky zdí se při kreslení dlaždic samy zesvětlí nebo ztmaví, kdyby splývaly s podlahou – v každé oblasti je tak vidět, kudy se jde.
+
   Při prvním spuštění hra úroveň odhadne podle zařízení (paměť a počet jader telefonu). Čísla poškození se kreslí z bitmapového písma (nic nového se neposílá grafické kartě), HUD přepisuje jen hodnoty, které se změnily, a v multiplayeru se pohyb nepřátel a druhého hrdiny dopočítává mezi zprávami hostitele, takže se neseká.
 - Hlavní menu má živé pozadí, náhodně vygenerovaný dungeon s pochodněmi.
 - Tlačítko Zpět na Androidu otevře pauzu místo opuštění hry.

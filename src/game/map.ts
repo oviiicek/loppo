@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Dungeon, T_FLOOR, T_WALL } from '../systems/dungeon';
-import { TILE, TILE_RES, themeForFloor, ensureTileset } from '../gfx/textures';
+import { TILE, TILE_RES, themeForFloor, ensureTileset, ensureAoTiles } from '../gfx/textures';
+import { gfxLevel } from '../systems/audio';
 import { hash } from '../gfx/pixel';
 import { placeVillageGround } from '../gfx/groundLoader';
 
@@ -18,6 +19,8 @@ export class WorldMap {
   explored: Uint8Array;
   flow: Int16Array;
   layer!: Phaser.Tilemaps.TilemapLayer;
+  /** soft shade along the walls at the floor's sides and corners (see ensureAoTiles; not on the lowest graphics) */
+  ao: Phaser.Tilemaps.TilemapLayer | null = null;
   fog!: Phaser.Tilemaps.TilemapLayer;
   map!: Phaser.Tilemaps.Tilemap;
   private flowFrom = -1;
@@ -155,6 +158,13 @@ export class WorldMap {
     const ts = this.map.addTilesetImage('tiles', 'tiles_' + ti, R, R, 0, 0)!;
     this.layer = this.map.createLayer(0, ts, 0, 0)!;
     this.layer.setDepth(0).setScale(TS / R);
+    if (gfxLevel() >= 1) {
+      ensureAoTiles();
+      const aoTs = this.map.addTilesetImage('ao', 'ao_tiles', R, R, 0, 0, 1000)!;
+      this.ao = this.map.createBlankLayer('ao', aoTs, 0, 0)!;
+      this.ao.setDepth(1).setScale(TS / R);
+      for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) this.putAo(x, y);
+    }
     // fog of war: black tiles removed as the player explores (just below the darkness overlay)
     this.fog = this.map.createBlankLayer('fog', ts, 0, 0)!;
     this.fog.fill(TILE.fog);
@@ -178,7 +188,32 @@ export class WorldMap {
       for (let xx = x - 1; xx <= x + 1; xx++) {
         if (xx < 0 || yy < 0 || xx >= this.w || yy >= this.h) continue;
         this.map.putTileAt(this.tileIndexFor(xx, yy), xx, yy, true, this.layer);
+        this.putAo(xx, yy);
       }
+  }
+
+  /** the shade on a floor tile from the walls around it (bits as in ensureAoTiles) */
+  private putAo(x: number, y: number) {
+    const ao = this.ao;
+    if (!ao) return;
+    let m = 0;
+    if (this.openFloor(x, y)) {
+      const wall = (xx: number, yy: number) => !this.openFloor(xx, yy);
+      const n = wall(x, y - 1),
+        e = wall(x + 1, y),
+        s = wall(x, y + 1),
+        w = wall(x - 1, y);
+      if (n) m |= 1;
+      if (e) m |= 2;
+      if (s) m |= 4;
+      if (w) m |= 8;
+      if (!n && !e && wall(x + 1, y - 1)) m |= 16;
+      if (!s && !e && wall(x + 1, y + 1)) m |= 32;
+      if (!s && !w && wall(x - 1, y + 1)) m |= 64;
+      if (!n && !w && wall(x - 1, y - 1)) m |= 128;
+    }
+    if (m) this.map.putTileAt(1000 + m, x, y, false, ao);
+    else this.map.removeTileAt(x, y, false, false, ao);
   }
 
   openTile(x: number, y: number) {
