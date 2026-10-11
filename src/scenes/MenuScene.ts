@@ -4,6 +4,7 @@ import { WorldMap, TS } from '../game/map';
 import { D } from '../game/fx';
 import { ENEMY_BY_ID } from '../data/enemies';
 import { ACTOR_SCALE, isPropTex } from '../gfx/textures';
+import { setMusicTrack } from '../systems/audio';
 
 // Atmospheric background for the main menu: a real generated dungeon with
 // flickering torches and idle monsters, explored by a slowly drifting camera.
@@ -20,6 +21,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
+    setMusicTrack('menu');
     this.lamps = [];
     const d = generateDungeon(4 + Math.floor(Math.random() * 6), (Math.random() * 1e9) | 0);
     this.map = new WorldMap(d);

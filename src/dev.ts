@@ -977,3 +977,52 @@ Object.assign(dev, {
     return { floor: sc.floor, kind: sc.kind, calm: sc.calm ?? null, fate: sc.fate?.id ?? null, mod: sc.mod?.name ?? null, enemies: sc.enemies.filter((e: any) => !e.dead).length, run: sc.save.run, inter: [...new Set(sc.interactables.map((i: any) => i.kind))].join(',') };
   },
 });
+
+import { renderMusic, musicTrack } from './systems/audio';
+import { TRACKS } from './data/music';
+Object.assign(dev, {
+  /** how loud every track is: the peak and the loudness of its first seconds (rendered offline), and the
+   *  longest quiet stretch (in half seconds) */
+  async musicLevels(sec = 12, ids?: string[]) {
+    const out: Record<string, { peak: number; rms: number; hp: number; nan: number; quiet: number }> = {};
+    for (const id of ids ?? Object.keys(TRACKS)) {
+      const b = await renderMusic(id, sec);
+      const d = b.getChannelData(0);
+      const win = Math.floor(b.sampleRate / 2);
+      let peak = 0;
+      let sum = 0;
+      let nan = 0;
+      let quiet = 0;
+      let run = 0;
+      // what a phone speaker plays: above about 200 Hz
+      const a = 1 / (1 + 2 * Math.PI * 200 / b.sampleRate);
+      let hy = 0;
+      let hx = 0;
+      let hsum = 0;
+      for (let i = 0; i < d.length; i++) {
+        const x = Number.isNaN(d[i]) ? 0 : d[i];
+        hy = a * (hy + x - hx);
+        hx = x;
+        hsum += hy * hy;
+      }
+      for (let w = 0; w < d.length; w += win) {
+        let ws = 0;
+        for (let i = w; i < Math.min(d.length, w + win); i++) {
+          const v = d[i];
+          if (Number.isNaN(v)) nan++;
+          else {
+            const a = Math.abs(v);
+            if (a > peak) peak = a;
+            ws += v * v;
+          }
+        }
+        sum += ws;
+        run = Math.sqrt(ws / win) < 0.002 ? run + 1 : 0;
+        quiet = Math.max(quiet, run);
+      }
+      out[id] = { peak: +peak.toFixed(3), rms: +Math.sqrt(sum / d.length).toFixed(4), hp: +Math.sqrt(hsum / d.length).toFixed(4), nan, quiet };
+    }
+    return out;
+  },
+  musicTrack,
+});

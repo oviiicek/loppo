@@ -396,6 +396,7 @@ V pauze je tlačítko **👥 Společná hra**. Kdo hru založí, dostane pětim�
   Podlaha u bočních zdí a v rozích má jemný zapečený stín (od nízké grafiky výš, jako samostatná dlaždicová vrstva), sudy, bedny, džbány a stoly vrhají stín a vršky zdí se při kreslení dlaždic samy zesvětlí nebo ztmaví, kdyby splývaly s podlahou – v každé oblasti je tak vidět, kudy se jde.
 
   Při prvním spuštění hra úroveň odhadne podle zařízení (paměť a počet jader telefonu). Čísla poškození se kreslí z bitmapového písma (nic nového se neposílá grafické kartě), HUD přepisuje jen hodnoty, které se změnily, a v multiplayeru se pohyb nepřátel a druhého hrdiny dopočítává mezi zprávami hostitele, takže se neseká.
+- **Hudba**: každá z 25 oblastí má vlastní skladbu podle svého místa – mnišský chorál v kryptě, kapky vody v jeskyních, xylofon z kostí v katakombách, zvonící rampouchy v ledu, oud a ruční buben v hrobce pouštních králů, kovadliny v kovárnách, vítr na popelavých pláních, rozladěná hrací skříňka v zrcadlovém paláci, dech spícího Nyx'thara na dně světa. Vesnice má ve dne lidový tanec s loutnou a flétnou a v noci tichou harfu s cvrčky, hlavní menu staré téma Loppa a trhliny vlastní zneklidňující hudbu. Strážci pater mají bojová témata (jedno na každou kapitolu), každý strážce příběhu (opat Benedikt, Isolda, Matka spor, Žalářník, Morgrim, Elara, Nyx'thar) a zlatý drak Aurex svoje vlastní; v poslední fázi boje hudba zrychlí. Skladby nejsou nahrávky: malý sekvencer je hraje z popisu (tónina a modus, tempo, akordy, nástroje, bicí a zvuk místa) a melodie roste z motivu skladby, který se ptá a odpovídá jako lidová píseň – každé místo má tak svůj poznatelný nápěv. Mezi skladbami se plynule prolíná, noty se plánují dopředu na hodinách zvukové karty, takže se hudba nezadrhne ani při rušném boji, a na velmi nízké grafice hraje úsporněji. Když se hra schová (telefon do kapsy), zvuk se uspí.
 - Hlavní menu má živé pozadí, náhodně vygenerovaný dungeon s pochodněmi.
 - Tlačítko Zpět na Androidu otevře pauzu místo opuštění hry.
 
@@ -405,8 +406,8 @@ V pauze je tlačítko **👥 Společná hra**. Kdo hru založí, dostane pětim�
 src/
   main.ts              konfigurace Phaseru
   data/                classy, kouzla, předměty, nepřátelé, drahokamy, runy, kletby, unikáty, talenty,
-                       vesnice, úkoly, osudy, lore, bestiář, typy
-  systems/             generátor dungeonu, stav postavy a ukládání, RNG, zvuk
+                       vesnice, úkoly, osudy, lore, bestiář, skladby hudby, typy
+  systems/             generátor dungeonu, stav postavy a ukládání, RNG, zvuk a sekvencer hudby
   gfx/                 procedurální pixel-art (textury, ikony kouzel)
   game/                mapa a kolize, hráč, nepřátelé a spojenci, boj, kouzla, loot, AI bossů, efekty,
                        žoldák, události v kobkách (encounters), vesnice, úkoly, společná hra (coop,
@@ -431,5 +432,6 @@ src/
   - `__dev.village()` přenese hrdinu do Loppa, `__dev.buildAll(3)` postaví všechny budovy na danou úroveň,
   - `__dev.quest('lost')` přijme úkol, `__dev.questInfo()` ukáže úkoly,
   - `__dev.elite('orc', ['štítonoš', 'zrcadlový'])` postaví vedle hrdiny šampiona s danými vlastnostmi,
-  - `__dev.evInfo()` vypíše stav událostí patra.
+  - `__dev.evInfo()` vypíše stav událostí patra,
+  - `__dev.musicTrack()` řekne, která skladba hraje, `__dev.musicLevels(24)` vyrenderuje bez zvuku prvních 24 s každé skladby a změří špičku a hlasitost (i tu, kterou zahraje reproduktor telefonu) – podle toho jsou skladby srovnané na stejnou hlasitost.
 - Společná hra se dá zkoušet v záložkách jednoho prohlížeče bez internetu: `?mp=local` (spojení přes BroadcastChannel, každá zpráva nese odesílatele a adresáta), nebo s místním serverem PeerJS (`npx peerjs --port 9000 --host 127.0.0.1 --path /`) přes `?mp=peer-local` – tak jde zkusit i čtveřice v oddělených profilech prohlížeče.

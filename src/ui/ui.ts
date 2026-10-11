@@ -10,7 +10,8 @@ import { Item } from '../data/types';
 import { itemIcon } from '../data/items';
 import { xpForLevel, game as G, saveGame, setActiveSlot, freeTalentPoints } from '../systems/state';
 import { bus } from '../systems/events';
-import { sfx, unlockAudio, startMusic, settings } from '../systems/audio';
+import { sfx, unlockAudio, startMusic, settings, setMusicTrack, musicUrgency } from '../systems/audio';
+import { bossTrack } from '../data/music';
 import { Panels } from './panels';
 import { Menus } from './menus';
 import { BuildingPanels } from './buildings';
@@ -1230,6 +1231,9 @@ class UIManager {
     if (!this.hud) return;
     if (this.scene?.coop?.isHost) Net.event({ k: 'boss', on: 1, id: b.id });
     this.bossRef = b;
+    // the guardian's own battle music; in the last phase of a long fight it hurries
+    setMusicTrack(bossTrack(this.scene?.floor ?? 1, b.story?.id, b.tag === 'secret'), 0.9);
+    musicUrgency(b.lastStand || (b.story ? b.phaseCount > 1 && b.phase >= b.phaseCount - 1 : b.bphase >= BOSS_PHASES - 1) ? 1 : 0);
     const bb = $('.bossbar', this.hud);
     const stages = b.phaseCount > 1 ? ` · fáze ${b.phase + 1}/${b.phaseCount}` : '';
     $('.name', bb).textContent = b.story ? `${b.name}, ${b.story.title}${stages}` : `${b.name} · fáze ${b.bphase + 1}/${BOSS_PHASES}`;
@@ -1374,6 +1378,7 @@ class UIManager {
 
   hideBoss() {
     if (this.scene?.coop?.isHost) Net.event({ k: 'boss', on: 0 });
+    if (this.bossRef && this.scene) setMusicTrack(this.scene.musicTrack(), 3);
     this.bossRef = null;
     if (this.hud) {
       $('.bossbar', this.hud).classList.remove('on');

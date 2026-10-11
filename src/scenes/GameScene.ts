@@ -38,7 +38,8 @@ import { hash } from '../gfx/pixel';
 import { areaForFloor, areaOf } from '../data/biomes';
 import { Difficulty, difficultyOf, POTION_CD } from '../data/difficulty';
 import { bus } from '../systems/events';
-import { sfx, settings } from '../systems/audio';
+import { sfx, settings, setMusicTrack } from '../systems/audio';
+import { areaTrack } from '../data/music';
 import { Nemesis, NEMESIS_MAX, nemesisName, nemesisTitle, victimOf, nemesisPower, nemesisLabel } from '../data/nemesis';
 import { Encounters, RiftKind } from '../game/encounters';
 import { Village, dayPhase, phaseName } from '../game/village';
@@ -505,6 +506,7 @@ export class GameScene extends Phaser.Scene {
       if (this.guard && !this.bossDefeated) this.coop.closeGate();
     } else if (Net.isHost && this.inVillage) this.sendHomeToGuests();
     UI.mpStatus(!!this.coop);
+    setMusicTrack(this.musicTrack());
     void this.beginFloor();
     // a gift of pearls for every day of play (once the floor's title card is gone)
     this.time.delayedCall(3200, () => {
@@ -512,6 +514,16 @@ export class GameScene extends Phaser.Scene {
       const g = dailyGift(this.save);
       if (g) this.givePearls(g.pearls, g.streak > 1 ? `Denní dar – ${g.streak}. den v řadě` : 'Denní dar');
     });
+  }
+
+  /** the music of this place: the village (by day or by night), a rift, or the area of the floor */
+  musicTrack() {
+    if (this.inVillage) {
+      const ph = dayPhase();
+      return ph === 'night' || ph === 'dusk' ? 'village_night' : 'village';
+    }
+    if (this.rift) return this.rift;
+    return areaTrack(this.floor);
   }
 
   /** the host went home to Loppo: the guests go to their own villages until the next descent (to = one guest) */
