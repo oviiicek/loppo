@@ -50,7 +50,7 @@ export interface Ground {
   warned?: boolean;
   /** thrown away from the bag: not picked up again until the hero has walked away from it */
   held?: boolean;
-  /** in a game for two: an item one of the heroes threw away (either may take it; the host's game decides) */
+  /** playing together: an item one of the heroes threw away (any of them may take it; the host's game decides) */
   shared?: number;
 }
 
@@ -306,7 +306,7 @@ export class Loot {
   }
 
   /** an item thrown away from the bag: it lands a few steps from the hero and stays there until picked up on purpose;
-   *  in a game for two the other hero may take it */
+   *  playing together the other heroes may take it */
   throwItem(it: Item) {
     const sc = this.scene;
     const p = sc.player;
@@ -315,7 +315,7 @@ export class Loot {
     if (sc.coop?.isHost) g.shared = sc.coop.hostShare(it, g.x, g.y);
   }
 
-  /** an item thrown away in a game for two lies exactly where its thrower's game put it */
+  /** an item thrown away in a game together lies exactly where its thrower's game put it */
   dropShared(it: Item, x: number, y: number, gid: number) {
     const p = this.scene.player;
     const g = this.dropItem(it, x, y, false, true);

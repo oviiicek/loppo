@@ -28,7 +28,7 @@ import { parseGem, gemIcon, gemName } from '../data/gems';
 import { runeIcon, runeName } from '../data/runes';
 import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
 import { isCampFloor } from '../data/bands';
-import { Net, embedded } from '../net/net';
+import { Net, embedded, MAX_PLAYERS, SLOT_CSS } from '../net/net';
 
 type UIM = typeof UIType;
 
@@ -292,7 +292,7 @@ export class Menus {
         <p><b style="color:#ffd76a">Strážci:</b> při 70, 40 a 10 % zdraví změní útoky i arénu a v posledních 10 % zuří.</p>
         <p><b style="color:#ffd76a">Žoldák, soupeři a nemesis:</b> v pauze si najmi žoldáka (tank, léčitel, lučištník, mág) a dej mu vybavení a rozkazy. Jiní dobrodruzi v kobkách se mohou přidat, obchodovat, nebo bojovat. Šampion, který tě zabije, se může stát tvým nemesis – a vrátí se.</p>
         <p><b style="color:#ff9a9a">Bossové a zbraně strážců:</b> v bráně v Loppu je záložka Bossové – strážce, který už padl, jde vyzvat znovu (menší kořist, prohra nic nestojí). Každý strážce má pro tvou classu vlastní zbraň: poprvé ji nechá s šancí 35 %, potom pokaždé s šancí 10 %. Co už máš a co ještě chybí, ukáže Legenda zbraní (Úspěchy → Zbraně).</p>
-        <p><b style="color:#9fe6ff">Hra pro dva:</b> v pauze „Hra pro dva“ – kdo hru založí, dostane kód a druhý hráč ho zadá. Hraje se svět zakladatele; nestvůr je 1,5× víc, mají 2× víc zdraví a 1,5× silnější útoky. Každý sbírá svou kořist, zahozený předmět může vzít i ten druhý. Ke strážci a po schodech dolů se jde jen spolu (2/2).</p>
+        <p><b style="color:#9fe6ff">Společná hra (až 4 hráči):</b> v pauze „Společná hra“ – kdo hru založí, dostane kód a ostatní ho zadají. Hraje se svět zakladatele. Každý hráč má svou barvu (hostitel modrou, další oranžovou, fialovou a zelenou). Čím víc hrdinů, tím víc nestvůr a silnějších: ve dvou 1,5× víc, s 2× víc zdraví a 1,5× silnějšími útoky, ve třech a čtyřech ještě víc, aby byl boj na hrdinu stejně těžký. Každý sbírá svou kořist, zahozený předmět mohou vzít i ostatní. Ke strážci a po schodech dolů se jde jen spolu. Kdo padne, sleduje ostatní a vrátí se v dalším patře.</p>
         <p><b style="color:#ffd76a">Události:</b> zajatci, oltáře, duchové, trhliny se strážcem, rvačky nestvůr, krvavá výzva, rozhodnutí s následky, kostlivci u karet, dopisy padlých a nápisy na zdech. Velmi vzácně i zlatá komnata, zlatý drak, snový portál nebo zlatý déšť.</p>
         <p><b style="color:#ffd76a">Loppo a úkoly:</b> z pauzy se vrátíš domů do Loppa, zpět do kobek vede brána ve zřícenině hradu. Zachránění vesničané tam otevřou kovárnu, obchod, nástěnku úkolů, laboratoř, věž mága, cvičiště a chrám – a budovy rostou za zlato. V tvém domě je truhla, postel (odpočinek dává zkušenosti navíc) a trofeje. Úkoly z nástěnky tě pošlou na konkrétní patra; odměnu si vyzvedneš zase na nástěnce.</p>
         <p><b style="color:#ffd76a">Král Dobromil:</b> před zámkem dává královské úkoly. Za ně roste přízeň krále a s ní pocty s trvalými bonusy – až po Korunu Loppa. Ve vesnici se střídá den a noc podle hodin.</p>
@@ -461,7 +461,7 @@ export class Menus {
         <button class="btn green" data-a="resume">Pokračovat</button>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button><button class="btn" style="flex:1" data-a="merc">⚔️ Žoldák</button></div>
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="pets">🐾 Mazlíčci</button><button class="btn" style="flex:1" data-a="ach">🏆 Úspěchy</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
-        <div class="row" style="flex-wrap:nowrap">${sc.save.maxFloor >= 2 || sc.inVillage ? `<button class="btn gold" style="flex:1" data-a="home">${sc.inVillage ? '⬇ Do kobek' : '🏠 Domů do Loppa'}</button>` : ''}<button class="btn" style="flex:1" data-a="quests">📜 Úkoly${(sc.save.village?.quests ?? []).some((q) => q.done) || sc.save.village?.royal?.quest?.done ? ' ✔' : ''}</button><button class="btn blue" style="flex:1" data-a="coop">👥 Hra pro dva${Net.active ? ' ✔' : ''}</button></div>
+        <div class="row" style="flex-wrap:nowrap">${sc.save.maxFloor >= 2 || sc.inVillage ? `<button class="btn gold" style="flex:1" data-a="home">${sc.inVillage ? '⬇ Do kobek' : '🏠 Domů do Loppa'}</button>` : ''}<button class="btn" style="flex:1" data-a="quests">📜 Úkoly${(sc.save.village?.quests ?? []).some((q) => q.done) || sc.save.village?.royal?.quest?.done ? ' ✔' : ''}</button><button class="btn blue" style="flex:1" data-a="coop">👥 Společná hra${Net.active ? ` ${Net.count}/${MAX_PLAYERS}` : ''}</button></div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button>${isStandalone() ? '' : `<button class="btn small blue" data-a="fs" data-fs="label">${fsButtonHTML('label')}</button>`}</div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Kořist: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button></div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
@@ -525,7 +525,7 @@ export class Menus {
         this.ui.closeOverlay();
         this.ui.openPanel(a === 'inv' ? 'inventory' : a === 'char' ? 'character' : a === 'pets' ? 'pets' : a === 'merc' ? 'merc' : 'spells');
       } else if (a === 'quit') {
-        Net.leave();
+        Net.leave('quit');
         saveGame(sc.save);
         this.ui.closeOverlay(false);
         this.ui.showMainMenu();
@@ -533,31 +533,48 @@ export class Menus {
     });
   }
 
-  /** playing for two: open a game (a code for the other player), join one, or end it */
+  /** playing together (up to four): open a game (a code for the others), join one, or leave it */
   coop() {
     const sc = this.ui.scene!;
     const me = { name: sc.save.heroName || CLASS_BY_ID[sc.save.cls].name, cls: sc.save.cls, lvl: sc.save.level };
-    const p = el(`<div class="panel small coop"><div class="head"><h2>👥 Hra pro dva</h2><button class="close">✕</button></div><div class="body scroll" style="display:block;padding:12px"></div></div>`);
+    const p = el(`<div class="panel small coop"><div class="head"><h2>👥 Společná hra</h2><button class="close">✕</button></div><div class="body scroll" style="display:block;padding:12px"></div></div>`);
     const body = $('.body', p);
     let err = '';
     const rules = `<ul class="mprules">
-        <li>Hraje se svět toho, kdo hru založí. Druhý hráč se připojí kódem a objeví se ve stejném patře.</li>
-        <li>Nestvůr je o polovinu víc, mají dvojnásobné zdraví a o polovinu silnější útoky.</li>
-        <li>Každý vidí a sbírá svou vlastní kořist. Předmět, který někdo zahodí z batohu, může sebrat i ten druhý.</li>
-        <li>Po schodech dolů a do arény strážce se jde jen spolu (2/2) – kdo dorazí dřív, počká.</li>
-        <li>Kdo padne, za chvíli vstane u spoluhráče. Hra se při otevřeném menu nezastavuje.</li>
-        <li>Oba potřebujete internet (spojení jde přímo mezi zařízeními).</li>
-        ${embedded() ? '<li class="mpwarn">Tahle verze běží uvnitř jiné stránky, kde prohlížeč přímé spojení nedovolí. Pro hru pro dva ji otevři přímo na <b>oviiicek.github.io/loppo</b>.</li>' : ''}
+        <li>Hraje se svět toho, kdo hru založí. Až tři další hráči se připojí kódem a objeví se ve stejném patře.</li>
+        <li>Každý má svou barvu – kruh pod hrdinou, jméno a tečku na mapě: hostitel modrou, další hráči oranžovou, fialovou a zelenou.</li>
+        <li>Čím víc hrdinů, tím víc nestvůr a jsou silnější (ve dvou o polovinu víc, s dvojnásobným zdravím a o polovinu silnějšími útoky). Na jednoho hrdinu je boj ve dvou, třech i čtyřech stejně těžký.</li>
+        <li>Každý vidí a sbírá svou vlastní kořist. Předmět, který někdo zahodí z batohu, mohou sebrat i ostatní.</li>
+        <li>Po schodech dolů a do arény strážce se jde jen spolu – kdo dorazí dřív, počká na ostatní.</li>
+        <li>Kdo padne, zůstane mimo boj a sleduje ostatní – vrátí se v dalším patře. Když padnou všichni, výprava se vrací jako po smrti.</li>
+        <li>Hra se při otevřeném menu nezastavuje. Všichni potřebujete internet (spojení jde přímo mezi zařízeními).</li>
+        ${embedded() ? '<li class="mpwarn">Tahle verze běží uvnitř jiné stránky, kde prohlížeč přímé spojení nedovolí. Pro společnou hru ji otevři přímo na <b>oviiicek.github.io/loppo</b>.</li>' : ''}
       </ul>`;
+    /** who plays: a row for every place (the free ones too) */
+    const roster = () => {
+      const rows: string[] = [];
+      for (let s = 0; s < MAX_PLAYERS; s++) {
+        const q = Net.players.get(s);
+        if (!q) {
+          rows.push(`<li class="free"><i></i>volné místo</li>`);
+          continue;
+        }
+        const tags = [s === 0 ? 'hostitel' : '', s === Net.slot ? 'ty' : ''].filter(Boolean).join(', ');
+        rows.push(`<li style="--c:${SLOT_CSS[s]}"><i></i><span><b>${esc(q.name)}</b> – ${esc(CLASS_BY_ID[q.cls]?.name ?? '')}, úroveň ${q.lvl}${tags ? ` <small>(${tags})</small>` : ''}</span></li>`);
+      }
+      return `<ul class="mplist">${rows.join('')}</ul>`;
+    };
     const render = () => {
       const st = Net.status;
+      const host = Net.role === 'host';
       if (st === 'on')
-        body.innerHTML = `<div class="mpon">Hrajete spolu: <b>${esc(Net.partner?.name ?? '')}</b> (${esc(CLASS_BY_ID[Net.partner?.cls ?? 'warrior']?.name ?? '')}, úroveň ${Net.partner?.lvl ?? 1}).</div>
-          <div class="hint" style="margin:6px 0 10px">${Net.role === 'host' ? 'Hru hostíš ty: hraje se tvůj svět a ty vybíráš cestu dolů.' : 'Hraje se svět druhé strany. Tvoje zkušenosti, kořist a zlato zůstávají tvé.'}</div>
-          <button class="btn red" data-a="leave">Ukončit hru pro dva</button>`;
+        body.innerHTML = `<div class="mpon">Hrajete spolu (${Net.count}/${MAX_PLAYERS}):</div>${roster()}
+          ${host && Net.count < MAX_PLAYERS ? `<div class="hint">Kód hry pro další hráče:</div><div class="mpcode small">${esc(Net.code)}</div>` : ''}
+          <div class="hint" style="margin:6px 0 10px">${host ? 'Hru hostíš ty: hraje se tvůj svět a ty vybíráš cestu dolů. Když odejdeš, hra skončí pro všechny.' : 'Hraje se svět hostitele. Tvoje zkušenosti, kořist a zlato zůstávají tvé.'}</div>
+          <button class="btn red" data-a="leave">${host ? 'Ukončit společnou hru' : 'Odejít ze hry'}</button>`;
       else if (st === 'waiting')
-        body.innerHTML = `<div class="hint">Kód tvé hry – dej ho druhému hráči:</div><div class="mpcode">${esc(Net.code)}</div>
-          <div class="hint" style="margin:6px 0 10px">Čekám, až se připojí… (druhý hráč otevře v pauze „Hra pro dva“ a zadá kód)</div>
+        body.innerHTML = `<div class="hint">Kód tvé hry – dej ho ostatním (hrát mohou až ${MAX_PLAYERS}):</div><div class="mpcode">${esc(Net.code)}</div>
+          <div class="hint" style="margin:6px 0 10px">Čekám, až se někdo připojí… (ostatní otevřou v pauze „Společná hra“ a zadají kód)</div>
           <button class="btn" data-a="leave">Zrušit</button>`;
       else if (st === 'connecting') body.innerHTML = `<div class="hint" style="padding:10px 0">Připojuji…</div><button class="btn" data-a="leave">Zrušit</button>`;
       else
@@ -565,7 +582,11 @@ export class Menus {
           <div class="mpacts"><button class="btn green" data-a="host">Založit hru</button>
           <div class="mpjoin"><input class="mpin" maxlength="5" placeholder="KÓD" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="btn blue" data-a="join">Připojit se</button></div></div>`;
     };
-    const off = Net.onChange(() => render());
+    const off = Net.onChange((why) => {
+      if (why === 'full') err = 'Hra je plná – hrají v ní už čtyři hráči.';
+      else if (why === 'version') err = 'Hra hostitele má jinou verzi – obnovte obě stránky a zkuste to znovu.';
+      render();
+    });
     render();
     this.ui.showOverlay(p, () => off());
     $('.close', p).addEventListener('click', () => this.ui.closeOverlay());

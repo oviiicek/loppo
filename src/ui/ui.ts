@@ -24,7 +24,7 @@ import { T_FLOOR, T_WALL } from '../systems/dungeon';
 import { playCutscene, CutsceneOpts } from './cutscene';
 import { CUTSCENE_BY_ID, Shot } from '../data/story';
 import { storyOf } from '../systems/state';
-import { Net } from '../net/net';
+import { Net, SLOT_CSS } from '../net/net';
 import { FS_HELP, autoFullscreen, fsActive, fsButtonHTML, fsSupported, isStandalone, onFullscreenChange, syncFsButtons, toggleFullscreen } from './fullscreen';
 
 export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
@@ -327,12 +327,13 @@ class UIManager {
           <div class="bar mp"><div class="fill"></div><div class="txt"></div></div>
           <div class="xprow"><span class="lv">LV 1</span><div class="bar xp"><div class="fill"></div></div></div>
           <div class="meta"><span><img src="${iconURL('ic_gold', 24)}"> <b class="gold">0</b></span><span class="kills"></span><span class="mercchip" title="Žoldák"><img><i><b></b></i></span></div>
-          <div class="mpchip"><span class="nm"></span><i><b></b></i></div>
+          <div class="mpparty"></div>
           <div class="buffs"></div>
         </div>
       </div>
       <div class="minimap"><canvas width="124" height="124"></canvas></div>
       <div class="floorlbl"><div class="fl"></div><div class="flfate"></div></div>
+      <div class="mpwatch"></div>
       <div class="topbtns">
         ${fsSupported() && !isStandalone() ? `<div class="rbtn fs" data-a="fs" data-fs="icon" title="Celá obrazovka (F)">${fsButtonHTML('icon')}</div>` : ''}
         <div class="rbtn spellsbtn" data-a="spells" title="Kouzla (K)"><img src="${spellbookIcon()}" alt="Kouzla"><span class="badge sp"></span></div>
@@ -861,12 +862,12 @@ class UIManager {
       ctx.fillStyle = e.boss ? '#ff3030' : e.nemesis ? '#ff5a8a' : thief ? '#ffd23a' : e.elite ? '#ffa020' : '#e04040';
       ctx.fillRect(mx - (big ? 3 : 1.5), my - (big ? 3 : 1.5), big ? 6 : 3, big ? 6 : 3);
     }
-    // the other player's hero: a blue dot (an arrow on the rim when it is out of sight)
-    const q = sc.coop?.partner;
-    if (q) {
-      edgeArrow(q.x, q.y, '#7fd8ff');
+    // the other players' heroes: dots in their colours (an arrow on the rim when one is out of sight)
+    for (const q of sc.coop?.heroes.values() ?? []) {
+      const c = SLOT_CSS[q.slot] ?? '#7fd8ff';
+      edgeArrow(q.x, q.y, c);
       const [qx, qy] = toMini(q.x, q.y);
-      ctx.fillStyle = q.dead ? '#7a8a96' : '#7fd8ff';
+      ctx.fillStyle = q.dead ? '#7a8a96' : c;
       ctx.strokeStyle = '#000';
       ctx.beginPath();
       ctx.arc(qx, qy, 3.2, 0, Math.PI * 2);
@@ -1036,19 +1037,19 @@ class UIManager {
   cutsceneActive = false;
 
   /** plays a story scene (by id or as shots) with the game paused; remembers it as seen */
-  /** (share: a guardian's words, which the other player of a game for two hears too) */
+  /** (share: a guardian's words, which the other players of a game together hear too) */
   async cutscene(idOrShots: string | Shot[], opts: CutsceneOpts = {}, share = false) {
     const shots = typeof idOrShots === 'string' ? CUTSCENE_BY_ID[idOrShots]?.shots : idOrShots;
     if (!shots?.length || this.cutsceneActive) return;
     const sc = this.scene;
-    // in a game for two the guest watches the host's guardian scenes too
+    // playing together the guests watch the host's guardian scenes too
     if (share && sc?.coop?.isHost) {
       Net.event({ k: 'cut', shots, o: opts });
       Net.flush();
     }
     this.cutsceneActive = true;
     if (sc) {
-      // a game for two cannot stop (the link has to keep talking): its world only holds still
+      // a game together cannot stop (the links have to keep talking): its world only holds still
       if (sc.coop) sc.storyHold = true;
       else {
         sc.paused = true;
@@ -1373,7 +1374,7 @@ class UIManager {
   // ---------------------------------------------------------------- panels
   pauseGame() {
     const sc = this.scene;
-    // a game for two never stops: the world goes on and the hero just stands while a panel is open
+    // a game together never stops: the world goes on and the hero just stands while a panel is open
     if (sc && (sc.coop || Net.active)) {
       sc.menuOpen = true;
       this.joy = [0, 0];
@@ -1386,7 +1387,7 @@ class UIManager {
     this.joy = [0, 0];
   }
 
-  /** a game for two began while a panel kept this game paused: the world goes on behind the panel */
+  /** a game together began while a panel kept this game paused: the world goes on behind the panel */
   keepRunning() {
     const sc = this.scene;
     if (!sc || !sc.paused || this.cutsceneActive) return;
@@ -1406,20 +1407,35 @@ class UIManager {
     }
   }
 
-  /** the HUD shows (or hides) the other player of a game for two */
+  /** the HUD shows (or hides) the other players of a game together */
   mpStatus(on: boolean) {
-    const c = this.hud?.querySelector<HTMLElement>('.mpchip');
+    const c = this.hud?.querySelector<HTMLElement>('.mpparty');
     if (c) c.classList.toggle('on', on);
+    if (!on) this.hudWrites.delete('mpparty');
   }
 
-  /** the other player's name, level and health under the hero's bars */
-  mpPartner(name: string, frac: number, lvl: number, dead: boolean) {
-    const c = this.hud?.querySelector<HTMLElement>('.mpchip');
+  /** a hero out of the fight in a game together: whom it watches until the next floor (null: back in the fight) */
+  mpWatch(name: string | null, color = '#9fe6ff') {
+    const c = this.hud?.querySelector<HTMLElement>('.mpwatch');
+    if (!c) return;
+    this.put('mpwatch', name ? name + color : '', () => {
+      c.classList.toggle('on', !!name);
+      c.innerHTML = name ? `Mimo boj do dalšího patra · sleduješ <b style="color:${color}">${esc(name)}</b>` : '';
+    });
+  }
+
+  /** the other players under the hero's bars: a dot in each one's colour, name, level and health */
+  mpParty(list: { slot: number; name: string; lvl: number; frac: number; dead: boolean }[]) {
+    const c = this.hud?.querySelector<HTMLElement>('.mpparty');
     if (!c) return;
     c.classList.add('on');
-    c.classList.toggle('dead', dead);
-    $('.nm', c).textContent = `👥 ${name} · ${lvl}`;
-    ($('b', c) as HTMLElement).style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`;
+    const pct = (f: number) => Math.round(Math.max(0, Math.min(1, f)) * 100);
+    const key = list.map((q) => `${q.slot}:${q.name}:${q.lvl}:${pct(q.frac)}:${q.dead ? 1 : 0}`).join('|');
+    this.put('mpparty', key, () => {
+      c.innerHTML = list
+        .map((q) => `<div class="mpchip${q.dead ? ' dead' : ''}" style="--c:${SLOT_CSS[q.slot] ?? '#9fe6ff'}"><span class="dot"></span><span class="nm">${esc(q.name)} · ${q.lvl}${q.dead ? ' ✝' : ''}</span><i><b style="width:${pct(q.frac)}%"></b></i></div>`)
+        .join('');
+    });
   }
 
   // a locked overlay (death screen) can only be closed by its own buttons

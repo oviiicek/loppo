@@ -106,7 +106,7 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
 
   Pod 50 % HP se boss rozzuří. Bossové se v dalších prostředích vracejí v „Prastaré“ verzi s více pomocníky. Příběhoví strážci čekají na 25., 50., 100., 125., 150., 200. a 250. patře (viz Příběh).
 - **Patro strážce:** od schodů vede krátká chodba do **přípravné místnosti** – ohniště (plné zdraví a mana, posila na 5 minut), obchodník, kovadlina, alchymista a truhla úložiště – a za ní je aréna. Jakmile do ní hrdina vstoupí, zavře se za ním runová bariéra a otevře se až po porážce strážce (mazlíček a žoldák jdou s ním). Smrt v aréně vrací do přípravné místnosti stejného patra, takže jde změnit výbavu a zkusit to znovu.
-- **Bossové – souboje znovu:** brána v Loppu má záložku **Bossové** se všemi strážci, kteří už padli (strážci pater i příběhoví). Souboj začíná u ohně v přípravné místnosti jejich patra, strážce pokaždé promluví (scénu jde přeskočit) a výprava v kobkách zůstane, kde byla. Kořist je menší (dva předměty, trochu zlata, občas drahokam nebo runa, poloviční zkušenosti) a domů vede zlatý portál. Prohra nic nestojí – hrdina se jen vrátí do Loppa (v Hardcore je smrt i tady konečná). Funguje to i ve hře pro dva. Zkušební odkaz `#test-bosses` (nebo `?test=bosses`) otevře všechny strážce.
+- **Bossové – souboje znovu:** brána v Loppu má záložku **Bossové** se všemi strážci, kteří už padli (strážci pater i příběhoví). Souboj začíná u ohně v přípravné místnosti jejich patra, strážce pokaždé promluví (scénu jde přeskočit) a výprava v kobkách zůstane, kde byla. Kořist je menší (dva předměty, trochu zlata, občas drahokam nebo runa, poloviční zkušenosti) a domů vede zlatý portál. Prohra nic nestojí – hrdina se jen vrátí do Loppa (v Hardcore je smrt i tady konečná). Funguje to i ve společné hře (každý hrdina dostane zbraň své třídy). Zkušební odkaz `#test-bosses` (nebo `?test=bosses`) otevře všechny strážce.
 - **Zbraně strážců:** každý ze 17 strážců má pro každou classu vlastní zbraň pojmenovanou po něm (např. *Dlouhý luk Isoldy*, *Meč Kostěného krále*) – s jeho schopností a kouzlem (Isolda mrazivou aurou a mrazivou novou, Vermithrax meteory, Upíří lord léčením z kritických zásahů…). Když strážce padne poprvé, nechá zbraň pro classu hrdiny s šancí 35 %, potom při každém dalším souboji s šancí 10 % – šance už neklesá, takže jde každou zbraň získat. Příběhoví a prastaří strážci dávají mýtickou verzi, úroveň zbraně odpovídá patru strážce.
 - **Poklad strážce:** poražený strážce vysype svůj poklad přímo v aréně – předměty (první aspoň epický), zlato, drahokam, materiály, často runu – a navíc jednu jistou epickou nebo lepší věc, kterou hrdina může použít. Příběhový strážce dá poklad dvakrát a jistá věc je legendární nebo mýtická.
 
@@ -352,15 +352,16 @@ Na nástěnce v Loppu visí úkoly od vesničanů: najdi ztraceného dobrodruha 
 
 Deník úkolů se otevře kulatým tlačítkem s vykřičníkem vedle kouzel (nebo z pauzy); když čeká odměna nebo mapa pokladu, tlačítko zeleně pulzuje: nahoře hlavní úkol příběhu (další příběhový strážce a kapitola), pod ním úkol patra, vedlejší úkoly a mapy pokladů. Mapa pokladu občas leží v truhle (častěji ve zlaté), nosí ji šampion a skoro vždy zloděj. Přidá vedlejší úkol na jedno z dalších pater; tam na mapě i minimapě svítí zlatý křížek, kde se kope – vykopaná truhla dá předměty, zlato, drahokam a někdy runu. Najednou jdou nést 3 mapy.
 
-### Hra pro dva
-V pauze je tlačítko **👥 Hra pro dva**. Kdo hru založí, dostane pětimístný kód a druhý hráč ho zadá na svém zařízení (stačí internet, hra jde přímo mezi zařízeními přes WebRTC; server PeerJS je jen seznámí).
-- **Hraje se svět toho, kdo hru založil** – jeho patro, výprava, cesta dolů a obtížnost. Druhý hráč se objeví ve stejném patře a po skončení hry pro dva se vrátí do svého světa a na své patro; jeho nejhlubší patro se nemění.
-- **Silnější kobky:** nestvůr je 1,5× víc, mají 2× víc zdraví a útočí 1,5× silněji (strážci i příběhoví strážci také, v každé fázi).
-- **Kořist:** každý vidí a sbírá svou vlastní kořist (truhly, obchodníci, svatyně a padlé předměty jsou pro každého jiné). Zkušenosti, zlato a kořist z nestvůry dostanou oba, když jsou poblíž. Předmět, který někdo **zahodí z batohu**, vidí oba a vezme si ho ten, kdo k němu dojde první.
-- **Spolu ke strážci:** před arénou strážce stojí brána s počítadlem **Brána strážce 1/2** – otevře se, až u ní stojí oba, a souboj začne, až jsou v aréně oba. Stejně tak schody: **Schody 1/2 – počkej**, dolů se jde jen spolu (2/2) a cestu vybírá zakladatel hry.
-- **Smrt:** padlý druhý hráč za 8 s vstane vedle zakladatele hry; když padne zakladatel, oba se vrátí na checkpoint. Při otevřeném menu se hra pro dva nezastavuje (hrdina jen stojí) a scény strážců vidí oba (dají se přeskočit).
-- V HUD je vidět jméno, úroveň a zdraví spoluhráče, na minimapě modrá tečka. Když se spojení na 10 s ztratí, každý hraje dál ve svém světě.
-- Hra pro dva potřebuje stránku hry otevřenou přímo (např. na GitHub Pages). Ve verzi vložené do jiné stránky prohlížeč přímé spojení nedovolí a okno to napíše.
+### Společná hra (až 4 hráči)
+V pauze je tlačítko **👥 Společná hra**. Kdo hru založí, dostane pětimístný kód a až tři další hráči ho zadají na svých zařízeních (stačí internet, hra jde přímo mezi zařízeními přes WebRTC; server PeerJS je jen seznámí). Zařízení hostů mluví se zařízením zakladatele a to jim předává, co dělají ostatní hrdinové (kde stojí, jejich efekty a střely).
+- **Hraje se svět toho, kdo hru založil** – jeho patro, výprava, cesta dolů a obtížnost. Ostatní se objeví ve stejném patře a po skončení společné hry se vrátí do svého světa a na své patro; jejich nejhlubší patro se nemění.
+- **Barvy hráčů:** každý hrdina má pod sebou kruh v barvě svého hráče – zakladatel **modrou**, druhý hráč **oranžovou**, třetí **fialovou** a čtvrtý **zelenou**. Stejnou barvou je jméno nad hrdinou, tečka na minimapě a řádek v HUD.
+- **Silnější kobky podle počtu hrdinů:** ve dvou je nestvůr 1,5× víc, mají 2× víc zdraví a útočí 1,5× silněji. Pro tři a čtyři hrdiny se síla počítá tak, aby byl boj na jednoho hrdinu stejně těžký jako ve dvou (stejně zdraví nestvůr na hrdinu a stejně ran, které na každého dopadnou): ve třech 2× víc nestvůr s 2,25× zdravím a 1,69× silnějšími útoky, ve čtyřech 2,5× víc s 2,4× zdravím a 1,8× silnějšími útoky. Strážce zůstává sám, má tolikrát víc zdraví, kolik je hrdinů, takže jeho souboj trvá jako pro jednoho. Když někdo přijde nebo odejde uprostřed patra, nestvůry se hned přepočítají.
+- **Kořist:** každý vidí a sbírá svou vlastní kořist (truhly, obchodníci, svatyně a padlé předměty jsou pro každého jiné). Zkušenosti, zlato a kořist z nestvůry dostane každý, kdo je poblíž. Předmět, který někdo **zahodí z batohu**, vidí všichni a vezme si ho ten, kdo k němu dojde první.
+- **Spolu ke strážci:** před arénou strážce stojí brána s počítadlem **Brána strážce 2/4** – otevře se, až u ní stojí všichni, kdo ještě bojují, a souboj začne, až jsou všichni v aréně. Stejně tak schody: **Schody 2/4 – počkej**, dolů se jde jen spolu a cestu vybírá zakladatel hry.
+- **Smrt:** kdo padne, zůstane mimo boj až do dalšího patra – kamera sleduje někoho, kdo ještě stojí, a dole je štítek „Mimo boj do dalšího patra · sleduješ …“. Na padlé se u brány ani u schodů nečeká. Když padne zakladatel, ostatní bojují dál; jakmile dojdou ke schodům, zakladatel vybere cestu dolů. V dalším patře jsou všichni zase na nohou. Když padnou všichni, výprava se vrací jako po smrti (na checkpoint). Hrdina v Hardcore umírá i ve společné hře natrvalo.
+- Při otevřeném menu se společná hra nezastavuje (hrdina jen stojí) a scény strážců vidí všichni (dají se přeskočit). Když se spojení s někým na 10 s ztratí, ostatní hrají dál; když odejde zakladatel, hra končí pro všechny a každý se vrátí do svého světa. Plná hra (4 hráči) dalšího nepustí a hra jiné verze také ne (napíše, ať se obnoví stránka).
+- Společná hra potřebuje stránku hry otevřenou přímo (např. na GitHub Pages). Ve verzi vložené do jiné stránky prohlížeč přímé spojení nedovolí a okno to napíše.
 
 ### Ostatní
 - Dynamické osvětlení s blikajícími pochodněmi, minimapa s mlhou války, čísla poškození, částicové efekty a otřesy obrazovky.
@@ -391,9 +392,9 @@ src/
   systems/             generátor dungeonu, stav postavy a ukládání, RNG, zvuk
   gfx/                 procedurální pixel-art (textury, ikony kouzel)
   game/                mapa a kolize, hráč, nepřátelé a spojenci, boj, kouzla, loot, AI bossů, efekty,
-                       žoldák, události v kobkách (encounters), vesnice, úkoly, hra pro dva (coop,
+                       žoldák, události v kobkách (encounters), vesnice, úkoly, společná hra (coop,
                        otherhero)
-  net/                 spojení dvou zařízení pro hru pro dva (PeerJS / WebRTC)
+  net/                 spojení zařízení pro společnou hru až čtyř hráčů (PeerJS / WebRTC)
   scenes/              Boot, Game (hlavní herní smyčka), Gallery (náhled grafiky)
   ui/                  HTML/CSS rozhraní: HUD, joystick, inventář, postava, kouzla, obchod, menu,
                        budovy Loppa, nástěnka úkolů
@@ -414,4 +415,4 @@ src/
   - `__dev.quest('lost')` přijme úkol, `__dev.questInfo()` ukáže úkoly,
   - `__dev.elite('orc', ['štítonoš', 'zrcadlový'])` postaví vedle hrdiny šampiona s danými vlastnostmi,
   - `__dev.evInfo()` vypíše stav událostí patra.
-- Hra pro dva se dá zkoušet ve dvou záložkách jednoho prohlížeče bez internetu: `?mp=local` (spojení přes BroadcastChannel), nebo s místním serverem PeerJS (`npx peerjs --port 9000 --host 127.0.0.1 --path /`) přes `?mp=peer-local`.
+- Společná hra se dá zkoušet v záložkách jednoho prohlížeče bez internetu: `?mp=local` (spojení přes BroadcastChannel, každá zpráva nese odesílatele a adresáta), nebo s místním serverem PeerJS (`npx peerjs --port 9000 --host 127.0.0.1 --path /`) přes `?mp=peer-local` – tak jde zkusit i čtveřice v oddělených profilech prohlížeče.

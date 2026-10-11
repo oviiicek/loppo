@@ -336,7 +336,7 @@ export class Combat {
     if (!remote) this.heroGains(e, dmg, e.story ? full : dmg, o);
     // a mirrored champion sends part of the hero's blow back (to the guest's hero when it was the guest's blow)
     if (!o.fromAlly && !o.dot && !o.thorns && e.affixes.includes('zrcadlový')) {
-      if (remote) sc.coop?.partner?.takeDamage(dmg * 0.15, el, e);
+      if (remote) sc.coop?.remoteHero()?.takeDamage(dmg * 0.15, el, e);
       else this.reflectToHero(e, dmg * 0.15, el, 'odraz');
     }
     if (e.hp <= 0) {
@@ -511,8 +511,7 @@ export class Combat {
           this.cause = `${e.name} – výbuch`;
           this.damagePlayer(e.dmg * 1.5, null, 'fire');
         }
-        const q = sc.coop?.isHost ? sc.coop.partner : null;
-        if (q && !q.dead && Math.hypot(q.x - e.x, q.y - e.y) < 34) q.takeDamage(e.dmg * 1.5, 'fire', e);
+        for (const q of sc.coop?.targets() ?? []) if (Math.hypot(q.x - e.x, q.y - e.y) < 34) q.takeDamage(e.dmg * 1.5, 'fire', e);
       });
     }
     if (e.def.behavior === 'splitter' && !e.isMinion && e.baseScale >= 0.9 && !e.boss) {

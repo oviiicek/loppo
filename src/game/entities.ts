@@ -335,8 +335,9 @@ export class Enemy extends Actor {
   /** a puppet's speed from the last two words of the host (it keeps moving between them) */
   pvx = 0;
   pvy = 0;
-  /** got the multiplayer strength already */
-  mpScaled = false;
+  /** the multiplayer strength it has now (health and damage multipliers for the number of heroes) */
+  mpHp = 1;
+  mpDmg = 1;
 
   /** speed and attack rate: blessed, hastened or fed on a stolen buff */
   get haste() {
@@ -399,7 +400,7 @@ export class Enemy extends Actor {
     if (def.behavior === 'thief') this.addGlow(0xffd23a, 3);
     if (def.role && PRIORITY_ROLES.includes(def.role) && scene.textures.exists('en_role_' + def.role)) this.roleIcon = scene.add.image(x, y, 'en_role_' + def.role).setScale(ACTOR_SCALE);
     scene.powers?.init(this);
-    // playing for two: more health and harder blows
+    // playing together: more health and harder blows for more heroes
     scene.coop?.scaleEnemy(this);
   }
 
@@ -475,7 +476,7 @@ export class Enemy extends Actor {
     this.baseTint = boss.tint ?? null;
     this.addGlow(0xff3030, 3, true);
     this.aggro = false;
-    this.mpScaled = false;
+    this.mpHp = this.mpDmg = 1;
     this.scene.coop?.scaleEnemy(this);
   }
 
@@ -516,8 +517,8 @@ export class Enemy extends Actor {
     this.lastStand = false;
     this.capBudget = this.maxHp * 0.05;
     this.capT = this.scene.time.now / 1000;
-    // every stage gets the strength of a game for two again
-    this.mpScaled = false;
+    // every stage gets the strength of a game for more heroes again
+    this.mpHp = this.mpDmg = 1;
     this.scene.coop?.scaleEnemy(this);
     this.boss = { id: def.id, name: def.name, sprite: ph.sprite, scale: ph.scale, hp: this.maxHp, dmg: ph.dmg, speed: ph.speed, patterns: ph.patterns, proj: ph.proj, el: ph.el, summon: ph.summon, tint: ph.tint };
     if (this.spriteKey !== ph.sprite) {
@@ -868,11 +869,12 @@ export class Enemy extends Actor {
         if (def.ability === 'berserk') this.shove(sc.player, 240);
         this.charging = 0;
       } else {
-        const q = sc.coop?.isHost ? sc.coop.partner : null;
-        if (q && !q.dead && Math.hypot(q.x - this.x, q.y - this.y) < this.r + 6) {
-          q.takeDamage(this.dmg * this.might * 1.2, def.el ?? 'phys', this);
-          this.charging = 0;
-        }
+        for (const q of sc.coop?.targets() ?? [])
+          if (Math.hypot(q.x - this.x, q.y - this.y) < this.r + 6) {
+            q.takeDamage(this.dmg * this.might * 1.2, def.el ?? 'phys', this);
+            this.charging = 0;
+            break;
+          }
       }
       if (hit) this.charging = 0;
       this.syncSprite(true);
@@ -1046,8 +1048,7 @@ export class Enemy extends Actor {
         sc.combat.damagePlayer(this.dmg * this.might * 1.3, this);
         this.shove(p, 90);
       }
-      const q = sc.coop?.isHost ? sc.coop.partner : null;
-      if (q && !q.dead && Math.hypot(q.x - this.x, q.y - this.y) < 18) q.takeDamage(this.dmg * this.might * 1.3, this.def.el ?? 'phys', this);
+      for (const q of sc.coop?.targets() ?? []) if (Math.hypot(q.x - this.x, q.y - this.y) < 18) q.takeDamage(this.dmg * this.might * 1.3, this.def.el ?? 'phys', this);
       this.atkT = Math.max(this.atkT, 0.4);
     }
     this.syncSprite(true);
@@ -1561,13 +1562,13 @@ export class Projectile {
           return true;
         }
       }
-      // the other player's hero (in the host's game the monsters' shots hit it too)
-      const q = sc.coop?.isHost ? sc.coop.partner : null;
-      if (q && !q.dead && Math.abs(q.x - this.x) < 6 && Math.abs(q.y - 6 - this.y) < 9) {
-        q.takeDamage(this.o.dmg, this.o.el, this.o.srcFoe ?? null, { poison: this.o.el === 'poison' ? this.o.dmg * 0.3 : 0, chill: this.o.el === 'ice' ? 1.2 : 0 });
-        this.kill();
-        return true;
-      }
+      // the other players' heroes (in the host's game the monsters' shots hit them too)
+      for (const q of sc.coop?.targets() ?? [])
+        if (Math.abs(q.x - this.x) < 6 && Math.abs(q.y - 6 - this.y) < 9) {
+          q.takeDamage(this.o.dmg, this.o.el, this.o.srcFoe ?? null, { poison: this.o.el === 'poison' ? this.o.dmg * 0.3 : 0, chill: this.o.el === 'ice' ? 1.2 : 0 });
+          this.kill();
+          return true;
+        }
     }
     return false;
   }

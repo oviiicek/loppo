@@ -1,11 +1,12 @@
-// Online play for two: the host plays their own world and a second hero joins with a short code. The two
-// devices talk directly (WebRTC through PeerJS; the PeerJS cloud only introduces them to each other). A local
-// loopback over BroadcastChannel lets two tabs of one browser play together for testing (?mp=local).
+// Online play for up to four: the host plays their own world and up to three more heroes join with a short code.
+// Every guest's device talks directly to the host's (WebRTC through PeerJS; the PeerJS cloud only introduces them
+// to each other) and the host's game passes on what the guests should know about each other. A local loopback
+// over BroadcastChannel lets tabs of one browser play together for testing (?mp=local).
 import type { ClassId } from '../data/types';
 
 export type NetRole = 'host' | 'guest';
 
-/** who plays on the other side */
+/** who plays in the game */
 export interface PeerInfo {
   name: string;
   cls: ClassId;
@@ -17,12 +18,32 @@ export interface NetMsg {
   [k: string]: unknown;
 }
 
-type Handler = (m: NetMsg) => void;
+/** a message and the place of the player it came from (0 is the host) */
+type Handler = (m: NetMsg, from: number) => void;
 
+/** the line to one other game (the host has one to every guest, a guest one to the host) */
 interface Link {
+  /** the place of the player on the other end */
+  slot: number;
   send(m: string): void;
   close(): void;
+  lastHeard: number;
+  /** events for this game, sent together at the end of the frame (see flush) */
+  queue: unknown[];
+  /** parts of long messages still coming (by their number) */
+  parts: Map<number, string[]>;
+  /** the guest said who it is */
+  greeted: boolean;
 }
+
+/** the version of what the games say to each other (a game of another version is not let in) */
+const PROTOCOL = 2;
+/** the most heroes in one game */
+export const MAX_PLAYERS = 4;
+/** every player's colour (the ring under the hero, the name, the dot on the map): the host blue, then orange,
+ *  purple and green */
+export const SLOT_COLORS = [0x4aa8ff, 0xff9a3a, 0xb46aff, 0x5adf6a];
+export const SLOT_CSS = ['#6cbcff', '#ffab5a', '#c48aff', '#72e882'];
 
 /** letters that cannot be mistaken for each other on a phone screen */
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -58,21 +79,20 @@ function peerOptions() {
 class NetSession {
   role: NetRole | null = null;
   code = '';
-  /** off → waiting for a guest (host) / connecting (guest) → on */
+  /** off → waiting for guests (host) / connecting (guest) → on (at least two play) */
   status: 'off' | 'waiting' | 'connecting' | 'on' = 'off';
-  partner: PeerInfo | null = null;
   me: PeerInfo | null = null;
-  private link: Link | null = null;
+  /** this game's place: 0 the host, 1–3 the guests in the order they came */
+  slot = 0;
+  /** everyone in the game by their place (this game too) */
+  players = new Map<number, PeerInfo>();
+  private links = new Map<number, Link>();
   private peer: { destroy(): void } | null = null;
   private handlers = new Map<string, Handler[]>();
-  private queue: unknown[] = [];
-  /** parts of long messages still coming (by their number) */
-  private parts = new Map<number, string[]>();
   private nextLong = 1;
-  private lastHeard = 0;
   private beat: number | null = null;
-  /** told about every change of the status (the lobby and the HUD listen) */
-  private listeners: ((why?: string) => void)[] = [];
+  /** told about every change (the lobby and the HUD listen): why, and the place of the player it is about */
+  private listeners: ((why?: string, slot?: number, name?: string) => void)[] = [];
 
   get active() {
     return this.status === 'on';
@@ -83,9 +103,25 @@ class NetSession {
   get isGuest() {
     return this.status === 'on' && this.role === 'guest';
   }
-  /** a session is open (also while waiting for the other player) */
+  /** a session is open (also while waiting for the others) */
   get open() {
     return this.status !== 'off';
+  }
+  /** how many heroes play in this game (1 alone) */
+  get count() {
+    return this.status === 'on' ? Math.max(1, this.players.size) : 1;
+  }
+  /** the places of the guests this host's game talks to */
+  get guests(): number[] {
+    return this.role === 'host' ? [...this.links.values()].filter((l) => l.greeted).map((l) => l.slot) : [];
+  }
+  /** the other players by place */
+  others(): [number, PeerInfo][] {
+    return [...this.players].filter(([s]) => s !== this.slot).sort((a, b) => a[0] - b[0]);
+  }
+  /** a player's name (or a stand-in) */
+  nameOf(slot: number) {
+    return this.players.get(slot)?.name ?? (slot === 0 ? 'Hostitel' : 'Spoluhráč');
   }
 
   on(t: string, fn: Handler) {
@@ -101,31 +137,39 @@ class NetSession {
       l.filter((h) => h !== fn),
     );
   }
-  onChange(fn: (why?: string) => void) {
+  onChange(fn: (why?: string, slot?: number, name?: string) => void) {
     this.listeners.push(fn);
     return () => (this.listeners = this.listeners.filter((h) => h !== fn));
   }
-  private changed(why?: string) {
-    for (const fn of [...this.listeners]) fn(why);
+  private changed(why?: string, slot?: number, name?: string) {
+    for (const fn of [...this.listeners]) fn(why, slot, name);
   }
 
-  send(m: NetMsg) {
-    if (!this.link) return;
+  private sendLink(link: Link, m: NetMsg) {
     try {
       const str = JSON.stringify(m);
-      if (str.length <= PART) this.link.send(str);
+      if (str.length <= PART) link.send(str);
       else {
         const id = this.nextLong++;
         const n = Math.ceil(str.length / PART);
-        for (let i = 0; i < n; i++) this.link.send(JSON.stringify({ t: '_p', id, i, n, d: str.slice(i * PART, (i + 1) * PART) }));
+        for (let i = 0; i < n; i++) link.send(JSON.stringify({ t: '_p', id, i, n, d: str.slice(i * PART, (i + 1) * PART) }));
       }
     } catch {
       /* a closing channel */
     }
   }
+  /** to everyone on the other end (the host: every guest; a guest: the host) */
+  send(m: NetMsg) {
+    for (const l of this.links.values()) if (l.greeted || this.role === 'guest') this.sendLink(l, m);
+  }
+  /** to one player only */
+  sendTo(slot: number, m: NetMsg) {
+    const l = this.links.get(slot);
+    if (l) this.sendLink(l, m);
+  }
 
   /** a message as it came over the wire (a string; long ones in parts) */
-  private receive(raw: unknown): void {
+  private receive(raw: unknown, link: Link): void {
     let m: NetMsg;
     try {
       m = (typeof raw === 'string' ? JSON.parse(raw) : raw) as NetMsg;
@@ -134,54 +178,112 @@ class NetSession {
     }
     if (m.t === '_p') {
       const id = m.id as number;
-      const list = this.parts.get(id) ?? new Array(m.n as number);
+      const list = link.parts.get(id) ?? new Array(m.n as number);
       list[m.i as number] = m.d as string;
-      this.parts.set(id, list);
+      link.parts.set(id, list);
       if (list.filter((x) => x !== undefined).length < list.length) return;
-      this.parts.delete(id);
-      return this.receive(list.join(''));
+      link.parts.delete(id);
+      return this.receive(list.join(''), link);
     }
-    this.dispatch(m);
+    this.dispatch(m, link);
   }
-  /** an event for the other side, sent with the others of this frame (see flush) */
+  /** an event for the other side(s), sent with the others of this frame (see flush) */
   event(e: unknown) {
-    if (this.status === 'on') this.queue.push(e);
+    if (this.status !== 'on') return;
+    for (const l of this.links.values()) if (l.greeted || this.role === 'guest') l.queue.push(e);
+  }
+  /** an event for one player only */
+  eventTo(slot: number, e: unknown) {
+    if (this.status !== 'on') return;
+    this.links.get(slot)?.queue.push(e);
+  }
+  /** an event for everyone but one player (the host passing on what that one did) */
+  eventExcept(slot: number, e: unknown) {
+    if (this.status !== 'on') return;
+    for (const l of this.links.values()) if (l.slot !== slot && l.greeted) l.queue.push(e);
   }
   flush() {
-    if (!this.queue.length) return;
-    this.send({ t: 'ev', e: this.queue });
-    this.queue = [];
+    for (const l of this.links.values()) {
+      if (!l.queue.length) continue;
+      this.sendLink(l, { t: 'ev', e: l.queue });
+      l.queue = [];
+    }
   }
 
-  private dispatch(m: NetMsg) {
-    this.lastHeard = Date.now();
+  private dispatch(m: NetMsg, link: Link) {
+    link.lastHeard = Date.now();
     if (m.t === 'hi') {
-      this.partner = m.who as PeerInfo;
-      const was = this.status;
-      this.status = 'on';
-      // the host answers the guest's greeting
-      if (this.role === 'host' && was !== 'on') this.send({ t: 'hi', who: this.me });
-      this.changed('joined');
-    } else if (m.t === 'bye') {
-      this.drop('left');
+      if (this.role === 'host') {
+        // a game of another version would not understand this one
+        if (m.v !== PROTOCOL) {
+          this.sendLink(link, { t: 'ver', v: PROTOCOL });
+          window.setTimeout(() => this.dropLink(link, 'version'), 600);
+          return;
+        }
+        // a guest says who it is: it gets its place and everyone learns who plays now
+        const first = !link.greeted;
+        link.greeted = true;
+        this.players.set(link.slot, m.who as PeerInfo);
+        this.sendLink(link, { t: 'hi', who: this.me, slot: link.slot, list: [...this.players] });
+        this.status = 'on';
+        this.sendRoster();
+        if (first) this.changed('joined', link.slot);
+      } else {
+        this.slot = (m.slot as number) ?? 1;
+        // everyone who plays already
+        if (Array.isArray(m.list)) this.players = new Map(m.list as [number, PeerInfo][]);
+        this.players.set(0, m.who as PeerInfo);
+        if (this.me) this.players.set(this.slot, this.me);
+        const was = this.status;
+        this.status = 'on';
+        if (was !== 'on') this.changed('joined', 0);
+      }
+      return;
+    }
+    if (m.t === 'roster' && this.role === 'guest') {
+      const before = this.players;
+      this.players = new Map(m.list as [number, PeerInfo][]);
+      if (this.me) this.players.set(this.slot, this.me);
+      for (const [s, p] of this.players) if (!before.has(s)) this.changed('arrived', s, p.name);
+      for (const [s, p] of before) if (!this.players.has(s)) this.changed('departed', s, p.name);
+      return;
+    }
+    if ((m.t === 'full' || m.t === 'ver') && this.role === 'guest') {
+      this.drop(m.t === 'full' ? 'full' : 'version');
+      return;
+    }
+    if (m.t === 'bye') {
+      if (this.role === 'host') this.dropLink(link, 'left');
+      else this.drop('left');
       return;
     }
     for (const h of this.handlers.get(m.t) ?? []) {
       try {
-        h(m);
+        h(m, link.slot);
       } catch (err) {
         console.error('net handler', m.t, err);
       }
     }
   }
 
+  /** the host tells every guest who plays now */
+  private sendRoster() {
+    if (this.role !== 'host') return;
+    const list = [...this.players];
+    for (const l of this.links.values()) if (l.greeted) this.sendLink(l, { t: 'roster', list });
+  }
+
   private startBeat() {
-    this.stopBeat();
-    this.lastHeard = Date.now();
+    if (this.beat !== null) return;
     this.beat = window.setInterval(() => {
-      if (this.status !== 'on') return;
-      this.send({ t: 'ping' });
-      if (Date.now() - this.lastHeard > TIMEOUT * 1000) this.drop('lost');
+      const now = Date.now();
+      for (const l of [...this.links.values()]) {
+        this.sendLink(l, { t: 'ping' });
+        if (now - l.lastHeard > TIMEOUT * 1000) {
+          if (this.role === 'host') this.dropLink(l, 'lost');
+          else this.drop('lost');
+        }
+      }
     }, 2000);
   }
   private stopBeat() {
@@ -189,34 +291,71 @@ class NetSession {
     this.beat = null;
   }
 
-  /** the link is gone: back to playing alone */
-  private drop(why: string) {
-    const had = this.status !== 'off';
-    this.stopBeat();
+  /** a new line to another game (the host's to a guest gets the first free place) */
+  private addLink(send: (m: string) => void, close: () => void): Link | null {
+    let slot = 0;
+    if (this.role === 'host') {
+      for (let s = 1; s < MAX_PLAYERS; s++)
+        if (!this.links.has(s)) {
+          slot = s;
+          break;
+        }
+      if (!slot) return null;
+    }
+    const link: Link = { slot, send, close, lastHeard: Date.now(), queue: [], parts: new Map(), greeted: this.role === 'guest' };
+    this.links.set(slot, link);
+    this.startBeat();
+    return link;
+  }
+
+  /** the host lost one guest: the others play on */
+  private dropLink(link: Link, why: string) {
+    if (this.links.get(link.slot) !== link) return;
+    this.links.delete(link.slot);
     try {
-      this.link?.close();
+      link.close();
     } catch {
       /* already closed */
     }
+    const was = link.greeted;
+    const name = this.players.get(link.slot)?.name;
+    this.players.delete(link.slot);
+    if (this.status === 'on' && ![...this.links.values()].some((l) => l.greeted)) this.status = 'waiting';
+    this.sendRoster();
+    if (was) this.changed(why, link.slot, name);
+  }
+
+  /** the whole session is gone: back to playing alone */
+  private drop(why: string) {
+    const had = this.status !== 'off';
+    this.stopBeat();
+    for (const l of this.links.values())
+      try {
+        l.close();
+      } catch {
+        /* already closed */
+      }
     try {
       this.peer?.destroy();
     } catch {
       /* already gone */
     }
-    this.link = null;
+    this.links.clear();
     this.peer = null;
     this.status = 'off';
-    this.partner = null;
-    this.queue = [];
+    this.players.clear();
+    this.slot = 0;
     if (had) this.changed(why);
     this.role = null;
   }
 
-  /** opens a game for a second player; resolves with the code to give them */
+  /** opens a game for more players; resolves with the code to give them */
   async host(me: PeerInfo): Promise<string> {
     this.leave();
     this.role = 'host';
     this.me = me;
+    this.slot = 0;
+    this.players = new Map([[0, me]]);
     this.status = 'connecting';
     this.changed();
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -254,14 +393,15 @@ class NetSession {
       this.drop('error');
       throw err;
     }
-    this.send({ t: 'hi', who: me });
+    this.send({ t: 'hi', who: me, v: PROTOCOL });
   }
 
-  /** ends the game for two (the other side is told) */
-  leave() {
+  /** leaves the game (the others are told; the host's leaving ends it for everyone). why 'quit': the game goes to
+   *  the main menu, a guest's game does not go back to its own world first */
+  leave(why: 'closed' | 'quit' = 'closed') {
     if (this.status === 'off') return;
     this.send({ t: 'bye' });
-    this.drop('closed');
+    this.drop(why);
   }
 
   // ------------------------------------------------------------ PeerJS
@@ -293,18 +433,27 @@ class NetSession {
         } else if (err.type === 'network' || err.type === 'server-error') this.changed('server');
       });
       peer.on('connection', (conn) => {
-        // one guest at a time
-        if (this.link) {
-          conn.on('open', () => conn.close());
-          return;
-        }
+        let link: Link | null = null;
         conn.on('open', () => {
-          this.link = { send: (m) => conn.send(m), close: () => conn.close() };
-          this.startBeat();
+          link = this.addLink(
+            (m) => conn.send(m),
+            () => conn.close(),
+          );
+          // four play already: the newcomer is told and let go
+          if (!link) {
+            try {
+              conn.send(JSON.stringify({ t: 'full' }));
+            } catch {
+              /* already closing */
+            }
+            window.setTimeout(() => conn.close(), 600);
+          }
         });
-        conn.on('data', (d) => this.receive(d));
+        conn.on('data', (d) => {
+          if (link) this.receive(d, link);
+        });
         conn.on('close', () => {
-          if (this.link) this.drop('lost');
+          if (link) this.dropLink(link, 'lost');
         });
       });
     });
@@ -315,6 +464,7 @@ class NetSession {
     await new Promise<void>((resolve, reject) => {
       const peer = new Peer(peerOptions());
       let done = false;
+      let link: Link | null = null;
       const fail = (msg: string) => {
         if (done) return;
         done = true;
@@ -330,37 +480,57 @@ class NetSession {
           done = true;
           window.clearTimeout(timer);
           this.peer = peer;
-          this.link = { send: (m) => conn.send(m), close: () => conn.close() };
-          this.startBeat();
+          link = this.addLink(
+            (m) => conn.send(m),
+            () => conn.close(),
+          );
           resolve();
         });
-        conn.on('data', (d) => this.receive(d));
+        conn.on('data', (d) => {
+          if (link) this.receive(d, link);
+        });
         conn.on('close', () => {
-          if (this.link) this.drop('lost');
+          if (link && this.links.get(0) === link) this.drop('lost');
         });
       });
     });
   }
 
-  // ------------------------------------------------------------ the local loopback (two tabs)
+  // ------------------------------------------------------------ the local loopback (tabs of one browser)
+  // every tab hears every message on the channel, so each one carries who sent it and for whom
   private async hostLocal(code: string) {
     const ch = new BroadcastChannel(PREFIX + code);
+    const byTab = new Map<string, Link>();
     this.peer = { destroy: () => ch.close() };
     ch.onmessage = (ev) => {
-      if (!this.link) {
-        this.link = { send: (x) => ch.postMessage(x), close: () => ch.close() };
-        this.startBeat();
+      const { f, to, d } = (ev.data ?? {}) as { f?: string; to?: string; d?: unknown };
+      if (to !== 'H' || !f) return;
+      let link = byTab.get(f);
+      if (!link || this.links.get(link.slot) !== link) {
+        const fresh = this.addLink(
+          (x) => ch.postMessage({ f: 'H', to: f, d: x }),
+          () => byTab.delete(f),
+        );
+        if (!fresh) return void ch.postMessage({ f: 'H', to: f, d: JSON.stringify({ t: 'full' }) });
+        link = fresh;
+        byTab.set(f, link);
       }
-      this.receive(ev.data);
+      this.receive(d, link);
     };
   }
 
   private async joinLocal(code: string) {
     const ch = new BroadcastChannel(PREFIX + code);
+    const me = Math.random().toString(36).slice(2, 10);
     this.peer = { destroy: () => ch.close() };
-    this.link = { send: (x) => ch.postMessage(x), close: () => ch.close() };
-    ch.onmessage = (ev) => this.receive(ev.data);
-    this.startBeat();
+    const link = this.addLink(
+      (x) => ch.postMessage({ f: me, to: 'H', d: x }),
+      () => {},
+    );
+    ch.onmessage = (ev) => {
+      const { to, d } = (ev.data ?? {}) as { to?: string; d?: unknown };
+      if (to === me && link) this.receive(d, link);
+    };
   }
 }
 

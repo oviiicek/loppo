@@ -1,12 +1,12 @@
-// The other player's hero, drawn from what their game sends about twelve times a second: where it stands,
-// the frame of its animation and how its weapons sit. On the host it is also a target for the monsters:
-// blows that land on it go over to the guest's game, which applies its own armour, dodge and thorns.
+// Another player's hero, drawn from what its game sends fifteen times a second: where it stands, the frame of
+// its animation and how its weapons sit. In the host's game a guest's hero is also a target for the monsters:
+// blows that land on it go over to that guest's game, which applies its own armour, dodge and thorns.
 import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy } from './entities';
 import type { Player } from './player';
 import { D } from './fx';
-import { Net, PeerInfo } from '../net/net';
+import { Net, PeerInfo, SLOT_COLORS, SLOT_CSS } from '../net/net';
 import type { Element } from '../data/types';
 
 /** a weapon in hand: texture, offset from the hero, rotation, origin, depth offset, scale, flip and alpha */
@@ -59,6 +59,8 @@ export function heroSnap(p: Player): HeroSnap {
 
 export class OtherHero extends Actor {
   info: PeerInfo;
+  /** the player's place (0 the host): its colour and where its blows go */
+  slot: number;
   /** where the other game says the hero stands (the sprite glides there) */
   tx: number;
   ty: number;
@@ -68,24 +70,26 @@ export class OtherHero extends Actor {
   /** its speed from the last two words (it keeps walking between them) */
   private nvx = 0;
   private nvy = 0;
-  private snap: HeroSnap | null = null;
+  /** the latest word from its game (the host passes it on to the other guests) */
+  last: HeroSnap | null = null;
   private weapon: Phaser.GameObjects.Image | null = null;
   private offhand: Phaser.GameObjects.Image | null = null;
   private label: Phaser.GameObjects.Text;
   private ring: Phaser.GameObjects.Image;
   private bar: Phaser.GameObjects.Graphics;
 
-  constructor(scene: GameScene, info: PeerInfo, x: number, y: number) {
+  constructor(scene: GameScene, info: PeerInfo, slot: number, x: number, y: number) {
     super(scene, x, y, 'pl_' + info.cls);
     this.info = info;
+    this.slot = slot;
     this.tx = x;
     this.ty = y;
     this.r = 4;
     this.maxHp = this.hp = 1;
     this.sprite.anims.stop();
-    // a blue ring on the floor and the name above tell the other hero apart
-    this.ring = scene.add.image(x, y + 3, 'ring').setTint(0x7fd8ff).setAlpha(0.55).setScale(16 / 256, 8 / 256).setDepth(D.floorDeco + 2);
-    this.label = scene.fx.label(x, y - 22, info.name, '#9fe6ff', 6);
+    // a ring on the floor and the name above in the player's colour tell the heroes apart
+    this.ring = scene.add.image(x, y + 3, 'ring').setTint(SLOT_COLORS[slot] ?? SLOT_COLORS[1]).setAlpha(0.75).setScale(16 / 256, 8 / 256).setDepth(D.floorDeco + 2);
+    this.label = scene.fx.label(x, y - 22, info.name, SLOT_CSS[slot] ?? SLOT_CSS[1], 6);
     this.bar = scene.add.graphics().setDepth(D.bright + 5);
   }
 
@@ -93,7 +97,7 @@ export class OtherHero extends Actor {
   /** seconds between the last two words */
   private quietT0 = 0;
   apply(s: HeroSnap) {
-    this.snap = s;
+    this.last = s;
     this.quietT0 = this.quietT;
     this.quietT = 0;
     // a jump (stairs, a teleport, waking up elsewhere) is not glided over
@@ -128,7 +132,7 @@ export class OtherHero extends Actor {
       dy = this.ty + this.nvy * age - this.y;
     this.x += dx * k;
     this.y += dy * k;
-    const s = this.snap;
+    const s = this.last;
     const sc = this.scene;
     this.sprite.setPosition(sc.snap(this.x), sc.snap(this.y + 3));
     this.shadow.setPosition(sc.snap(this.x), sc.snap(this.y + 3));
@@ -143,7 +147,10 @@ export class OtherHero extends Actor {
       this.weapon = this.placeWeapon(this.weapon, s.w);
       this.offhand = this.placeWeapon(this.offhand, s.o);
     }
-    this.label.setPosition(this.x, this.y - 21).setText(`${this.info.name} · ${this.lvl}`);
+    this.ring.setAlpha(this.dead ? 0.25 : 0.75);
+    const name = `${this.info.name} · ${this.lvl}`;
+    if (this.label.text !== name) this.label.setText(name);
+    this.label.setPosition(this.x, this.y - 21);
     // a small health bar under the name
     const g = this.bar;
     g.clear();
@@ -166,10 +173,10 @@ export class OtherHero extends Actor {
     return img;
   }
 
-  /** a monster's blow lands on the other hero (only on the host): the guest's game takes it from here */
+  /** a monster's blow lands on a guest's hero (only in the host's game): that guest's game takes it from here */
   takeDamage(amount: number, el: Element = 'phys', src?: Enemy | null, fx?: { poison?: number; chill?: number; burn?: number }) {
     if (this.dead || amount <= 0) return;
-    Net.event({ k: 'hurt', d: Math.round(amount * 10) / 10, el, foe: src?.id ?? 0, n: src?.name ?? '', ...fx });
+    Net.eventTo(this.slot, { k: 'hurt', d: Math.round(amount * 10) / 10, el, foe: src?.id ?? 0, n: src?.name ?? '', ...fx });
     this.scene.fx.flash(this.sprite, 0xff6060, 60);
   }
 

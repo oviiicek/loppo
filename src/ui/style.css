@@ -2308,27 +2308,49 @@ img.px {
   letter-spacing: 0.04em;
   pointer-events: none;
 }
-/* the other player of a game for two, under the hero's bars */
-.mpchip {
+/* the other players of a game together, under the hero's bars (each in its own colour) */
+.mpparty {
   display: none;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 1px;
   margin-top: 3px;
-  font-size: 14px;
-  color: #9fe6ff;
+}
+.mpparty.on {
+  display: flex;
+}
+.mpchip {
+  --c: #9fe6ff;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  line-height: 1.1;
+  color: var(--c);
   text-shadow: 1px 1px 0 #000;
 }
-.mpchip.on {
-  display: flex;
+.mpchip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 0 1px #000;
+  flex: none;
+}
+.mpchip .nm {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mpchip i {
   display: block;
-  width: 64px;
-  height: 6px;
+  width: 52px;
+  height: 5px;
   background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(159, 230, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 3px;
   overflow: hidden;
+  flex: none;
 }
 .mpchip b {
   display: block;
@@ -2337,12 +2359,36 @@ img.px {
   background: #5dff8a;
 }
 .mpchip.dead {
-  color: #8a96a0;
+  opacity: 0.6;
 }
 .mpchip.dead b {
   background: #6a7480;
 }
-/* the panel of a game for two */
+/* a hero out of the fight watches another one until the next floor */
+.mpwatch {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  max-width: 46vw;
+  padding: 3px 12px;
+  border-radius: 12px;
+  background: rgba(14, 10, 22, 0.78);
+  border: 1px solid rgba(255, 138, 122, 0.55);
+  color: #ffb0a4;
+  font-size: 13px;
+  text-align: center;
+  text-shadow: 1px 1px 0 #000;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mpwatch.on {
+  display: block;
+}
+/* the panel of a game together */
 .coop .mprules {
   margin: 0 0 10px;
   padding-left: 18px;
@@ -2393,6 +2439,44 @@ img.px {
 .coop .mpon {
   font-size: 17px;
   color: #9fe6ff;
+}
+.coop .mplist {
+  list-style: none;
+  margin: 6px 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.coop .mplist li {
+  --c: #9fe6ff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #e8dcc0;
+}
+.coop .mplist li i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 0 2px #000, 0 0 8px var(--c);
+  flex: none;
+}
+.coop .mplist li b {
+  color: var(--c);
+}
+.coop .mplist li.free {
+  color: #7a7088;
+}
+.coop .mplist li.free i {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px #4a4258;
+}
+.coop .mpcode.small {
+  font-size: 30px;
+  margin: 2px 0 4px;
 }
 .menu .subtitle {
   font-size: min(4vh, 22px);
