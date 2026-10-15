@@ -9,7 +9,9 @@ import { D } from './fx';
 import { ACTOR_SCALE } from '../gfx/textures';
 import { PetDef, petLevel, petDamageShare } from '../data/pets';
 import { petsOf, freeSlots } from '../systems/state';
-import { settings } from '../systems/audio';
+import { settings, sfx } from '../systems/audio';
+import { TS } from './map';
+import { T_FLOOR } from '../systems/dungeon';
 
 const FLY = 9;
 
@@ -36,6 +38,11 @@ export class PetFollower {
   private side = Math.random() < 0.5 ? -1 : 1;
   private t = Math.random() * 10;
   private lastHero: [number, number] = [0, 0];
+  /** the pet's own ability: time to the next use, the hero's kills seen so far and when the last one fell */
+  private abilT = 8;
+  private kills = 0;
+  private killT = -99;
+  private owlFirst = true;
 
   constructor(scene: GameScene, def: PetDef, x: number, y: number) {
     this.scene = scene;
@@ -52,6 +59,7 @@ export class PetFollower {
       scene.lamps.push(this.lamp);
     }
     this.lastHero = [scene.player.x, scene.player.y];
+    this.kills = scene.save.kills;
     this.sync(false);
   }
 
@@ -85,6 +93,7 @@ export class PetFollower {
     const heroMoved = Math.hypot(p.x - this.lastHero[0], p.y - this.lastHero[1]) > 0.5;
     this.lastHero = [p.x, p.y];
     this.restT = heroMoved ? 0 : this.restT + dt;
+    if (!p.dead) this.abilityTick(dt);
 
     let goal: [number, number] | null = null;
     let speed = Math.max(78, p.d.move * 1.25);
@@ -267,6 +276,134 @@ export class PetFollower {
       },
     });
     if (Math.random() < 0.25) this.emote('♥');
+  }
+
+  /** monsters awake and close to a point */
+  private foesNear(x: number, y: number, r: number) {
+    return this.scene.enemiesNear(x, y, r).filter((e) => e.aggro && !e.illusion);
+  }
+
+  /**
+   * the pet's ability (see PetDef.ability): it waits for its moment (the hero in trouble, a fight, a quiet
+   * stretch) and then has a cooldown
+   */
+  private abilityTick(dt: number) {
+    const sc = this.scene;
+    const p = sc.player;
+    const t = sc.time.now / 1000;
+    if (sc.save.kills > this.kills) {
+      this.kills = sc.save.kills;
+      this.killT = t;
+    }
+    this.abilT -= dt;
+    if (this.abilT > 0 || sc.inVillage) return;
+    const lvl = this.lvl;
+    const d = p.d;
+    const fy = this.y - (this.def.flying ? this.flyH : 0);
+    let used = true;
+    switch (this.def.id) {
+      case 'cat': {
+        // after a fight (a kill a moment ago, nobody left awake nearby) a find of its own
+        if (t - this.killT > 4 || this.foesNear(p.x, p.y, 130).length) return;
+        sc.loot.dropItem(sc.loot.item(sc.floor, lvl >= 8 ? 2 : 1), this.x, this.y);
+        sc.fx.burst(this.x, this.y - 3, 0xffd76a, 8, 'pix');
+        break;
+      }
+      case 'dog': {
+        const near = this.foesNear(p.x, p.y, 64);
+        if (near.length < 3 && !(near.length && p.hp < d.maxHp * 0.4)) return;
+        const stun = 1.2 + lvl * 0.1;
+        for (const e of this.foesNear(p.x, p.y, 72)) e.st.stunT = Math.max(e.st.stunT, e.boss ? stun * 0.35 : stun);
+        sc.fx.ring(this.x, this.y - 4, 72, 0xffe2a8, 420);
+        sc.fx.shake(0.003, 120);
+        sfx('shout');
+        break;
+      }
+      case 'fox': {
+        // only in a quiet moment while the hero is on the move
+        if (this.restT > 1 || this.foesNear(p.x, p.y, 160).length) return;
+        sc.fx.burst(this.x, this.y - 2, 0x9a7048, 10, 'puff');
+        sc.loot.dropGold(sc.loot.goldAmount(2.5 + lvl * 0.35), this.x, this.y);
+        if (Math.random() * 100 < 15 + lvl * 2) sc.loot.dropRandomGem(this.x, this.y);
+        sfx('coin');
+        break;
+      }
+      case 'owl': {
+        const m = sc.map;
+        const r = 8 + lvl;
+        let spot: [number, number] | null = null;
+        if (this.owlFirst) {
+          const ex = sc.dungeon.exit;
+          if (!m.explored[ex.y * m.w + ex.x]) spot = [ex.x * TS + TS / 2, ex.y * TS + TS / 2];
+        }
+        // else a corner of the floor nobody has seen yet, as far as possible from the hero
+        for (let k = 0; k < 40 && !spot; k++) {
+          const x = Math.floor(Math.random() * m.w),
+            y = Math.floor(Math.random() * m.h);
+          const i = y * m.w + x;
+          if (m.d.grid[i] !== T_FLOOR || m.explored[i] || !m.isFloorVisible(x, y)) continue;
+          if (Math.hypot(x * TS - p.x, y * TS - p.y) < 10 * TS) continue;
+          spot = [x * TS + TS / 2, y * TS + TS / 2];
+        }
+        this.owlFirst = false;
+        if (!spot) {
+          this.abilT = 20;
+          return;
+        }
+        m.revealAround(spot[0], spot[1], r);
+        sc.fx.burst(this.x, fy - 4, 0xe8c890, 8, 'puff');
+        sfx('pet');
+        break;
+      }
+      case 'turtle': {
+        if (p.hp >= d.maxHp * 0.4) return;
+        p.shield = Math.max(p.shield, d.maxHp * (0.12 + lvl * 0.013));
+        p.shieldT = Math.max(p.shieldT, 6);
+        sc.fx.ring(p.x, p.y - 6, 18, 0x8ad46a, 380);
+        sfx('heal');
+        break;
+      }
+      case 'slime': {
+        if (p.hp >= d.maxHp * 0.5) return;
+        if (!sc.mod?.noHeal) p.heal(d.maxHp * (0.12 + lvl * 0.01), true);
+        if (p.buffs.some((b) => b.debuff)) {
+          p.buffs = p.buffs.filter((b) => !b.debuff);
+          p.recalc();
+        }
+        sc.fx.burst(p.x, p.y - 6, 0x5ae8d0, 10, 'puff');
+        sfx('heal');
+        break;
+      }
+      case 'wisp': {
+        if (p.mp >= d.maxMp * 0.3 || !this.foesNear(p.x, p.y, 150).length) return;
+        p.mp = Math.min(d.maxMp, p.mp + d.maxMp * (0.2 + lvl * 0.015));
+        for (const e of this.foesNear(this.x, this.y, 80)) {
+          e.st.slowT = Math.max(e.st.slowT, 3);
+          e.st.slowMult = Math.min(e.st.slowMult, 0.55);
+        }
+        sc.fx.ring(this.x, fy - 4, 80, 0x9ae6ff, 380);
+        sc.fx.burst(this.x, fy - 4, 0xffffff, 10);
+        sfx('magic');
+        break;
+      }
+      case 'dragon': {
+        const foes = this.foesNear(this.x, this.y, 110);
+        if (foes.length < 2) return;
+        const e = foes.reduce((a, b) => (Math.hypot(b.x - this.x, b.y - this.y) < Math.hypot(a.x - this.x, a.y - this.y) ? b : a));
+        const y0 = fy - 5;
+        const a0 = Math.atan2(e.y - 6 - y0, e.x - this.x);
+        const dmg = ((d.dmgMin + d.dmgMax) / 2) * (0.6 + lvl * 0.06);
+        this.facing = e.x >= this.x ? 1 : -1;
+        for (let k = -2; k <= 2; k++) sc.spawnAllyProjectile(this.x + this.facing * 5, y0, a0 + k * 0.22, 'pr_fire', dmg, 'fire');
+        sfx('explosion');
+        break;
+      }
+      default:
+        used = false;
+    }
+    if (!used) return;
+    this.abilT = this.def.ability.cd(lvl);
+    this.emote(this.def.ability.name + '!');
   }
 
   private attack(e: Enemy) {

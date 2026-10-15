@@ -287,18 +287,19 @@ V dungeonu čeká v klecích 8 zvířátek. První klec se objeví nejpozději v
 
 - sbírá kořist, která leží kolem (předměty, zlato i materiály mu přinese k nohám),
 - dává svůj bonus,
-- za každá 4 patra, která s hrdinou sestoupí, získá úroveň (nejvýš 10) a bonus roste.
+- má vlastní schopnost, kterou sám použije, když nastane její chvíle (pak čeká, než se znovu nabije; nad mazlíčkem se ukáže její název),
+- za každá 4 patra, která s hrdinou sestoupí, získá úroveň (nejvýš 10) a bonus i schopnost rostou.
 
-| Mazlíček | Od patra | Co umí |
-| --- | --- | --- |
-| Kočka Mína | 3 | lepší kořist |
-| Pes Ořech | 7 | kouše nepřátele vedle hrdiny, víc zdraví |
-| Liška Zrzka | 12 | víc zlata |
-| Sova Hú | 20 | víc zkušeností, odkrývá větší kus mapy |
-| Želva Tonda | 32 | víc zdraví a blok |
-| Sliz Bublina | 45 | vysávání života a obnova zdraví |
-| Bludička Jiskra | 70 | silnější kouzla a rychlejší mana, svítí |
-| Dráček Uhlík | 100 | plive oheň, kritické zásahy |
+| Mazlíček | Od patra | Co umí | Schopnost |
+| --- | --- | --- | --- |
+| Kočka Mína | 3 | lepší kořist | **Šťastná tlapka** – po boji vyhrabe předmět navíc (aspoň neobvyklý, od úrovně 8 aspoň vzácný), jednou za 77–50 s |
+| Pes Ořech | 7 | kouše nepřátele vedle hrdiny, víc zdraví | **Štěkot** – když hrdinu obklíčí 3 nestvůry nebo mu dochází zdraví, omráčí nestvůry kolem na 1,3–2,2 s (strážce kratší dobu), jednou za 31–22 s |
+| Liška Zrzka | 12 | víc zlata | **Čmuchání** – mimo boj vyhrabe zakopaný poklad: zlato, s šancí 17–35 % i drahokam, jednou za 91–55 s |
+| Sova Hú | 20 | víc zkušeností, odkrývá větší kus mapy | **Noční let** – odkryje kus mapy daleko od hrdiny (poprvé v patře kolem schodů dolů), jednou za 67–40 s |
+| Želva Tonda | 32 | víc zdraví a blok | **Krunýř** – pod 40 % zdraví štít za 13–25 % zdraví na 6 s, jednou za 48–30 s |
+| Sliz Bublina | 45 | vysávání života a obnova zdraví | **Léčivá bublina** – pod 50 % zdraví vyléčí 13–22 % a smyje kletby, jednou za 43–30 s |
+| Bludička Jiskra | 70 | silnější kouzla a rychlejší mana, svítí | **Záblesk** – když v boji dochází mana, vrátí 21–35 % many a zpomalí nestvůry kolem, jednou za 38–25 s |
+| Dráček Uhlík | 100 | plive oheň, kritické zásahy | **Ohnivý dech** – na skupinu nestvůr vějíř pěti plamenů (každý 66–120 % poškození zbraně), jednou za 17,5–13 s |
 
 Létající mazlíčci (sova, bludička, dráček) se vznášejí nad zemí a když hrdina dlouho stojí, sova a dráček si sednou. Když hrdina odpočívá, mazlíček se prochází kolem, občas ukáže srdíčko a po delší době usne. Mazlíčky jde přepínat v pauze (Mazlíčci) nebo v okně postavy.
 

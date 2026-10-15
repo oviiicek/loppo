@@ -23,7 +23,19 @@ export interface PetDef {
   stats: (lvl: number) => Stats;
   /** colour of its name and hearts */
   color: string;
+  /** what it does by itself now and then (see PetFollower.abilityTick) */
+  ability: PetAbility;
 }
+
+export interface PetAbility {
+  name: string;
+  /** what it does at a pet level */
+  desc: (lvl: number) => string;
+  /** seconds between two uses at a pet level */
+  cd: (lvl: number) => number;
+}
+
+const pct = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',');
 
 export const PET_MAX_LEVEL = 10;
 /** floors descended together for every pet level */
@@ -41,6 +53,11 @@ export const PETS: PetDef[] = [
     desc: 'Má šťastnou tlapku: lepší kořist.',
     stats: (l) => ({ magicFind: 8 + l * 2 }),
     color: '#ffb36a',
+    ability: {
+      name: 'Šťastná tlapka',
+      desc: (l) => `po boji občas vyhrabe z kořisti předmět navíc${l >= 8 ? ' (aspoň vzácný)' : ' (aspoň neobvyklý)'}`,
+      cd: (l) => 80 - l * 3,
+    },
   },
   {
     id: 'dog',
@@ -52,6 +69,11 @@ export const PETS: PetDef[] = [
     desc: 'Kouše nepřátele vedle tebe a hlídá ti záda: víc zdraví.',
     stats: (l) => ({ hpPct: 2 + l }),
     color: '#d8a46a',
+    ability: {
+      name: 'Štěkot',
+      desc: (l) => `když tě nestvůry obklíčí nebo ti dochází zdraví, zaštěká a omráčí nestvůry kolem tebe na ${pct(1.2 + l * 0.1)} s`,
+      cd: (l) => 32 - l,
+    },
   },
   {
     id: 'fox',
@@ -62,6 +84,11 @@ export const PETS: PetDef[] = [
     desc: 'Vyčmuchá každou minci: víc zlata.',
     stats: (l) => ({ gold: 12 + l * 3 }),
     color: '#ff8a3a',
+    ability: {
+      name: 'Čmuchání',
+      desc: (l) => `mimo boj občas vyčmuchá zakopaný poklad: hromádku zlata, s šancí ${15 + l * 2} % i drahokam`,
+      cd: (l) => 95 - l * 4,
+    },
   },
   {
     id: 'owl',
@@ -73,6 +100,11 @@ export const PETS: PetDef[] = [
     desc: 'Vidí ve tmě: odkrývá větší kus mapy a radí, takže rychleji získáváš zkušenosti.',
     stats: (l) => ({ xp: 5 + l }),
     color: '#e8c890',
+    ability: {
+      name: 'Noční let',
+      desc: (l) => `prolétne patro a odkryje kus mapy daleko před tebou (poprvé kolem schodů dolů), dohled ${8 + l} polí`,
+      cd: (l) => 70 - l * 3,
+    },
   },
   {
     id: 'turtle',
@@ -83,6 +115,11 @@ export const PETS: PetDef[] = [
     desc: 'Pevný jako jeho krunýř: víc brnění a zdraví.',
     stats: (l) => ({ hpPct: 3 + l, block: r1(2 + l * 0.4) }),
     color: '#8ad46a',
+    ability: {
+      name: 'Krunýř',
+      desc: (l) => `když tvé zdraví klesne pod 40 %, kryje tě krunýř: štít za ${pct(12 + l * 1.3)} % tvého zdraví na 6 s`,
+      cd: (l) => 50 - l * 2,
+    },
   },
   {
     id: 'slime',
@@ -93,6 +130,11 @@ export const PETS: PetDef[] = [
     desc: 'Léčivý sliz: vysává život z nepřátel a obnovuje zdraví.',
     stats: (l) => ({ lifesteal: r1(1 + l * 0.2), hpRegen: r1(1 + l * 0.6) }),
     color: '#5ae8d0',
+    ability: {
+      name: 'Léčivá bublina',
+      desc: (l) => `když tvé zdraví klesne pod 50 %, vyléčí ${12 + l} % zdraví a smyje z tebe kletby`,
+      cd: (l) => 45 - l * 1.5,
+    },
   },
   {
     id: 'wisp',
@@ -104,6 +146,11 @@ export const PETS: PetDef[] = [
     desc: 'Svítí na cestu a posiluje magii: silnější kouzla a rychlejší mana.',
     stats: (l) => ({ spellDmg: 6 + l * 1.5, mpRegen: r1(1 + l * 0.3) }),
     color: '#9ae6ff',
+    ability: {
+      name: 'Záblesk',
+      desc: (l) => `když ti v boji dochází mana, vrátí ${pct(20 + l * 1.5)} % many a oslní nestvůry kolem (zpomalí je)`,
+      cd: (l) => 40 - l * 1.5,
+    },
   },
   {
     id: 'dragon',
@@ -116,6 +163,11 @@ export const PETS: PetDef[] = [
     desc: 'Plive oheň na nepřátele a učí tě trefovat slabá místa: kritické zásahy.',
     stats: (l) => ({ crit: r1(2 + l * 0.3), critDmg: 5 + l * 2 }),
     color: '#ff6a4a',
+    ability: {
+      name: 'Ohnivý dech',
+      desc: (l) => `chrlí na skupinu nestvůr vějíř pěti plamenů (každý ${60 + l * 6} % poškození tvé zbraně)`,
+      cd: (l) => 18 - l * 0.5,
+    },
   },
 ];
 

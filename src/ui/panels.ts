@@ -1302,7 +1302,7 @@ export class Panels {
     }).join('');
     body.innerHTML = `
       <div class="col" style="flex:1;min-width:0">
-        <div class="hint">Mazlíčky osvobodíš z klecí v dungeonu. S tebou chodí vždy jeden: nosí ti kořist, která leží kolem, a dává svůj bonus. Za každá ${PET_FLOORS_PER_LEVEL} patra, která s tebou sestoupí, získá úroveň (nejvýš ${PET_MAX_LEVEL}).</div>
+        <div class="hint">Mazlíčky osvobodíš z klecí v dungeonu. S tebou chodí vždy jeden: nosí ti kořist, která leží kolem, dává svůj bonus a má vlastní schopnost, kterou sám použije. Za každá ${PET_FLOORS_PER_LEVEL} patra, která s tebou sestoupí, získá úroveň (nejvýš ${PET_MAX_LEVEL}).</div>
         <div class="scroll" style="flex:1"><div class="spgrid petgrid">${cards}</div></div>
         <div class="hint">Osvobozeno: ${st.owned.length}/${PETS.length}</div>
       </div>
@@ -1325,6 +1325,7 @@ export class Panels {
         <div class="hint" style="text-align:center">úroveň ${lvl}/${PET_MAX_LEVEL}${next ? ` • další za ${next} ${next === 1 ? 'patro' : next < 5 ? 'patra' : 'pater'}` : ' • nejvyšší'}</div>
         <div class="row eqrow" style="margin:8px 0">${active ? '<button class="btn" data-a="home">Nechat doma</button>' : '<button class="btn green" data-a="take">Vzít s sebou</button>'}</div>
         <p style="margin:4px 0">${esc(d.desc)}</p>
+        <div class="petab"><b style="color:${d.color}">✦ ${esc(d.ability.name)}</b><span class="hint"> • nejvýš jednou za ${Math.round(d.ability.cd(lvl))} s</span><div>${esc(d.ability.desc(lvl))}</div></div>
         <div class="statline"><span>Bonus teď</span><b style="color:#9dff9d;text-align:right">${petBonusText(d, lvl)}</b></div>
         ${lvl < PET_MAX_LEVEL ? `<div class="statline"><span>Na úrovni ${PET_MAX_LEVEL}</span><b style="color:#c8c0d8;text-align:right">${petBonusText(d, PET_MAX_LEVEL)}</b></div>` : ''}
         <div class="hint" style="margin-top:6px">S tebou ${d.fem ? 'sestoupila' : 'sestoupil'} o ${st.floors[d.id] ?? 0} ${(st.floors[d.id] ?? 0) === 1 ? 'patro' : (st.floors[d.id] ?? 0) > 1 && (st.floors[d.id] ?? 0) < 5 ? 'patra' : 'pater'}.</div>`;
