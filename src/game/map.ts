@@ -4,6 +4,7 @@ import { TILE, TILE_RES, themeForFloor, ensureTileset, ensureAoTiles } from '../
 import { gfxLevel } from '../systems/audio';
 import { hash } from '../gfx/pixel';
 import { placeVillageGround } from '../gfx/groundLoader';
+import { FogTexture } from './darkness';
 
 export const TS = 16;
 
@@ -21,7 +22,10 @@ export class WorldMap {
   layer!: Phaser.Tilemaps.TilemapLayer;
   /** soft shade along the walls at the floor's sides and corners (see ensureAoTiles; not on the lowest graphics) */
   ao: Phaser.Tilemaps.TilemapLayer | null = null;
-  fog!: Phaser.Tilemaps.TilemapLayer;
+  /** the fog of war: a texture of the darkness shader where the device runs it (see game/darkness.ts),
+   *  otherwise a layer of fog tiles */
+  fog: Phaser.Tilemaps.TilemapLayer | null = null;
+  fogTex: FogTexture | null = null;
   map!: Phaser.Tilemaps.Tilemap;
   private flowFrom = -1;
   // secret rooms are drawn as solid rock until their cracked wall is broken
@@ -138,7 +142,7 @@ export class WorldMap {
     return !!(this.d as { ground?: Uint8Array }).ground;
   }
 
-  build(scene: Phaser.Scene) {
+  build(scene: Phaser.Scene, opts: { shaderFog?: boolean } = {}) {
     if (this.outdoor) {
       placeVillageGround(scene, 0);
       this.explored.fill(1);
@@ -165,12 +169,15 @@ export class WorldMap {
       this.ao.setDepth(1).setScale(TS / R);
       for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) this.putAo(x, y);
     }
-    // fog of war: black tiles removed as the player explores (just below the darkness overlay)
-    this.fog = this.map.createBlankLayer('fog', ts, 0, 0)!;
-    this.fog.fill(TILE.fog);
-    this.fog.setDepth(99990).setScale(TS / R);
-    // unexplored parts stay visible but dim (no black void)
-    this.fog.setAlpha(0.55);
+    // fog of war: dark tiles removed as the player explores (just below the darkness overlay); unexplored parts
+    // stay visible but dim (no black void)
+    if (opts.shaderFog) this.fogTex = new FogTexture(scene, this.w, this.h);
+    else {
+      this.fog = this.map.createBlankLayer('fog', ts, 0, 0)!;
+      this.fog.fill(TILE.fog);
+      this.fog.setDepth(99990).setScale(TS / R);
+      this.fog.setAlpha(0.55);
+    }
     // floor shadows under front walls
     this.scene = scene;
     for (let y = 0; y < this.h; y++)
@@ -462,6 +469,7 @@ export class WorldMap {
   }
 
   clearFog(x: number, y: number) {
+    if (this.fogTex) return this.fogTex.clear(x, y);
     if (!this.fog) return;
     this.fog.removeTileAt(x, y);
     // soften the edge of the remaining fog

@@ -5,13 +5,16 @@ import { D } from '../game/fx';
 import { ENEMY_BY_ID } from '../data/enemies';
 import { ACTOR_SCALE, isPropTex } from '../gfx/textures';
 import { setMusicTrack } from '../systems/audio';
+import { Darkness, darknessSupported } from '../game/darkness';
 
 // Atmospheric background for the main menu: a real generated dungeon with
 // flickering torches and idle monsters, explored by a slowly drifting camera.
 export class MenuScene extends Phaser.Scene {
   map!: WorldMap;
-  dark!: Phaser.GameObjects.RenderTexture;
-  lightImg!: Phaser.GameObjects.Image;
+  dark: Phaser.GameObjects.RenderTexture | null = null;
+  lightImg: Phaser.GameObjects.Image | null = null;
+  /** the darkness drawn by a shader (where the device runs it) */
+  darkS: Darkness | null = null;
   lamps: { x: number; y: number; r: number; f: number }[] = [];
   targets: { x: number; y: number }[] = [];
   focus = { x: 0, y: 0 };
@@ -26,7 +29,7 @@ export class MenuScene extends Phaser.Scene {
     const d = generateDungeon(4 + Math.floor(Math.random() * 6), (Math.random() * 1e9) | 0);
     this.map = new WorldMap(d);
     this.map.build(this);
-    this.map.fog.setVisible(false);
+    this.map.fog?.setVisible(false);
     for (const o of d.objects) {
       const before = this.children.list.length;
       const px = o.x * TS + 8,
@@ -102,8 +105,11 @@ export class MenuScene extends Phaser.Scene {
     const z = Math.max(2, Math.min(Math.floor(this.scale.height / 215), Math.floor(this.scale.width / 380)));
     cam.setZoom(z - (z % 2));
     cam.centerOn(first.x, first.y);
-    this.dark = this.add.renderTexture(0, 0, 64, 64).setOrigin(0).setDepth(D.dark);
-    this.lightImg = this.make.image({ key: 'light', add: false }).setOrigin(0.5);
+    if (darknessSupported(this)) this.darkS = new Darkness(this, D.dark, null, TS);
+    else {
+      this.dark = this.add.renderTexture(0, 0, 64, 64).setOrigin(0).setDepth(D.dark);
+      this.lightImg = this.make.image({ key: 'light', add: false }).setOrigin(0.5);
+    }
     this.nextTarget();
   }
 
@@ -127,15 +133,23 @@ export class MenuScene extends Phaser.Scene {
       h = Math.ceil(v.height) + 4;
     w += w % 2;
     h += h % 2;
-    const rt = this.dark;
-    if (rt.width !== w || rt.height !== h) rt.resize(w, h);
     const ox = Math.floor(v.x) - 2,
       oy = Math.floor(v.y) - 2;
+    const t = this.time.now / 1000;
+    const S = this.darkS;
+    if (S) {
+      // the darkness in one pass of a shader (see game/darkness.ts)
+      S.begin(ox, oy, w, h);
+      for (const l of this.lamps) S.light(l.x, l.y, l.r * (l.f ? 1 + Math.sin(t * 9 + l.f) * 0.05 + Math.sin(t * 23 + l.f * 3) * 0.03 : 1));
+      S.end(0x05040a, 0.6, 0, this.time.now);
+      return;
+    }
+    const rt = this.dark!;
+    if (rt.width !== w || rt.height !== h) rt.resize(w, h);
     rt.setPosition(ox, oy);
     rt.clear();
     rt.fill(0x05040a, 0.6);
-    const L = this.lightImg;
-    const t = this.time.now / 1000;
+    const L = this.lightImg!;
     rt.beginDraw();
     for (const l of this.lamps) {
       const x = l.x - ox,

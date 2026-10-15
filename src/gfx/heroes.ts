@@ -91,10 +91,14 @@ const STRETCH = [
   pose({ handB: [5, 17], handF: [27, 17], elbowB: [5, 21], elbowF: [27, 21] }),
   pose({}),
 ];
+// leaning on a staff planted beside the weapon foot: the weapon hand out on the shaft, the head tilted to it
+const HFS: Pt = [29, 24];
+const IDLE_S = [0, 1, 1, 0].map((b) => pose({ bob: b, handB: [HB[0], HB[1] + b], handF: [HFS[0], HFS[1] + b], head: [1, 0] }));
+const BLINK_S = [pose({ eyes: 'closed', handF: HFS, head: [1, 0] })];
 // reaching over the shoulder to draw or put away the weapon
 const REACH = [pose({ handB: HBA, handF: [25, 17], elbowF: [27, 21] }), pose({ handB: HBA, handF: [21, 10], elbowF: [27, 15], head: [1, 0] })];
 
-const SETS = { idle: IDLE, blink: BLINK, walk: WALK, idleA: IDLE_A, blinkA: BLINK_A, walkA: WALK_A, scratch: SCRATCH, look: LOOK, stretch: STRETCH, reach: REACH, idle2: IDLE_2, blink2: BLINK_2, walk2: WALK_2 };
+const SETS = { idle: IDLE, blink: BLINK, walk: WALK, idleA: IDLE_A, blinkA: BLINK_A, walkA: WALK_A, scratch: SCRATCH, look: LOOK, stretch: STRETCH, reach: REACH, idle2: IDLE_2, blink2: BLINK_2, walk2: WALK_2, idleS: IDLE_S, blinkS: BLINK_S };
 type SetName = keyof typeof SETS;
 /** first frame of every animation in the strip (and the frame count) */
 export const HERO_FRAMES = {} as Record<SetName | 'count', number>;

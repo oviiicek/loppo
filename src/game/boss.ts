@@ -28,7 +28,16 @@ export class BossAI {
     }
     // a story guardian's stage that drags on far past its time: the seal shards burn it (so that no fight goes
     // on forever for a hero who keeps standing but cannot hit hard enough)
-    if (b.story && !b.invuln) this.sealTick(b, dt);
+    if ((b.story || b.fightTime) && !b.invuln) this.sealTick(b, dt);
+    // a floor guardian's long fight: help comes now and then, and it attacks a little faster as it goes on
+    if (b.fightTime && !b.invuln) {
+      b.fightT += dt;
+      b.waveT -= dt;
+      if (b.waveT <= 0) {
+        b.waveT = b.bphase >= 2 ? 40 : 55;
+        this.callHelp(b, 1 + Math.min(3, b.bphase + b.bossTier));
+      }
+    }
     // at 70, 40 and 10 % of its health the guardian enters its next phase (story guardians in their last stage)
     const mark = b.nextPhaseHp;
     if (mark !== null && b.hp <= mark && !b.invuln) this.phaseUp(b);
@@ -66,7 +75,7 @@ export class BossAI {
       b.syncSprite(false);
       return;
     }
-    b.patternT -= dt * (b.lastStand ? 1.75 : b.enraged ? 1.35 : 1);
+    b.patternT -= dt * (b.lastStand ? 1.75 : b.enraged ? 1.35 : 1) * (1 + Math.min(0.3, b.fightT / 1200));
     b.atkT -= dt;
     // melee contact
     if (dist < b.r + 10 && b.atkT <= 0) {
@@ -99,7 +108,8 @@ export class BossAI {
    *  to 2 % at twice the time */
   sealTick(b: Enemy, dt: number) {
     const sc = this.scene;
-    const time = b.story!.phases[b.phase].time;
+    // (a floor guardian's whole fight: from one and a half times its time)
+    const time = b.story ? b.story.phases[b.phase].time : b.fightTime * 1.15;
     b.stageT += dt;
     const over = b.stageT / time - 1.3;
     if (over <= 0 || b.dead) return;
@@ -162,23 +172,7 @@ export class BossAI {
       b.enraged = true;
       b.arena = plan.arena;
       b.arenaT = 2.2;
-      const n = 2 + Math.min(3, b.bossTier);
-      for (let i = 0; i < n; i++) {
-        const pos = sc.map.randomFloorNear(b.x, b.y, 60);
-        if (!pos) continue;
-        sc.fx.telegraph(pos[0], pos[1], 10, 700, 0xb07dff);
-        sc.time.delayedCall(700, () => {
-          if (b.dead) return;
-          const m = sc.spawnEnemy(def.summon, pos[0], pos[1], false, b.roomId);
-          m.aggro = true;
-          m.isMinion = true;
-          m.xp = Math.round(m.xp * 0.3);
-          if (b.story) {
-            m.dmg *= b.blowScale;
-            m.maxHp = m.hp = Math.round(m.maxHp * 0.6);
-          }
-        });
-      }
+      this.callHelp(b, 2 + Math.min(3, b.bossTier));
     } else {
       // the last stand: faster, angrier, and it lashes out at once
       b.lastStand = true;
@@ -191,6 +185,28 @@ export class BossAI {
       });
     }
     sc.ui.bossPhase(b, phaseLine(b.bphase, plan.arena));
+  }
+
+  /** the guardian's servants come to help (marked on the floor a moment before they rise) */
+  callHelp(b: Enemy, n: number) {
+    const sc = this.scene;
+    const def = b.boss!;
+    // never a crowd: at most eight of them at a time
+    const alive = sc.enemies.filter((e) => !e.dead && e.isMinion).length;
+    for (let i = 0; i < Math.min(n, 8 - alive); i++) {
+      const pos = sc.map.randomFloorNear(b.x, b.y, 60);
+      if (!pos) continue;
+      sc.fx.telegraph(pos[0], pos[1], 10, 700, 0xb07dff);
+      sc.time.delayedCall(700, () => {
+        if (b.dead) return;
+        const m = sc.spawnEnemy(def.summon, pos[0], pos[1], false, b.roomId);
+        m.aggro = true;
+        m.isMinion = true;
+        m.xp = Math.round(m.xp * 0.3);
+        m.dmg *= b.blowScale;
+        if (b.story) m.maxHp = m.hp = Math.round(m.maxHp * 0.6);
+      });
+    }
   }
 
   /** the arena's own attacks from the third phase on: falling rocks, lava, poison, the dark, a blizzard */
@@ -340,12 +356,10 @@ export class BossAI {
             m.aggro = true;
             m.isMinion = true;
             m.xp = Math.round(m.xp * 0.3);
-            // a story guardian's long fight: its servants are a nuisance, not executioners (they hit as softly
-            // as the guardian's own blows in a long stage)
-            if (b.story) {
-              m.dmg *= b.blowScale;
-              m.maxHp = m.hp = Math.round(m.maxHp * 0.6);
-            }
+            // a long fight: its servants are a nuisance, not executioners (they hit as softly as the guardian's
+            // own blows)
+            m.dmg *= b.blowScale;
+            if (b.story) m.maxHp = m.hp = Math.round(m.maxHp * 0.6);
           });
         }
         break;

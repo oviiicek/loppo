@@ -37,7 +37,7 @@ interface Link {
 }
 
 /** the version of what the games say to each other (a game of another version is not let in) */
-const PROTOCOL = 2;
+const PROTOCOL = 3;
 /** the most heroes in one game */
 export const MAX_PLAYERS = 4;
 /** every player's colour (the ring under the hero, the name, the dot on the map): the host blue, then orange,

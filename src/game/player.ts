@@ -41,7 +41,8 @@ interface Sheath {
 const PI = Math.PI;
 const SHEATH: Record<string, Sheath> = {
   // long weapons cross the back behind the body: blades with the hilt over the weapon shoulder and the tip by
-  // the other hip, hafted weapons and staves with the head over the far shoulder and the shaft to the near hip
+  // the other hip, hafted weapons with the head over the far shoulder and the shaft to the near hip (staves and
+  // wands stay in the hand: see restPose)
   sword: { dx: 4.5, dy: -11, rot: PI + 0.62 },
   greatsword: { dx: 4.5, dy: -11, rot: PI + 0.62 },
   axe: { dx: -3, dy: -2, rot: -0.35 },
@@ -52,9 +53,6 @@ const SHEATH: Record<string, Sheath> = {
   halberd: { dx: 3, dy: 3, rot: -0.9 },
   scythe: { dx: 4, dy: 1, rot: -0.6 },
   quarterstaff: { dx: 3, dy: 3, rot: -0.9 },
-  staff: { dx: 3, dy: 3, rot: -0.95 },
-  stormstaff: { dx: 3, dy: 3, rot: -0.95 },
-  crook: { dx: 3, dy: 3, rot: -0.95 },
   bow: { dx: 0, dy: -8, rot: -0.7, ox: 0.5, oy: 0.5 },
   shortbow: { dx: 0, dy: -8, rot: -0.7, ox: 0.5, oy: 0.5 },
   longbow: { dx: 0, dy: -8, rot: -0.65, ox: 0.5, oy: 0.5 },
@@ -69,8 +67,6 @@ const SHEATH: Record<string, Sheath> = {
   dagger: { dx: -2, dy: -5, rot: PI + 0.7 },
   throwknives: { dx: -2, dy: -5, rot: PI + 0.7 },
   handcrossbow: { dx: -3, dy: -3, rot: -0.6, ox: 0.5, oy: 0.5 },
-  wand: { dx: -3, dy: -1, rot: -0.5 },
-  scepter: { dx: -3, dy: -1, rot: -0.5 },
   knuckle: { dx: 5, dy: -2, rot: 0.5, alpha: 0 },
   claws: { dx: 5, dy: -2, rot: 0.5, alpha: 0 },
   shield: { dx: 0, dy: -8, rot: 0.1, ox: 0.5, oy: 0.5, depth: -0.7 },
@@ -156,6 +152,9 @@ export class Player extends Actor {
   armed = false;
   /** 0 = put away .. 1 = in hand */
   armT = 0;
+  /** a staff or a wand out of a fight: 0 = standing with it (planted on the ground) .. 1 = carried level while walking */
+  private carryT = 0;
+  private walkPose = false;
   calmT = 99;
   sheatheAfter = 7;
   idleT = 0;
@@ -402,7 +401,18 @@ export class Player extends Actor {
     if (this.armed) return;
     this.armed = true;
     this.sheatheAfter = 5 + Math.random() * 5;
-    if (this.weapon || this.offhand) sfx('unsheathe');
+    if (this.sheathes()) sfx('unsheathe');
+  }
+
+  /** a long staff out of a fight: the hero leans on it */
+  private leansOnStaff() {
+    return !!this.weapon && this.d.attack === 'magic' && BASE_BY_ID[this.save.equip.main?.base ?? '']?.cat === 'weapon2h';
+  }
+
+  /** something is drawn from the back or the belt (a staff or a wand stays in the hand all the time) */
+  private sheathes() {
+    const off = this.save.equip.off?.base;
+    return (!!this.weapon && this.d.attack !== 'magic') || (!!this.offhand && off !== 'orb');
   }
 
   private threatNear(r: number) {
@@ -425,7 +435,7 @@ export class Player extends Actor {
     this.calmT += dt;
     if (this.armed && this.calmT > this.sheatheAfter && this.swinging <= 0) {
       this.armed = false;
-      if (this.weapon || this.offhand) sfx('sheathe');
+      if (this.sheathes()) sfx('sheathe');
     }
     this.stepArm(dt);
   }
@@ -459,24 +469,27 @@ export class Player extends Actor {
     // with a two-handed weapon in hand both hands hold it
     const A = armedPose && twoHandGrip(this.save.equip.main?.base) ? '2' : 'A';
     this.blinkAt -= dt;
+    this.walkPose = moving;
     let want: string;
     if (moving) {
       this.idleT = 0;
       this.blinkAt = Math.max(this.blinkAt, 0.8);
       want = armedPose ? '_walk' + A : '_walk';
-    } else if (this.armT > 0 && this.armT < 1) {
+    } else if (this.armT > 0 && this.armT < 1 && this.sheathes()) {
       // reaching over the shoulder for the weapon (or putting it back)
       s.anims.stop();
       s.setFrame(HERO_FRAMES.reach + (this.armT > 0.22 && this.armT < 0.82 ? 1 : 0));
       return;
     } else {
       // standing: breathe, blink now and then; without a weapon in hand also scratch the head, look around, stretch
+      // (leaning on a staff only breathes and blinks: the hand stays on the shaft)
+      const I = armedPose ? A : this.leansOnStaff() ? 'S' : '';
       const running = s.anims.isPlaying && s.anims.currentAnim?.repeat === 0;
-      if (running && (armedPose ? cur === k + '_blink' + A : cur !== k + '_blinkA' && cur !== k + '_blink2' && cur.startsWith(k + '_'))) return;
-      want = armedPose ? '_idle' + A : '_idle';
-      if (armedPose) this.idleT = 0;
+      if (running && (I ? cur === k + '_blink' + I : cur !== k + '_blinkA' && cur !== k + '_blink2' && cur !== k + '_blinkS' && cur.startsWith(k + '_'))) return;
+      want = '_idle' + I;
+      if (I) this.idleT = 0;
       else this.idleT += dt;
-      if (!armedPose && this.idleT > this.fidgetAt) {
+      if (!I && this.idleT > this.fidgetAt) {
         this.idleT = 0;
         this.fidgetAt = 6 + Math.random() * 7;
         let f = FIDGETS[Math.floor(Math.random() * FIDGETS.length)];
@@ -486,7 +499,7 @@ export class Player extends Actor {
         this.blinkAt = Math.max(this.blinkAt, 1.5);
       } else if (this.blinkAt <= 0) {
         this.blinkAt = 2.2 + Math.random() * 3.5;
-        want = armedPose ? '_blink' + A : '_blink';
+        want = '_blink' + I;
       }
     }
     want = k + want;
@@ -756,8 +769,9 @@ export class Player extends Actor {
     const swingP = this.swinging > 0 ? 1 - this.swinging / 0.18 : 1;
     const baseKey = this.save.equip.main?.base ?? '';
     const arc = (this.d.arc * Math.PI) / 180;
-    // the hands follow the animation frame (the combat stance while the weapon travels to or from the back)
-    const fr = this.armT >= 1 ? this.frameIndex() : HERO_FRAMES.idleA;
+    // the hands follow the animation frame (the combat stance while the weapon travels to or from the back;
+    // a staff or a wand never leaves the hand)
+    const fr = this.armT >= 1 || kind === 'magic' ? this.frameIndex() : HERO_FRAMES.idleA;
     const [fhx, fhy] = heroHand(fr);
     const [bhx, bhy] = heroHandB(fr);
     const rest = heroHand(HERO_FRAMES.idleA)[1];
@@ -810,7 +824,8 @@ export class Player extends Actor {
           p.y = this.y - 5 + Math.sin(this.aim) * (2 + thrust);
         }
       }
-      this.place(this.weapon, p, SHEATH[baseKey], e, -0.6);
+      if (kind === 'magic') this.carryT = Phaser.Math.Clamp(this.carryT + (this.walkPose ? dt / 0.12 : -dt / 0.16), 0, 1);
+      this.place(this.weapon, p, kind === 'magic' ? this.restPose(this.weapon, fr) : SHEATH[baseKey], e, -0.6);
     }
     if (this.offhand) {
       const offBase = this.save.equip.off?.base ?? '';
@@ -840,11 +855,52 @@ export class Player extends Actor {
     }
   }
 
+  /**
+   * where a staff or a wand is out of a fight (it is never put on the back): standing, a staff's foot rests on
+   * the ground beside the hero, who leans on it, and a wand is held at ease; walking, either is carried level in
+   * the hand with its head forward, as if running with it
+   */
+  private restPose(img: Phaser.GameObjects.Image, fr: number): Placement {
+    const f = this.facing;
+    const s = this.sprite;
+    const [fhx, fhy] = heroHand(fr);
+    const hx = s.x + fhx * ACTOR_SCALE * f,
+      hy = s.y + fhy * ACTOR_SCALE;
+    const carry: Placement = { x: hx, y: hy + 1, rot: (PI / 2 - 0.12) * f, ox: 0.5, oy: 0.66, depth: s.depth - 0.3 };
+    let stand: Placement;
+    if (this.leansOnStaff()) {
+      // the soles are a world pixel above the bottom of the frame; the foot of the shaft stands beside them and
+      // the shaft leans in a little under the hand
+      const gy = s.y - 0.5;
+      const lean = 0.03;
+      stand = { x: hx + Math.tan(lean) * (gy - hy) * f, y: gy, rot: -lean * f, ox: 0.5, oy: 1 - 1.5 / img.height, depth: s.depth - 0.3 };
+    } else stand = { x: hx, y: hy + 2, rot: 0.35 * f, ox: 0.5, oy: 0.85, depth: s.depth + (f > 0 ? 0.5 : -0.5) };
+    const c = this.carryT * this.carryT * (3 - 2 * this.carryT);
+    if (c <= 0) return stand;
+    if (c >= 1) return carry;
+    return {
+      x: stand.x + (carry.x - stand.x) * c,
+      y: stand.y + (carry.y - stand.y) * c,
+      rot: stand.rot + Phaser.Math.Angle.Wrap(carry.rot - stand.rot) * c,
+      ox: 0.5,
+      oy: stand.oy + (carry.oy - stand.oy) * c,
+      depth: c < 0.5 ? stand.depth : carry.depth,
+    };
+  }
+
   /** puts a weapon sprite between its place on the back (e = 0) and its place in the hand (e = 1) */
-  private place(img: Phaser.GameObjects.Image, held: Placement, sh: Sheath | undefined, e: number, behind: number) {
+  private place(img: Phaser.GameObjects.Image, held: Placement, sh: Sheath | Placement | undefined, e: number, behind: number) {
     let { x, y, rot, ox, oy, depth } = held;
     let alpha = 1;
-    if (sh && e < 1) {
+    if (sh && 'x' in sh) {
+      // a calm pose in the hand: blend straight to the fighting one
+      x = sh.x + (x - sh.x) * e;
+      y = sh.y + (y - sh.y) * e;
+      rot = sh.rot + Phaser.Math.Angle.Wrap(rot - sh.rot) * e;
+      ox = sh.ox + (ox - sh.ox) * e;
+      oy = sh.oy + (oy - sh.oy) * e;
+      if (e < 0.5) depth = sh.depth;
+    } else if (sh && e < 1) {
       const f = this.facing;
       const sx = this.sprite.x + sh.dx * f,
         sy = this.sprite.y - 3 + sh.dy;

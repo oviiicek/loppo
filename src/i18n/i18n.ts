@@ -16,7 +16,10 @@ export interface Lang {
   flag: string;
 }
 
-export const LANGS: Lang[] = [
+const catalogs = import.meta.glob<{ default: Catalog }>('./lang/*.json');
+
+/** the languages the game can be played in (a language shows up in the menu once its catalog is there) */
+export const LANGS: Lang[] = (<Lang[]>[
   { id: 'cs', name: 'Čeština', locale: 'cs-CZ', flag: '🇨🇿' },
   { id: 'en', name: 'English', locale: 'en-US', flag: '🇬🇧' },
   { id: 'de', name: 'Deutsch', locale: 'de-DE', flag: '🇩🇪' },
@@ -29,7 +32,7 @@ export const LANGS: Lang[] = [
   { id: 'ja', name: '日本語', locale: 'ja-JP', flag: '🇯🇵' },
   { id: 'zh', name: '简体中文', locale: 'zh-CN', flag: '🇨🇳' },
   { id: 'ko', name: '한국어', locale: 'ko-KR', flag: '🇰🇷' },
-];
+]).filter((l) => l.id === 'cs' || !!catalogs[`./lang/${l.id}.json`]);
 
 /** how an item's name is put together in a language: the forms of the adjectives (one, or one for each gender
  *  of the noun: m, f, n, p for a plural), the nouns (with their gender) and the suffixes, and the order of the
@@ -82,8 +85,6 @@ export function saveLang(id: string) {
     /* no storage */
   }
 }
-
-const catalogs = import.meta.glob<{ default: Catalog }>('./lang/*.json');
 
 /** before the game starts: the language's catalog and the hooks that translate what reaches the screen */
 export async function initI18n() {

@@ -236,8 +236,12 @@ export class Enemy extends Actor {
   capNoted = false;
   /** how much softer the blows of a story guardian's long stage are (its servants hit as softly) */
   blowScale = 1;
-  /** how much of a story guardian's stage may go per second (the damage cap) */
+  /** how much of a story guardian's stage (or a floor guardian's health) may go per second (the damage cap) */
   capRate = 0;
+  /** a floor guardian's fight: how long it is meant to last, how long it has lasted, when help comes next */
+  fightTime = 0;
+  fightT = 0;
+  waveT = 0;
   // boss state
   patternIdx = 0;
   patternT = 3;
@@ -450,6 +454,21 @@ export class Enemy extends Actor {
       this.spotted = true;
       sc.onCorruptSpotted(this);
     }
+  }
+
+  /** a floor guardian fights for minutes, not seconds: four times the health and three times the experience,
+   *  and its health can't go faster than the fight's time allows (the seal of time the story guardians have) */
+  lengthenFight(secs: number) {
+    this.maxHp = this.hp = Math.round(this.maxHp * 4);
+    this.xp = Math.round(this.xp * 3);
+    // a long fight is won by staying alive: its blows (and its servants') are softer
+    this.blowScale = 0.45;
+    this.dmg *= this.blowScale;
+    this.fightTime = secs;
+    this.capRate = this.maxHp / secs;
+    this.capT = this.scene.time.now / 1000;
+    this.capBudget = 0;
+    this.waveT = 50;
   }
 
   makeBoss(boss: BossDef, tier: number, floor: number) {

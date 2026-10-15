@@ -427,12 +427,6 @@ img.px {
 /* a side quest's reward (or a treasure map) is waiting: it glows */
 .questbtn.claim {
   border-color: #9dff7a;
-  animation: questglow 1.6s ease-in-out infinite;
-}
-@keyframes questglow {
-  50% {
-    box-shadow: 0 0 0 2px #120d08, 0 0 16px rgba(157, 255, 122, 0.7), 0 3px 8px #000c;
-  }
 }
 .topbtns {
   position: absolute;
@@ -627,10 +621,16 @@ img.px {
 }
 .skill.ready.ult {
   animation: ultglow 1.6s ease-in-out infinite;
+  will-change: filter;
 }
+/* the glow pulses as a filter: the GPU redraws it, the page is not painted again every frame */
 @keyframes ultglow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 1px rgba(255, 200, 80, 0.3));
+  }
   50% {
-    box-shadow: 0 0 0 2px #120d08, 0 0 22px rgba(255, 200, 80, 0.75), 0 3px 8px #000c;
+    filter: drop-shadow(0 0 7px rgba(255, 200, 80, 0.85));
   }
 }
 .skill.uni {
@@ -687,18 +687,11 @@ img.px {
   box-shadow: 0 0 16px rgba(255, 200, 80, 0.35), 0 4px 10px #000;
   display: none;
   white-space: nowrap;
-  animation: pulse 1.2s ease-in-out infinite;
   cursor: pointer;
 }
 .action.on {
   display: block;
 }
-@keyframes pulse {
-  50% {
-    box-shadow: 0 0 26px rgba(255, 200, 80, 0.6), 0 4px 10px #000;
-  }
-}
-
 /* messages (found things, events, trophies) and pickups: one small feed on the left, under the health bars,
    so nothing covers the middle of the screen where the fight is */
 .feeds {
@@ -890,12 +883,7 @@ img.px {
 }
 .bossbar.last .name {
   color: #ff4a3a;
-  animation: bosslast 0.7s ease-in-out infinite alternate;
-}
-@keyframes bosslast {
-  to {
-    color: #ffb090;
-  }
+  animation: bosslastop 0.7s ease-in-out infinite alternate;
 }
 .eventbar {
   position: absolute;
@@ -2739,8 +2727,24 @@ img.px {
   align-items: center;
 }
 
+/* moving a character: Kopírovat, then the box for a code from the other device */
+.xfer {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.xfer p {
+  margin: 0;
+}
+.xfer .sep {
+  border-top: 1px solid var(--line);
+  margin: 4px 0;
+}
 /* transfer code box */
-textarea.code {
+textarea.code,
+input.code {
+  box-sizing: border-box;
   width: 100%;
   height: 96px;
   resize: none;
@@ -2754,6 +2758,10 @@ textarea.code {
   user-select: text;
   -webkit-user-select: text;
   touch-action: auto;
+}
+input.code {
+  height: 40px;
+  font-size: 15px;
 }
 
 /* short phones (e.g. 360 px tall Androids): all 11 equipment slots must stay reachable */
@@ -3122,30 +3130,12 @@ textarea.code {
 }
 .rbtn.glow {
   background: radial-gradient(circle at 50% 38%, #2c2636, #0d0b12) padding-box, var(--ring-gold) border-box;
-  animation: rbtnGlow 1.4s ease-in-out infinite;
-}
-@keyframes rbtnGlow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 2px #120c06, 0 0 5px 1px rgba(255, 205, 80, 0.45);
-  }
-  50% {
-    box-shadow: 0 0 0 2px #120c06, 0 0 15px 5px rgba(255, 215, 90, 0.9);
-  }
+  box-shadow: 0 0 0 2px #120c06, 0 0 5px 1px rgba(255, 205, 80, 0.45);
 }
 /* unspent attribute points: the gold ring glows */
 .portrait.glow {
   background: radial-gradient(circle at 50% 30%, #3e3956, #141019) padding-box, var(--ring-gold) border-box;
-  animation: portraitGlow 1.4s ease-in-out infinite;
-}
-@keyframes portraitGlow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 2px #120c06, inset 0 0 10px #000, 0 0 5px 1px rgba(255, 205, 80, 0.45);
-  }
-  50% {
-    box-shadow: 0 0 0 2px #120c06, inset 0 0 10px #000, 0 0 16px 5px rgba(255, 215, 90, 0.95);
-  }
+  box-shadow: 0 0 0 2px #120c06, inset 0 0 10px #000, 0 0 5px 1px rgba(255, 205, 80, 0.45);
 }
 .hcbadge {
   position: absolute;
@@ -5062,7 +5052,8 @@ textarea.code {
   border: 2px solid #ff6a5a;
   border-radius: 9px;
   background: radial-gradient(circle at 50% 0, #3a1010, #160a0a);
-  animation: lastchGlow 1.2s ease-in-out infinite alternate;
+  box-shadow: 0 0 6px rgba(255, 90, 74, 0.25);
+  position: relative;
 }
 .lastch b {
   color: #ff8a7a;
@@ -5072,15 +5063,6 @@ textarea.code {
   font-size: 15px;
   color: #e8c8c0;
 }
-@keyframes lastchGlow {
-  from {
-    box-shadow: 0 0 6px rgba(255, 90, 74, 0.25);
-  }
-  to {
-    box-shadow: 0 0 16px rgba(255, 90, 74, 0.6);
-  }
-}
-
 /* the bag's items that fit a tapped equipment slot */
 .fits {
   margin-bottom: 8px;
@@ -5484,4 +5466,49 @@ textarea.code {
 :root:lang(zh),
 :root:lang(ko) {
   --font: 'Jersey 10', system-ui, 'Noto Sans CJK JP', 'Hiragino Sans', 'Microsoft YaHei', 'Malgun Gothic', sans-serif;
+}
+
+/* glows that pulse: a layer of its own with the strong glow, only its opacity changes (the compositor animates
+   that; animating a box-shadow would make the browser paint the HUD again on every frame) */
+.questbtn.claim::before,
+.action::before,
+.rbtn.glow::before,
+.portrait.glow::before,
+.lastch::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+  animation: glowpulse 1.4s ease-in-out infinite;
+}
+.questbtn.claim::before {
+  box-shadow: 0 0 16px rgba(157, 255, 122, 0.7);
+  animation-duration: 1.6s;
+}
+.action::before {
+  box-shadow: 0 0 26px rgba(255, 200, 80, 0.6);
+  animation-duration: 1.2s;
+}
+.rbtn.glow::before {
+  box-shadow: 0 0 15px 5px rgba(255, 215, 90, 0.9);
+}
+.portrait.glow::before {
+  box-shadow: 0 0 16px 5px rgba(255, 215, 90, 0.95);
+}
+.lastch::before {
+  box-shadow: 0 0 16px rgba(255, 90, 74, 0.6);
+  animation-duration: 2.4s;
+}
+@keyframes glowpulse {
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes bosslastop {
+  to {
+    opacity: 0.7;
+  }
 }

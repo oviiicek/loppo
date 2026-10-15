@@ -38,6 +38,10 @@ function isText(t) {
   // CSS, colours, function calls, keys made of parts ("gem_{0}_{1}")
   if (/[{}](?!\d+\})|^[#.][\w-]|\w:-?\d|\b\d+(px|em|rem|vh|vw|ms|deg)\b|^[a-z-]+\(|_\{|\}_|^[a-z-]+\s*:\s*[^\s;]+;|^"[^"]+",\s*\w+$/.test(t.replace(/\{\d+\}/g, '')) ) return false;
   if (/^(btn|box|row|col|hint|small|big|on|off|tab|chip|icon|bar|fill|name|cost|val|lbl|sub|note|grid|cell|slot|item|panel|overlay|head)(\s|$)/.test(s)) return false;
+  // an HTML attribute put together in a template (style="{0}")
+  if (/^[a-z][\w-]*="\{\d+\}"$/.test(t.trim())) return false;
+  // the prefix of a transfer code ("LP2:")
+  if (/^[A-Z]+\d+:$/.test(t.trim())) return false;
   if (CZ.test(s)) return true;
   // a template with any word in it (its parts are often single short words)
   if (tpl && /\p{L}{2,}/u.test(s) && !/^[a-z]+[A-Z]\w*$/.test(s)) return true;
@@ -101,7 +105,14 @@ function inType(node) {
   return false;
 }
 
+/** a word compared in code (`o.type === 'Sprite'`) is never shown, unless it is Czech */
+function compared(node) {
+  const p = node.parent;
+  return !!p && ts.isBinaryExpression(p) && [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(p.operatorToken.kind) && !CZ.test(node.text);
+}
+
 function skipCall(node) {
+  if (compared(node)) return true;
   const p = node.parent;
   if (!p || !ts.isCallExpression(p)) return false;
   const callee = p.expression.getText();

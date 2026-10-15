@@ -262,7 +262,7 @@ export class Combat {
     // unaffected (life steal still counts the whole blow)
     const full = dmg;
     let resisted = false;
-    if (e.story && !(window as any).__noCap) {
+    if ((e.story || e.capRate > 0) && !(window as any).__noCap) {
       const now = sc.time.now / 1000;
       const rate = e.capRate || e.maxHp * 0.065;
       e.capBudget = Math.min(e.maxHp * 0.05, e.capBudget + (now - e.capT) * rate);

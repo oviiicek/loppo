@@ -4,6 +4,7 @@
 // (with its own loot, chests and merchants) and sends back where its hero stands and every blow it lands. What one
 // guest's hero does (its effects and shots) the host's game passes on to the other guests. Kills come back from the
 // host and each game then rolls its own loot. Items one of the heroes throws away can be picked up by the others.
+import { Clock, Track } from './interp';
 import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { Net, NetMsg, SLOT_COLORS, SLOT_CSS } from '../net/net';
@@ -157,6 +158,10 @@ export class Coop {
   private hitFrom = -1;
   // guest
   puppets = new Map<number, Enemy>();
+  /** the host's clock and each puppet's positions at the host's times (played back smoothly, see game/interp.ts) */
+  private hostClock = new Clock();
+  private tracks = new Map<number, Track>();
+  private pos = { x: 0, y: 0 };
   private bossOn = 0;
   private status = new Map<number, Record<string, number>>();
   private knock = new Map<number, [number, number]>();
@@ -420,7 +425,8 @@ export class Coop {
     // the heroes: the host's own and the other guests' (as their games last told)
     const hs: [number, HeroSnap][] = [[0, me]];
     for (const [s, h] of this.heroes) if (s !== slot && h.last) hs.push([s, h.last]);
-    return { hs, n, e };
+    // the host's own time: the guest plays the positions back by it, not by when they arrive
+    return { hs, n, e, ht: Math.round(performance.now()) };
   }
 
   private intro(m: Enemy): Intro {
@@ -512,7 +518,7 @@ export class Coop {
     e.maxHp = Math.max(1, Math.round(e.maxHp * f));
     e.hp = Math.max(1, Math.round(e.hp * f));
     e.dmg *= m.dmg / e.mpDmg;
-    if (e.story) e.capRate *= f;
+    if (e.capRate) e.capRate *= f;
     e.mpHp = hp;
     e.mpDmg = m.dmg;
   }
@@ -607,9 +613,17 @@ export class Coop {
     for (const [slot, o] of this.heroes) if (!seen.has(slot) && o.quietT > 2) this.dropHero(slot);
     for (const n of (m.n as Intro[]) ?? []) this.spawnPuppet(n);
     const now = sc.time.now;
+    const ht = typeof m.ht === 'number' ? m.ht : NaN;
+    if (Number.isFinite(ht)) this.hostClock.seen(ht);
     for (const u of (m.e as Upd[]) ?? []) {
       const e = this.puppets.get(u[0]);
       if (!e || e.dead) continue;
+      if (Number.isFinite(ht)) {
+        let tr = this.tracks.get(u[0]);
+        if (!tr) this.tracks.set(u[0], (tr = new Track()));
+        if (Math.hypot(u[1] - e.ptx, u[2] - e.pty) > 120) tr.reset(ht, u[1], u[2]);
+        else tr.push(ht, u[1], u[2]);
+      }
       // its speed between the last two words: it keeps going until the next one (a jump is not a speed)
       const gap = (now - e.seenAt) / 1000;
       if (gap > 0.02 && gap < 0.4) {
@@ -739,13 +753,25 @@ export class Coop {
 
   /** a puppet moves to where the host says it is */
   tickPuppet(e: Enemy, dt: number) {
-    if (e.dead) return;
-    // where it should be now: the last word of the host carried on at its speed for a moment (no stop-and-go
-    // between the words), and the sprite glides there
-    const age = Math.min(0.12, (this.sc.time.now - e.seenAt) / 1000);
-    const tx = e.ptx + (e.pStun ? 0 : e.pvx * age),
+    if (e.dead) {
+      this.tracks.delete(e.pid);
+      return;
+    }
+    // where it should be now: played back by the host's clock a moment behind it (smooth whatever the
+    // connection does); without the host's times, the last word carried on at its speed for a moment
+    const tr = this.tracks.get(e.pid);
+    let tx: number, ty: number, k: number;
+    if (tr && tr.size && this.hostClock.ready) {
+      tr.at(this.hostClock.playback(), this.pos);
+      tx = this.pos.x;
+      ty = this.pos.y;
+      k = Math.min(1, dt * 30);
+    } else {
+      const age = Math.min(0.12, (this.sc.time.now - e.seenAt) / 1000);
+      tx = e.ptx + (e.pStun ? 0 : e.pvx * age);
       ty = e.pty + (e.pStun ? 0 : e.pvy * age);
-    const k = Math.min(1, dt * 16);
+      k = Math.min(1, dt * 16);
+    }
     const dx = tx - e.x,
       dy = ty - e.y;
     const far = Math.hypot(dx, dy);

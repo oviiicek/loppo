@@ -232,6 +232,8 @@ export const settings = {
   keepUpgrades: true,
   /** the qualities ticked last time in "sell by quality" */
   sellPick: [0, 1] as number[],
+  /** the game may lower the graphics by itself when the device cannot keep up (off once the player chooses) */
+  gfxAuto: true,
 };
 try {
   const raw = localStorage.getItem('loppo-settings');

@@ -10,7 +10,8 @@ import { PROC_EFFECT_BY_ID } from '../data/weaponspells';
 import { PETS, PET_BY_ID, petTitle, petLevel } from '../data/pets';
 import { ClassId } from '../data/types';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
-import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, listFallen, heroTitle, LEECH_CAP } from '../systems/state';
+import { loadGame, newCharacter, saveGame, game as G, deleteSave, listSlots, setActiveSlot, activeSlot, SLOTS, exportSave, importSave, readCode, listFallen, heroTitle, LEECH_CAP } from '../systems/state';
+import type { SaveData } from '../systems/state';
 import { DIFFICULTIES, DEFAULT_DIFFICULTY, difficultyOf, difficultyLines } from '../data/difficulty';
 import { areaForFloor, areaIndex, AREAS } from '../data/biomes';
 import { sfx, isMuted, setMuted, unlockAudio, settings, saveSettings, startMusic, stopMusic, GFX_NAMES, GFX_HINTS, setGfx } from '../systems/audio';
@@ -42,9 +43,11 @@ function salvageName() {
   return n ? `${n}× auto` : 'vše nechat';
 }
 
-/** the language button: a globe and the language's own name (never translated, so anyone finds their way back) */
-function langButton() {
-  return `🌐 <span class="langname">${langInfo().name}</span>`;
+/** the language button: a globe and the language's own name (never translated, so anyone finds their way back);
+ *  none while Czech is the only language */
+function langButton(cls: string, style = '') {
+  if (LANGS.length < 2) return '';
+  return `<button class="${cls}" data-a="lang"${style ? ` style="${style}"` : ''}>🌐 <span class="langname">${langInfo().name}</span></button>`;
 }
 
 function fxName() {
@@ -73,7 +76,7 @@ export class Menus {
       <button class="btn" data-a="new">Nová hra</button>
       <button class="btn" data-a="slots">Postavy</button>
       <button class="btn blue" data-a="help">Jak hrát</button>
-      <div class="row" style="justify-content:center"><button class="btn small" data-a="sound" style="min-width:0;font-size:18px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>${isStandalone() ? '' : `<button class="btn small" data-a="fs" data-fs="label" style="min-width:0;font-size:18px">${fsButtonHTML('label')}</button>`}<button class="btn small" data-a="lang" style="min-width:0;font-size:18px">${langButton()}</button></div>
+      <div class="row" style="justify-content:center"><button class="btn small" data-a="sound" style="min-width:0;font-size:18px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>${isStandalone() ? '' : `<button class="btn small" data-a="fs" data-fs="label" style="min-width:0;font-size:18px">${fsButtonHTML('label')}</button>`}${langButton('btn small', 'min-width:0;font-size:18px')}</div>
       <div class="sprites">${CLASSES.map((c, i) => `<img src="${iconURL('pl_' + c.id, 64)}" style="animation-delay:${i * 0.15}s">`).join('')}</div>
       <div class="version">verze ${__APP_VERSION__} beta</div>
     </div>`);
@@ -192,11 +195,8 @@ export class Menus {
             this.slots(menu);
           }
         });
-      } else if (b.dataset.exp !== undefined) {
-        const sv = listSlots()[+b.dataset.exp];
-        if (sv) this.transferOut(sv);
-      } else if (b.dataset.imp !== undefined) {
-        this.transferIn(+b.dataset.imp, () => {
+      } else if (b.dataset.exp !== undefined || b.dataset.imp !== undefined) {
+        this.transfer(+(b.dataset.exp ?? b.dataset.imp!), () => {
           p.remove();
           this.slots(menu);
         });
@@ -231,50 +231,117 @@ export class Menus {
       .join('')}</div>`;
   }
 
-  // export: show the transfer code with a copy button (clipboard may be refused, so the text stays selectable)
-  transferOut(sv: NonNullable<ReturnType<typeof loadGame>>) {
-    const code = exportSave(sv);
-    const p = el(`<div class="overlay" style="z-index:90"><div class="panel small" style="width:min(94vw,560px)"><div class="head"><h2>Přenést postavu</h2><button class="close">✕</button></div>
-      <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
-        <p class="hint" style="margin:0">Zkopíruj tento kód a na jiném zařízení ho vlož v menu Postavy → Vložit kód.</p>
-        <textarea class="code" readonly></textarea>
-        <div class="row" style="justify-content:flex-end"><span class="hint" data-msg></span><button class="btn green" data-x="copy">Kopírovat</button></div>
+  /**
+   * moving a character to another device or browser: Kopírovat puts the hero of this slot in the clipboard as a
+   * code, the box below takes a code from the other device into this slot
+   */
+  transfer(slot: number, done: () => void) {
+    const sv = listSlots()[slot];
+    const p = el(`<div class="overlay" style="z-index:90"><div class="panel small" style="width:min(94vw,480px)"><div class="head"><h2>Přenést postavu</h2><button class="close">✕</button></div>
+      <div class="xfer">
+        ${
+          sv
+            ? `<p class="hint">Klepni na Kopírovat a na druhém zařízení kód vlož v menu Postavy → Vložit kód.</p>
+        <div class="row"><button class="btn green" data-x="copy" disabled>📋 Kopírovat</button><span class="hint" data-msg></span></div>
+        <input class="code" data-out readonly hidden>
+        <div class="sep"></div>`
+            : ''
+        }
+        <p class="hint">Kód z druhého zařízení vlož sem${sv ? ' (postava v tomto slotu se jím nahradí)' : ''}:</p>
+        <input class="code" data-in type="text" placeholder="Vložit kód…" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="hint" data-who></span><button class="btn blue" data-x="load" disabled>Vložit do slotu ${slot + 1}</button></div>
       </div></div></div>`);
-    const ta = $('textarea', p) as HTMLTextAreaElement;
-    ta.value = code;
     this.ui.root.appendChild(p);
     $('.close', p).addEventListener('click', () => p.remove());
-    $('[data-x=copy]', p).addEventListener('click', () => {
+    for (const box of p.querySelectorAll('input')) {
+      // the game blocks text selection and its keys; the code boxes need normal editing
+      box.addEventListener('pointerdown', (e) => e.stopPropagation());
+      box.addEventListener('keydown', (e) => e.stopPropagation());
+    }
+    if (sv) {
+      const btn = $('[data-x=copy]', p) as HTMLButtonElement;
       const msg = $('[data-msg]', p);
-      const manual = () => {
-        ta.focus();
-        ta.select();
-        msg.textContent = 'Text je označený – zkopíruj ho ručně.';
-      };
-      try {
-        navigator.clipboard.writeText(code).then(() => (msg.textContent = 'Zkopírováno ✓'), manual);
-      } catch {
-        manual();
+      const out = $('[data-out]', p) as HTMLInputElement;
+      let code = '';
+      exportSave(sv).then((c) => {
+        code = c;
+        btn.disabled = false;
+      });
+      btn.addEventListener('click', () => {
+        if (!code) return;
+        // the old way first, while the tap still counts (some app views refuse the clipboard API), then the API
+        let ok = false;
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = code;
+          ta.style.cssText = 'position:fixed;left:0;top:0;opacity:0';
+          document.body.appendChild(ta);
+          ta.select();
+          ta.setSelectionRange(0, code.length);
+          ok = document.execCommand('copy');
+          ta.remove();
+        } catch {
+          ok = false;
+        }
+        const copied = () => {
+          msg.textContent = 'Zkopírováno ✓';
+          out.hidden = true;
+        };
+        const manual = () => {
+          out.value = code;
+          out.hidden = false;
+          out.focus();
+          out.select();
+          msg.textContent = 'Kód je označený – zkopíruj ho ručně.';
+        };
+        if (navigator.clipboard?.writeText) navigator.clipboard.writeText(code).then(copied, () => (ok ? copied() : manual()));
+        else if (ok) copied();
+        else manual();
+      });
+    }
+    const inp = $('[data-in]', p) as HTMLInputElement;
+    const who = $('[data-who]', p);
+    const load = $('[data-x=load]', p) as HTMLButtonElement;
+    let read: SaveData | null = null;
+    let asked = false;
+    let seq = 0;
+    // a pasted code is read at once: the hero it holds is shown before it replaces anything
+    const check = async () => {
+      const n = ++seq;
+      read = null;
+      asked = false;
+      load.disabled = true;
+      load.textContent = `Vložit do slotu ${slot + 1}`;
+      who.style.color = '';
+      if (!inp.value.trim()) {
+        who.textContent = '';
+        return;
       }
-    });
-  }
-
-  transferIn(slot: number, done: () => void) {
-    const p = el(`<div class="overlay" style="z-index:90"><div class="panel small" style="width:min(94vw,560px)"><div class="head"><h2>Vložit kód postavy</h2><button class="close">✕</button></div>
-      <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
-        <p class="hint" style="margin:0">Vlož kód zkopírovaný z menu Postavy → Přenést.</p>
-        <textarea class="code" placeholder="LOPPO1:…"></textarea>
-        <div class="row" style="justify-content:flex-end"><span class="hint" data-msg style="color:#ff8080"></span><button class="btn green" data-x="load">Načíst do slotu ${slot + 1}</button></div>
-      </div></div></div>`);
-    this.ui.root.appendChild(p);
-    const ta = $('textarea', p) as HTMLTextAreaElement;
-    // the game blocks text selection globally; the code box needs normal editing
-    ta.addEventListener('pointerdown', (e) => e.stopPropagation());
-    $('.close', p).addEventListener('click', () => p.remove());
-    $('[data-x=load]', p).addEventListener('click', () => {
-      const r = importSave(ta.value, slot);
+      const r = await readCode(inp.value);
+      if (n !== seq) return;
       if (typeof r === 'string') {
-        $('[data-msg]', p).textContent = r;
+        who.textContent = r;
+        who.style.color = '#ff8080';
+        return;
+      }
+      read = r;
+      who.textContent = `${r.heroName ? r.heroName + ' – ' : ''}${heroTitle(r)} • úroveň ${r.level} • patro ${r.maxFloor}`;
+      who.style.color = '#8fe388';
+      load.disabled = false;
+    };
+    inp.addEventListener('input', () => void check());
+    load.addEventListener('click', async () => {
+      if (!read) return;
+      if (sv && !asked) {
+        asked = true;
+        load.textContent = 'Opravdu nahradit?';
+        return;
+      }
+      load.disabled = true;
+      const r = await importSave(inp.value, slot);
+      if (typeof r === 'string') {
+        who.textContent = r;
+        who.style.color = '#ff8080';
         return;
       }
       sfx('levelup');
@@ -494,7 +561,7 @@ export class Menus {
         <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="pets">🐾 Mazlíčci</button><button class="btn" style="flex:1" data-a="ach">🏆 Úspěchy</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
         <div class="row" style="flex-wrap:nowrap">${sc.save.maxFloor >= 2 || sc.inVillage ? `<button class="btn gold" style="flex:1" data-a="home">${sc.inVillage ? '⬇ Do kobek' : '🏠 Domů do Loppa'}</button>` : ''}<button class="btn" style="flex:1" data-a="quests">📜 Úkoly${(sc.save.village?.quests ?? []).some((q) => q.done) || sc.save.village?.royal?.quest?.done ? ' ✔' : ''}</button><button class="btn blue" style="flex:1" data-a="coop">👥 Společná hra${Net.active ? ` ${Net.count}/${MAX_PLAYERS}` : ''}</button><button class="btn violet" style="flex:1" data-a="pearls">💠 Perly ${(sc.save.pearls ?? 0).toLocaleString('cs-CZ')}</button></div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button>${isStandalone() ? '' : `<button class="btn small blue" data-a="fs" data-fs="label">${fsButtonHTML('label')}</button>`}</div>
-        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Kořist: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button><button class="btn small blue" data-a="lang">${langButton()}</button></div>
+        <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Kořist: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button>${langButton('btn small blue')}</div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>
       </div></div>`);
     this.ui.showOverlay(p, () => {});
@@ -525,7 +592,8 @@ export class Menus {
       } else if (a === 'salvage') {
         this.ui.panels.lootRules(() => (b.textContent = 'Kořist: ' + salvageName()));
       } else if (a === 'fx') {
-        // round the four levels: very low → low → medium → high
+        // round the four levels: very low → low → medium → high (the player's choice: no more automatic changes)
+        settings.gfxAuto = false;
         setGfx((settings.gfx + 1) % 4);
         b.textContent = fxName();
         this.ui.toast(`Grafika ${GFX_NAMES[settings.gfx]} – ${GFX_HINTS[settings.gfx]}`, '#9fe6ff');

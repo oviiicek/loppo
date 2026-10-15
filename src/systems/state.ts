@@ -10,7 +10,7 @@ import { multiTitle } from '../data/multiclass';
 import { ATTR_KEYS, AttrKey, ClassId, Item, Slot, StatKey, Stats } from '../data/types';
 import { DEFAULT_DIFFICULTY } from '../data/difficulty';
 import { CLASS_BY_ID } from '../data/classes';
-import { BASE_BY_ID, generateItem, itemStats, weaponDamage, isTwoHanded } from '../data/items';
+import { BASE_BY_ID, generateItem, itemStats, weaponDamage, isTwoHanded, newUid } from '../data/items';
 import { SPELL_BY_ID, spellsForClass, MAX_SPELL_RANK, BuffMods } from '../data/spells';
 import { bus } from './events';
 import { StoryState, newStory, migrateStory } from '../data/story';
@@ -120,6 +120,8 @@ export interface RunState {
   fallen?: boolean;
   /** the kind of the floor before this one (no kind of floor twice in a row, no two quiet floors in a row) */
   lastKind?: FloorKind | 'camp';
+  /** a floor guardian the hero fell to keeps its wounds (its health then, 0 … 1) and heals only part of them */
+  wound?: { floor: number; hp: number };
 }
 
 /** a talent counts when it belongs to the hero's class (or the second class of a multiclass hero) */
@@ -693,23 +695,75 @@ export function loadGame(slot = activeSlot()): SaveData | null {
   }
 }
 
-// Transfer codes let a character move between devices or browsers (plain base64 of the save JSON).
+// Transfer codes let a character move between devices or browsers. The save goes without what only this device
+// needs (its slot, the ids of the items, which are made anew on the other side), deflated and in base64url: about
+// a seventh of the old plain code, which is still read.
 const CODE_PREFIX = 'LOPPO1:';
+const CODE2 = 'LP2:';
 
-export function exportSave(s: SaveData): string {
-  return CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+/** every item in a save (equipped, in the bag and the stash, with the companion, kept in the village…) */
+function eachItem(o: unknown, fn: (it: Item) => void) {
+  if (Array.isArray(o)) for (const x of o) eachItem(x, fn);
+  else if (o && typeof o === 'object') {
+    const r = o as Record<string, unknown>;
+    if (typeof r.base === 'string' && Array.isArray(r.affixes)) fn(r as unknown as Item);
+    for (const v of Object.values(r)) if (v && typeof v === 'object') eachItem(v, fn);
+  }
 }
 
-export function importSave(code: string, slot: number): SaveData | string {
+async function through(data: Uint8Array<ArrayBuffer>, ts: { readable: ReadableStream<Uint8Array>; writable: WritableStream<BufferSource> }) {
+  const w = ts.writable.getWriter();
+  // (a broken code rejects the read below; these would only repeat it unhandled)
+  w.write(data).catch(() => {});
+  w.close().catch(() => {});
+  return new Uint8Array(await new Response(ts.readable).arrayBuffer());
+}
+
+function toB64url(b: Uint8Array) {
+  let bin = '';
+  for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromB64url(t: string) {
+  const bin = atob(t.replace(/-/g, '+').replace(/_/g, '/'));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+export async function exportSave(s: SaveData): Promise<string> {
+  const t = JSON.parse(JSON.stringify(s)) as SaveData;
+  delete t.slot;
+  eachItem(t, (it) => delete (it as Partial<Item>).uid);
+  const json = JSON.stringify(t);
+  if (typeof CompressionStream === 'undefined') return CODE_PREFIX + btoa(unescape(encodeURIComponent(json)));
+  return CODE2 + toB64url(await through(new TextEncoder().encode(json), new CompressionStream('deflate-raw')));
+}
+
+/** the character in a transfer code (or what is wrong with the code) */
+export async function readCode(code: string): Promise<SaveData | string> {
   let s: SaveData;
   try {
-    const raw = code.trim().replace(CODE_PREFIX, '').replace(/\s+/g, '');
-    s = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    const raw = code.replace(/\s+/g, '');
+    if (raw.startsWith(CODE2)) {
+      if (typeof DecompressionStream === 'undefined') return 'Tento prohlížeč kód neumí rozbalit – zkus ho aktualizovat.';
+      s = JSON.parse(new TextDecoder().decode(await through(fromB64url(raw.slice(CODE2.length)), new DecompressionStream('deflate-raw'))));
+    } else s = JSON.parse(decodeURIComponent(escape(atob(raw.replace(CODE_PREFIX, '')))));
   } catch {
-    return 'Kód se nepodařilo přečíst. Zkontroluj, že je zkopírovaný celý text.';
+    return 'Kód se nepodařilo přečíst. Zkontroluj, že je zkopírovaný celý.';
   }
   if (!s || s.version !== 1 || !CLASS_BY_ID[s.cls] || typeof s.level !== 'number' || !Array.isArray(s.inventory) || !s.equip || !s.attrs) return 'Tohle není platný kód postavy.';
+  eachItem(s, (it) => {
+    if (!it.uid) it.uid = newUid();
+  });
   while (s.inventory.length < INVENTORY_SIZE) s.inventory.push(null);
+  return s;
+}
+
+export async function importSave(code: string, slot: number): Promise<SaveData | string> {
+  const s = await readCode(code);
+  if (typeof s === 'string') return s;
   s.slot = slot;
   saveGame(s);
   if (!loadGame(slot)) return 'Tento prohlížeč neumožňuje ukládat hru.';

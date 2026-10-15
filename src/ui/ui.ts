@@ -215,7 +215,7 @@ class UIManager {
     // prevent context menu / double-tap zoom
     // (text boxes keep their long-press menu so a transfer code can be pasted on phones)
     document.addEventListener('contextmenu', (e) => {
-      if (!(e.target as HTMLElement).closest?.('textarea')) e.preventDefault();
+      if (!(e.target as HTMLElement).closest?.('textarea, input')) e.preventDefault();
     });
     // iOS Safari ignores user-scalable=no; block its pinch-zoom gestures explicitly
     document.addEventListener('gesturestart', (e) => e.preventDefault());
@@ -418,6 +418,7 @@ class UIManager {
   }
 
   buildSkills() {
+    this.skillEls = null;
     const box = $('.skills', this.hud!);
     box.innerHTML = '';
     SKILL_LAYOUT.forEach((L, i) => {
@@ -612,6 +613,18 @@ class UIManager {
     write();
   }
   private dimT = 0;
+  /** the HUD's elements found once (found again when the HUD is built anew) */
+  private elc = new Map<string, HTMLElement>();
+  private q(sel: string): HTMLElement {
+    let e = this.elc.get(sel);
+    if (!e || !e.isConnected) {
+      e = $(sel, this.hud!) as HTMLElement;
+      this.elc.set(sel, e);
+    }
+    return e;
+  }
+  private skillEls: { b: HTMLElement; cd: HTMLElement; t: HTMLElement; i: number }[] | null = null;
+  private buffEls: { b: HTMLElement; id: string; t: HTMLElement }[] | null = null;
   /** the HUD drew some of its parts anew: what was written there before is gone */
   private forgetWrites(prefix: string) {
     for (const k of [...this.hudWrites.keys()]) if (k.startsWith(prefix)) this.hudWrites.delete(k);
@@ -627,8 +640,8 @@ class UIManager {
     const p = sc.player;
     const s = sc.save;
     const hud = this.hud;
-    const txt = (sel: string, v: string) => this.put(sel, v, () => ($(sel, hud).textContent = v));
-    const tf = (sel: string, v: string) => this.put(sel + '|t', v, () => (($(sel, hud) as HTMLElement).style.transform = v));
+    const txt = (sel: string, v: string) => this.put(sel, v, () => (this.q(sel).textContent = v));
+    const tf = (sel: string, v: string) => this.put(sel + '|t', v, () => (this.q(sel).style.transform = v));
     const sx = (f: number) => `scaleX(${Math.max(0, Math.min(1, f)).toFixed(3)})`;
     // a message with the hero (or the guardian) behind it fades, so the fight stays in sight (measured before
     // anything is written, so the browser does not have to lay the page out again just for this)
@@ -657,7 +670,7 @@ class UIManager {
     txt('.pearls', (s.pearls ?? 0).toLocaleString('cs-CZ'));
     txt('.floorlbl .fl', sc.inVillage ? `Loppo · ${sc.vil.rankName()}` : `Patro ${sc.floor} · ${sc.placeName}${sc.rift ? (sc.rift === 'dream' ? ' · sen' : sc.rift === 'last' ? ' · poslední šance' : ' · trhlina') : ''}`);
     // the floor's fate (and the dangerous path) on a short line of its own, coloured by what it means
-    const fate = $('.floorlbl .flfate', hud);
+    const fate = this.q('.floorlbl .flfate');
     const ft = sc.fate ? sc.fate.name + (sc.kind === 'danger' ? ' ☠' : '') : sc.kind === 'danger' ? '☠ Nebezpečná cesta' : sc.calm === 'camp' ? '⛺ Tábor' : '';
     if (fate.textContent !== ft) {
       fate.textContent = ft;
@@ -667,19 +680,20 @@ class UIManager {
     const flag = (el: Element, name: string, on: boolean) => {
       if (el.classList.contains(name) !== on) el.classList.toggle(name, on);
     };
-    flag($('.vignette', hud), 'low', hpF < 0.3 && !p.dead);
+    flag(this.q('.vignette'), 'low', hpF < 0.3 && !p.dead);
     // badges
-    const at = $('.badge.at', hud);
+    const at = this.q('.badge.at');
     txt('.badge.at', String(s.attrPoints));
     flag(at, 'on', s.attrPoints > 0);
-    flag($('.portrait', hud), 'glow', s.attrPoints > 0);
+    flag(this.q('.portrait'), 'glow', s.attrPoints > 0);
     const tp = freeTalentPoints(s);
     txt('.badge.sp', String(s.spellPoints + Math.max(0, tp)));
-    flag($('.badge.sp', hud), 'on', s.spellPoints > 0 || tp > 0);
-    flag($('.rbtn.spellsbtn', hud), 'glow', s.spellPoints > 0 || tp > 0);
-    const free = s.inventory.filter((x) => !x).length;
+    flag(this.q('.badge.sp'), 'on', s.spellPoints > 0 || tp > 0);
+    flag(this.q('.rbtn.spellsbtn'), 'glow', s.spellPoints > 0 || tp > 0);
+    let free = 0;
+    for (const x of s.inventory) if (!x) free++;
     txt('.badge.inv', free === 0 ? 'plno' : this.newItems > 0 ? String(this.newItems) : '');
-    flag($('.badge.inv', hud), 'on', free === 0 || this.newItems > 0);
+    flag(this.q('.badge.inv'), 'on', free === 0 || this.newItems > 0);
     // potions
     txt('.php .cnt', String(s.mats.hpPotion));
     txt('.pmp .cnt', String(s.mats.mpPotion));
@@ -688,14 +702,12 @@ class UIManager {
       const cd = sc.potionCd[kind];
       const pct = cd > 0 ? Math.round(Math.min(1, cd / POTION_CD[kind]) * 360) : 0;
       const bg = pct ? `conic-gradient(rgba(0,0,0,.7) ${pct}deg, transparent ${pct}deg)` : '';
-      this.put(sel + '|cd', bg, () => (($(sel + ' .cd', hud) as HTMLElement).style.background = bg));
+      this.put(sel + '|cd', bg, () => (this.q(sel + ' .cd').style.background = bg));
     }
     // skills cooldown
-    hud.querySelectorAll<HTMLElement>('.skill').forEach((b) => {
-      const i = +b.dataset.i!;
+    if (!this.skillEls || !this.skillEls[0]?.b.isConnected) this.skillEls = [...hud.querySelectorAll<HTMLElement>('.skill')].map((b) => ({ b, cd: $('.cd', b) as HTMLElement, t: $('.cdt', b) as HTMLElement, i: +b.dataset.i! }));
+    this.skillEls.forEach(({ b, cd: cdEl, t: cdt, i }) => {
       const id = s.loadout[i];
-      const cdEl = $('.cd', b),
-        cdt = $('.cdt', b);
       const bg = (v: string) => this.put('sk' + i + 'bg', v, () => (cdEl.style.background = v));
       const t = (v: string) => this.put('sk' + i + 't', v, () => (cdt.textContent = v));
       if (!id) {
@@ -719,16 +731,16 @@ class UIManager {
       flag(b, 'nomana', p.mp < sc.spells.manaCost(spd));
     });
     // buff timers
-    hud.querySelectorAll<HTMLElement>('.buff').forEach((b) => {
-      const id = b.dataset.id!;
+    if (!this.buffEls) this.buffEls = [...hud.querySelectorAll<HTMLElement>('.buff')].map((b) => ({ b, id: b.dataset.id!, t: $('.bt', b) as HTMLElement }));
+    for (const { id, t } of this.buffEls) {
       const bf = p.buffs.find((x) => x.id === id) ?? sc.shrineBuffs.find((x) => 'shrine_' + x.id === id);
       if (bf) {
         const v = bf.t > 3600 ? '∞' : Math.ceil(bf.t).toString();
-        this.put('bf' + id, v, () => ($('.bt', b).textContent = v));
+        this.put('bf' + id, v, () => (t.textContent = v));
       }
-    });
+    }
     // the mercenary
-    const mc = $('.mercchip', hud);
+    const mc = this.q('.mercchip');
     const merc = sc.merc;
     flag(mc, 'on', !!merc);
     if (merc) {
@@ -969,6 +981,7 @@ class UIManager {
 
   renderBuffs() {
     this.forgetWrites('bf');
+    this.buffEls = null;
     const sc = this.scene;
     if (!sc || !this.hud) return;
     const box = $('.buffs', this.hud);

@@ -1,6 +1,7 @@
 // Another player's hero, drawn from what its game sends fifteen times a second: where it stands, the frame of
 // its animation and how its weapons sit. In the host's game a guest's hero is also a target for the monsters:
 // blows that land on it go over to that guest's game, which applies its own armour, dodge and thorns.
+import { Clock, Track } from './interp';
 import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy } from './entities';
@@ -28,6 +29,8 @@ export interface HeroSnap {
   dead: number;
   /** the trail it wears (bought with pearls; each game draws it by itself) */
   tr?: string;
+  /** when its game made this (that game's clock, for a smooth playback, see game/interp.ts) */
+  t?: number;
 }
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
@@ -57,6 +60,7 @@ export function heroSnap(p: Player): HeroSnap {
     lvl: p.save.level,
     dead: p.dead ? 1 : 0,
     tr: p.save.pearl?.trail ?? undefined,
+    t: Math.round(performance.now()),
   };
 }
 
@@ -100,13 +104,20 @@ export class OtherHero extends Actor {
   /** seconds between the last two words */
   private quietT0 = 0;
   apply(s: HeroSnap) {
+    const fresh = s !== this.last;
     this.last = s;
     this.quietT0 = this.quietT;
     this.quietT = 0;
     // a jump (stairs, a teleport, waking up elsewhere) is not glided over
-    if (Math.hypot(s.x - this.x, s.y - this.y) > 80) {
+    const jump = Math.hypot(s.x - this.x, s.y - this.y) > 80;
+    if (jump) {
       this.x = s.x;
       this.y = s.y;
+    }
+    if (fresh && typeof s.t === 'number') {
+      this.clock.seen(s.t);
+      if (jump) this.track.reset(s.t, s.x, s.y);
+      else this.track.push(s.t, s.x, s.y);
     }
     const gap = this.quietT0;
     if (gap > 0.02 && gap < 0.4) {
@@ -127,14 +138,26 @@ export class OtherHero extends Actor {
     if (this.dead !== wasDead) this.sprite.setAngle(this.dead ? 90 * this.facing : 0);
   }
 
+  /** the other game's clock and the hero's positions at its times (played back smoothly) */
+  private clock = new Clock();
+  private track = new Track();
+  private pos = { x: 0, y: 0 };
+
   tick(dt: number) {
     this.quietT += dt;
-    const k = Math.min(1, dt * 16);
-    const age = Math.min(0.12, this.quietT);
-    const dx = this.tx + this.nvx * age - this.x,
-      dy = this.ty + this.nvy * age - this.y;
-    this.x += dx * k;
-    this.y += dy * k;
+    if (this.track.size && this.clock.ready) {
+      this.track.at(this.clock.playback(), this.pos);
+      const k = Math.min(1, dt * 30);
+      this.x += (this.pos.x - this.x) * k;
+      this.y += (this.pos.y - this.y) * k;
+    } else {
+      const k = Math.min(1, dt * 16);
+      const age = Math.min(0.12, this.quietT);
+      const dx = this.tx + this.nvx * age - this.x,
+        dy = this.ty + this.nvy * age - this.y;
+      this.x += dx * k;
+      this.y += dy * k;
+    }
     const s = this.last;
     const sc = this.scene;
     this.sprite.setPosition(sc.snap(this.x), sc.snap(this.y + 3));

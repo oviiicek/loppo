@@ -262,6 +262,12 @@ export function bossForFloor(floor: number): { def: BossDef; tier: number } {
   return { def: { ...pick, hp: def.hp, dmg: def.dmg }, tier };
 }
 
+/** how long a floor guardian's fight lasts (seconds): four and a half minutes at the first one, six at the bottom
+ *  of the story and for the ancient guardians of the endless depths */
+export function guardianFightTime(floor: number, tier: number) {
+  return Math.round(Math.min(360, 270 + 90 * Math.min(1, Math.max(0, floor - 10) / 230) + 60 * tier));
+}
+
 /** health and damage a guardian is built from: the later ones in the list are tougher, but only moderately */
 export function bossBaseStats(def: { hp: number; dmg: number }) {
   return { hp: def.hp > 1400 ? 1400 + (def.hp - 1400) * 0.4 : def.hp, dmg: 12 + (def.dmg - 12) * 0.35 };

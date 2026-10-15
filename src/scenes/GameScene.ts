@@ -12,7 +12,7 @@ import { Spells } from '../game/spells';
 import { Powers } from '../game/powers';
 import { Loot } from '../game/loot';
 import { BossAI } from '../game/boss';
-import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END, corruptName } from '../data/enemies';
+import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloor, STORY_END, corruptName, guardianFightTime } from '../data/enemies';
 import { CHAPTERS, noteForFloor, areaIntroForFloor, Shot } from '../data/story';
 import { GUARDIAN_LINES, GUARDIAN_COLORS } from '../data/bosslines';
 import { SaveData, FloorKind, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory, addPearls } from '../systems/state';
@@ -38,8 +38,9 @@ import { hash } from '../gfx/pixel';
 import { areaForFloor, areaOf } from '../data/biomes';
 import { Difficulty, difficultyOf, POTION_CD } from '../data/difficulty';
 import { bus } from '../systems/events';
-import { sfx, settings, setMusicTrack } from '../systems/audio';
+import { sfx, settings, setMusicTrack, setGfx, GFX_NAMES, gfxLevel } from '../systems/audio';
 import { areaTrack } from '../data/music';
+import { Darkness, darknessSupported } from '../game/darkness';
 import { Nemesis, NEMESIS_MAX, nemesisName, nemesisTitle, victimOf, nemesisPower, nemesisLabel } from '../data/nemesis';
 import { Encounters, RiftKind } from '../game/encounters';
 import { Village, dayPhase, phaseName } from '../game/village';
@@ -149,6 +150,9 @@ export class GameScene extends Phaser.Scene {
   ui = UI;
   dark!: Phaser.GameObjects.RenderTexture;
   lightImg!: Phaser.GameObjects.Image;
+  /** the darkness and the fog drawn by one shader (null on GPUs that cannot run it: then `dark` and the fog
+   *  tiles do it the old way) */
+  darkS: Darkness | null = null;
   hpBars!: Phaser.GameObjects.Graphics;
   targetMarker!: Phaser.GameObjects.Image;
   keys!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -346,7 +350,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.map = new WorldMap(this.dungeon);
-    this.map.build(this);
+    const shaderDark = darknessSupported(this);
+    this.map.build(this, { shaderFog: shaderDark });
     this.computeZoom();
     this.fx = new FX(this, this.zoom);
     this.combat = new Combat(this);
@@ -462,9 +467,11 @@ export class GameScene extends Phaser.Scene {
     this.camY = this.player.y - 6;
     this.followCamera(1);
     this.scale.on('resize', this.onResize, this);
+    this.events.on('prerender', this.cullOffscreen, this);
 
     // darkness
-    this.dark = this.add.renderTexture(0, 0, 64, 64).setOrigin(0).setDepth(D.dark);
+    this.darkS = shaderDark ? new Darkness(this, D.dark, this.map.fogTex, TS) : null;
+    this.dark = this.add.renderTexture(0, 0, 64, 64).setOrigin(0).setDepth(D.dark).setVisible(!shaderDark);
     this.lightImg = this.make.image({ key: 'light', add: false }).setOrigin(0.5);
     this.hpBars = this.add.graphics().setDepth(D.bright + 5);
     this.weather = new Weather(this, this.inVillage ? this.vil.weather : this.theme.weather ?? this.theme.style);
@@ -723,6 +730,88 @@ export class GameScene extends Phaser.Scene {
     cam.scrollY = this.snap(ty) + this.snap(this.camY - ty) - cam.height * cam.originY;
   }
 
+  /** how smoothly this device runs the game: when it stays well below a fluent frame rate, the graphics go one
+   *  level down by themselves (once a minute at most, and only while lowering them still helps; a frame rate
+   *  locked at 30 is the screen's limit, not the graphics; the player's own choice switches this off) */
+  private perf = { t: 0, n: 0, fps: [] as number[], dts: [] as number[], lastDrop: -1e9, before: 0, stop: false };
+  private watchPerf(dt: number, rawMs: number) {
+    const pf = this.perf;
+    if (!settings.gfxAuto || pf.stop || settings.gfx <= 0) return;
+    if (this.cinematic || this.player.dead || UI.panel) {
+      pf.fps.length = 0;
+      pf.n = 0;
+      return;
+    }
+    pf.dts.push(rawMs);
+    pf.t += dt;
+    if (pf.t < 1) return;
+    pf.t = 0;
+    // the first seconds of a floor are not a fair measure
+    if (++pf.n <= 4) {
+      pf.dts.length = 0;
+      return;
+    }
+    const mean = pf.dts.reduce((a, b) => a + b, 0) / pf.dts.length;
+    const sd = Math.sqrt(pf.dts.reduce((a, b) => a + (b - mean) * (b - mean), 0) / pf.dts.length);
+    pf.dts.length = 0;
+    const capped = Math.abs(mean - 33.3) < 2.5 && sd < 3;
+    pf.fps.push(capped ? 60 : 1000 / mean);
+    if (pf.fps.length < 8) return;
+    const sorted = [...pf.fps].sort((a, b) => a - b);
+    const fps = sorted[Math.floor(sorted.length / 2)];
+    pf.fps.length = 0;
+    const now = this.time.now;
+    // the last step down did not help: it is not the graphics
+    if (pf.before && fps < pf.before * 1.12 && now - pf.lastDrop < 90000) {
+      pf.stop = true;
+      return;
+    }
+    if (fps >= 42 || now - pf.lastDrop < 60000) return;
+    pf.before = fps;
+    pf.lastDrop = now;
+    setGfx(settings.gfx - 1);
+    this.applyGfx();
+    UI.toast(`⚙ Grafika snížena na „${GFX_NAMES[settings.gfx]}“, aby hra běžela plynule (změníš v pauze)`, '#9fe6ff');
+  }
+
+  /** a new graphics level takes effect at once where it can (the rest on the next floor) */
+  applyGfx() {
+    const lv = gfxLevel();
+    this.map.ao?.setVisible(lv >= 1);
+    if (lv < 3)
+      for (const e of this.enemies) {
+        if (e.dead || (e.boss && lv >= 2)) continue;
+        if (e.sprite.preFX && e.sprite.preFX.list.length) e.sprite.preFX.clear();
+      }
+  }
+
+  /** sprites and images far outside the view are left out of the frame (Phaser would batch them all, a big
+   *  floor has hundreds, and a guardian's glow shader would run off screen); this uses the camera filter, so it
+   *  never fights with what the game hides on purpose */
+  cullOffscreen() {
+    const cam = this.cameras.main;
+    const id = cam.id;
+    const vw = cam.width / cam.zoom,
+      vh = cam.height / cam.zoom;
+    const l = cam.scrollX + (cam.width - vw) * cam.originX - 40,
+      t = cam.scrollY + (cam.height - vh) * cam.originY - 40;
+    const r = l + vw + 80,
+      b = t + vh + 80;
+    const list = this.children.list as any[];
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i];
+      const ty = o.type;
+      if ((ty !== 'Sprite' && ty !== 'Image') || o.scrollFactorX !== 1) continue;
+      const hw = o.displayWidth,
+        hh = o.displayHeight;
+      const off = o.x + hw < l || o.x - hw > r || o.y + hh < t || o.y - hh > b;
+      const f = o.cameraFilter;
+      if (off) {
+        if (!(f & id)) o.cameraFilter = f | id;
+      } else if (f & id) o.cameraFilter = f & ~id;
+    }
+  }
+
   computeZoom() {
     const h = this.scale.height,
       w = this.scale.width;
@@ -738,6 +827,9 @@ export class GameScene extends Phaser.Scene {
 
   cleanup() {
     this.scale.off('resize', this.onResize, this);
+    this.events.off('prerender', this.cullOffscreen, this);
+    // the fog's texture lives on the GPU, outside the scene's objects
+    this.map?.fogTex?.destroy();
     this.spells?.clear();
     this.loot?.clear();
     // the link to the other game outlives the floor; this floor's listeners do not
@@ -1116,6 +1208,10 @@ export class GameScene extends Phaser.Scene {
         const { def, tier } = bossForFloor(this.floor);
         const e = this.spawnEnemy('skeleton', br.cx * TS + 8, br.cy * TS + 8, false, br.id, def.sprite);
         e.makeBoss(def, tier, this.floor);
+        e.lengthenFight(guardianFightTime(this.floor, tier));
+        // the hero fell to it before: it is still wounded (a quarter of its health has healed since)
+        const w = runOf(this.save).wound;
+        if (w && w.floor === this.floor && !this.rematch) e.hp = Math.round(e.maxHp * Math.min(1, w.hp + 0.25));
         this.boss = e;
       }
       // on a guardian's floor it waits in its arena, out of reach, until the hero steps in (see sealArena)
@@ -2875,6 +2971,8 @@ export class GameScene extends Phaser.Scene {
     if (b.tag === 'riftGuard') return this.enc.riftCleared(b);
     // (a guardian fought again counts for no quest and changes nothing in the story)
     if (!this.rematch) this.quests.onBossKilled();
+    const run = runOf(this.save);
+    if (run.wound) run.wound = undefined;
     if (b.story && !this.rematch) {
       void this.storyBossDefeated(b);
       return;
@@ -3084,6 +3182,9 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(400, () => Net.leave('quit'));
       }
     } else this.recordNemesis();
+    // a floor guardian's long fight is not lost entirely: the guardian keeps most of its wounds for the next try
+    const b = this.boss;
+    if (b && !b.dead && b.aggro && b.fightTime && !this.rematch && !this.save.hardcore) runOf(this.save).wound = { floor: this.floor, hp: b.hp / b.maxHp };
     // very rarely a last chance (once per expedition, never in a rift or the arena itself)
     this.lastChanceOffer = !this.save.hardcore && !this.rift && !this.inVillage && !this.rematch && !this.coop && !runOf(this.save).lastChance && Math.random() < 0.12;
     this.time.delayedCall(900, () => UI.death(this.floor, this.deathPaid ?? this.deathGold()));
@@ -3429,8 +3530,7 @@ export class GameScene extends Phaser.Scene {
       // walking the stairs: the world holds still, the hero is moved by tweens, the light follows
       p.scriptedTick(dt, this.cinematicMove);
       this.followCamera(dt);
-      this.dark.setVisible(!settings.lowFx);
-      if (!settings.lowFx) this.updateLighting(dt);
+      this.updateLighting(dt);
       UI.tick(dt);
       return;
     }
@@ -3515,6 +3615,7 @@ export class GameScene extends Phaser.Scene {
       else UI.streak(this.streak.n, this.streak.t / STREAK_WINDOW);
     }
     this.followCamera(dt);
+    this.watchPerf(dt, (this.game.loop as any).rawDelta ?? dms);
     for (const pr of this.projectiles) pr.update(dt);
     if (this.projectiles.some((pr) => pr.dead)) this.projectiles = this.projectiles.filter((pr) => !pr.dead);
     this.spells.update(dt);
@@ -3560,9 +3661,8 @@ export class GameScene extends Phaser.Scene {
       const sz = (tgt.r * tgt.baseScale * 2 + 10) / 256;
       this.targetMarker.setPosition(tgt.x, tgt.y + 2).setScale(sz, sz * 0.55).setAlpha(0.55 + Math.sin(this.time.now / 140) * 0.2);
     } else this.targetMarker.setAlpha(0);
-    // power-saving graphics skip the dynamic lighting (the most expensive render pass)
-    this.dark.setVisible(!settings.lowFx);
-    if (!settings.lowFx) this.updateLighting(dt);
+    // power-saving graphics skip the dynamic lighting (the fog of war stays)
+    this.updateLighting(dt);
 
     this.achT += dt;
     if (this.achT > 1) {
@@ -3691,6 +3791,10 @@ export class GameScene extends Phaser.Scene {
       h = Math.ceil(v.height) + 4;
     w += w % 2;
     h += h % 2;
+    if (this.darkS) return this.shaderLighting(Math.floor(v.x) - 2, Math.floor(v.y) - 2, w, h);
+    // the old way (GPUs without the shader): a render texture, and nothing at all on the power-saving graphics
+    this.dark.setVisible(!settings.lowFx);
+    if (settings.lowFx) return;
     const rt = this.dark;
     if (rt.width !== w || rt.height !== h) rt.resize(w, h);
     const ox = Math.floor(v.x) - 2,
@@ -3749,5 +3853,45 @@ export class GameScene extends Phaser.Scene {
     }
     rt.endDraw(true);
     void dt;
+  }
+
+  /** the darkness and the fog of war in one pass of a shader: the same lights as the old way, given as numbers */
+  private shaderLighting(ox: number, oy: number, w: number, h: number) {
+    const S = this.darkS!;
+    const lit = !settings.lowFx;
+    const fog = this.map.fogTex ? 0.55 : 0;
+    S.setVisible(lit || fog > 0);
+    if (!lit && !fog) return;
+    S.begin(ox, oy, w, h);
+    if (lit) {
+      const shrink = 1 - this.arenaDark * 0.55;
+      const t = this.time.now / 1000;
+      const p = this.coop?.watched() ?? this.player;
+      S.light(p.x, p.y - 6, 210 * shrink * this.heroLight, 0.65, 0);
+      S.light(p.x, p.y - 6, 135 * shrink * this.heroLight, 1, 0);
+      // the other players' heroes carry their own light
+      for (const q of this.coop?.heroes.values() ?? []) if (q !== p && !q.dead) S.light(q.x, q.y - 6, 110 * shrink, 1, 1);
+      // bosses glow a bit so they are always visible
+      if (this.boss && !this.boss.dead && this.boss.aggro) S.light(this.boss.x, this.boss.y - 10, 60, 1, 2);
+      for (const l of this.lamps) {
+        if (l.x < ox - l.r || l.y < oy - l.r || l.x > ox + w + l.r || l.y > oy + h + l.r) continue;
+        if (this.map.isHidden(Math.floor(l.x / TS), Math.floor(l.y / TS))) continue;
+        const fl = l.flicker ? 1 + Math.sin(t * 9 + l.flicker) * 0.04 + Math.sin(t * 23 + l.flicker * 3) * 0.03 : 1;
+        S.light(l.x, l.y, l.r * fl * shrink, 1, 3 + Math.hypot(l.x - p.x, l.y - p.y) / 1000);
+        if (l.glow) l.glow.setAlpha(0.18 + (fl - 1) * 1.5);
+      }
+      // spell fields light up their area
+      for (const f of this.spells.fields) S.light(f.x, f.y, f.r * 1.1, 1, 4);
+      // glowing projectiles add light
+      let n = 0;
+      for (const pj of this.projectiles) {
+        if (n > 14) break;
+        if (pj.sprite.blendMode === Phaser.BlendModes.ADD) {
+          S.light(pj.x, pj.y, 30, 1, 6);
+          n++;
+        }
+      }
+    }
+    S.end(this.darkColor ?? this.theme.dark, lit ? Math.min(0.95, this.darkness + this.arenaDark * 0.4) : 0, fog, this.time.now);
   }
 }
