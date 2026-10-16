@@ -429,7 +429,7 @@ export class Menus {
         <div class="head"><h2>Vyber si classu</h2><button class="close">✕</button></div>
         <div class="body">
           <div class="col scroll" style="flex:1.4;min-width:0"><div class="classgrid">${CLASSES.map(
-            (c) => `<div class="ccard ${c.id === sel ? 'sel' : ''}" data-cls="${c.id}"><img src="${iconURL('pl_' + c.id, 64)}"><div class="nm">${c.name}</div><div class="st">${c.style}</div></div>`,
+            (c) => `<div class="ccard ${c.id === sel ? 'sel' : ''}" data-cls="${c.id}"><img src="${iconURL('pl_' + c.id, 64)}"><div class="nm${tr(c.name).length > 9 ? ' long' : ''}">${c.name}</div><div class="st">${c.style}</div></div>`,
           ).join('')}</div></div>
           <div class="col detail box" style="flex:1;min-width:0"></div>
         </div>

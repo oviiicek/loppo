@@ -164,32 +164,39 @@ function install(cat: Catalog) {
       if (m && m[2] && vm && vm[2] && !/\s/.test(m[2])) words.set(m[2].toLowerCase(), vm[2]);
       continue;
     }
-    const lits = k.split(/\{\d+\}/);
-    const litText = lits.join('');
-    if (!LETTER.test(litText)) continue;
-    const order: number[] = [];
-    k.replace(PH, (_, i) => (order.push(+i), ''));
-    let src = '^';
-    lits.forEach((l, i) => {
-      src += l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      if (i < lits.length - 1) src += i === lits.length - 2 && !lits[lits.length - 1] ? '([\\s\\S]*)' : '([\\s\\S]*?)';
-    });
-    src += '$';
-    // the translation refers to the placeholders by their numbers; the regex captures them in their order
-    const out = v.replace(PH, (_, i) => (order.includes(+i) ? `\u0001${order.indexOf(+i)}\u0002` : ''));
-    const t: Tpl = { re: new RegExp(src), out, lit: litText.length };
-    tpls.push(t);
-    const first = lits[0];
-    const last = lits[lits.length - 1];
-    if (first.length >= 2) push(byStart, first.slice(0, 2), t);
-    else if (last.length >= 2) push(byEnd, last.slice(-2), t);
-    else loose.push(t);
+    addTpl(tpls, k, v);
+    // a template that starts with a sign ("• další za {0} {1}") also matches the piece that a list split off
+    const lead = /^[\s\p{P}\p{S}]+/u.exec(k)?.[0];
+    if (lead && /^[^{]*\p{L}/u.test(k.slice(lead.length))) addTpl(tpls, k.slice(lead.length), v.replace(/^[\s\p{P}\p{S}]+/u, ''));
   }
   const bySpec = (a: Tpl, b: Tpl) => b.lit - a.lit;
   for (const l of byStart.values()) l.sort(bySpec);
   for (const l of byEnd.values()) l.sort(bySpec);
   loose = loose.sort(bySpec);
   grammar = cat.items ?? null;
+}
+
+function addTpl(tpls: Tpl[], k: string, v: string) {
+  const lits = k.split(/\{\d+\}/);
+  const litText = lits.join('');
+  if (!LETTER.test(litText)) return;
+  const order: number[] = [];
+  k.replace(PH, (_, i) => (order.push(+i), ''));
+  let src = '^';
+  lits.forEach((l, i) => {
+    src += l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (i < lits.length - 1) src += i === lits.length - 2 && !lits[lits.length - 1] ? '([\\s\\S]*)' : '([\\s\\S]*?)';
+  });
+  src += '$';
+  // the translation refers to the placeholders by their numbers; the regex captures them in their order
+  const out = v.replace(PH, (_, i) => (order.includes(+i) ? `\u0001${order.indexOf(+i)}\u0002` : ''));
+  const t: Tpl = { re: new RegExp(src), out, lit: litText.length };
+  tpls.push(t);
+  const first = lits[0];
+  const last = lits[lits.length - 1];
+  if (first.length >= 2) push(byStart, first.slice(0, 2), t);
+  else if (last.length >= 2) push(byEnd, last.slice(-2), t);
+  else loose.push(t);
 }
 
 function push(m: Map<string, Tpl[]>, k: string, t: Tpl) {
@@ -206,11 +213,30 @@ export function tr(s: string): string {
   if (lang === 'cs' || !s || !LETTER.test(s)) return s;
   const hit = cache.get(s);
   if (hit !== undefined) return hit;
-  const r = piece(s, 0);
+  let r = piece(s, 0);
+  // Czech quotation marks („…“) become the language's own
+  if (r.includes('„')) {
+    const q = QUOTES[lang];
+    if (q) r = r.replace(/„([^„“]*)“/g, `${q[0]}$1${q[1]}`);
+  }
   if (cache.size > 30000) cache.clear();
   cache.set(s, r);
   return r;
 }
+
+/** the quotation marks of each language (German and Polish open low like Czech) */
+const QUOTES: Record<string, [string, string]> = {
+  en: ['“', '”'],
+  pt: ['“', '”'],
+  zh: ['“', '”'],
+  ko: ['“', '”'],
+  pl: ['„', '”'],
+  es: ['«', '»'],
+  it: ['«', '»'],
+  fr: ['« ', ' »'],
+  ru: ['«', '»'],
+  ja: ['「', '」'],
+};
 
 /** a piece with the white space around it kept */
 function piece(s: string, depth: number): string {
@@ -230,6 +256,11 @@ function one(s: string, depth: number): string | null {
   const t = exact.get(s) ?? core.get(s) ?? caseless(s);
   if (t !== undefined) return t;
   const m = EDGE.exec(s);
+  // a number at the edge is usually what a template holds ("50. patro" is "Floor 50", not "50. floor")
+  if (m && /\d/.test(m[1] + m[3]) && depth <= 5) {
+    const f = template(s, depth);
+    if (f !== null) return f;
+  }
   if (m && (m[1] || m[3]) && m[2]) {
     const e = exact.get(m[2]) ?? core.get(m[2]) ?? caseless(m[2]);
     if (e !== undefined) return m[1] + e + m[3];

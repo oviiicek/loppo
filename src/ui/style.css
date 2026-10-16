@@ -2555,6 +2555,11 @@ img.px {
   font-size: 18px;
   color: var(--gold2);
 }
+/* a long class name in another language ("Necromancer") gets smaller instead of breaking in the middle */
+.ccard .nm.long {
+  font-size: 14px;
+  overflow-wrap: normal;
+}
 .ccard .st {
   font-size: 13px;
   color: var(--dim);
