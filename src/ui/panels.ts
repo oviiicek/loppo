@@ -1857,7 +1857,7 @@ export class Panels {
             ];
     const cls = CLASS_BY_ID[r.state.look ?? 'warrior'];
     const d = el(`<div class="panel small rivaltalk"><div class="head"><h2>${esc(r.state.name)}</h2></div>
-      <div class="rtbody"><img src="${iconURL(r.spriteKey, 64)}"><div style="min-width:0"><div class="hint">${esc(cls.name)} • úroveň ${level}${mood === 'hostile' ? ' • <span style="color:#ff8a7a">nepřátelsky naladěn' + (r.state.fem ? 'á' : 'ý') + '</span>' : ''}</div><p class="rtline">„${esc(line)}“</p></div></div>
+      <div class="rtbody"><img src="${iconURL(r.spriteKey, 64)}"><div style="min-width:0"><div class="hint">${esc(cls.name)} • úroveň ${level}${mood === 'hostile' ? ' • <span style="color:#ff8a7a">' + (r.state.fem ? 'nepřátelsky naladěná' : 'nepřátelsky naladěný') + '</span>' : ''}</div><p class="rtline">„${esc(line)}“</p></div></div>
       <div class="row rtbtns">${opts.map(([id, label, cl]) => `<button class="btn ${cl}" data-rc="${id}">${esc(label)}</button>`).join('')}</div></div>`);
     const close = this.ui.dialog(d);
     d.querySelectorAll<HTMLElement>('[data-rc]').forEach((b) =>

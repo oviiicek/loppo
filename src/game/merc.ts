@@ -141,7 +141,7 @@ export class Mercenary extends Actor {
     this.sprite.setAngle(90 * this.facing).setAlpha(0.55);
     this.weapon?.setVisible(false);
     this.shieldImg?.setVisible(false);
-    sc.ui.toast(`${this.state.name} padl${this.def.role === 'healer' && /a$/.test(this.state.name) ? 'a' : ''} – za chvíli se zvedne`, '#ff9a8a');
+    sc.ui.toast(this.def.role === 'healer' && /a$/.test(this.state.name) ? `${this.state.name} padla – za chvíli se zvedne` : `${this.state.name} padl – za chvíli se zvedne`, '#ff9a8a');
   }
 
   private getUp() {

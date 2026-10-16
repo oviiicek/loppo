@@ -1975,7 +1975,7 @@ export class GameScene extends Phaser.Scene {
   rivalDefeated(e: Enemy) {
     const f = this.floor;
     bumpStat(this.save, 'rivals');
-    UI.banner('Souboj vyhrán!', `${e.name} je poražen${/a$/.test(e.name.split(' ')[0]) ? 'a' : ''}`);
+    UI.banner('Souboj vyhrán!', /a$/.test(e.name.split(' ')[0]) ? `${e.name} je poražena` : `${e.name} je poražen`);
     for (let i = 0; i < 2; i++) this.loot.dropItem(generateItem(f + 2, { rarity: Math.random() < 0.3 ? 4 : 3, filter: this.loot.bias() }), e.x, e.y);
     for (let i = 0; i < 6; i++) this.loot.dropGold(this.loot.goldAmount(3), e.x, e.y);
     this.loot.dropRandomGem(e.x, e.y, 1);
