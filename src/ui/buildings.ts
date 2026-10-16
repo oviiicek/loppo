@@ -147,8 +147,8 @@ export class BuildingPanels {
         title: `${b.name} · v troskách`,
         sub: b.desc,
         portrait: who.key,
-        line: `Tady ${who.fem ? 'žila' : 'žil'} ${who.trade} ${who.name}. Nestvůry ${who.fem ? 'ji' : 'ho'} odvlekly do kobek – ${who.fem ? 'bývá k nalezení' : 'bývá k nalezení'} od ${b.rescue}. patra dolů. Až se vrátí, budova znovu ožije.`,
-        choices: [{ id: 'ok', label: 'Najdu ' + (who.fem ? 'ji' : 'ho'), cls: 'green' }],
+        line: `${who.fem ? `Tady žila ${who.trade} ${who.name}. Nestvůry ji odvlekly do kobek` : `Tady žil ${who.trade} ${who.name}. Nestvůry ho odvlekly do kobek`} – bývá k nalezení od ${b.rescue}. patra dolů. Až se vrátí, budova znovu ožije.`,
+        choices: [{ id: 'ok', label: who.fem ? 'Najdu ji' : 'Najdu ho', cls: 'green' }],
       },
       () => {},
     );

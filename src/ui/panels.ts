@@ -1319,6 +1319,8 @@ export class Panels {
       const lvl = petLevel(st, d.id);
       const next = petFloorsToNext(st, d.id);
       const active = st.active === d.id;
+      const down = st.floors[d.id] ?? 0;
+      const downWord = down === 1 ? 'patro' : down > 1 && down < 5 ? 'patra' : 'pater';
       detail.innerHTML = `<div class="orn"><span>${esc(d.species)}</span></div>
         <div class="petbig"><img src="${iconURL('pet_' + d.id, 96)}"></div>
         <div style="text-align:center;font-size:24px;color:${d.color}">${esc(d.name)}</div>
@@ -1328,7 +1330,7 @@ export class Panels {
         <div class="petab"><b style="color:${d.color}">✦ ${esc(d.ability.name)}</b><span class="hint"> • nejvýš jednou za ${Math.round(d.ability.cd(lvl))} s</span><div>${esc(d.ability.desc(lvl))}</div></div>
         <div class="statline"><span>Bonus teď</span><b style="color:#9dff9d;text-align:right">${petBonusText(d, lvl)}</b></div>
         ${lvl < PET_MAX_LEVEL ? `<div class="statline"><span>Na úrovni ${PET_MAX_LEVEL}</span><b style="color:#c8c0d8;text-align:right">${petBonusText(d, PET_MAX_LEVEL)}</b></div>` : ''}
-        <div class="hint" style="margin-top:6px">S tebou ${d.fem ? 'sestoupila' : 'sestoupil'} o ${st.floors[d.id] ?? 0} ${(st.floors[d.id] ?? 0) === 1 ? 'patro' : (st.floors[d.id] ?? 0) > 1 && (st.floors[d.id] ?? 0) < 5 ? 'patra' : 'pater'}.</div>`;
+        <div class="hint" style="margin-top:6px">${d.fem ? `S tebou sestoupila o ${down} ${downWord}.` : `S tebou sestoupil o ${down} ${downWord}.`}</div>`;
       detail.querySelector('[data-a=take]')?.addEventListener('click', () => {
         sfx('levelup');
         this.sc.setActivePet(d.id);

@@ -128,7 +128,7 @@ export class Mercenary extends Actor {
     const sc = this.scene;
     if (this.state.temp) {
       // an adventurer met in the dungeon does not lie there: they drink a potion and leave through a portal
-      sc.ui.toast(`${this.state.name} ${this.state.fem ? 'utekla' : 'utekl'} portálem z boje`, '#c8a8ff');
+      sc.ui.toast(this.state.fem ? `${this.state.name} utekla portálem z boje` : `${this.state.name} utekl portálem z boje`, '#c8a8ff');
       this.leave();
       return;
     }

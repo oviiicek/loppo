@@ -409,7 +409,7 @@ export class Encounters {
       sc.ui.panels.talk({ title: `${b.who!.name}, ${b.who!.trade}`, portrait: b.who!.key, line: b.who!.thanks, choices: [{ id: 'ok', label: 'Šťastnou cestu domů', cls: 'green' }] }, () => {
         leave();
         sfx('levelup');
-        sc.ui.banner(`🏠 ${b.name}`, `${b.who!.name} se ${b.who!.fem ? 'vrátila' : 'vrátil'} do Loppa`);
+        sc.ui.banner(`🏠 ${b.name}`, b.who!.fem ? `${b.who!.name} se vrátila do Loppa` : `${b.who!.name} se vrátil do Loppa`);
         sc.ui.toast(`V osadě Loppo se otevřela budova: ${b.name}. Do osady se dostaneš z pauzy.`, b.color);
         sc.gainXp(Math.round(xpForLevel(sc.save.level) * 0.05));
       });

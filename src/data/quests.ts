@@ -112,7 +112,11 @@ export function makeQuest(type: QuestType, floor: number, rewardMult: number): Q
     case 'lost': {
       const l = pick(LOST);
       const at = f + rnd(1, 3);
-      const quest = q(`Ztracen${l.fem ? 'á' : 'ý'}: ${l.name}`, `„${l.who.charAt(0).toUpperCase() + l.who.slice(1)} ${l.fem ? 'sešla' : 'sešel'} do kobek a nevrátil${l.fem ? 'a' : ''} se. Prý ${l.fem ? 'ji' : 'ho'} někdo viděl kolem ${at}. patra. Prosím, přiveď ${l.fem ? 'ji' : 'ho'} domů!“`, 1, 1.4, 3, 'gem', at);
+      // (whole sentences for each gender: a translation cannot use a Czech ending put in a placeholder)
+      const who = l.who.charAt(0).toUpperCase() + l.who.slice(1);
+      const quest = l.fem
+        ? q(`Ztracená: ${l.name}`, `„${who} sešla do kobek a nevrátila se. Prý ji někdo viděl kolem ${at}. patra. Prosím, přiveď ji domů!“`, 1, 1.4, 3, 'gem', at)
+        : q(`Ztracený: ${l.name}`, `„${who} sešel do kobek a nevrátil se. Prý ho někdo viděl kolem ${at}. patra. Prosím, přiveď ho domů!“`, 1, 1.4, 3, 'gem', at);
       quest.name = l.name;
       quest.fem = l.fem;
       return quest;

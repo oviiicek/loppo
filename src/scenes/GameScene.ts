@@ -1933,7 +1933,7 @@ export class GameScene extends Phaser.Scene {
         }
         this.save.gold -= toll;
         sfx('coin');
-        UI.toast(`${r.state.name} si ${r.state.fem ? 'vzala' : 'vzal'} zlato a ${r.state.fem ? 'zmizela' : 'zmizel'}`, '#ffd76a');
+        UI.toast(r.state.fem ? `${r.state.name} si vzala zlato a zmizela` : `${r.state.name} si vzal zlato a zmizel`, '#ffd76a');
         r.leave();
       } else if (choice === 'fight') this.rivalTurns(r);
     });
@@ -2147,7 +2147,7 @@ export class GameScene extends Phaser.Scene {
     const inside = it.data.inside as Phaser.GameObjects.Sprite;
     sfx('chest');
     this.fx.burst(it.x, it.y - 8, 0xffd0e0, 16);
-    const freed = `${petTitle(def)} ${def.fem ? 'je volná' : 'je volný'}!`;
+    const freed = def.fem ? `${petTitle(def)} je volná!` : `${petTitle(def)} je volný!`;
     const join = () => {
       inside.destroy();
       this.setActivePet(id);
@@ -2166,7 +2166,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(320, () => {
       const cur = st.active && st.active !== id ? PET_BY_ID[st.active] : null;
       if (!cur) return join();
-      UI.confirm(freed, `${def.desc} Vezmeš ${def.fem ? 'ji' : 'ho'} s sebou? Teď s tebou chodí ${petTitle(cur)}. Mazlíčky jde kdykoliv vyměnit v pauze (Mazlíčci).`, join, 'Vzít s sebou', `Ponechat: ${cur.name}`, stay);
+      UI.confirm(freed, def.fem ? `${def.desc} Vezmeš ji s sebou? Teď s tebou chodí ${petTitle(cur)}. Mazlíčky jde kdykoliv vyměnit v pauze (Mazlíčci).` : `${def.desc} Vezmeš ho s sebou? Teď s tebou chodí ${petTitle(cur)}. Mazlíčky jde kdykoliv vyměnit v pauze (Mazlíčci).`, join, 'Vzít s sebou', `Ponechat: ${cur.name}`, stay);
     });
     bus.emit('stats');
     saveGame(this.save);
@@ -2967,7 +2967,7 @@ export class GameScene extends Phaser.Scene {
       this.bossDefeated = true;
       bumpStat(this.save, 'bosses');
       UI.hideBoss();
-      UI.banner('Strážce poražen!', `${b.name} padl${b.boss?.fem ? 'a' : ''}`);
+      UI.banner('Strážce poražen!', b.boss?.fem ? `${b.name} padla` : `${b.name} padl`);
       this.fx.shake(0.012, 500);
       this.spawnBossRewards(b);
       return;
@@ -2986,7 +2986,7 @@ export class GameScene extends Phaser.Scene {
     bumpStat(this.save, 'bosses');
     UI.hideBoss();
     if (b.story) this.clearBossField();
-    UI.banner('Strážce poražen!', `${b.name} padl${b.boss?.fem ? 'a' : ''}`);
+    UI.banner('Strážce poražen!', b.boss?.fem ? `${b.name} padla` : `${b.name} padl`);
     this.fx.shake(0.012, 500);
     this.spawnBossRewards(b);
   }
@@ -3447,7 +3447,7 @@ export class GameScene extends Phaser.Scene {
       const after = petLevel(pets, pets.active);
       if (after > before) {
         const def = PET_BY_ID[pets.active];
-        pendingPetNews = `🐾 ${petTitle(def)} ${def.fem ? 'dosáhla' : 'dosáhl'} úrovně ${after}!`;
+        pendingPetNews = def.fem ? `🐾 ${petTitle(def)} dosáhla úrovně ${after}!` : `🐾 ${petTitle(def)} dosáhl úrovně ${after}!`;
       }
     }
     // a floor gone down brings a bait for the pond back home

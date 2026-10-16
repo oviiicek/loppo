@@ -27,7 +27,7 @@ const CZ = /[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]/;
 const WORDS = new Set(['den', 'dny', 'ano', 'ne', 'nebo', 'a', 'od', 'do', 'za', 'pro', 'patro', 'patra', 'pater', 'zlato', 'zlata', 'koupeno', 'nosit', 'vse', 'auto', 'max', 'nic', 'sila', 'boss', 'ok', 'kus', 'kusy', 'kusu', 'bod', 'body', 'bodu', 'sekundy', 'sekund', 'minuty', 'minut', 'hodin', 'hodiny', 'level', 'nove', 'nova', 'novy', 'mrtev', 'mrtva', 'padl', 'padla', 'zije', 'hotovo', 'zamceno', 'zamek', 'perla', 'perly', 'perel', 'runa', 'runy', 'run', 'dar', 'cil', 'start', 'konec', 'zpet', 'dal', 'jit', 'jdi', 'vstup', 'host', 'hra', 'hry', 'her']);
 
 // units and short words the game writes next to numbers
-const UNITS = ['s', 'min', 'zl.', 'b.', 'pole', 'polí', 'volno', 'z', 'HP/s', 'many/s', 'many', 'max', 'úr.', 'ks', 'x', 'patro', 'pater', 'patra', 'ty', 'klec', 'v', 'prosperitu', 'sestoupil', 'sestoupila', 'nepřátelsky naladěný', 'nepřátelsky naladěná', 'kvality', 'body', 'hostitel', 'padl', 'padla', 'den', 'dny', 'dní'];
+const UNITS = ['s', 'min', 'zl.', 'b.', 'pole', 'polí', 'volno', 'z', 'HP/s', 'many/s', 'many', 'max', 'úr.', 'ks', 'x', 'patro', 'pater', 'patra', 'ty', 'klec', 'v', 'prosperitu', 'sestoupil', 'sestoupila', 'nepřátelsky naladěný', 'nepřátelsky naladěná', 'kvality', 'body', 'hostitel', 'padl', 'padla', 'den', 'dny', 'dní', 'kovář', 'kupkyně', 'kupkyni', 'lovkyně', 'alchymistka', 'mág', 'kněžka', 'patro', 'pater'];
 
 /** words for the player (not an identifier, a CSS class, a key or a colour) */
 function isText(t) {

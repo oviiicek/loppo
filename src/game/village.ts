@@ -913,8 +913,8 @@ export class Village {
     const next = BUILDINGS.find((b) => b.who && !v.lv[b.id]);
     let news: string;
     if (home >= all) news = 'Všichni jsou doma. Loppo zase žije – a to díky tobě.';
-    else if (due) news = `${due.who!.name} (${due.who!.trade}) je pořád dole. Prý ${due.who!.fem ? 'ji' : 'ho'} drží nestvůry někde od ${due.rescue}. patra.`;
-    else if (next) news = `Někde hlouběji, od ${next.rescue}. patra, prý drží ${next.who!.fem ? 'naši' : 'našeho'} ${next.who!.trade === 'kupkyně' ? 'kupkyni' : next.who!.trade} ${next.who!.name}.`;
+    else if (due) news = due.who!.fem ? `${due.who!.name} (${due.who!.trade}) je pořád dole. Prý ji drží nestvůry někde od ${due.rescue}. patra.` : `${due.who!.name} (${due.who!.trade}) je pořád dole. Prý ho drží nestvůry někde od ${due.rescue}. patra.`;
+    else if (next) news = next.who!.fem ? `Někde hlouběji, od ${next.rescue}. patra, prý drží naši ${next.who!.trade === 'kupkyně' ? 'kupkyni' : next.who!.trade} ${next.who!.name}.` : `Někde hlouběji, od ${next.rescue}. patra, prý drží našeho ${next.who!.trade} ${next.who!.name}.`;
     else news = '';
     const bl = activeBlessing(s);
     const line = `Zachránění: ${home} z ${all}. ${news} ${bl ? `Požehnání chrámu (${BLESSING_BY_ID[bl.id].name}) tě chrání do ${bl.until}. patra.` : ''}`.trim();
