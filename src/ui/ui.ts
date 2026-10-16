@@ -972,6 +972,8 @@ class UIManager {
       else if (it.kind === 'vb' || it.kind === 'vilda') dot(it.x, it.y, it.data.ruined ? '#7a7484' : '#ffd76a', Math.max(2.5, cell * 0.8), true);
       else if (it.kind === 'vking') dot(it.x, it.y, '#ff6a8a', Math.max(3.5, cell));
       else if (it.kind === 'vwell') dot(it.x, it.y, '#7cc8ff', Math.max(2.5, cell * 0.8), true);
+      else if (it.kind === 'vfish' && !it.data.end) dot(it.x, it.y, '#9fd8ff', Math.max(2.5, cell * 0.8));
+      else if (it.kind === 'vdice') dot(it.x, it.y, '#ffb36a', Math.max(2.5, cell * 0.8));
     }
     if (sc.boss && !sc.boss.dead && m.explored[m.idx(Math.floor(sc.boss.x / TS), Math.floor(sc.boss.y / TS))]) dot(sc.boss.x, sc.boss.y, '#ff3030', Math.max(4, cell * 1.2));
     const nem = sc.nemesis;

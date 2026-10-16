@@ -7,6 +7,7 @@ import { pearlWord } from '../data/pearls';
 import { generateItem, itemColor, itemIcon, formatStat } from '../data/items';
 import { randomGem, gemName, gemIcon } from '../data/gems';
 import { randomRune } from '../data/runes';
+import { FISH, BAIT_MAX, BOTTLE_NOTES, fishOf, fishPrice, rollCatch } from '../data/fishing';
 import type { StatKey } from '../data/types';
 import { honorsOf } from '../data/royal';
 import { ACHIEVEMENTS } from '../data/achievements';
@@ -49,6 +50,8 @@ const TABS: Record<BuildingId, [string, string][]> = {
 };
 
 const n = (v: number) => v.toLocaleString('cs-CZ');
+/** which cells of a 3×3 grid show a pip on each face of a die */
+const PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
 
 // The panels of Loppo's buildings: each opens on its own work (the forge, the shop, the laboratory …)
 // and on a tab where the hero invests gold to make the building grow.
@@ -650,4 +653,250 @@ export class BuildingPanels {
       }),
     );
   }
+
+  // ---------------------------------------------------------------- the pond and the dice (only at home)
+  private fishLog: { icon: string; text: string; color: string }[] = [];
+
+  /** fishing off the pier: cast, wait for the float to go under, strike in time (too early scares the fish) */
+  fishing() {
+    const p = this.P.frame('Rybník');
+    this.ui.showOverlay(p, () => {});
+    this.P.headMats(p);
+    const s = this.save;
+    const st = fishOf(villageOf(s));
+    const body = $('.body', p);
+    body.innerHTML = `<div class="col" style="flex:1;min-width:0">
+        <div class="hint">Rybář Ludvík ti půjčí prut. Nahoď, počkej, až splávek zmizí pod hladinou, a hned zasekni – kdo sekne moc brzy, rybu jen vyplaší. Ryby ti Ludvík rovnou vykoupí.</div>
+        <div class="pond"><div class="bobber"></div><div class="ripple"></div></div>
+        <div class="fishstate" data-st>Prut je připravený.</div>
+        <div class="row" style="justify-content:space-between;flex-wrap:nowrap">
+          <span class="hint" data-bait></span>
+          <button class="btn green" data-cast>🎣 Nahodit</button>
+        </div>
+      </div>
+      <div class="col detail box scroll" style="width:min(300px,38%)"><div class="orn"><span>Úlovky</span></div><div class="fishgrid"></div><div class="wishlog"></div></div>`;
+    const pond = $('.pond', p);
+    const stEl = $('[data-st]', p);
+    const btn = $('[data-cast]', p) as HTMLButtonElement;
+    const grid = $('.fishgrid', p);
+    const log = $('.wishlog', p);
+    const drawSide = () => {
+      $('[data-bait]', p).innerHTML = `Návnady: <b>${st.bait}</b>/${BAIT_MAX} · další přibude za každé patro v kobkách`;
+      grid.innerHTML = FISH.map((f) => {
+        const k = st.caught[f.id] ?? 0;
+        return `<div class="fishcell ${k ? '' : 'unknown'}"><img src="${iconURL('ic_fish_' + f.id, 32)}"><span>${k ? esc(f.name) : '???'}</span><b>${k ? `${k}×` : ''}</b></div>`;
+      }).join('');
+      log.innerHTML = this.fishLog.map((r) => `<div class="wl"><img src="${r.icon}"><span style="color:${r.color}">${esc(r.text)}</span></div>`).join('');
+      btn.disabled = state === 'idle' && st.bait <= 0;
+    };
+    let state: 'idle' | 'wait' | 'nibble' | 'bite' = 'idle';
+    let timers: number[] = [];
+    const later = (ms: number, fn: () => void) => timers.push(window.setTimeout(() => p.isConnected && fn(), ms));
+    const stop = (text: string) => {
+      timers.forEach((t) => clearTimeout(t));
+      timers = [];
+      state = 'idle';
+      pond.className = 'pond';
+      btn.textContent = '🎣 Nahodit';
+      btn.classList.remove('pulse');
+      stEl.textContent = text;
+      drawSide();
+    };
+    const land = () => {
+      const f = rollCatch();
+      st.caught[f.id] = (st.caught[f.id] ?? 0) + 1;
+      const F = Math.max(1, s.maxFloor);
+      let text = '';
+      let color = '#e8e2cf';
+      switch (f.kind) {
+        case 'fish': {
+          const g = fishPrice(f, F);
+          s.gold += g;
+          text = `${f.name}! Ludvík platí ${n(g)} zl.`;
+          color = '#9fd8ff';
+          sfx('coin');
+          break;
+        }
+        case 'junk':
+          text = 'Stará bota. Aspoň že ne tvoje.';
+          color = '#b8a890';
+          sfx('ui');
+          break;
+        case 'chest': {
+          if (Math.random() < 0.5) {
+            const g = randomGem(F);
+            addGem(s, g);
+            text = `Truhlička z bahna: ${gemName(g)}`;
+          } else {
+            const r = randomRune(F);
+            addRune(s, r);
+            text = `Truhlička z bahna: ${runeName(r)}`;
+          }
+          color = '#ffd76a';
+          sfx('chest');
+          break;
+        }
+        case 'bottle': {
+          const read = (st.notes ??= []);
+          const unread = BOTTLE_NOTES.map((_, i) => i).filter((i) => !read.includes(i));
+          const i = unread.length ? unread[Math.floor(Math.random() * unread.length)] : Math.floor(Math.random() * BOTTLE_NOTES.length);
+          if (!read.includes(i)) read.push(i);
+          s.mats.lockpick += 1;
+          text = `Láhev se vzkazem (a v ní paklíč): ${BOTTLE_NOTES[i]}`;
+          color = '#9fe8d0';
+          sfx('pickup');
+          break;
+        }
+        case 'golden':
+          addPearls(s, 1);
+          text = 'Zlatá rybka! Než ji pustíš zpátky, splní ti přání: +1 perla.';
+          color = '#ffd23a';
+          sfx('levelup');
+          break;
+      }
+      this.fishLog.unshift({ icon: iconURL('ic_fish_' + f.id, 32), text, color });
+      this.fishLog = this.fishLog.slice(0, 10);
+      saveGame(s);
+      bus.emit('stats');
+      this.P.headMats(p);
+      pond.classList.add('caught');
+      stop(text);
+      pond.classList.add('caught');
+    };
+    btn.addEventListener('click', () => {
+      if (state === 'idle') {
+        if (st.bait <= 0) return;
+        st.bait--;
+        saveGame(s);
+        state = 'wait';
+        pond.className = 'pond';
+        pond.classList.add('cast');
+        btn.textContent = 'Zaseknout!';
+        stEl.textContent = 'Splávek se pohupuje na hladině…';
+        drawSide();
+        sfx('ui');
+        const bite = 1800 + Math.random() * 2800;
+        // a fish tasting the bait first makes the float twitch – striking then is too early
+        if (Math.random() < 0.45) {
+          const t = 500 + Math.random() * (bite - 900);
+          later(t, () => {
+            if (state !== 'wait') return;
+            state = 'nibble';
+            pond.classList.add('nibble');
+            later(320, () => {
+              if (state !== 'nibble') return;
+              state = 'wait';
+              pond.classList.remove('nibble');
+            });
+          });
+        }
+        later(bite, () => {
+          state = 'bite';
+          pond.classList.remove('nibble');
+          pond.classList.add('bite');
+          btn.classList.add('pulse');
+          stEl.textContent = 'Zabírá! Zasekni!';
+          sfx('pet');
+          later(850, () => state === 'bite' && stop('Ryba sežrala návnadu a zmizela.'));
+        });
+      } else if (state === 'bite') land();
+      else stop('Moc brzy – ryba se lekla a návnada je pryč.');
+    });
+    drawSide();
+  }
+
+  /** dice with Bára: three dice each, the higher total takes it, ties are hers, three of a kind always wins */
+  dice() {
+    const p = this.P.frame('Kostky s Bárou');
+    this.ui.showOverlay(p, () => {});
+    this.P.headMats(p);
+    const s = this.save;
+    const v = villageOf(s);
+    const stats = (v.dice ??= { games: 0, won: 0, net: 0 });
+    const base = Math.max(10, Math.round((20 + Math.max(1, s.maxFloor) * 4) / 10) * 10);
+    const stakes = [1, 5, 25].map((k) => base * k);
+    const body = $('.body', p);
+    const face = (d: number) => `<div class="die">${[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => `<i class="${PIPS[d].includes(i) ? 'on' : ''}"></i>`).join('')}</div>`;
+    body.innerHTML = `<div class="col" style="flex:1;min-width:0">
+        <div class="hint">„Tři kostky, vyšší součet bere. Remíza je moje – ale tři stejné vyhrávají vždycky, a tobě je vyplatím trojnásobně,“ usmívá se Bára a chrastí kelímkem.</div>
+        <div class="dicetable">
+          <div class="dside"><span class="hint">Ty</span><div class="dice" data-me>${face(1)}${face(1)}${face(1)}</div><b data-mes>–</b></div>
+          <div class="dside"><span class="hint">Bára</span><div class="dice" data-her>${face(1)}${face(1)}${face(1)}</div><b data-hers>–</b></div>
+        </div>
+        <div class="dicemsg" data-msg>Vsaď si.</div>
+        <div class="row bets" style="justify-content:center">${stakes.map((k, i) => `<button class="btn ${i === 2 ? 'gold' : ''}" data-bet="${k}">Vsadit ${n(k)} zl.</button>`).join('')}</div>
+        <div class="hint" data-tally style="text-align:center"></div>
+      </div>`;
+    const me = $('[data-me]', p);
+    const her = $('[data-her]', p);
+    const msg = $('[data-msg]', p);
+    const bets = [...p.querySelectorAll<HTMLButtonElement>('[data-bet]')];
+    const tally = () => {
+      $('[data-tally]', p).textContent = stats.games ? `Odehráno ${stats.games} • výher ${stats.won} • celkem ${stats.net >= 0 ? '+' : ''}${n(stats.net)} zl.` : '';
+      bets.forEach((b) => (b.disabled = s.gold < +b.dataset.bet!));
+    };
+    const roll = () => [1, 2, 3].map(() => 1 + Math.floor(Math.random() * 6));
+    let rolling = false;
+    bets.forEach((b) =>
+      b.addEventListener('click', () => {
+        const bet = +b.dataset.bet!;
+        if (rolling || s.gold < bet) return;
+        rolling = true;
+        bets.forEach((x) => (x.disabled = true));
+        s.gold -= bet;
+        this.P.headMats(p);
+        const a = roll(),
+          c = roll();
+        msg.textContent = 'Kostky se kutálejí…';
+        msg.style.color = '';
+        let k = 0;
+        const tick = () => {
+          if (!p.isConnected) return;
+          if (k++ < 9) {
+            me.innerHTML = roll().map(face).join('');
+            her.innerHTML = roll().map(face).join('');
+            sfx('type');
+            window.setTimeout(tick, 70);
+            return;
+          }
+          me.innerHTML = a.map(face).join('');
+          her.innerHTML = c.map(face).join('');
+          const sa = a[0] + a[1] + a[2],
+            sb = c[0] + c[1] + c[2];
+          $('[data-mes]', p).textContent = String(sa);
+          $('[data-hers]', p).textContent = String(sb);
+          const ta = a[0] === a[1] && a[1] === a[2],
+            tb = c[0] === c[1] && c[1] === c[2];
+          let win = 0;
+          if (ta && (!tb || a[0] > c[0])) win = bet * 4;
+          else if (!tb && !ta && sa > sb) win = bet * 2;
+          s.gold += win;
+          stats.games++;
+          if (win) stats.won++;
+          stats.net += win - bet;
+          if (ta && win) {
+            msg.textContent = `Tři stejné! Bára zbledne a vyplácí ${n(win - bet)} zl.`;
+            msg.style.color = '#ffd23a';
+            sfx('levelup');
+          } else if (win) {
+            msg.textContent = `Vyhráváš ${n(win - bet)} zl.`;
+            msg.style.color = '#8fe388';
+            sfx('coin');
+          } else {
+            msg.textContent = tb ? 'Bára hodila tři stejné. Smůla.' : sa === sb ? 'Remíza – ta patří Báře.' : 'Bára bere sázku.';
+            msg.style.color = '#ff9a8a';
+            sfx('lockFail');
+          }
+          saveGame(s);
+          bus.emit('stats');
+          this.P.headMats(p);
+          rolling = false;
+          tally();
+        };
+        tick();
+      }),
+    );
+    tally();
+  }
 }
+

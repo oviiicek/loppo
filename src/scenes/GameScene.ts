@@ -49,6 +49,7 @@ import { generateVillage } from '../systems/villagemap';
 import { BUILDINGS, villageOf } from '../data/village';
 import { ClassId } from '../data/types';
 import { potionMult } from '../data/village';
+import { addBait } from '../data/fishing';
 import { BEASTS, bestiaryOf, KNOW_AT, EL_NAME } from '../data/bestiary';
 import { Procs } from '../game/procs';
 import { Coop, FloorInfo, mpMults } from '../game/coop';
@@ -2433,6 +2434,8 @@ export class GameScene extends Phaser.Scene {
       case 'vgrave':
       case 'vsign':
       case 'vfount':
+      case 'vfish':
+      case 'vdice':
         return this.vil.label(it);
       case 'ev':
         return this.enc.label(it);
@@ -2483,6 +2486,8 @@ export class GameScene extends Phaser.Scene {
       case 'vgrave':
       case 'vsign':
       case 'vfount':
+      case 'vfish':
+      case 'vdice':
         this.vil.interact(it);
         break;
       case 'stairs':
@@ -3445,6 +3450,8 @@ export class GameScene extends Phaser.Scene {
         pendingPetNews = `🐾 ${petTitle(def)} ${def.fem ? 'dosáhla' : 'dosáhl'} úrovně ${after}!`;
       }
     }
+    // a floor gone down brings a bait for the pond back home
+    if (!stay) addBait(villageOf(this.save));
     if (this.pet) this.tweens.add({ targets: [this.pet.sprite, this.pet.shadow], alpha: 0, duration: 500 });
     if (this.merc) this.merc.setVisible(false);
     saveGame(this.save);

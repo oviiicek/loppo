@@ -2,6 +2,7 @@ import type { Quest } from './quests';
 import { RoyalState, royalStats } from './royal';
 import { ProsperityState, prosperityStats } from './fountain';
 import { PearlState, pearlStats } from './pearls';
+import type { FishState } from './fishing';
 
 // The village of Loppo above the dungeon: the hero's home. When the earth shook, monsters dragged
 // villagers down into the dungeon; each one the hero frees comes home and opens their workshop.
@@ -172,6 +173,10 @@ export interface VillageState {
   prosperity?: ProsperityState;
   /** the fountain's luck from a wish: more magic find up to a floor */
   luck?: { until: number; mf: number };
+  /** fishing on the pond: baits left and what was caught (see data/fishing.ts) */
+  fish?: FishState;
+  /** dice with Bára on the square: games, wins and the gold won or lost in all */
+  dice?: { games: number; won: number; net: number };
 }
 
 export function villageOf(s: { village?: VillageState }): VillageState {

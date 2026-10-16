@@ -8,6 +8,7 @@ import { PET_ART } from './pets';
 import { GEMS, GEM_MAX_TIER } from '../data/gems';
 import { RUNES, RUNE_MAX_TIER } from '../data/runes';
 import { SPELL_RUNES } from '../data/spellrunes';
+import { FISH } from '../data/fishing';
 import { buildVillageArt } from './village';
 import { buildMonsters } from './monsters';
 
@@ -3064,6 +3065,81 @@ function clearBorder(c: HTMLCanvasElement) {
   ctx.clearRect(c.width - 1, 0, 1, c.height);
 }
 
+/** what the line brings up from Loppo's pond: the fish (each its own length and colours), an old boot, a little
+ *  chest from the mud and a bottle with a message */
+function buildFishIcons() {
+  for (const f of FISH) {
+    if (f.kind === 'junk') {
+      addCanvas(
+        'ic_fish_' + f.id,
+        iconCanvas((c) => {
+          poly(c, [8, 3, 15, 3, 15, 13, 21, 15, 21, 20, 6, 20, 7, 12], '#5a3f28');
+          poly(c, [9, 4, 14, 4, 14, 13, 20, 15.5, 20, 18, 8, 18, 8.5, 12], f.body);
+          rect(c, 6, 19, 16, 2, '#2e2218');
+          rect(c, 9, 6, 4, 1, '#a07a50');
+          px(c, 10, 9, '#3a2a1a');
+          px(c, 12, 11, '#3a2a1a');
+          px(c, 17, 16, '#9ad8ff');
+        }),
+      );
+      continue;
+    }
+    if (f.kind === 'chest') {
+      addCanvas(
+        'ic_fish_' + f.id,
+        iconCanvas((c) => {
+          rect(c, 4, 10, 16, 10, '#5a3a1e');
+          rect(c, 5, 11, 14, 8, f.body);
+          poly(c, [4, 10, 6, 5, 18, 5, 20, 10], '#6a4424');
+          poly(c, [5.5, 9.5, 7, 6, 17, 6, 18.5, 9.5], '#b07a44');
+          rect(c, 4, 10, 16, 1, '#3a2614');
+          rect(c, 11, 9, 3, 4, GOLD);
+          px(c, 12, 11, '#3a2614');
+          rect(c, 6, 17, 3, 2, '#6a8a3a');
+          rect(c, 15, 15, 2, 2, '#6a8a3a');
+        }),
+      );
+      continue;
+    }
+    if (f.kind === 'bottle') {
+      addCanvas(
+        'ic_fish_' + f.id,
+        iconCanvas((c) => {
+          poly(c, [4, 16, 13, 7, 17, 11, 8, 20], '#3a7a68');
+          poly(c, [5.5, 16, 13, 8.5, 15.5, 11, 8, 18.5], f.body);
+          poly(c, [13, 7, 16, 4, 20, 8, 17, 11], '#3a7a68');
+          rect(c, 17, 3, 3, 3, '#b08050');
+          poly(c, [8, 15, 12, 11, 13, 12, 9, 16], '#f4ecd0');
+          px(c, 7, 15, '#d8fff0');
+          px(c, 12, 9, '#d8fff0');
+        }),
+      );
+      continue;
+    }
+    const L = f.len ?? 10;
+    const H = Math.max(3, Math.round(L * 0.32));
+    const nose = 12 + L / 2,
+      tail = 12 - L / 2;
+    addCanvas(
+      'ic_fish_' + f.id,
+      iconCanvas((c) => {
+        // tail, body, the lighter belly, a fin on the back, gills and an eye
+        poly(c, [tail + 1, 12, tail - 3, 12 - H, tail - 3, 12 + H], f.fin ?? f.body);
+        poly(c, [nose, 12, nose - L * 0.35, 12 - H, tail + L * 0.3, 12 - H, tail, 12, tail + L * 0.3, 12 + H, nose - L * 0.35, 12 + H], f.body);
+        poly(c, [nose - 1, 12.5, nose - L * 0.35, 12 + H, tail + L * 0.3, 12 + H, tail + 1, 12.5], f.belly ?? f.body);
+        poly(c, [12 + 1, 12 - H, 12 - 3, 12 - H - 3, 12 - 3, 12 - H], f.fin ?? f.body);
+        rect(c, Math.round(nose - 5), 10, 1, 4, shade(f.body, -0.3));
+        rect(c, Math.round(nose - 3), 10, 2, 2, '#1a1a22');
+        px(c, Math.round(nose - 3), 10, '#ffffff');
+        if (f.kind === 'golden') {
+          px(c, Math.round(tail + 2), 9, '#ffffff');
+          px(c, 12, 15, '#fff8c0');
+        }
+      }),
+    );
+  }
+}
+
 function buildIcons() {
   // weapons as icons: centred & rotated 45° for long ones; a big head (scythe, halberd) is drawn smaller and
   // pushed into view (shift: along the weapon, in pixels of the weapon picture)
@@ -3238,6 +3314,7 @@ function buildIcons() {
       px(c, 9, 7, '#d0f0ff');
     }),
   );
+  buildFishIcons();
   addCanvas(
     'ic_dust',
     iconCanvas((c) => {

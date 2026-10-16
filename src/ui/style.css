@@ -5522,3 +5522,168 @@ input.code {
   background: rgba(255, 255, 255, 0.03);
   line-height: 1.3;
 }
+
+/* the pond: a strip of water with the float; it bobs while waiting, twitches at a nibble and goes under at a bite */
+.pond {
+  position: relative;
+  height: 92px;
+  margin: 8px 0;
+  border: 2px solid #1d3550;
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 9px),
+    linear-gradient(#2e6a9a, #1c4870 60%, #143a5c);
+  image-rendering: pixelated;
+}
+.pond .bobber {
+  position: absolute;
+  left: 50%;
+  top: 34px;
+  width: 12px;
+  height: 18px;
+  margin-left: -6px;
+  border: 2px solid #16121c;
+  border-radius: 6px 6px 7px 7px;
+  background: linear-gradient(#f2f2f2 0 45%, #e0342c 45%);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.pond .ripple {
+  position: absolute;
+  left: 50%;
+  top: 48px;
+  width: 40px;
+  height: 10px;
+  margin-left: -20px;
+  border: 2px solid rgba(220, 240, 255, 0.55);
+  border-radius: 50%;
+  opacity: 0;
+}
+.pond.cast .bobber {
+  opacity: 1;
+  animation: bob 1.4s ease-in-out infinite;
+}
+.pond.nibble .bobber {
+  animation: nibble 0.16s ease-in-out 2;
+}
+.pond.bite .bobber {
+  animation: none;
+  transform: translateY(14px);
+  opacity: 0.55;
+}
+.pond.bite .ripple {
+  animation: ripple 0.6s ease-out infinite;
+}
+.pond.caught .ripple {
+  animation: ripple 0.5s ease-out 2;
+}
+@keyframes bob {
+  50% {
+    transform: translateY(3px);
+  }
+}
+@keyframes nibble {
+  50% {
+    transform: translateY(6px);
+  }
+}
+@keyframes ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+.fishstate {
+  min-height: 2.6em;
+  font-size: 17px;
+  line-height: 1.3;
+}
+.btn.pulse {
+  animation: pulsebtn 0.3s ease-in-out infinite alternate;
+}
+@keyframes pulsebtn {
+  to {
+    transform: scale(1.08);
+    filter: brightness(1.3);
+  }
+}
+.fishgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+.fishcell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fishcell img {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+.fishcell span {
+  flex: 1;
+  min-width: 0;
+}
+.fishcell.unknown img {
+  filter: brightness(0) opacity(0.45);
+}
+.fishcell.unknown span {
+  color: #7a7484;
+}
+
+/* dice with Bára */
+.dicetable {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  margin: 10px 0 4px;
+}
+.dside {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.dside b {
+  font-size: 20px;
+  color: #ffd76a;
+}
+.dice {
+  display: flex;
+  gap: 6px;
+}
+.die {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 34px;
+  height: 34px;
+  padding: 4px;
+  box-sizing: border-box;
+  border: 2px solid #16121c;
+  border-radius: 6px;
+  background: linear-gradient(#f4efe0, #d8cfb8);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+}
+.die i {
+  display: block;
+  margin: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.die i.on {
+  background: #2a1e1a;
+}
+.dicemsg {
+  min-height: 1.6em;
+  text-align: center;
+  font-size: 18px;
+}

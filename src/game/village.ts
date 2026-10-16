@@ -8,7 +8,7 @@ import { hash } from '../gfx/pixel';
 import { sfx } from '../systems/audio';
 import { BUILDINGS, BuildingDef, BuildingId, BUILDING_BY_ID, buildingLevel, villageOf, villagerDue, shopSize, activeBlessing, BLESSING_BY_ID, prosperityLevel } from '../data/village';
 import { prosperityRank } from '../data/fountain';
-import { PLOTS, RUINS, PALACE, KING, GUARDS, ILDA, POND, pondValue, VillageMap } from '../systems/villagemap';
+import { PLOTS, RUINS, PALACE, KING, GUARDS, ILDA, POND, PIER, pondValue, VillageMap } from '../systems/villagemap';
 import { DObject } from '../systems/dungeon';
 import { generateItem } from '../data/items';
 import { listFallen, FallenHero } from '../systems/state';
@@ -495,6 +495,21 @@ export class Village {
       const g = person('npc_guard', gx * TS, gy * TS, '', '#fff', i === 1);
       sc.interactables.push({ kind: 'vguard', x: gx * TS, y: gy * TS, tx: Math.floor(gx), ty: Math.floor(gy), sprite: g, data: {} });
     });
+    // Ludvík the fisherman by the pier lends a rod; the hero casts from the end of the pier (or from his side)
+    const fx = (PIER.x0 + 2.4) * TS,
+      fy = (PIER.y0 + 0.8) * TS;
+    const fisher = person('npc_villager', fx, fy, 'Rybář Ludvík', '#9fd8ff');
+    sc.interactables.push({ kind: 'vfish', x: fx, y: fy, tx: Math.floor(PIER.x0 + 2.4), ty: Math.floor(PIER.y0 + 0.8), sprite: fisher, data: {} });
+    const ex = (PIER.x1 - 0.5) * TS,
+      ey = ((PIER.y0 + PIER.y1) / 2) * TS;
+    sc.interactables.push({ kind: 'vfish', x: ex, y: ey, tx: Math.floor(PIER.x1 - 0.5), ty: Math.floor((PIER.y0 + PIER.y1) / 2), data: { end: true } });
+    // Bára throws dice on a barrel at the square with anyone who dares
+    const bx = 29.4 * TS,
+      by = 27.6 * TS;
+    this.img('vh_barrel', bx + 11, by + 2);
+    this.shadow(bx + 11, by + 2, 14, 0.24);
+    const bara = person('npc_villager2', bx, by, 'Kostkařka Bára', '#ffb36a');
+    sc.interactables.push({ kind: 'vdice', x: bx + 5, y: by, tx: 29, ty: 27, sprite: bara, data: {} });
     // two villagers about their business
     const walker = (key: string, pts: [number, number][]) => {
       const [x0, y0] = pts[0];
@@ -636,6 +651,10 @@ export class Village {
         return it.data.title ?? 'Přečíst';
       case 'vfount':
         return 'Fontána přání';
+      case 'vfish':
+        return it.data.end ? 'Rybařit' : 'Rybář Ludvík: rybařit';
+      case 'vdice':
+        return 'Kostky s Bárou';
     }
     const b = BUILDING_BY_ID[it.data.id as BuildingId];
     if (it.data.ruined) return `${b.name} (v troskách)`;
@@ -668,6 +687,12 @@ export class Village {
       case 'vfount':
         sfx('ui');
         return sc.ui.buildings.fountain();
+      case 'vfish':
+        sfx('ui');
+        return sc.ui.buildings.fishing();
+      case 'vdice':
+        sfx('ui');
+        return sc.ui.buildings.dice();
     }
     sc.ui.buildings.open(it.data.id as BuildingId);
   }
