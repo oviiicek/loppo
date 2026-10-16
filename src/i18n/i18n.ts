@@ -405,7 +405,9 @@ function compose(g: ItemGrammar, adj: string, n: { t: string; g: string }, suf: 
     .replace('{n}', n.t)
     .replace('{s}', suf)
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    // the first part of a compound ("Drachen-") grows into the noun: "Drachenschwert"
+    .replace(/(\p{L})- (\p{Lu})/gu, (_, a: string, b: string) => a + b.toLocaleLowerCase(locale));
   return out ? out[0].toLocaleUpperCase(locale) + out.slice(1) : out;
 }
 
