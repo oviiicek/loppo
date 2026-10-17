@@ -2266,6 +2266,32 @@ img.px {
   background: #fff;
   box-shadow: 0 0 6px #fff;
 }
+/* the lock's name in the colour of the chest's rarity, and its pins: set ones light up gold */
+.lockname {
+  font-size: 20px;
+  text-align: center;
+  margin-bottom: 4px;
+  text-shadow: 0 0 8px currentColor;
+}
+.pins {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.pins .pin {
+  width: 14px;
+  height: 24px;
+  border: 2px solid #6b5432;
+  border-radius: 7px 7px 3px 3px;
+  background: #1a1018;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.pins .pin.on {
+  background: linear-gradient(#ffe27a, #c8902a);
+  border-color: #ffd23a;
+  box-shadow: 0 0 8px rgba(255, 210, 90, 0.7);
+}
 
 /* menus */
 .menu {

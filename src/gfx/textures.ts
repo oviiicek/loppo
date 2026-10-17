@@ -11,6 +11,7 @@ import { SPELL_RUNES } from '../data/spellrunes';
 import { FISH } from '../data/fishing';
 import { buildVillageArt } from './village';
 import { buildMonsters } from './monsters';
+import { chestLooks, drawChest } from './chests';
 
 // ---------------------------------------------------------------------------
 // Registry helpers
@@ -3816,15 +3817,10 @@ function buildObjects() {
       }
     }
   };
-  const tiers: [string, string, string, string][] = [
-    ['wood', '#8a5a2b', '#5a3416', '#c0a060'],
-    ['iron', '#5a6a7a', '#3a4450', '#c8d0d8'],
-    ['gold', '#7a2a1a', '#4a1a0f', '#e9b949'],
-    ['boss', '#3a1f5a', '#24123a', '#e9b949'],
-  ];
-  for (const [n, b, d, t] of tiers) {
-    addCanvas('chest_' + n, iconCanvasSized(16, 14, chest(b, d, t, false, null)));
-    addCanvas('chest_' + n + '_open', iconCanvasSized(16, 14, chest(b, d, t, true, null)));
+  // the plain chests by rarity, the guardian's hoard and the themed chest of every area (gfx/chests.ts)
+  for (const [key, look] of chestLooks()) {
+    addCanvas(key, iconCanvasSized(16, 14, drawChest(look, false)));
+    addCanvas(key + '_open', iconCanvasSized(16, 14, drawChest(look, true)));
   }
   // the cursed chest: black wood, bone trim, glowing green runes and a skull lock
   const cursed = (open: boolean) => (c: CanvasRenderingContext2D) => {

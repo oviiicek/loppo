@@ -444,12 +444,14 @@ function buildName(base: BaseType, rarity: number, ilvl: number, affixes: Affix[
   return name;
 }
 
-export function generateItem(ilvl: number, opts: { rarity?: number; base?: string; magicFind?: number; rarityBonus?: number; r?: RNG; filter?: (b: BaseType) => boolean; noCurse?: boolean; noUnique?: boolean; noSpell?: boolean } = {}): Item {
+/** generateItem's options; theme: the property the item carries first and strongest (the weapons of an area's themed
+ *  chest – an icy weapon of frost), a themed find is never a named unique and keeps a name that shows its theme */
+export function generateItem(ilvl: number, opts: { rarity?: number; base?: string; magicFind?: number; rarityBonus?: number; r?: RNG; filter?: (b: BaseType) => boolean; noCurse?: boolean; noUnique?: boolean; noSpell?: boolean; theme?: StatKey } = {}): Item {
   const r = opts.r ?? globalRng;
   const rarity = opts.rarity ?? rollRarity(r, opts.magicFind ?? 0, opts.rarityBonus ?? 0);
   // a legendary (or better) find is one of the named uniques with a power of its own
   let unique: UniqueDef | null = null;
-  if (rarity >= 4 && !opts.noUnique) {
+  if (rarity >= 4 && !opts.noUnique && !opts.theme) {
     const pool = opts.base ? uniquesFor(opts.base) : UNIQUES.filter((u) => !opts.filter || opts.filter(BASE_BY_ID[u.base]));
     unique = pool.length ? r.weighted(pool, uniqueWeight) : opts.base ? null : r.pick(UNIQUES);
   }
@@ -487,6 +489,15 @@ export function generateItem(ilvl: number, opts: { rarity?: number; base?: strin
     used.add(def.key);
     item.affixes.push({ key: def.key, value: affixValue(def, ilvl, rar.mult, r) });
   }
+  // a themed find: its theme comes first and half again as strong (it names the item: … of frost)
+  const tdef = opts.theme ? AFFIXES.find((a) => a.key === opts.theme && (a.cats === 'all' || a.cats.includes(base.cat))) : undefined;
+  if (tdef) {
+    item.affixes = item.affixes.filter((a) => a.key !== tdef.key);
+    if (item.affixes.length >= Math.max(1, nAff)) item.affixes.pop();
+    let v = affixValue(tdef, ilvl, rar.mult, r) * 1.5;
+    if (tdef.cap) v = Math.min(tdef.cap, v);
+    item.affixes.unshift({ key: tdef.key, value: DECIMAL_KEYS.has(tdef.key) ? Math.round(v * 10) / 10 : Math.round(v) });
+  }
   const specPool = SPECIALS.filter((s) => (s.cats === 'all' || s.cats.includes(base.cat)) && (!s.kinds || (!!base.attack && s.kinds.includes(base.attack))));
   // a unique's own power comes first and takes the place of one random special; now and then an epic find has one too
   if (unique) item.specials.push(unique.power);
@@ -495,7 +506,7 @@ export function generateItem(ilvl: number, opts: { rarity?: number; base?: strin
     const s = r.pick(specPool.filter((x) => !item.specials.includes(x.id)));
     if (s) item.specials.push(s.id);
   }
-  item.name = unique ? unique.name : buildName(base, rarity, ilvl, item.affixes, r);
+  item.name = unique ? unique.name : buildName(base, tdef ? Math.min(3, Math.max(1, rarity)) : rarity, ilvl, item.affixes, r);
   if (unique) item.unique = unique.id;
   // some weapons carry a bonus spell (the better the weapon, the likelier)
   if (isWeaponBase(base) && !opts.noSpell && r.next() < WEAPON_SPELL_CHANCE[rarity]) item.spell = rollWeaponSpell(r);

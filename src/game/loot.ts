@@ -2,8 +2,9 @@ import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { Enemy } from './entities';
 import { D } from './fx';
-import { Item, Slot } from '../data/types';
-import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded, itemValue, PRIMAL } from '../data/items';
+import { Item, Slot, StatKey } from '../data/types';
+import { chestInfo } from '../data/chests';
+import { generateItem, generateSetItem, itemColor, RARITIES, itemIcon, BASE_BY_ID, BaseType, salvageResult, isTwoHanded, itemValue, PRIMAL, isWeaponBase } from '../data/items';
 import { CLASS_BY_ID } from '../data/classes';
 import { SET_MIN_FLOOR, pickSetPiece, heldSetPieces } from '../data/sets';
 import { areaIndex } from '../data/biomes';
@@ -239,57 +240,81 @@ export class Loot {
     if (Math.random() < 0.35) this.dropMat('dust', 1, x, y);
   }
 
-  /** what a chest holds (a floor of double loot gives it all twice) */
-  chestDrops(tier: string, x: number, y: number) {
+  /** what a chest holds (a floor of double loot gives it all twice); data: the chest's rarity and theme */
+  chestDrops(tier: string, x: number, y: number, data: { rarity?: number; theme?: number } = {}) {
     const n = this.scene.mod?.lootMult ?? 1;
-    for (let k = 0; k < n; k++) this.chestDropsOnce(tier, x, y);
+    for (let k = 0; k < n; k++) {
+      if (tier === 'boss') this.hoardOnce(x, y);
+      else this.chestOnce(tier, x, y, data);
+    }
   }
 
-  private chestDropsOnce(tier: string, x: number, y: number) {
+  /** a chest of a rarity holds one thing of it for sure and a second one now and then (a themed chest: weapons of its
+   *  area's theme); gold, materials, gems and maps come with it, more in the better chests */
+  private chestOnce(tier: string, x: number, y: number, data: { rarity?: number; theme?: number }) {
+    const sc = this.scene;
+    const f = sc.floor;
+    const info = chestInfo({ tier, ...data });
+    const R = Math.max(0, Math.min(5, info.rarity));
+    const make = () => (info.themed ? this.themedItem(f, R, info.themed.affix) : this.chestItem(f, R));
+    this.dropItem(make(), x, y);
+    if (Math.random() < 0.3 + (sc.mod?.chestBonus ? 0.3 : 0)) this.dropItem(make(), x, y);
+    if (sc.player.d.specials.has('luckyStar')) this.dropItem(generateItem(f, { magicFind: this.mf, rarityBonus: 1, filter: this.bias() }), x, y);
+    const goldMult = [1.5, 2, 3, 4.5, 6, 8][R];
+    for (let i = 0; i < 3; i++) this.dropGold(this.goldAmount(goldMult / 3), x, y);
+    const potMult = sc.player.d.specials.has('goldRush') ? 2 : 1;
+    if (Math.random() < 0.24 * potMult) this.dropMat(Math.random() < 0.6 ? 'hpPotion' : 'mpPotion', 1, x, y);
+    // lockpicks come back: the better the chest, the likelier (the locks of the good ones eat them)
+    if (Math.random() < [0.25, 0.3, 0.4, 0.45, 0.5, 0.6][R]) this.dropMat('lockpick', R >= 4 ? 2 : 1, x, y);
+    if (Math.random() < [0.2, 0.35, 0.5, 0.6, 0.7, 0.8][R]) this.dropMat('stone', R >= 3 ? 2 : 1, x, y);
+    if (Math.random() < [0, 0.3, 0.5, 0.6, 0.7, 0.8][R]) this.dropMat('dust', R >= 3 ? 2 : 1, x, y);
+    if (Math.random() < [0.04, 0.08, 0.14, 0.22, 0.32, 0.45][R]) this.dropRandomGem(x, y, R >= 4 ? 1 : 0);
+    if (Math.random() < [0.02, 0.04, 0.07, 0.12, 0.18, 0.25][R]) this.dropRandomRune(x, y, R >= 4 ? 1 : 0);
+    if (Math.random() < [0, 0.01, 0.02, 0.04, 0.06, 0.1][R]) this.dropSpellRune(x, y);
+    // now and then an old treasure map lies among the things
+    sc.quests.maybeMap([0.015, 0.025, 0.04, 0.06, 0.08, 0.1][R]);
+  }
+
+  /** a thing of a chest's rarity (a legendary one is now and then a piece of a set) */
+  chestItem(ilvl: number, rarity: number): Item {
+    if (rarity === 4 && this.scene.floor >= SET_MIN_FLOOR && Math.random() < 0.3) return this.setPiece(ilvl);
+    return generateItem(ilvl, { rarity, magicFind: this.mf, filter: this.bias() });
+  }
+
+  /** a weapon of a themed chest: mostly one the hero's class fights with, always with the chest's theme */
+  themedItem(ilvl: number, rarity: number, affix: StatKey): Item {
+    const own = classGear(this.scene.player.save);
+    const mine = (b: BaseType) => own.has(b.id) && isWeaponBase(b);
+    const filter = Math.random() < 0.75 && Object.values(BASE_BY_ID).some(mine) ? mine : isWeaponBase;
+    return generateItem(ilvl, { rarity, filter, theme: affix });
+  }
+
+  /** a guardian's hoard: three things, the first of them epic or better */
+  private hoardOnce(x: number, y: number) {
     const f = this.scene.floor;
     const mf = this.mf;
-    const potMult = this.scene.player.d.specials.has('goldRush') ? 2 : 1;
-    let nItems = 1,
-      bonus = 0,
-      goldMult = 2;
-    if (tier === 'wood') {
-      nItems = Math.random() < 0.5 ? 1 : 2;
-    } else if (tier === 'iron') {
-      nItems = 2 + (Math.random() < 0.3 ? 1 : 0);
-      bonus = Math.random() < 0.5 ? 1 : 0;
-      goldMult = 3;
-    } else if (tier === 'gold') {
-      nItems = 3 + (Math.random() < 0.4 ? 1 : 0);
-      bonus = 1 + (Math.random() < 0.3 ? 1 : 0);
-      goldMult = 6;
-    } else if (tier === 'boss') {
-      nItems = 3;
-      bonus = 2;
-      goldMult = 8;
-    }
-    if (this.scene.mod?.chestBonus) bonus = Math.min(3, bonus + 1);
-    if (this.scene.player.d.specials.has('luckyStar')) nItems++;
+    let bonus = 2;
+    if (this.scene.mod?.chestBonus) bonus = 3;
+    const nItems = 3 + (this.scene.player.d.specials.has('luckyStar') ? 1 : 0);
     for (let i = 0; i < nItems; i++) {
-      const it = generateItem(f + (tier === 'boss' ? 2 : 0), { magicFind: mf, rarityBonus: bonus, filter: this.bias() });
-      if (tier === 'boss' && i === 0 && it.rarity < 3) {
-        // boss chest guarantees an epic or better
-        const better = generateItem(f + 2, { rarity: Math.random() < 0.15 ? 5 : Math.random() < 0.4 ? 4 : 3 });
-        this.dropItem(better, x, y);
+      const it = generateItem(f + 2, { magicFind: mf, rarityBonus: bonus, filter: this.bias() });
+      if (i === 0 && it.rarity < 3) {
+        this.dropItem(generateItem(f + 2, { rarity: Math.random() < 0.15 ? 5 : Math.random() < 0.4 ? 4 : 3 }), x, y);
         continue;
       }
       this.dropItem(it, x, y);
     }
-    for (let i = 0; i < 3; i++) this.dropGold(this.goldAmount(goldMult / 3), x, y);
+    const potMult = this.scene.player.d.specials.has('goldRush') ? 2 : 1;
+    for (let i = 0; i < 3; i++) this.dropGold(this.goldAmount(8 / 3), x, y);
     if (Math.random() < 0.24 * potMult) this.dropMat(Math.random() < 0.6 ? 'hpPotion' : 'mpPotion', 1, x, y);
-    if (Math.random() < (tier === 'wood' ? 0.15 : 0.3)) this.dropMat('lockpick', 1, x, y);
-    if (Math.random() < (tier === 'wood' ? 0.2 : 0.5)) this.dropMat('stone', tier === 'gold' || tier === 'boss' ? 2 : 1, x, y);
-    if (tier !== 'wood' && Math.random() < 0.5) this.dropMat('dust', tier === 'gold' || tier === 'boss' ? 2 : 1, x, y);
-    // gems: rare in wooden chests, a sure one in a guardian's chest
-    if (Math.random() < ({ wood: 0.04, iron: 0.12, gold: 0.3, boss: 1 } as Record<string, number>)[tier]) this.dropRandomGem(x, y, tier === 'boss' ? 1 : 0);
-    if (Math.random() < ({ wood: 0.02, iron: 0.06, gold: 0.18, boss: 0.5 } as Record<string, number>)[tier]) this.dropRandomRune(x, y, tier === 'boss' ? 1 : 0);
-    if (Math.random() < ({ wood: 0, iron: 0.015, gold: 0.06, boss: 0.25 } as Record<string, number>)[tier]) this.dropSpellRune(x, y);
-    // now and then an old treasure map lies among the things
-    this.scene.quests.maybeMap(({ wood: 0.015, iron: 0.04, gold: 0.08, boss: 0.1 } as Record<string, number>)[tier] ?? 0);
+    if (Math.random() < 0.3) this.dropMat('lockpick', 1, x, y);
+    if (Math.random() < 0.5) this.dropMat('stone', 2, x, y);
+    if (Math.random() < 0.5) this.dropMat('dust', 2, x, y);
+    // gems: a sure one in a guardian's chest
+    this.dropRandomGem(x, y, 1);
+    if (Math.random() < 0.5) this.dropRandomRune(x, y, 1);
+    if (Math.random() < 0.25) this.dropSpellRune(x, y);
+    this.scene.quests.maybeMap(0.1);
   }
 
   private popTo(obj: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, x: number, y: number, far = false): [number, number] {

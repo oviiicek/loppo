@@ -3,6 +3,7 @@ import { generateDungeon } from '../systems/dungeon';
 import { WorldMap, TS } from '../game/map';
 import { D } from '../game/fx';
 import { ENEMY_BY_ID } from '../data/enemies';
+import { chestInfo } from '../data/chests';
 import { ACTOR_SCALE, isPropTex } from '../gfx/textures';
 import { setMusicTrack } from '../systems/audio';
 import { Darkness, darknessSupported } from '../game/darkness';
@@ -56,7 +57,7 @@ export class MenuScene extends Phaser.Scene {
           bottom(o.kind);
           break;
         case 'chest':
-          bottom('chest_' + (o.data?.tier ?? 'wood'));
+          bottom(chestInfo(o.data ?? {}).texture);
           break;
         case 'bones':
           this.add.image(px, py, 'bones').setDepth(D.floorDeco);

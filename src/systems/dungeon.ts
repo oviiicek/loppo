@@ -1,7 +1,8 @@
 import { RNG } from './rng';
 import { isBossFloor, storyBossForFloor } from '../data/enemies';
 import { FAMILIES, familiesFor, familyFodder, familyMembers, makePack } from '../data/families';
-import { riftTheme } from '../data/biomes';
+import { riftTheme, areaIndex } from '../data/biomes';
+import { rollPlainChest, rollThemedRarity, chestPins, PLAIN_BY_ID, THEMED_CHANCE } from '../data/chests';
 
 export const T_VOID = 0;
 export const T_FLOOR = 1;
@@ -831,12 +832,16 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
   // locked doors
   for (const d of lockedDoors) put('door', d.x, d.y);
 
-  const chestTier = () => (r.chance(0.12 + floor * 0.004) ? 'gold' : r.chance(0.35) ? 'iron' : 'wood');
+  // the plain chests by the rarity they hold (min: the least rarity); from the iron one up they are locked
+  const chestTier = (min = 0) => rollPlainChest(floor, () => r.next(), min).id;
+  const lockedTier = (tier: string) => chestPins(PLAIN_BY_ID[tier]?.rarity ?? 0) > 0;
   const placeChest = (rm: Room, tier: string, locked = false) => {
     const c = pickCell(innerCells(rm).length ? innerCells(rm) : freeFloor(rm));
     if (!c) return;
-    const mimic = !locked && tier !== 'gold' && floor >= 2 && r.chance(0.06);
-    put(mimic ? 'mimic' : 'chest', c.x, c.y, { tier, locked: locked || tier === 'gold' });
+    const shut = locked || lockedTier(tier);
+    // a mimic looks like a chest that opens by itself
+    const mimic = !shut && floor >= 2 && r.chance(0.06);
+    put(mimic ? 'mimic' : 'chest', c.x, c.y, { tier, locked: shut });
   };
 
   for (const rm of rooms) {
@@ -848,15 +853,16 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
         for (let k = 0; k < nC; k++) {
           const x = rm.cx - (nC - 1) + k * 2,
             y = rm.cy;
-          if (isFloor(x, y) && !occupied.has(idx(x, y))) put('chest', x, y, { tier: k === 1 ? 'iron' : chestTier(), locked: false });
-          else placeChest(rm, chestTier());
+          const tier = chestTier(k === 1 ? 1 : 0);
+          if (isFloor(x, y) && !occupied.has(idx(x, y))) put('chest', x, y, { tier, locked: lockedTier(tier) });
+          else placeChest(rm, tier);
         }
         void cells;
         carpetFor(rm);
         break;
       }
       case 'vault': {
-        for (let k = 0; k < r.int(2, 3); k++) placeChest(rm, k === 0 ? 'gold' : r.chance(0.5) ? 'gold' : 'iron', true);
+        for (let k = 0; k < r.int(2, 3); k++) placeChest(rm, k === 0 ? (r.chance(0.25) ? 'gold' : 'silver') : chestTier(2), true);
         for (let k = 0; k < r.int(2, 4); k++) {
           const c = pickCell(freeFloor(rm));
           if (c) put('goldpile', c.x, c.y);
@@ -864,8 +870,8 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
         break;
       }
       case 'secret': {
-        placeChest(rm, r.chance(0.5) ? 'gold' : 'iron', false);
-        if (r.chance(0.5)) placeChest(rm, 'iron');
+        placeChest(rm, chestTier(2));
+        if (r.chance(0.5)) placeChest(rm, chestTier(1));
         for (let k = 0; k < r.int(1, 3); k++) {
           const c = pickCell(freeFloor(rm));
           if (c) put('goldpile', c.x, c.y);
@@ -913,7 +919,7 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
         break;
       }
       case 'den':
-        placeChest(rm, r.chance(0.5) ? 'iron' : 'gold', false);
+        placeChest(rm, chestTier(2));
         break;
       case 'camp': {
         // the campfire in the middle, the stash chest and a tent beside it, logs to sit on
@@ -976,6 +982,16 @@ export function generateDungeon(floor: number, seed: number, opts: { forceMercha
           }
         }
         break;
+    }
+  }
+
+  // now and then the area's themed chest, locked, in some quiet room (never in a rift, a camp or a guardian's floor)
+  if (!rift && !guard && calm !== 'camp' && r.chance(THEMED_CHANCE)) {
+    const spots = rooms.filter((rm) => ['closet', 'secret', 'treasure', 'normal', 'den', 'library'].includes(rm.type));
+    if (spots.length) {
+      const rm = r.pick(spots);
+      const c = pickCell(innerCells(rm).length ? innerCells(rm) : freeFloor(rm));
+      if (c) put('chest', c.x, c.y, { tier: 'theme', theme: areaIndex(floor), rarity: rollThemedRarity(floor, () => r.next()), locked: true });
     }
   }
 

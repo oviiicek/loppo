@@ -1055,3 +1055,26 @@ Object.assign(dev, {
   },
   i18nMisses,
 });
+
+import { PLAIN_CHESTS, chestInfo, chestPins } from './data/chests';
+import { ACTOR_SCALE } from './gfx/textures';
+import { D } from './game/fx';
+
+Object.assign(dev, {
+  /** every plain chest and a few themed ones in rows above the hero (themes: area indices, their rarity cycles) */
+  chests(themes: number[] = [0, 4, 7, 10, 18, 24]) {
+    const sc = (window as any).__scene as GameScene;
+    const p = sc.player;
+    const kinds: { tier: string; theme?: number; rarity?: number }[] = [...PLAIN_CHESTS.map((c) => ({ tier: c.id })), ...themes.map((t, i) => ({ tier: 'theme', theme: t, rarity: 2 + (i % 4) }))];
+    kinds.forEach((d, i) => {
+      const x = p.x - 60 + (i % 6) * 24,
+        y = p.y - 34 + Math.floor(i / 6) * 26;
+      const info = chestInfo(d);
+      const s = sc.add.image(x, y + 4, info.texture).setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + y);
+      const it = { kind: 'chest' as const, x, y: y + 4, tx: Math.floor(x / TS), ty: Math.floor(y / TS), sprite: s, data: { ...d, locked: chestPins(info.rarity) > 0 } as Record<string, any> };
+      sc.interactables.push(it as any);
+      sc.dressChest(it as any, info);
+    });
+    return kinds.length;
+  },
+});

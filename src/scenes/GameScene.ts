@@ -27,7 +27,8 @@ import { Weather } from '../game/weather';
 import { PET_BY_ID, PetId, petTitle, cagePetFor, cageChance, petLevel } from '../data/pets';
 import { ACHIEVEMENTS, achievementReward } from '../data/achievements';
 import { spellsForClass, BuffMods } from '../data/spells';
-import { generateItem, setUniqueWeight } from '../data/items';
+import { generateItem, setUniqueWeight, RARITIES } from '../data/items';
+import { chestInfo, chestPins, rollPlainChest } from '../data/chests';
 import { Item } from '../data/types';
 import { Element } from '../data/types';
 import { UI } from '../ui/ui';
@@ -1016,10 +1017,11 @@ export class GameScene extends Phaser.Scene {
       }
       case 'chest':
       case 'mimic': {
-        const tier = o.data?.tier ?? 'wood';
-        const s = add('chest_' + tier, 0, 1);
-        this.interactables.push({ kind: o.kind, x: px, y: py + 4, tx: o.x, ty: o.y, sprite: s, data: { ...o.data } });
-        if (tier === 'gold') this.addSparkle(s);
+        const info = chestInfo(o.data ?? {});
+        const s = add(info.texture, 0, 1);
+        const it: Interactable = { kind: o.kind, x: px, y: py + 4, tx: o.x, ty: o.y, sprite: s, data: { ...o.data } };
+        this.interactables.push(it);
+        this.dressChest(it, info);
         break;
       }
       case 'goldpile': {
@@ -1123,6 +1125,21 @@ export class GameScene extends Phaser.Scene {
 
   updateGlowVisibility() {
     for (const g of this.glows) if (!g.img.visible && this.map.explored[g.i]) g.img.setVisible(true);
+  }
+
+  /** a chest shows what it holds: the legendary and better ones sparkle, a themed chest glows softly in the colour of
+   *  its rarity (so it is known before the lock is picked) */
+  dressChest(it: Interactable, info = chestInfo(it.data)) {
+    const s = it.sprite as Phaser.GameObjects.Image;
+    if (!s) return;
+    if (info.rarity >= 4) this.addSparkle(s);
+    if (info.themed) {
+      const col = Phaser.Display.Color.HexStringToColor(RARITIES[info.rarity]?.color ?? '#ffffff').color;
+      const glow = this.add.image(it.x, it.y - 4, 'glow').setTint(col).setAlpha(0.32).setScale(0.55).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow);
+      this.trackGlow(glow, it.tx, it.ty);
+      it.data.glow = glow;
+      this.tweens.add({ targets: glow, alpha: 0.16, yoyo: true, repeat: -1, duration: 1100 });
+    }
   }
 
   addSparkle(s: Phaser.GameObjects.Image) {
@@ -1558,7 +1575,10 @@ export class GameScene extends Phaser.Scene {
         y = Math.floor(c / d.w);
       if (taken.has(c) || d.grid[c] !== T_FLOOR || d.grid[c - d.w] !== T_FLOOR || d.grid[c + d.w] !== T_FLOOR) continue;
       taken.add(c);
-      if (k < n) d.objects.push({ kind: 'chest', x, y, data: { tier: Math.random() < 0.25 ? 'gold' : Math.random() < 0.5 ? 'iron' : 'wood', locked: false } });
+      if (k < n) {
+        const tier = rollPlainChest(this.floor, Math.random, 1);
+        d.objects.push({ kind: 'chest', x, y, data: { tier: tier.id, locked: chestPins(tier.rarity) > 0 } });
+      }
       else d.objects.push({ kind: 'goldpile', x, y });
     }
   }
@@ -1661,12 +1681,11 @@ export class GameScene extends Phaser.Scene {
       if (this.map.tileAt(x, y) !== T_FLOOR) continue;
       const px = x * TS + 8,
         py = y * TS + 8;
-      const tier = k === 0 ? 'gold' : 'iron';
+      const tier = k === 0 ? 'silver' : 'iron';
       const s = this.add.image(px, y * TS + 16, 'chest_' + tier).setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + py).setAlpha(0);
       this.tweens.add({ targets: s, alpha: 1, duration: 600, delay: 300 + (k + 1) * 200 });
       this.fx.burst(px, py, 0x9fe6ff, 16, 'puff');
       this.interactables.push({ kind: 'chest', x: px, y: py + 4, tx: x, ty: y, sprite: s, data: { tier, locked: false } });
-      if (tier === 'gold') this.addSparkle(s);
     }
     this.loot.dropItem(generateItem(f + 1, { rarity: Math.random() < 0.3 ? 4 : 3, filter: this.loot.bias() }), rm.cx * TS + 8, rm.cy * TS + 14);
     this.gainXp(Math.round(xpForLevel(this.save.level) * 0.04));
@@ -1765,7 +1784,7 @@ export class GameScene extends Phaser.Scene {
     this.fx.ring(it.x, it.y - 6, 60, 0x7dff9a, 600);
     this.fx.burst(it.x, it.y - 8, 0x7dff9a, 24);
     const f = this.floor;
-    this.loot.chestDrops('gold', it.x, it.y);
+    this.loot.chestDrops('silver', it.x, it.y);
     for (let i = 0; i < Math.min(6, Math.floor(kills / 5)); i++) this.loot.dropItem(this.loot.item(f + 1, 1), it.x, it.y);
     if (kills >= 20) this.loot.dropItem(generateItem(f + 2, { rarity: Math.random() < 0.25 ? 5 : 4 }), it.x, it.y);
     this.loot.dropMat('dust', 1 + Math.floor(kills / 8), it.x, it.y);
@@ -2442,7 +2461,7 @@ export class GameScene extends Phaser.Scene {
       case 'door':
         return `Odemknout (paklíče: ${this.save.mats.lockpick})`;
       case 'chest':
-        return `Odemknout (paklíče: ${this.save.mats.lockpick})`;
+        return `${chestInfo(it.data).name} (paklíče: ${this.save.mats.lockpick})`;
       case 'merchant':
         return 'Obchodovat';
       case 'anvil':
@@ -2514,14 +2533,20 @@ export class GameScene extends Phaser.Scene {
           UI.toast('Potřebuješ paklíč!', '#ff8080');
           return;
         }
-        UI.lockpick(this.floor, (ok) => {
-          if (ok) {
-            bumpStat(this.save, 'locks');
-            if (it.kind === 'door') this.openDoor(it);
-            else this.openChest(it);
-          }
-          bus.emit('stats');
-        });
+        {
+          // a door has one pin; a chest's lock has three to six by its rarity, and the pins set stay set
+          const info = it.kind === 'chest' ? chestInfo(it.data) : null;
+          const lock = info ? { name: info.name, color: RARITIES[info.rarity]?.color ?? '#e9d27a', pins: Math.max(1, chestPins(info.rarity)), set: it.data.pinsSet ?? 0 } : { name: 'Dveře', color: '#e9d27a', pins: 1, set: 0 };
+          UI.lockpick(this.floor, lock, (ok, set) => {
+            if (it.kind === 'chest') it.data.pinsSet = set;
+            if (ok) {
+              bumpStat(this.save, 'locks');
+              if (it.kind === 'door') this.openDoor(it);
+              else this.openChest(it);
+            }
+            bus.emit('stats');
+          });
+        }
         break;
       case 'merchant':
         UI.openMerchant(this.merchantStocks.get(it)!);
@@ -2650,10 +2675,14 @@ export class GameScene extends Phaser.Scene {
     bumpStat(this.save, 'chests');
     this.bountyStep('chest');
     const tier = it.data.tier ?? 'wood';
-    (it.sprite as Phaser.GameObjects.Image).setTexture('chest_' + tier + '_open');
+    const info = chestInfo(it.data);
+    (it.sprite as Phaser.GameObjects.Image).setTexture(info.texture + '_open');
+    (it.data.glow as Phaser.GameObjects.Image | undefined)?.destroy();
     sfx('chest');
-    this.fx.burst(it.x, it.y - 8, tier === 'gold' || tier === 'boss' ? 0xffd23a : 0xffffff, 14);
-    this.loot.chestDrops(tier, it.x, it.y);
+    const col = Phaser.Display.Color.HexStringToColor(RARITIES[info.rarity]?.color ?? '#ffffff').color;
+    this.fx.burst(it.x, it.y - 8, info.rarity >= 2 ? col : 0xffffff, 10 + info.rarity * 3);
+    if (info.rarity >= 2) this.fx.number(it.x, it.y - 20, info.name, RARITIES[info.rarity]?.color ?? '#ffffff');
+    this.loot.chestDrops(tier, it.x, it.y, { rarity: it.data.rarity, theme: it.data.theme });
   }
 
   breakObject(it: Interactable) {

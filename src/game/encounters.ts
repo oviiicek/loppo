@@ -727,9 +727,9 @@ export class Encounters {
     if (!c) return this.ghostPeace(it, ev, 'peace');
     const x = c.x * TS + 8,
       y = c.y * TS + 8;
-    const s = sc.add.image(x, y + 8, 'chest_gold').setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + y + 8);
+    const s = sc.add.image(x, y + 8, 'chest_silver').setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + y + 8);
     sc.addSparkle(s);
-    sc.interactables.push({ kind: 'chest', x, y: y + 4, tx: c.x, ty: c.y, sprite: s, data: { tier: 'gold', locked: false, ghost: true } });
+    sc.interactables.push({ kind: 'chest', x, y: y + 4, tx: c.x, ty: c.y, sprite: s, data: { tier: 'silver', locked: false, ghost: true } });
     const room = sc.dungeon.rooms.find((r) => r.id === c.room);
     if (room) sc.map.revealRoom(room.cells);
     sc.updateGlowVisibility();
@@ -1530,9 +1530,9 @@ export class Encounters {
       const x = tx * TS + 8,
         y = ty * TS + 8;
       if (piles < 2) {
-        const s = sc.add.image(x, y + 8, 'chest_gold').setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + y + 8);
+        const s = sc.add.image(x, y + 8, 'chest_silver').setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + y + 8);
         sc.addSparkle(s);
-        sc.interactables.push({ kind: 'chest', x, y: y + 4, tx, ty, sprite: s, data: { tier: 'gold', locked: false } });
+        sc.interactables.push({ kind: 'chest', x, y: y + 4, tx, ty, sprite: s, data: { tier: 'silver', locked: false } });
       } else {
         const s = sc.add.image(x, y, 'goldpile').setScale(ACTOR_SCALE).setDepth(D.floorDeco + 1);
         sc.interactables.push({ kind: 'goldpile', x, y, tx, ty, sprite: s, data: {} });
@@ -1656,9 +1656,8 @@ export class Encounters {
         const x = tx * TS + 8,
           y = ty * TS + 8;
         if (k === 0) {
-          const tier = Math.random() < 0.35 ? 'gold' : 'iron';
+          const tier = Math.random() < 0.35 ? 'silver' : 'iron';
           const s = sc.add.image(x, y + 8, 'chest_' + tier).setOrigin(0.5, 1).setScale(ACTOR_SCALE).setDepth(D.entityBase + y + 8);
-          if (tier === 'gold') sc.addSparkle(s);
           sc.interactables.push({ kind: 'chest', x, y: y + 4, tx, ty, sprite: s, data: { tier, locked: false } });
         } else {
           const s = sc.add.image(x, y, 'goldpile').setScale(ACTOR_SCALE).setDepth(D.floorDeco + 1);

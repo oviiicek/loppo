@@ -12,7 +12,7 @@ import { xpForLevel, game as G, saveGame, setActiveSlot, freeTalentPoints } from
 import { bus } from '../systems/events';
 import { sfx, unlockAudio, startMusic, settings, setMusicTrack, musicUrgency } from '../systems/audio';
 import { bossTrack } from '../data/music';
-import { Panels } from './panels';
+import { Panels, LockSpec } from './panels';
 import { Menus } from './menus';
 import { BuildingPanels } from './buildings';
 import { PearlPanels } from './pearls';
@@ -1592,8 +1592,8 @@ class UIManager {
     $('[data-a=no]', p).addEventListener('click', () => done(false));
   }
 
-  lockpick(floor: number, cb: (ok: boolean, consumed: boolean) => void) {
-    this.panels.lockpick(floor, cb);
+  lockpick(floor: number, lock: LockSpec, cb: (ok: boolean, set: number) => void) {
+    this.panels.lockpick(floor, lock, cb);
   }
 
   death(floor: number, lostGold: number) {

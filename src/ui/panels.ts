@@ -80,6 +80,14 @@ const stonesText = (n: number) => `${n} ${n === 1 ? 'kámen' : n < 5 ? 'kameny' 
 // Where the selected item lives
 type Sel = { from: 'inv'; idx: number } | { from: 'eq'; slot: Slot } | { from: 'shop'; idx: number } | null;
 
+/** a lock to pick: its name and colour (a chest's rarity), its pins and how many of them are set already */
+export interface LockSpec {
+  name: string;
+  color: string;
+  pins: number;
+  set: number;
+}
+
 export class Panels {
   ui: UIM;
   sel: Sel = null;
@@ -2676,22 +2684,34 @@ export class Panels {
   }
 
   // ------------------------------------------------------------------ LOCKPICK minigame
-  lockpick(floor: number, cb: (ok: boolean, consumed: boolean) => void) {
+  /** a lock has pins: each needs a tap while the needle is in the green zone, and each set pin makes the next one
+   *  harder (a narrower zone, a quicker needle). A miss breaks the lockpick now and then, or lets a set pin drop.
+   *  The opened lock costs one lockpick; the pins set stay set when the panel closes (cb gets them) */
+  lockpick(floor: number, lock: LockSpec, cb: (ok: boolean, set: number) => void) {
     const s = this.save;
-    const zoneW = Math.max(9, 24 - floor * 0.25);
-    const speed = 0.9 + Math.min(1.4, floor * 0.02);
-    let zoneX = 15 + Math.random() * (70 - zoneW);
+    const baseW = Math.max(12, 24 - floor * 0.1);
+    const baseSpeed = 0.85 + Math.min(0.9, floor * 0.01);
+    let set = Math.min(lock.set, lock.pins - 1);
+    const zoneW = () => Math.max(7, baseW - set * 1.2);
+    let zoneX = 15 + Math.random() * (70 - zoneW());
+    const pins = Array.from({ length: lock.pins }, (_, i) => `<i class="pin" data-i="${i}"></i>`).join('');
     const p = el(`<div class="panel small"><div class="head"><h2>Páčení zámku</h2><button class="close">✕</button></div>
       <div style="padding:14px">
-        <div class="hint">Klepni na „Páčit“, když je jehla v zelené zóně. Při chybě se paklíč může zlomit.</div>
+        <div class="lockname" style="color:${lock.color}">${lock.name}</div>
+        <div class="hint"><span>Klepni na „Páčit“, když je jehla v zelené zóně.</span> ${lock.pins > 1 ? '<span>Nastav všechny kolíky – každý další je těžší.</span> ' : ''}<span>Při chybě se paklíč může zlomit.</span></div>
+        <div class="pins">${pins}</div>
         <div class="lockbar"><div class="lockzone"></div><div class="lockneedle"></div></div>
         <div class="row" style="justify-content:space-between"><span>Paklíče: <b class="lp">${s.mats.lockpick}</b></span><button class="btn green" data-a="pick" style="font-size:26px;padding:12px 28px">Páčit</button></div>
         <div class="msg hint" style="margin-top:6px;min-height:18px"></div>
       </div></div>`);
     const zone = $('.lockzone', p),
       needle = $('.lockneedle', p);
-    zone.style.left = zoneX + '%';
-    zone.style.width = zoneW + '%';
+    const paint = () => {
+      zone.style.left = zoneX + '%';
+      zone.style.width = zoneW() + '%';
+      p.querySelectorAll<HTMLElement>('.pin').forEach((x, i) => x.classList.toggle('on', i < set));
+    };
+    paint();
     let t = 0;
     let raf = 0;
     let last = performance.now();
@@ -2699,7 +2719,7 @@ export class Panels {
     const loop = (now: number) => {
       const dt = (now - last) / 1000;
       last = now;
-      t += dt * speed;
+      t += dt * baseSpeed * (1 + set * 0.08);
       const x = (Math.sin(t * 2.4) * 0.5 + 0.5) * 100;
       needle.style.left = x + '%';
       (needle as any)._x = x;
@@ -2710,42 +2730,53 @@ export class Panels {
     ov.appendChild(p);
     this.ui.root.appendChild(ov);
     this.ui.pauseGame();
-    const finish = () => {
+    const finish = (ok: boolean) => {
+      if (done) return;
       done = true;
       cancelAnimationFrame(raf);
       ov.remove();
       this.ui.resumeGame();
+      cb(ok, ok ? 0 : set);
     };
-    $('.close', p).addEventListener('click', finish);
+    $('.close', p).addEventListener('click', () => finish(false));
+    const msg = (t: string) => ($('.msg', p).textContent = t);
+    let opened = false;
     $('[data-a=pick]', p).addEventListener('click', () => {
+      if (done || opened) return;
       if (s.mats.lockpick <= 0) {
-        $('.msg', p).textContent = 'Došly ti paklíče!';
+        msg('Došly ti paklíče!');
         return;
       }
       const x = (needle as any)._x ?? 0;
-      if (x >= zoneX - 1 && x <= zoneX + zoneW + 1) {
+      const w = zoneW();
+      if (x >= zoneX - 1 && x <= zoneX + w + 1) {
+        set++;
+        if (set >= lock.pins) {
+          opened = true;
+          sfx('lockOk');
+          s.mats.lockpick--;
+          paint();
+          msg('Zámek povolil!');
+          setTimeout(() => finish(true), 300);
+          return;
+        }
         sfx('lockOk');
-        s.mats.lockpick--;
-        $('.msg', p).textContent = 'Zámek povolil!';
-        setTimeout(() => {
-          finish();
-          cb(true, true);
-        }, 300);
+        msg(`Kolík ${set} z ${lock.pins} sedí!`);
+        zoneX = 15 + Math.random() * (70 - zoneW());
+        paint();
       } else {
         sfx('lockFail');
-        if (Math.random() < 0.5) {
+        if (Math.random() < 0.4) {
           s.mats.lockpick--;
-          $('.msg', p).textContent = 'Paklíč se zlomil!';
-        } else $('.msg', p).textContent = 'Vedle! Zkus to znovu.';
+          msg('Paklíč se zlomil!');
+        } else if (set > 0) {
+          set--;
+          msg('Vedle! Jeden kolík spadl.');
+        } else msg('Vedle! Zkus to znovu.');
         $('.lp', p).textContent = String(s.mats.lockpick);
-        zoneX = 15 + Math.random() * (70 - zoneW);
-        zone.style.left = zoneX + '%';
-        if (s.mats.lockpick <= 0) {
-          setTimeout(() => {
-            finish();
-            cb(false, false);
-          }, 600);
-        }
+        zoneX = 15 + Math.random() * (70 - zoneW());
+        paint();
+        if (s.mats.lockpick <= 0) setTimeout(() => finish(false), 700);
       }
     });
   }

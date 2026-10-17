@@ -92,7 +92,9 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
   - kovadlina,
   - doupě plné nepřátel,
   - knihovna.
-- Truhly: dřevěné, železné, zlaté (zamčené, potřebují paklíč) a mimikové. Otevřená truhla zůstane otevřená.
+- **Truhly podle rarity:** dřevěná (běžný předmět), okovaná (neobvyklý), železná (vzácný), stříbrná (epický), zlatá (legendární) a mýtická (mýtický). Každá dá jeden předmět své rarity jistě a s 30% šancí ještě druhý (na patře pokladů s 60%), k tomu zlato, materiály, paklíče, drahokamy a runy – víc v lepších truhlách. Hlouběji jsou lepší truhly častější.
+- **Tematické truhly:** každá z 25 oblastí má vlastní truhlu (Ledová, Opředená, Krystalová, Obsidiánová, Snová …) s vlastní barvou a ozdobami. Objeví se zhruba na každém třetím patře a dá zbraně svého tématu – z ledové truhly jsou zbraně s mrazivým poškozením („… mrazu“), z pavoučí jedové, z kryptové s vysáváním života. Téma je na zbrani první a o polovinu silnější. Tematická truhla je aspoň vzácná a svou raritu prozradí barvou záře; jistá je jedna zbraň, druhá padne s 30% šancí.
+- **Páčení zámků:** běžná a neobvyklá truhla se otevře sama, od železné výš (a každá tematická) je zamčená. Zámek má kolíky – vzácná truhla 3, epická 4, legendární 5, mýtická 6. Každý kolík se nastaví klepnutím, když je jehla v zelené zóně; s každým dalším je zóna užší a jehla rychlejší. Při chybě se paklíč zlomí (40 %) nebo jeden nastavený kolík spadne. Otevření stojí jeden paklíč a nastavené kolíky zůstanou, i když se páčení přeruší. Mimikové se dál vydávají za truhly, které se otevírají samy.
 - Kobky se dělí na desítky pater. Na posledním patře každé desítky (10., 20., 30. …) hlídá strážce (boss) s vlastními útoky:
   - vyvolávání pomocníků,
   - kruhy projektilů,
