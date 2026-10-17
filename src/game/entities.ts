@@ -404,8 +404,24 @@ export class Enemy extends Actor {
     if (def.behavior === 'thief') this.addGlow(0xffd23a, 3);
     if (def.role && PRIORITY_ROLES.includes(def.role) && scene.textures.exists('en_role_' + def.role)) this.roleIcon = scene.add.image(x, y, 'en_role_' + def.role).setScale(ACTOR_SCALE);
     scene.powers?.init(this);
+    // hard and nightmare: however strong the hero has grown, a monster takes a few blows
+    this.toughen(elite ? 2.5 : 1);
     // playing together: more health and harder blows for more heroes
     scene.coop?.scaleEnemy(this);
+  }
+
+  /** the harder difficulties keep monsters from falling to a single blow: at least the difficulty's number of
+   *  typical blows of the hero (times `mult` for champions and the corrupted); the extra toughness pays a little
+   *  more experience */
+  toughen(mult: number) {
+    const sc = this.scene;
+    const k = (sc.diff?.toughHits ?? 0) * mult;
+    if (!k || this.def.behavior === 'thief') return;
+    const need = k * (sc.combat?.typicalHit() ?? 0);
+    if (need <= this.maxHp) return;
+    const boost = need / this.maxHp;
+    this.maxHp = this.hp = Math.round(need);
+    this.xp = Math.round(this.xp * Math.min(2, Math.sqrt(boost)));
   }
 
   /** a corrupted monster: five times the health, three random traits, black and purple, rich loot */
@@ -427,6 +443,7 @@ export class Enemy extends Actor {
     this.affTimers = {};
     this.eliteAffix = list[0];
     this.maxHp = this.hp = Math.round(def.hp * enemyHpScale(floor) * 5 * (dif?.enemyHp ?? 1));
+    this.toughen(4);
     this.dmg = def.dmg * enemyDmgScale(floor) * 1.6;
     this.speed = def.speed * 1.1 * (dif?.enemySpeed ?? 1) * (list.includes('rychlý') ? 1.45 : 1);
     this.armor = enemyArmor(def.armor ?? 0, floor) * 1.5 + (list.includes('obrněný') ? 20 : 0);

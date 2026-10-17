@@ -11,6 +11,10 @@ export interface Difficulty {
   enemySpeed: number;
   /** how often monsters are elite champions */
   elite: number;
+  /** the most of the hero's health one blow can take (strong monsters wear the hero down, they don't kill in two blows) */
+  blowCap: number;
+  /** monsters take at least this many typical blows of the hero, however strong the hero has grown (0 = no floor) */
+  toughHits: number;
   /** rewards: experience and gold multipliers, magic find bonus (percent) */
   xp: number;
   gold: number;
@@ -30,6 +34,8 @@ export const DIFFICULTIES: Difficulty[] = [
     enemyDmg: 0.6,
     enemySpeed: 0.92,
     elite: 0.5,
+    blowCap: 0.25,
+    toughHits: 0,
     xp: 1,
     gold: 1,
     mf: 0,
@@ -45,6 +51,8 @@ export const DIFFICULTIES: Difficulty[] = [
     enemyDmg: 1.22,
     enemySpeed: 1,
     elite: 1.25,
+    blowCap: 0.3,
+    toughHits: 0,
     xp: 1,
     gold: 1,
     mf: 0,
@@ -57,9 +65,11 @@ export const DIFFICULTIES: Difficulty[] = [
     desc: 'Odolnější a silnější nepřátelé a víc šampionů. Za to víc zkušeností, zlata a lepší kořist.',
     color: '#ff9a4a',
     enemyHp: 1.6,
-    enemyDmg: 1.55,
+    enemyDmg: 1.45,
     enemySpeed: 1.05,
     elite: 1.6,
+    blowCap: 0.32,
+    toughHits: 1.5,
     xp: 1.25,
     gold: 1.25,
     mf: 25,
@@ -72,9 +82,11 @@ export const DIFFICULTIES: Difficulty[] = [
     desc: 'Pro zkušené: nepřátelé vydrží skoro dvakrát víc a bolí mnohem víc. Odměny jsou ale největší.',
     color: '#ff5a72',
     enemyHp: 2.2,
-    enemyDmg: 1.95,
+    enemyDmg: 1.65,
     enemySpeed: 1.1,
     elite: 2.3,
+    blowCap: 0.3,
+    toughHits: 2.2,
     xp: 1.6,
     gold: 1.6,
     mf: 50,
@@ -97,6 +109,8 @@ export function difficultyLines(d: Difficulty): string[] {
   else lines.push(`Zdraví nepřátel ${pct(d.enemyHp)}`, `Poškození nepřátel ${pct(d.enemyDmg)}`);
   if (d.xp > 1) lines.push(`Zkušenosti a zlato ${pct(d.xp)}`);
   if (d.mf > 0) lines.push(`Lepší kořist +${d.mf} %`);
+  if (d.toughHits > 0) lines.push('Nestvůry nepadají na jednu ránu');
+  lines.push(`Jedna rána vezme nejvýš ${Math.round(d.blowCap * 100)} % zdraví`);
   lines.push(`Smrt: −${Math.round(d.goldLoss * 100)} % zlata`);
   return lines;
 }

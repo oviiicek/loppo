@@ -41,10 +41,37 @@ const EL_TEXT: Record<string, string> = {
   shadow: '#d0a8ff',
 };
 
+/** how hard the hero hits: a running average of the blows that land on monsters (kept from floor to floor, started
+ *  again for another character) – the harder difficulties keep monsters from falling to a single blow by it */
+const heroHit = { key: '', avg: 0, n: 0 };
+
 export class Combat {
   scene: GameScene;
   constructor(scene: GameScene) {
     this.scene = scene;
+  }
+
+  private heroKey() {
+    const s = this.scene.player?.save;
+    return s ? `${s.slot ?? ''}|${s.cls}` : '';
+  }
+
+  /** the damage of a typical blow of the hero: what landed lately, or a guess from the gear before that */
+  typicalHit(): number {
+    const p = this.scene.player;
+    if (!p) return 0;
+    const key = this.heroKey();
+    if (heroHit.key !== key) Object.assign(heroHit, { key, avg: 0, n: 0 });
+    if (heroHit.n >= 12) return heroHit.avg;
+    const d = p.d;
+    return p.powerHit() * (1 + (d.crit / 100) * (d.critDmg / 100 - 1));
+  }
+
+  private noteHit(dmg: number) {
+    const key = this.heroKey();
+    if (heroHit.key !== key) Object.assign(heroHit, { key, avg: 0, n: 0 });
+    heroHit.avg = heroHit.n ? heroHit.avg + (dmg - heroHit.avg) * 0.04 : dmg;
+    heroHit.n++;
   }
 
   // Player basic attack hitting an enemy (applies weapon damage + on-hit effects)
@@ -261,6 +288,7 @@ export class Combat {
     // damage beyond that is mostly absorbed, so even a very strong hero gets the whole fight while weaker ones are
     // unaffected (life steal still counts the whole blow)
     const full = dmg;
+    if (!e.boss && !o.dot && !o.thorns && !o.fromAlly) this.noteHit(full);
     let resisted = false;
     if ((e.story || e.capRate > 0) && !(window as any).__noCap) {
       const now = sc.time.now / 1000;
@@ -612,6 +640,9 @@ export class Combat {
         p.recalc();
       } else p.ghostStepT = 2;
     }
+    // however strong the monster, one blow takes at most a share of the hero's health: strong monsters wear the
+    // hero down instead of killing in two blows
+    if (!isDot) dmg = Math.min(dmg, d.maxHp * sc.diff.blowCap);
     // shield absorbs
     if (p.shield > 0) {
       const absorbed = Math.min(p.shield, dmg);

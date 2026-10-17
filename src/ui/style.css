@@ -2538,6 +2538,8 @@ img.px {
   cursor: pointer;
   min-width: 0;
   overflow-wrap: anywhere;
+  /* long words of other languages ("Flächenschaden") break at a syllable where the browser knows how */
+  hyphens: auto;
 }
 .detail .btn {
   max-width: 100%;
