@@ -12,6 +12,11 @@ export const D = {
   ui: 200000,
 };
 
+/** the font of the texts drawn in the world: the page's own font stack, so a language whose letters the pixel font
+ *  lacks (Cyrillic, Chinese …) gets the same fallback fonts as the panels */
+let worldFont = '';
+const font = () => (worldFont ||= getComputedStyle(document.documentElement).getPropertyValue('--font').trim() || '"Jersey 10", monospace');
+
 export const EL_COLOR: Record<string, number> = {
   phys: 0xffffff,
   fire: 0xff7a2a,
@@ -86,7 +91,7 @@ export class FX {
     if (this.numFont && fitsNumberFont(text)) return this.bitmapNumber(x, y, text, color, big);
     let t = this.textPool.pop();
     if (!t) {
-      t = this.scene.add.text(0, 0, '', { fontFamily: '"Jersey 10", monospace', fontSize: '10px', color: '#fff', stroke: '#000', strokeThickness: 2 });
+      t = this.scene.add.text(0, 0, '', { fontFamily: font(), fontSize: '10px', color: '#fff', stroke: '#000', strokeThickness: 2 });
       t.setResolution(this.res).setOrigin(0.5).setDepth(D.ui);
     }
     t.setText(text).setColor(color).setFontSize(big ? 14 : 10).setPosition(x + (Math.random() - 0.5) * 8, y).setAlpha(1).setScale(big ? 1.2 : 1).setVisible(true).setActive(true);
@@ -144,8 +149,8 @@ export class FX {
 
   label(x: number, y: number, text: string, color: string, size = 7, boxed = false) {
     const style: Phaser.Types.GameObjects.Text.TextStyle = boxed
-      ? { fontFamily: '"Jersey 10", monospace', fontSize: Math.round(size * 1.3) + 'px', color, backgroundColor: 'rgba(14,10,22,0.82)', padding: { x: 3, y: 1 } }
-      : { fontFamily: '"Jersey 10", monospace', fontSize: Math.round(size * 1.3) + 'px', color, stroke: '#000', strokeThickness: 2 };
+      ? { fontFamily: font(), fontSize: Math.round(size * 1.3) + 'px', color, backgroundColor: 'rgba(14,10,22,0.82)', padding: { x: 3, y: 1 } }
+      : { fontFamily: font(), fontSize: Math.round(size * 1.3) + 'px', color, stroke: '#000', strokeThickness: 2 };
     const t = this.scene.add.text(x, y, text, style);
     t.setResolution(this.res).setOrigin(0.5, 1).setDepth(D.ui - 1);
     return t;
