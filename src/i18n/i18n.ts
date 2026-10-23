@@ -141,6 +141,8 @@ const cache = new Map<string, string>();
 
 const LETTER = /\p{L}/u;
 const EDGE = /^([\s\d\p{P}\p{S}]*)([\s\S]*?)([\s\d\p{P}\p{S}]*)$/u;
+/** signs and spaces around a text (no digits: a number belongs to the text) */
+const SIGNS = /^([\s\p{P}\p{S}]*)([\s\S]*?)([\s\p{P}\p{S}]*)$/u;
 const PH = /\{(\d+)\}/g;
 
 const decode = (s: string) => s.replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
@@ -255,6 +257,20 @@ function piece(s: string, depth: number): string {
 function one(s: string, depth: number): string | null {
   const t = exact.get(s) ?? core.get(s) ?? caseless(s);
   if (t !== undefined) return t;
+  // a whole key behind a sign ("★ 10 % šance při zásahu zmrazit nepřítele", "✦ +40 % šance …"): before a template
+  // takes the number and leaves the rest of the key to be translated alone; the longest key wins
+  const sg = SIGNS.exec(s);
+  if (sg && (sg[1] || sg[3]) && sg[2]) {
+    const b = s.length - sg[3].length;
+    for (let i = 0; i <= sg[1].length; i++) {
+      for (let j = s.length; j >= b; j--) {
+        const k = s.slice(i, j);
+        if ((i === 0 && j === s.length) || k !== k.trim()) continue;
+        const w = exact.get(k) ?? caseless(k);
+        if (w !== undefined) return s.slice(0, i) + w + s.slice(j);
+      }
+    }
+  }
   const m = EDGE.exec(s);
   // a number at the edge is usually what a template holds ("50. patro" is "Floor 50", not "50. floor")
   if (m && /\d/.test(m[1] + m[3]) && depth <= 5) {
