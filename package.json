@@ -1,5 +1,6 @@
 {
   "name": "loppo",
+  "productName": "Deepwick",
   "private": true,
   "version": "0.9.0",
   "type": "module",

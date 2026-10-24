@@ -1,6 +1,6 @@
-# Loppo – Nekonečný dungeon
+# Deepwick – Nekonečný dungeon
 
-Mobilní akční dungeon RPG na šířku inspirované hrou *Dungeon Madness*. Hra obsahuje příběh s cutscénami (250 pater, 25 oblastí, 7 příběhových strážců), náhodně generovaná patra, 10 class, 211 kouzel, loot v 6 kvalitách, vylepšování a očarování vybavení, obchodníky, paklíče, tajné místnosti, bosse, 8 mazlíčků, prokleté truhly a úkoly pater. Hraje se v prohlížeči (i v mobilu). Jde nainstalovat jako aplikace (PWA) nebo zabalit do Android/iOS aplikace přes Capacitor.
+Mobilní akční dungeon RPG na šířku inspirované hrou *Dungeon Madness*. Hra obsahuje příběh s cutscénami (250 pater, 25 oblastí, 7 příběhových strážců), náhodně generovaná patra, 10 class, 211 kouzel, loot v 6 kvalitách, vylepšování a očarování vybavení, obchodníky, paklíče, tajné místnosti, bosse, 8 mazlíčků, prokleté truhly a úkoly pater. Jméno Deepwick spojuje hlubinu a knot lucerny – světlo, se kterým hrdina sestupuje do tmy; hra se dřív jmenovala Loppo a tak se dál jmenuje vesnice nad kobkami. Hraje se v prohlížeči (i v mobilu). Jde nainstalovat jako aplikace (PWA) nebo zabalit do Android/iOS aplikace přes Capacitor.
 
 Celá grafika (postavy, nepřátelé, dlaždice, předměty, efekty i ikony kouzel) se generuje procedurálně v kódu jako pixel-art. Hra nepotřebuje žádné externí obrázky ani zvuky. Zvuky a hudba se syntetizují přes WebAudio.
 
@@ -19,7 +19,7 @@ Složka `dist/` je statický web. Stačí ji nahrát na libovolný hosting (GitH
 
 ```bash
 npm install @capacitor/core @capacitor/cli @capacitor/android
-npx cap init Loppo cz.loppo.game --web-dir dist
+npx cap init Deepwick cz.deepwick.game --web-dir dist
 npm run build
 npx cap add android
 npx cap sync

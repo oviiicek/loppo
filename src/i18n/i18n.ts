@@ -533,8 +533,8 @@ function hookNumbers() {
 // ---------------------------------------------------------------------------------------------------------------
 const misses = new Map<string, number>();
 const weaks = new Map<string, number>();
-/** the names of the languages stay as they are */
-const OWN = new Set(LANGS.map((l) => l.name));
+/** the names of the languages and of the game stay as they are */
+const OWN = new Set([...LANGS.map((l) => l.name), __APP_NAME__, __APP_NAME__.toUpperCase()]);
 /** not worth a note: the languages' names, a letter of a key, a Roman number */
 const quiet = (s: string) => OWN.has(s) || /^[A-Z]$|^[IVXL]{1,5}$/.test(s);
 function miss(s: string) {

@@ -70,7 +70,7 @@ export class Menus {
     const save = loadGame();
     const m = el(`<div class="menu">
       <div class="torchglow" style="left:-10vw;top:10vh"></div><div class="torchglow" style="right:-10vw;top:10vh"></div>
-      <h1>LOPPO</h1>
+      <h1>${__APP_NAME__.toUpperCase()}</h1>
       <div class="subtitle">Nekonečný dungeon</div>
       ${save ? `<button class="btn green" data-a="continue">Pokračovat</button><div class="saveinfo">${esc(CLASS_BY_ID[save.cls].name)} • úroveň ${save.level} • patro ${save.floor} • ${diffTag(save)}</div>` : ''}
       <button class="btn" data-a="new">Nová hra</button>
