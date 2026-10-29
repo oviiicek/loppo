@@ -60,6 +60,13 @@ function diffTag(s: { difficulty?: number; hardcore?: boolean }) {
   return `<span style="color:${d.color}">${d.name}</span>${s.hardcore ? ' <span class="hctag">☠ Hardcore</span>' : ''}`;
 }
 
+/** the names in narrow cards get smaller until each fits on its line */
+function fitNames(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>('.ccard .nm').forEach((n) => {
+    for (let fs = parseFloat(getComputedStyle(n).fontSize); n.scrollWidth > n.clientWidth + 1 && fs > 10; ) n.style.fontSize = --fs + 'px';
+  });
+}
+
 export class Menus {
   ui: UIM;
   constructor(ui: UIM) {
@@ -435,6 +442,8 @@ export class Menus {
         </div>
       </div></div>`);
     this.ui.root.appendChild(m);
+    // a name wider than its card (the wider letters of another script) gets smaller instead of breaking in the middle
+    requestAnimationFrame(() => fitNames(m));
     const detail = $('.detail', m);
     const render = () => {
       const c = CLASS_BY_ID[sel];

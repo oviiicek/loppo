@@ -2582,6 +2582,8 @@ img.px {
 .ccard .nm {
   font-size: 18px;
   color: var(--gold2);
+  white-space: nowrap;
+  overflow: hidden;
 }
 /* a long class name in another language ("Necromancer") gets smaller instead of breaking in the middle */
 .ccard .nm.long {
