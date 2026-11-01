@@ -69,19 +69,6 @@ input.numtxt[type="text"] { font-family: var(--font-num); font-size: 22px; font-
 .stepper { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; }
 .stepper button { height: 52px; border: 1px solid var(--line); border-radius: 4px; background: var(--field); color: var(--ink); font: 700 28px var(--font-display); cursor: pointer; }
 .stepper input { text-align: center; }
-#rady { display: flex; flex-direction: column; gap: 8px; }
-#rady:empty { display: none; }
-.rada { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 8px; align-items: end; padding: 12px; background: var(--field); border: 1px solid var(--line); border-radius: 4px; }
-.rada .field { min-width: 0; }
-.rada input { background: var(--surface); }
-.rada .chips { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
-.rada .sub { grid-column: 1 / -1; font-family: var(--font-num); font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.chip, .add, .del { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; font: 700 18px var(--font-display); cursor: pointer; }
-.chip { height: 40px; padding: 0 16px; }
-.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.add { height: 44px; padding: 0 16px; align-self: flex-start; }
-.del { height: 52px; width: 44px; font-size: 24px; }
-.chip:focus-visible, .add:focus-visible, .del:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 input:focus-visible, .stepper button:focus-visible, .seg button:focus-visible, .reset:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .hint { font-size: 13px; color: var(--muted); }
 .total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--field); border: 1px solid var(--line); border-radius: 4px; }
@@ -171,13 +158,6 @@ input:focus-visible, .stepper button:focus-visible, .seg button:focus-visible, .
       </div>
       <span class="hint">Plus přidá lodičky, mínus je odečte. Každá je jedny kusy na lodičce a nenásobí se dráhami.</span>
     </div>
-
-    <div class="field">
-      <span class="lbl">Další počty posuvů</span>
-      <div id="rady"></div>
-      <button type="button" class="add" id="rady-add">+ Přidat další počet</button>
-      <span class="hint">Pro posuvy, kde je z 10 lodiček plná jen jedna (1/10) nebo z 50 jen jedna (1/50) a ostatní jsou prázdné. Zadej Od a Do jako nahoře, dráhy se násobí stejně.</span>
-    </div>
   </section>
 
   <section class="panel result" aria-live="polite" aria-label="Výsledek">
@@ -198,14 +178,13 @@ input:focus-visible, .stepper button:focus-visible, .seg button:focus-visible, .
 var $ = function (id) { return document.getElementById(id); };
 var fmt = new Intl.NumberFormat("cs-CZ");
 var drahy = 2;
-var rady = [];
 var KEY = "tdk-vykon-pecí";
 
 function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify({
       pec: $("pec").value, posuvy: $("posuvy").value, od: $("od").value, "do": $("do").value,
-      drahy: drahy, kusy: $("kusy").value, extra: $("extra").value, rady: rady
+      drahy: drahy, kusy: $("kusy").value, extra: $("extra").value
     }));
   } catch (e) {}
 }
@@ -216,35 +195,6 @@ function setDrahy(n) {
   drahy = n;
   Array.prototype.forEach.call($("drahy").children, function (b) {
     b.setAttribute("aria-pressed", String(+b.dataset.v === n));
-  });
-}
-/* Další počty posuvů: Od/Do a poměr plných lodiček (1/1, 1/10, 1/50). */
-function renderRady() {
-  var box = $("rady");
-  box.innerHTML = "";
-  rady.forEach(function (r, i) {
-    var row = document.createElement("div");
-    row.className = "rada";
-    row.innerHTML =
-      '<div class="field"><span class="lbl">Od</span><input class="o numtxt" type="text" inputmode="text" maxlength="12" placeholder="447/47" autocomplete="off" aria-label="Od, číslo posuvu"></div>' +
-      '<div class="field"><span class="lbl">Do</span><input class="p numtxt" type="text" inputmode="text" maxlength="12" placeholder="417/17" autocomplete="off" aria-label="Do, číslo posuvu"></div>' +
-      '<button type="button" class="del" aria-label="Smazat řádek">×</button>' +
-      '<div class="chips"><button type="button" class="chip" data-d="1">1/1</button><button type="button" class="chip" data-d="10">1/10</button><button type="button" class="chip" data-d="50">1/50</button></div>' +
-      '<div class="sub"></div>';
-    var o = row.querySelector(".o"), p = row.querySelector(".p");
-    var chips = row.querySelectorAll(".chip");
-    o.value = r.od || ""; p.value = r["do"] || "";
-    function mark() {
-      Array.prototype.forEach.call(chips, function (c) { c.setAttribute("aria-pressed", String(+c.dataset.d === +r.d)); });
-    }
-    mark();
-    o.addEventListener("input", function () { r.od = o.value; calc(); });
-    p.addEventListener("input", function () { r["do"] = p.value; calc(); });
-    Array.prototype.forEach.call(chips, function (c) {
-      c.addEventListener("click", function () { r.d = +c.dataset.d; mark(); calc(); });
-    });
-    row.querySelector(".del").addEventListener("click", function () { rady.splice(i, 1); renderRady(); calc(); });
-    box.appendChild(row);
   });
 }
 function num(id) { var v = parseFloat($(id).value); return isNaN(v) || v < 0 ? 0 : v; }
@@ -274,24 +224,14 @@ function calc() {
   var r = rozsah(), hotovo = r.hotovo;
   $("celkem").textContent = fmt.format(hotovo);
   $("rozsah-hint").textContent = r.warn || "Zadej čísla posuvů jako 447/47. Počítá se dopředu a po posledním posuvu v peci se číslování vrací na začátek.";
-  var radyKs = 0, radyTxt = "";
-  var subs = document.querySelectorAll("#rady .sub");
-  rady.forEach(function (r, i) {
-    var d = parseInt(r.d, 10) || 1;
-    var rr = rozsah(r.od || "", r["do"] || "");
-    var ks = rr.hotovo * drahy * kusy / d;
-    radyKs += ks;
-    if (rr.hotovo) radyTxt += " + " + rr.hotovo + " posuvů 1/" + d + " (" + fmt.format(Math.round(ks)) + " ks)";
-    if (subs[i]) subs[i].textContent = rr.warn || (rr.hotovo ? fmt.format(rr.hotovo) + " posuvů × " + drahy + " × " + fmt.format(kusy) + " ks ÷ " + d + " = " + fmt.format(Math.round(ks)) + " ks" : "");
-  });
-  var vykon = Math.round(Math.max(0, hotovo * drahy * kusy + extra * kusy + radyKs));
+  var vykon = Math.round(Math.max(0, hotovo * drahy * kusy + extra * kusy));
   var plan = posuvy * drahy * kusy;
   var pct = posuvy > 0 ? Math.round(hotovo / posuvy * 1000) / 10 : 0;
   var pec = $("pec").value.trim();
   $("vysl-l").textContent = pec ? "Výkon · pec " + pec.toUpperCase() : "Výkon";
   $("out").textContent = fmt.format(vykon);
   $("formula").textContent = fmt.format(hotovo) + " posuvů × " + drahy + (drahy === 1 ? " dráha" : " dráhy") + " × " + fmt.format(kusy) + " ks"
-    + (extra ? (extra > 0 ? " + " : " − ") + fmt.format(Math.abs(extra)) + " " + (Math.abs(extra) === 1 ? "lodička" : Math.abs(extra) < 5 ? "lodičky" : "lodiček") + " × " + fmt.format(kusy) + " ks" : "") + radyTxt;
+    + (extra ? (extra > 0 ? " + " : " − ") + fmt.format(Math.abs(extra)) + " " + (Math.abs(extra) === 1 ? "lodička" : Math.abs(extra) < 5 ? "lodičky" : "lodiček") + " × " + fmt.format(kusy) + " ks" : "");
   $("plan").textContent = fmt.format(plan) + " ks";
   $("pct").textContent = fmt.format(pct) + " %";
   $("fill").style.width = Math.min(100, pct) + "%";
@@ -305,20 +245,18 @@ function calc() {
   if (s) {
     $("pec").value = s.pec || ""; $("posuvy").value = s.posuvy;
     $("od").value = s.od || ""; $("do").value = s["do"] || "";
-    $("kusy").value = s.kusy; $("extra").value = s.extra || ""; setDrahy(+s.drahy || 2); if (Array.isArray(s.rady)) rady = s.rady.filter(function (r) { return r && r.d; });
+    $("kusy").value = s.kusy; $("extra").value = s.extra || ""; setDrahy(+s.drahy || 2);
   } else {
     $("pec").value = "D15"; $("posuvy").value = 100;
     $("od").value = "447/47"; $("do").value = "417/17";
     $("kusy").value = 60; setDrahy(2);
   }
-  renderRady();
   calc();
   ["pec", "posuvy", "od", "do", "kusy", "extra"].forEach(function (id) { $(id).addEventListener("input", calc); });
   $("drahy").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
     setDrahy(+b.dataset.v); calc();
   });
-  $("rady-add").addEventListener("click", function () { rady.push({ od: "", "do": "", d: 10 }); renderRady(); calc(); });
   function krok(d) { $("extra").value = (parseInt($("extra").value, 10) || 0) + d; calc(); }
   $("extra-minus").addEventListener("click", function () { krok(-1); });
   $("extra-plus").addEventListener("click", function () { krok(1); });
