@@ -65,6 +65,7 @@ input[type="number"], input[type="text"] {
   font-family: var(--font-num); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums;
 }
 input[type="text"] { font-family: var(--font-display); font-size: 26px; font-weight: 700; text-transform: uppercase; }
+input.numtxt[type="text"] { font-family: var(--font-num); font-size: 22px; font-weight: 600; text-transform: none; }
 input:focus-visible, .seg button:focus-visible, .reset:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .hint { font-size: 13px; color: var(--muted); }
 
@@ -110,16 +111,22 @@ input:focus-visible, .seg button:focus-visible, .reset:focus-visible { outline: 
       <input id="pec" type="text" maxlength="8" placeholder="např. D15" autocomplete="off" autocapitalize="characters">
     </div>
 
+    <div class="field">
+      <label for="posuvy">Posuvů v peci</label>
+      <input id="posuvy" type="number" inputmode="numeric" min="0" step="1">
+    </div>
+
     <div class="row2">
       <div class="field">
-        <label for="posuvy">Posuvů v peci</label>
-        <input id="posuvy" type="number" inputmode="numeric" min="0" step="1">
+        <label for="od">Od</label>
+        <input id="od" class="numtxt" type="text" inputmode="text" maxlength="12" placeholder="447/47" autocomplete="off">
       </div>
       <div class="field">
-        <label for="hotovo">Udělal jsem</label>
-        <input id="hotovo" type="number" inputmode="numeric" min="0" step="1">
+        <label for="do">Do</label>
+        <input id="do" class="numtxt" type="text" inputmode="text" maxlength="12" placeholder="417/17" autocomplete="off">
       </div>
     </div>
+    <span class="hint" id="rozsah-hint"></span>
 
     <div class="field">
       <span class="lbl" id="drahy-l">Počet drah</span>
@@ -160,7 +167,7 @@ var KEY = "tdk-vykon-pecí";
 function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      pec: $("pec").value, posuvy: $("posuvy").value, hotovo: $("hotovo").value,
+      pec: $("pec").value, posuvy: $("posuvy").value, od: $("od").value, "do": $("do").value,
       drahy: drahy, kusy: $("kusy").value
     }));
   } catch (e) {}
@@ -176,8 +183,26 @@ function setDrahy(n) {
 }
 function num(id) { var v = parseFloat($(id).value); return isNaN(v) || v < 0 ? 0 : v; }
 
+/* "447/47" -> [447, 47]; chybějící druhé číslo je null */
+function cisla(s) {
+  var m = String(s).match(/\d+/g) || [];
+  return [m.length > 0 ? +m[0] : null, m.length > 1 ? +m[1] : null];
+}
+/* Udělané posuvy = rozdíl prvních čísel; druhá čísla slouží jako kontrola. */
+function rozsah() {
+  var a = cisla($("od").value), b = cisla($("do").value);
+  var h = (a[0] !== null && b[0] !== null) ? Math.abs(a[0] - b[0]) : 0;
+  var warn = "";
+  if (h && a[1] !== null && b[1] !== null && Math.abs(a[1] - b[1]) !== h) {
+    warn = "Druhá čísla dávají " + Math.abs(a[1] - b[1]) + " posuvů, první " + h + ". Zkontroluj zadání.";
+  }
+  return { hotovo: h, warn: warn };
+}
+
 function calc() {
-  var posuvy = num("posuvy"), hotovo = num("hotovo"), kusy = num("kusy");
+  var posuvy = num("posuvy"), kusy = num("kusy");
+  var r = rozsah(), hotovo = r.hotovo;
+  $("rozsah-hint").textContent = r.warn || "Zadej číslo posuvu jako 447/47. Udělané posuvy jsou rozdíl čísel.";
   var vykon = hotovo * drahy * kusy;
   var plan = posuvy * drahy * kusy;
   var pct = posuvy > 0 ? Math.round(hotovo / posuvy * 1000) / 10 : 0;
@@ -196,19 +221,21 @@ function calc() {
 (function init() {
   var s = load();
   if (s) {
-    $("pec").value = s.pec || ""; $("posuvy").value = s.posuvy; $("hotovo").value = s.hotovo;
+    $("pec").value = s.pec || ""; $("posuvy").value = s.posuvy;
+    $("od").value = s.od || ""; $("do").value = s["do"] || "";
     $("kusy").value = s.kusy; setDrahy(+s.drahy || 2);
   } else {
-    $("pec").value = "D15"; $("posuvy").value = 100; $("hotovo").value = 62;
+    $("pec").value = "D15"; $("posuvy").value = 100;
+    $("od").value = "447/47"; $("do").value = "417/17";
     $("kusy").value = 60; setDrahy(2);
   }
   calc();
-  ["pec", "posuvy", "hotovo", "kusy"].forEach(function (id) { $(id).addEventListener("input", calc); });
+  ["pec", "posuvy", "od", "do", "kusy"].forEach(function (id) { $(id).addEventListener("input", calc); });
   $("drahy").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
     setDrahy(+b.dataset.v); calc();
   });
-  $("reset").addEventListener("click", function () { $("hotovo").value = ""; calc(); $("hotovo").focus(); });
+  $("reset").addEventListener("click", function () { $("od").value = ""; $("do").value = ""; calc(); $("od").focus(); });
 })();
 
 if ("serviceWorker" in navigator) {
