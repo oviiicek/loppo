@@ -69,6 +69,18 @@ input.numtxt[type="text"] { font-family: var(--font-num); font-size: 22px; font-
 .stepper { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; }
 .stepper button { height: 52px; border: 1px solid var(--line); border-radius: 4px; background: var(--field); color: var(--ink); font: 700 28px var(--font-display); cursor: pointer; }
 .stepper input { text-align: center; }
+#rady { display: flex; flex-direction: column; gap: 8px; }
+#rady:empty { display: none; }
+.rada { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 8px; align-items: end; padding: 12px; background: var(--field); border: 1px solid var(--line); border-radius: 4px; }
+.rada .field { min-width: 0; }
+.rada input { background: var(--surface); }
+.rada .chips { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.rada .sub { grid-column: 1 / -1; font-family: var(--font-num); font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip, .add, .del { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; font: 700 18px var(--font-display); cursor: pointer; }
+.chip { height: 40px; padding: 0 16px; }
+.add { height: 44px; padding: 0 16px; align-self: flex-start; }
+.del { height: 52px; width: 44px; font-size: 24px; }
+.chip:focus-visible, .add:focus-visible, .del:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 input:focus-visible, .stepper button:focus-visible, .seg button:focus-visible, .reset:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .hint { font-size: 13px; color: var(--muted); }
 .total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--field); border: 1px solid var(--line); border-radius: 4px; }
@@ -156,12 +168,14 @@ input:focus-visible, .stepper button:focus-visible, .seg button:focus-visible, .
         <input id="extra" type="number" inputmode="numeric" step="1" placeholder="0">
         <button type="button" id="extra-plus" aria-label="Přidat lodičku">+</button>
       </div>
-      <div class="seg" role="group" aria-label="Velikost lodičky navíc" id="dil">
-        <button type="button" data-v="1" aria-pressed="true">1/1</button>
-        <button type="button" data-v="10" aria-pressed="false">1/10</button>
-        <button type="button" data-v="50" aria-pressed="false">1/50</button>
-      </div>
-      <span class="hint">Plus přidá lodičky, mínus je odečte. Výběr 1/10 nebo 1/50 počítá jen desetinu nebo padesátinu lodičky. Nenásobí se dráhami.</span>
+      <span class="hint">Plus přidá lodičky, mínus je odečte. Každá je jedny kusy na lodičce a nenásobí se dráhami.</span>
+    </div>
+
+    <div class="field">
+      <span class="lbl">Lodičky podle posuvů</span>
+      <div id="rady"></div>
+      <button type="button" class="add" id="rady-add">+ Přidat řádek</button>
+      <span class="hint">1/10 znamená jednu lodičku za každých 10 udělaných posuvů, 1/50 jednu za 50. Počítají se jen celé skupiny a nenásobí se dráhami.</span>
     </div>
   </section>
 
@@ -183,14 +197,14 @@ input:focus-visible, .stepper button:focus-visible, .seg button:focus-visible, .
 var $ = function (id) { return document.getElementById(id); };
 var fmt = new Intl.NumberFormat("cs-CZ");
 var drahy = 2;
-var dil = 1;
+var rady = [];
 var KEY = "tdk-vykon-pecí";
 
 function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify({
       pec: $("pec").value, posuvy: $("posuvy").value, od: $("od").value, "do": $("do").value,
-      drahy: drahy, kusy: $("kusy").value, extra: $("extra").value, dil: dil
+      drahy: drahy, kusy: $("kusy").value, extra: $("extra").value, rady: rady
     }));
   } catch (e) {}
 }
@@ -203,10 +217,28 @@ function setDrahy(n) {
     b.setAttribute("aria-pressed", String(+b.dataset.v === n));
   });
 }
-function setDil(n) {
-  dil = n;
-  Array.prototype.forEach.call($("dil").children, function (b) {
-    b.setAttribute("aria-pressed", String(+b.dataset.v === n));
+/* Řádky "1 lodička za N posuvů" (např. 1/10, 1/50) */
+function renderRady() {
+  var box = $("rady");
+  box.innerHTML = "";
+  rady.forEach(function (r, i) {
+    var row = document.createElement("div");
+    row.className = "rada";
+    row.innerHTML =
+      '<div class="field"><span class="lbl">1 lodička za (posuvů)</span><input class="n" type="number" inputmode="numeric" min="1" step="1" aria-label="Počet posuvů na jednu lodičku"></div>' +
+      '<div class="field"><span class="lbl">Kusy na lodičce</span><input class="k" type="number" inputmode="numeric" min="0" step="1" placeholder="stejné" aria-label="Kusy na lodičce v tomto řádku"></div>' +
+      '<button type="button" class="del" aria-label="Smazat řádek">×</button>' +
+      '<div class="chips"><button type="button" class="chip" data-n="10">1/10</button><button type="button" class="chip" data-n="50">1/50</button></div>' +
+      '<div class="sub"></div>';
+    var n = row.querySelector(".n"), k = row.querySelector(".k");
+    n.value = r.n; k.value = r.k;
+    n.addEventListener("input", function () { r.n = n.value; calc(); });
+    k.addEventListener("input", function () { r.k = k.value; calc(); });
+    Array.prototype.forEach.call(row.querySelectorAll(".chip"), function (c) {
+      c.addEventListener("click", function () { r.n = c.dataset.n; n.value = r.n; calc(); });
+    });
+    row.querySelector(".del").addEventListener("click", function () { rady.splice(i, 1); renderRady(); calc(); });
+    box.appendChild(row);
   });
 }
 function num(id) { var v = parseFloat($(id).value); return isNaN(v) || v < 0 ? 0 : v; }
@@ -236,14 +268,24 @@ function calc() {
   var r = rozsah(), hotovo = r.hotovo;
   $("celkem").textContent = fmt.format(hotovo);
   $("rozsah-hint").textContent = r.warn || "Zadej čísla posuvů jako 447/47. Počítá se dopředu a po posledním posuvu v peci se číslování vrací na začátek.";
-  var vykon = Math.round(Math.max(0, hotovo * drahy * kusy + extra * kusy / dil));
+  var radyKs = 0, radyTxt = "";
+  var subs = document.querySelectorAll("#rady .sub");
+  rady.forEach(function (r, i) {
+    var n = parseInt(r.n, 10) || 0;
+    var k = parseFloat(r.k) > 0 ? parseFloat(r.k) : kusy;
+    var cnt = n > 0 ? Math.floor(hotovo / n) : 0;
+    radyKs += cnt * k;
+    if (cnt) radyTxt += " + " + cnt + " × " + fmt.format(k) + " ks (1/" + n + ")";
+    if (subs[i]) subs[i].textContent = n > 0 ? fmt.format(cnt) + (cnt === 1 ? " lodička" : cnt > 1 && cnt < 5 ? " lodičky" : " lodiček") + " = " + fmt.format(cnt * k) + " ks" : "";
+  });
+  var vykon = Math.round(Math.max(0, hotovo * drahy * kusy + extra * kusy + radyKs));
   var plan = posuvy * drahy * kusy;
   var pct = posuvy > 0 ? Math.round(hotovo / posuvy * 1000) / 10 : 0;
   var pec = $("pec").value.trim();
   $("vysl-l").textContent = pec ? "Výkon · pec " + pec.toUpperCase() : "Výkon";
   $("out").textContent = fmt.format(vykon);
   $("formula").textContent = fmt.format(hotovo) + " posuvů × " + drahy + (drahy === 1 ? " dráha" : " dráhy") + " × " + fmt.format(kusy) + " ks"
-    + (extra ? (extra > 0 ? " + " : " − ") + fmt.format(Math.abs(extra)) + " " + (Math.abs(extra) === 1 ? "lodička" : Math.abs(extra) < 5 ? "lodičky" : "lodiček") + (dil > 1 ? " × 1/" + dil : "") + " × " + fmt.format(kusy) + " ks" : "");
+    + (extra ? (extra > 0 ? " + " : " − ") + fmt.format(Math.abs(extra)) + " " + (Math.abs(extra) === 1 ? "lodička" : Math.abs(extra) < 5 ? "lodičky" : "lodiček") + " × " + fmt.format(kusy) + " ks" : "") + radyTxt;
   $("plan").textContent = fmt.format(plan) + " ks";
   $("pct").textContent = fmt.format(pct) + " %";
   $("fill").style.width = Math.min(100, pct) + "%";
@@ -257,26 +299,24 @@ function calc() {
   if (s) {
     $("pec").value = s.pec || ""; $("posuvy").value = s.posuvy;
     $("od").value = s.od || ""; $("do").value = s["do"] || "";
-    $("kusy").value = s.kusy; $("extra").value = s.extra || ""; setDrahy(+s.drahy || 2); setDil(+s.dil || 1);
+    $("kusy").value = s.kusy; $("extra").value = s.extra || ""; setDrahy(+s.drahy || 2); if (Array.isArray(s.rady)) rady = s.rady;
   } else {
     $("pec").value = "D15"; $("posuvy").value = 100;
     $("od").value = "447/47"; $("do").value = "417/17";
     $("kusy").value = 60; setDrahy(2);
   }
+  renderRady();
   calc();
   ["pec", "posuvy", "od", "do", "kusy", "extra"].forEach(function (id) { $(id).addEventListener("input", calc); });
   $("drahy").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
     setDrahy(+b.dataset.v); calc();
   });
-  $("dil").addEventListener("click", function (e) {
-    var b = e.target.closest("button"); if (!b) return;
-    setDil(+b.dataset.v); calc();
-  });
+  $("rady-add").addEventListener("click", function () { rady.push({ n: 10, k: "" }); renderRady(); calc(); });
   function krok(d) { $("extra").value = (parseInt($("extra").value, 10) || 0) + d; calc(); }
   $("extra-minus").addEventListener("click", function () { krok(-1); });
   $("extra-plus").addEventListener("click", function () { krok(1); });
-  $("reset").addEventListener("click", function () { $("od").value = ""; $("do").value = ""; $("extra").value = ""; setDil(1); calc(); $("od").focus(); });
+  $("reset").addEventListener("click", function () { $("od").value = ""; $("do").value = ""; $("extra").value = ""; calc(); $("od").focus(); });
 })();
 
 if ("serviceWorker" in navigator) {
