@@ -66,7 +66,10 @@ input[type="number"], input[type="text"] {
 }
 input[type="text"] { font-family: var(--font-display); font-size: 26px; font-weight: 700; text-transform: uppercase; }
 input.numtxt[type="text"] { font-family: var(--font-num); font-size: 22px; font-weight: 600; text-transform: none; }
-input:focus-visible, .seg button:focus-visible, .reset:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.stepper { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; }
+.stepper button { height: 52px; border: 1px solid var(--line); border-radius: 4px; background: var(--field); color: var(--ink); font: 700 28px var(--font-display); cursor: pointer; }
+.stepper input { text-align: center; }
+input:focus-visible, .stepper button:focus-visible, .seg button:focus-visible, .reset:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .hint { font-size: 13px; color: var(--muted); }
 .total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--field); border: 1px solid var(--line); border-radius: 4px; }
 .total b { font-family: var(--font-num); font-size: 28px; font-variant-numeric: tabular-nums; }
@@ -145,6 +148,16 @@ input:focus-visible, .seg button:focus-visible, .reset:focus-visible { outline: 
       <label for="kusy">Kusy na lodičce</label>
       <input id="kusy" type="number" inputmode="numeric" min="0" step="1">
     </div>
+
+    <div class="field">
+      <label for="extra">Lodičky navíc nebo méně</label>
+      <div class="stepper">
+        <button type="button" id="extra-minus" aria-label="Ubrat lodičku">−</button>
+        <input id="extra" type="number" inputmode="numeric" step="1" placeholder="0">
+        <button type="button" id="extra-plus" aria-label="Přidat lodičku">+</button>
+      </div>
+      <span class="hint">Plus přidá lodičky, mínus je odečte. Každá je jedny kusy na lodičce a nenásobí se dráhami.</span>
+    </div>
   </section>
 
   <section class="panel result" aria-live="polite" aria-label="Výsledek">
@@ -171,7 +184,7 @@ function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify({
       pec: $("pec").value, posuvy: $("posuvy").value, od: $("od").value, "do": $("do").value,
-      drahy: drahy, kusy: $("kusy").value
+      drahy: drahy, kusy: $("kusy").value, extra: $("extra").value
     }));
   } catch (e) {}
 }
@@ -207,17 +220,18 @@ function rozsah() {
 }
 
 function calc() {
-  var posuvy = num("posuvy"), kusy = num("kusy");
+  var posuvy = num("posuvy"), kusy = num("kusy"), extra = parseInt($("extra").value, 10) || 0;
   var r = rozsah(), hotovo = r.hotovo;
   $("celkem").textContent = fmt.format(hotovo);
   $("rozsah-hint").textContent = r.warn || "Zadej čísla posuvů jako 447/47. Počítá se dopředu a po posledním posuvu v peci se číslování vrací na začátek.";
-  var vykon = hotovo * drahy * kusy;
+  var vykon = Math.max(0, hotovo * drahy * kusy + extra * kusy);
   var plan = posuvy * drahy * kusy;
   var pct = posuvy > 0 ? Math.round(hotovo / posuvy * 1000) / 10 : 0;
   var pec = $("pec").value.trim();
   $("vysl-l").textContent = pec ? "Výkon · pec " + pec.toUpperCase() : "Výkon";
   $("out").textContent = fmt.format(vykon);
-  $("formula").textContent = fmt.format(hotovo) + " posuvů × " + drahy + (drahy === 1 ? " dráha" : " dráhy") + " × " + fmt.format(kusy) + " ks";
+  $("formula").textContent = fmt.format(hotovo) + " posuvů × " + drahy + (drahy === 1 ? " dráha" : " dráhy") + " × " + fmt.format(kusy) + " ks"
+    + (extra ? (extra > 0 ? " + " : " − ") + fmt.format(Math.abs(extra)) + " " + (Math.abs(extra) === 1 ? "lodička" : Math.abs(extra) < 5 ? "lodičky" : "lodiček") + " × " + fmt.format(kusy) + " ks" : "");
   $("plan").textContent = fmt.format(plan) + " ks";
   $("pct").textContent = fmt.format(pct) + " %";
   $("fill").style.width = Math.min(100, pct) + "%";
@@ -231,19 +245,22 @@ function calc() {
   if (s) {
     $("pec").value = s.pec || ""; $("posuvy").value = s.posuvy;
     $("od").value = s.od || ""; $("do").value = s["do"] || "";
-    $("kusy").value = s.kusy; setDrahy(+s.drahy || 2);
+    $("kusy").value = s.kusy; $("extra").value = s.extra || ""; setDrahy(+s.drahy || 2);
   } else {
     $("pec").value = "D15"; $("posuvy").value = 100;
     $("od").value = "447/47"; $("do").value = "417/17";
     $("kusy").value = 60; setDrahy(2);
   }
   calc();
-  ["pec", "posuvy", "od", "do", "kusy"].forEach(function (id) { $(id).addEventListener("input", calc); });
+  ["pec", "posuvy", "od", "do", "kusy", "extra"].forEach(function (id) { $(id).addEventListener("input", calc); });
   $("drahy").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
     setDrahy(+b.dataset.v); calc();
   });
-  $("reset").addEventListener("click", function () { $("od").value = ""; $("do").value = ""; calc(); $("od").focus(); });
+  function krok(d) { $("extra").value = (parseInt($("extra").value, 10) || 0) + d; calc(); }
+  $("extra-minus").addEventListener("click", function () { krok(-1); });
+  $("extra-plus").addEventListener("click", function () { krok(1); });
+  $("reset").addEventListener("click", function () { $("od").value = ""; $("do").value = ""; $("extra").value = ""; calc(); $("od").focus(); });
 })();
 
 if ("serviceWorker" in navigator) {
