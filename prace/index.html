@@ -191,13 +191,17 @@ function cisla(s) {
   var m = String(s).match(/\d+/g) || [];
   return [m.length > 0 ? +m[0] : null, m.length > 1 ? +m[1] : null];
 }
-/* Udělané posuvy = rozdíl prvních čísel; druhá čísla slouží jako kontrola. */
+/* Čísla posuvů jedou dopředu a po posledním posuvu v peci se vrací na začátek,
+   proto se rozdíl počítá v kruhu o velikosti "posuvů v peci". */
 function rozsah() {
+  var n = num("posuvy");
   var a = cisla($("od").value), b = cisla($("do").value);
-  var h = (a[0] !== null && b[0] !== null) ? Math.abs(a[0] - b[0]) : 0;
+  function rozdil(x, y) { return n > 0 ? (((y - x) % n) + n) % n : Math.abs(y - x); }
+  var h = (a[0] !== null && b[0] !== null) ? rozdil(a[0], b[0]) : 0;
   var warn = "";
-  if (h && a[1] !== null && b[1] !== null && Math.abs(a[1] - b[1]) !== h) {
-    warn = "Druhá čísla dávají " + Math.abs(a[1] - b[1]) + " posuvů, první " + h + ". Zkontroluj zadání.";
+  if (a[0] !== null && b[0] !== null && a[1] !== null && b[1] !== null) {
+    var h2 = rozdil(a[1], b[1]);
+    if (h2 !== h) warn = "Druhá čísla dávají " + h2 + " posuvů, první " + h + ". Zkontroluj zadání.";
   }
   return { hotovo: h, warn: warn };
 }
@@ -206,7 +210,7 @@ function calc() {
   var posuvy = num("posuvy"), kusy = num("kusy");
   var r = rozsah(), hotovo = r.hotovo;
   $("celkem").textContent = fmt.format(hotovo);
-  $("rozsah-hint").textContent = r.warn || "Zadej číslo posuvu jako 447/47. Udělané posuvy jsou rozdíl čísel.";
+  $("rozsah-hint").textContent = r.warn || "Zadej čísla posuvů jako 447/47. Počítá se dopředu a po posledním posuvu v peci se číslování vrací na začátek.";
   var vykon = hotovo * drahy * kusy;
   var plan = posuvy * drahy * kusy;
   var pct = posuvy > 0 ? Math.round(hotovo / posuvy * 1000) / 10 : 0;
