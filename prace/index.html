@@ -68,6 +68,8 @@ input[type="text"] { font-family: var(--font-display); font-size: 26px; font-wei
 input.numtxt[type="text"] { font-family: var(--font-num); font-size: 22px; font-weight: 600; text-transform: none; }
 input:focus-visible, .seg button:focus-visible, .reset:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .hint { font-size: 13px; color: var(--muted); }
+.total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--field); border: 1px solid var(--line); border-radius: 4px; }
+.total b { font-family: var(--font-num); font-size: 28px; font-variant-numeric: tabular-nums; }
 
 .seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .seg button { height: 52px; border: 0; background: var(--field); color: var(--ink); font-family: var(--font-display); font-size: 26px; font-weight: 700; cursor: pointer; }
@@ -126,6 +128,7 @@ input:focus-visible, .seg button:focus-visible, .reset:focus-visible { outline: 
         <input id="do" class="numtxt" type="text" inputmode="text" maxlength="12" placeholder="417/17" autocomplete="off">
       </div>
     </div>
+    <div class="total"><span class="lbl">Celkem posuvů</span><b id="celkem">0</b></div>
     <span class="hint" id="rozsah-hint"></span>
 
     <div class="field">
@@ -202,6 +205,7 @@ function rozsah() {
 function calc() {
   var posuvy = num("posuvy"), kusy = num("kusy");
   var r = rozsah(), hotovo = r.hotovo;
+  $("celkem").textContent = fmt.format(hotovo);
   $("rozsah-hint").textContent = r.warn || "Zadej číslo posuvu jako 447/47. Udělané posuvy jsou rozdíl čísel.";
   var vykon = hotovo * drahy * kusy;
   var plan = posuvy * drahy * kusy;
