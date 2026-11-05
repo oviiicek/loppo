@@ -124,6 +124,7 @@ export class ExpeditionPanels {
       <div class="body scroll" style="display:block">
         <div class="xtab" data-tab="bosses" ${tab === 'bosses' ? '' : 'hidden'}>${this.bossesHtml()}</div>
         <div class="xtab" data-tab="bands" ${tab === 'bands' ? '' : 'hidden'}>
+        ${this.ui.pearls.live.delveCardHtml()}
         <div class="runcard">
           <div><div class="rt">⚑ Aktuální výprava: <b>patro ${cur}</b> · ${esc(bandName(bandOf(cur)))}</div>
           <div class="hint">Checkpoint: patro ${back} (${isBossFloor(back) ? 'příprava na strážce' : isCampFloor(back) ? 'tábor' : 'začátek desítky'}) – sem tě vrátí smrt. Nejhlouběji: patro ${s.maxFloor}.</div></div>
@@ -155,6 +156,7 @@ export class ExpeditionPanels {
         }, 'Do arény', 'Zpět');
       }),
     );
+    this.ui.pearls.live.bindDelve(p);
     $('[data-a=cont]', p).addEventListener('click', () => {
       sfx('ui');
       this.ui.closeOverlay();
@@ -177,7 +179,8 @@ export class ExpeditionPanels {
       }),
     );
     // the band the hero is in stays in view
-    if (tab === 'bands') p.querySelector('.band.here')?.scrollIntoView({ block: 'center' });
+    // (only as far as needed: the daily depth's card stays in sight while the band is near the top)
+    if (tab === 'bands') p.querySelector('.band.here')?.scrollIntoView({ block: 'nearest' });
   }
 
   /** the doors after a floor: pick where the path leads */

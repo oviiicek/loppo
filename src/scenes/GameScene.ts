@@ -16,7 +16,10 @@ import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloo
 import { CHAPTERS, noteForFloor, areaIntroForFloor, Shot } from '../data/story';
 import { GUARDIAN_LINES, GUARDIAN_COLORS } from '../data/bosslines';
 import { SaveData, FloorKind, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory, addPearls } from '../systems/state';
-import { pearlState, pearlWord, TRAIL_BY_ID, dailyGift } from '../data/pearls';
+import { pearlState, pearlWord, TRAIL_BY_ID } from '../data/pearls';
+import { dailyGift, delveToday, delveFloor, delveDay, delveGrade, delveSquare, delveBetter, DelveResult, DELVE_PEARLS, DELVE_S_PEARLS, DELVE_SPARKS, DELVE_TRIES, addSparks, fightSparks, dayTasks, taskDone, TASK_BY_ID, AURA_BY_ID, TITLE_BY_ID, grantLook, seasonOf, seasonStep, welcomeReady } from '../data/live';
+import { withSeed } from '../systems/rng';
+import { Aura } from '../game/aura';
 import { PetFollower } from '../game/pet';
 import { Mercenary } from '../game/merc';
 import { MercRole, MERC_BY_ROLE, randomMercName, MercOrder, MercState } from '../data/mercs';
@@ -239,6 +242,10 @@ export class GameScene extends Phaser.Scene {
   guestInfo: FloorInfo | null = null;
   /** a guardian fought again from the village's gate (its floor): the expedition stays where it was */
   rematch: number | null = null;
+  /** the aura under the hero (bought with pearls or earned, see game/aura.ts) */
+  heroAura: Aura | null = null;
+  /** the daily depth (a rift laid out the same for everyone that day): the expedition stays where it was */
+  daily: (ReturnType<typeof delveToday> & { try: number }) | null = null;
   /** how this floor was generated (sent to the guest's game, which builds the same floor) */
   floorSeed = 0;
   floorOpts = { forceMerchant: false };
@@ -251,13 +258,14 @@ export class GameScene extends Phaser.Scene {
     super('Game');
   }
 
-  init(data: { save: SaveData; rift?: RiftKind; village?: boolean; coop?: FloorInfo; rematch?: number }) {
+  init(data: { save: SaveData; rift?: RiftKind; village?: boolean; coop?: FloorInfo; rematch?: number; daily?: boolean }) {
     this.save = data.save;
     this.guestInfo = data.coop ?? null;
     this.rematch = data.coop ? (data.coop.rematch ? data.coop.floor : null) : data.rematch ?? null;
-    this.rift = data.coop ? data.coop.rift : data.rift ?? null;
-    this.inVillage = !data.coop && !this.rematch && !!data.village;
-    this.floor = data.coop ? data.coop.floor : this.rematch ?? this.save.floor;
+    this.daily = !data.coop && data.daily ? { ...delveToday(), try: delveDay(this.save).tries } : null;
+    this.rift = data.coop ? data.coop.rift : this.daily ? 'rift' : data.rift ?? null;
+    this.inVillage = !data.coop && !this.rematch && !this.daily && !!data.village;
+    this.floor = data.coop ? data.coop.floor : this.daily ? delveFloor(this.save) : this.rematch ?? this.save.floor;
     // in the host's world its difficulty rules
     this.diff = data.coop ? DIFFICULTIES[data.coop.diff] ?? difficultyOf(this.save) : difficultyOf(this.save);
     this.coop = null;
@@ -343,7 +351,8 @@ export class GameScene extends Phaser.Scene {
     const calmKind: CalmKind | undefined = this.kind === 'camp' || this.kind === 'merchant' || this.kind === 'vault' || this.kind === 'puzzle' || this.kind === 'npc' ? this.kind : undefined;
     // pity: guarantee merchants regularly
     const forceMerchant = guest ? guest.forceMerchant : save.merchantPity >= 5;
-    this.floorSeed = guest ? guest.seed : (Math.random() * 1e9) | 0;
+    // (the daily depth is laid out from the day: the same for every player)
+    this.floorSeed = guest ? guest.seed : this.daily ? this.daily.seed : (Math.random() * 1e9) | 0;
     this.floorOpts = { forceMerchant };
     this.dungeon = this.inVillage ? generateVillage(this.floor) : generateDungeon(this.floor, this.floorSeed, { forceMerchant, rift: rift ?? undefined, calm: calmKind });
     if (!rift && !this.inVillage && !guest && !this.rematch) {
@@ -362,7 +371,7 @@ export class GameScene extends Phaser.Scene {
     this.procs = new Procs(this);
     // playing together: the host's game runs the world, the guests' games draw it
     if (guest) this.coop = new Coop(this, 'guest');
-    else if (Net.isHost && !this.inVillage) this.coop = new Coop(this, 'host');
+    else if (Net.isHost && !this.inVillage && !this.daily) this.coop = new Coop(this, 'host');
     this.loot = new Loot(this);
     this.bossAI = new BossAI(this);
     this.enc = new Encounters(this);
@@ -378,6 +387,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.inVillage) this.add.image(ux, uy, 'stairs_up').setScale(ACTOR_SCALE).setDepth(D.floorDeco);
     this.upStairs = { x: ux, y: uy };
     this.player = new Player(this, ux, uy, save);
+    this.heroAura = new Aura(this);
     // joining in the middle of a floor: next to the host's hero
     if (guest && Math.hypot(guest.x - ux, guest.y - uy) > 40 && !this.map.collides(guest.x, guest.y + 6, 4)) {
       this.player.x = guest.x;
@@ -398,6 +408,8 @@ export class GameScene extends Phaser.Scene {
       this.fate = run.fate ? FLOOR_MOD_BY_ID[run.fate] ?? null : null;
     }
     if (guest) this.fate = guest.fate ? FLOOR_MOD_BY_ID[guest.fate] ?? null : null;
+    // the daily depth has the day's fate
+    if (this.daily) this.fate = this.daily.fate;
     this.mod = mergeMods(this.fate, this.kind === 'danger' ? DANGER_MOD : null);
     this.darkness = rift === 'dream' ? 0.16 : rift === 'last' ? 0.58 : this.theme.darkness;
     if (rift === 'last') this.darkColor = 0x1e0406;
@@ -411,7 +423,11 @@ export class GameScene extends Phaser.Scene {
     const calm = this.calm;
     if (!rift && !home && !guest && !this.rematch) this.placeStoryPage();
     // a calm floor has no monsters at all (no thief, no nemesis, no guardian); the guest's monsters are the host's
-    if (!calm && !guest) this.spawnEnemies();
+    // (the daily depth's monsters come from the day too, as far as the hero's own floor allows)
+    if (!calm && !guest) {
+      if (this.daily) withSeed(this.daily.seed ^ 0x2545f491, () => this.spawnEnemies());
+      else this.spawnEnemies();
+    }
     const guard = this.guard;
     if (!rift && !home && !calm && !guard && !guest) {
       this.placePetCage();
@@ -502,7 +518,7 @@ export class GameScene extends Phaser.Scene {
     UI.attachGame(this);
     UI.bounty(this.bounty);
     // (a guest's own progress stays where it was: the floors of the host's world are not the guest's)
-    if (!guest && !this.rematch) {
+    if (!guest && !this.rematch && !this.daily) {
       save.floor = this.floor;
       save.maxFloor = Math.max(save.maxFloor, this.floor);
     }
@@ -517,11 +533,21 @@ export class GameScene extends Phaser.Scene {
     UI.mpStatus(!!this.coop);
     setMusicTrack(this.musicTrack());
     void this.beginFloor();
-    // a gift of pearls for every day of play (once the floor's title card is gone)
+    // a gift of pearls for every day of play (once the floor's title card is gone): the flame of the wick
     this.time.delayedCall(3200, () => {
       if (!this.sys.isActive() || this.save.fallen) return;
       const g = dailyGift(this.save);
-      if (g) this.givePearls(g.pearls, g.streak > 1 ? `Denní dar – ${g.streak}. den v řadě` : 'Denní dar');
+      if (!g) return;
+      // the newcomer's gift of the day (not on the very first floor: its first steps are taught there)
+      if (welcomeReady(pearlState(this.save)) && (this.save.maxFloor > 1 || this.inVillage))
+        this.time.delayedCall(2600, () => this.sys.isActive() && UI.toast('🌅 Cesta nováčka: dnešní dar čeká – klepni na plamen vpravo nahoře', '#ffc46a'));
+      this.givePearls(g.pearls, g.streak > 1 ? `Plamen knotu – ${g.streak}. den v řadě` : 'Denní dar');
+      if (g.burnt) UI.toast(g.burnt === 1 ? '🕯 Strážná svíce dohořela za vynechaný den – plamen knotu hoří dál' : `🕯 Strážné svíce dohořely za ${g.burnt} vynechané dny – plamen knotu hoří dál`, '#ffc46a');
+      if (g.candle) UI.toast('🕯 Třetí den v řadě: strážná svíce. Když jeden den vynecháš, udrží plamen knotu.', '#ffc46a');
+      if (g.title) UI.toast(`🏷 Nový titul: ${TITLE_BY_ID[g.title].name}`, TITLE_BY_ID[g.title].css);
+      if (g.aura) UI.toast(`◎ Nová aura: ${AURA_BY_ID[g.aura].name}`, AURA_BY_ID[g.aura].css);
+      saveGame(this.save);
+      UI.liveBadge();
     });
   }
 
@@ -579,6 +605,8 @@ export class GameScene extends Phaser.Scene {
       ? `Domov · zachráněno ${homeCount} ze ${BUILDINGS.filter((b) => b.who).length} vesničanů`
       : this.rematch
       ? `Souboj znovu: ${this.boss?.name ?? 'strážce'} · menší kořist, šance na zbraň strážce`
+      : this.daily
+      ? `Denní hlubina #${this.daily.n} · stejná pro všechny hráče · ${this.daily.try}. pokus ze ${DELVE_TRIES}`
       : this.rift === 'rift'
       ? 'Trhlina: poraz nestvůry, přivolej strážce a zavři ji'
       : this.rift === 'dream'
@@ -3105,6 +3133,27 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** the tasks of the day done since the last look (told once), and sparks for the season's path from the fighting */
+  checkLive() {
+    const s = this.save;
+    if (s.fallen) return;
+    const t = dayTasks(s);
+    let news = false;
+    for (const k of t.list) {
+      if (k.told || !taskDone(s, k)) continue;
+      k.told = true;
+      news = true;
+      sfx('chest');
+      UI.toast(`✔ Denní úkol splněn: ${TASK_BY_ID[k.id].text(k.n)} · vyzvedni si jiskry`, '#9dff9d');
+    }
+    const sp = fightSparks(s);
+    if (sp && addSparks(s, sp)) {
+      news = true;
+      UI.toast(`✦ Cesta hlubin: ${seasonStep(seasonOf(s))}. stupeň · odměna čeká`, '#ffd76a');
+    }
+    if (news) UI.liveBadge();
+  }
+
   /** where each hero's trail last left a mark (a new one every few pixels walked) */
   private trailMarks = new WeakMap<object, { x: number; y: number; i: number }>();
 
@@ -3215,7 +3264,8 @@ export class GameScene extends Phaser.Scene {
         Net.flush();
         this.time.delayedCall(400, () => Net.leave('quit'));
       }
-    } else this.recordNemesis();
+    } else if (!this.daily) this.recordNemesis();
+    if (this.daily) this.delveOver(true);
     // a floor guardian's long fight is not lost entirely: the guardian keeps most of its wounds for the next try
     const b = this.boss;
     if (b && !b.dead && b.aggro && b.fightTime && !this.rematch && !this.save.hardcore) runOf(this.save).wound = { floor: this.floor, hp: b.hp / b.maxHp };
@@ -3242,14 +3292,14 @@ export class GameScene extends Phaser.Scene {
 
   /** gold a death costs on this difficulty */
   deathGold() {
-    // losing to a guardian fought again costs nothing but the way home
-    if (this.rematch) return 0;
+    // losing to a guardian fought again (or in the daily depth) costs nothing but the way home
+    if (this.rematch || this.daily) return 0;
     return Math.round(this.save.gold * this.diff.goldLoss);
   }
 
   /** the price of a death: part of the gold and of the progress to the next level */
   payForDeath() {
-    if (this.rematch) return;
+    if (this.rematch || this.daily) return;
     this.save.gold -= this.deathGold();
     this.save.xp = Math.round(this.save.xp * (1 - this.diff.xpLoss));
     saveGame(this.save);
@@ -3257,7 +3307,7 @@ export class GameScene extends Phaser.Scene {
 
   respawn() {
     if (this.save.hardcore) return;
-    if (this.rematch) {
+    if (this.rematch || this.daily) {
       saveGame(this.save);
       this.scene.restart({ save: this.save, village: true });
       return;
@@ -3369,11 +3419,85 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /** into today's daily depth (from the village, or from a quiet moment down below): the expedition stays where it
+   *  was, and the way back leads home */
+  startDelve() {
+    if (this.descending || this.player.dead) return;
+    const d = delveDay(this.save);
+    if (d.tries >= DELVE_TRIES) return;
+    d.tries++;
+    this.descending = true;
+    this.cinematic = true;
+    this.currentAction = null;
+    UI.setAction(null);
+    UI.joy = [0, 0];
+    const p = this.player;
+    p.target = null;
+    p.invulnT = 99;
+    this.targetMarker.setAlpha(0);
+    sfx('stairs');
+    this.fx.ring(p.x, p.y - 6, 44, 0xb07dff, 700);
+    this.fx.burst(p.x, p.y - 8, 0xb07dff, 30, 'puff');
+    this.tweens.add({ targets: [p.sprite, p.shadow], alpha: 0, duration: 650 });
+    const cam = this.cameras.main;
+    cam.zoomTo(this.zoom * 1.3, 900, 'Sine.easeIn');
+    this.time.delayedCall(380, () => cam.fadeOut(480, 30, 0, 50));
+    saveGame(this.save);
+    const t = delveToday();
+    this.time.delayedCall(900, () => {
+      UI.floorCard({ ...this.floorCardInfo(delveFloor(this.save)), name: 'Denní hlubina', region: `#${t.n} · ${t.fate.name}`, color: '#c77dff', top: 'Denní hlubina' }, '', true);
+      this.scene.restart({ save: this.save, daily: true });
+    });
+  }
+
+  /** the daily depth is over – its guardian fell, or the hero did: the result (the best of the day is kept) and,
+   *  the first time a day, the reward */
+  delveOver(dead: boolean) {
+    const r = this.enc.rift;
+    const dl = this.daily;
+    if (!r || !dl || r.done) return;
+    r.done = true;
+    const par = r.total;
+    // the five fifths of the rift (each should take a fifth of the time before the guardian), then the guardian
+    const fifth = (par - 40) / 5;
+    let grid = '';
+    let prev = 0;
+    for (const m of r.marks ?? []) {
+      grid += delveSquare(m - prev, fifth);
+      prev = m;
+    }
+    grid += dead ? '💀' : delveSquare(r.t - prev, 40) + '👑';
+    const res: DelveResult = { t: Math.round(r.t), grade: dead ? '–' : delveGrade(r.t, par), grid, tr: dl.try, kills: r.kills };
+    if (dead) res.dead = true;
+    const day = delveDay(this.save);
+    day.last = res;
+    if (delveBetter(res, day.best)) day.best = res;
+    let pearls = 0,
+      sparks = 0;
+    const st = pearlState(this.save);
+    if (!dead && !day.paid) {
+      day.paid = true;
+      st.delves = (st.delves ?? 0) + 1;
+      pearls = DELVE_PEARLS + (res.grade === 'S' ? DELVE_S_PEARLS : 0);
+      addPearls(this.save, pearls);
+      sparks = DELVE_SPARKS;
+      addSparks(this.save, sparks);
+      if (st.delves >= 10 && grantLook(st, 'title', 'soul')) this.time.delayedCall(2600, () => UI.toast(`🏷 Nový titul: ${TITLE_BY_ID.soul.name}`, TITLE_BY_ID.soul.css));
+    }
+    if (!this.save.fallen) saveGame(this.save);
+    UI.liveBadge();
+    // (a fall shows the result on the death screen)
+    if (!dead) {
+      sfx('levelup');
+      this.time.delayedCall(1400, () => this.sys.isActive() && UI.delveResult(res, pearls, sparks));
+    }
+  }
+
   /** whether the hero may go home now (not in the middle of a fight, not in a rift) */
   canGoHome(): string | null {
     if (this.guestInfo) return 'Ve společné hře vede výpravu hostitel – domů se vrátíte spolu.';
     if (this.inVillage) return 'Už jsi doma';
-    if (this.rift) return 'Z trhliny cesta domů nevede';
+    if (this.rift && !this.daily) return 'Z trhliny cesta domů nevede';
     if (this.boss && !this.boss.dead && this.boss.aggro) return 'Uprostřed souboje se strážcem se domů nedostaneš';
     if (this.cursed || this.enc.arena) return 'Nejdřív dokonči výzvu';
     const p = this.player;
@@ -3439,7 +3563,7 @@ export class GameScene extends Phaser.Scene {
   /** walk onto the stairs and down into the dark; the title card of the next floor covers the loading */
   /** (stay: from the village back down to the floor the hero left, no floor further) */
   nextFloor(stay = false) {
-    if (this.rematch) return this.goToVillage();
+    if (this.rematch || this.daily) return this.goToVillage();
     if (this.descending) return;
     this.descending = true;
     this.cinematic = true;
@@ -3600,6 +3724,7 @@ export class GameScene extends Phaser.Scene {
 
     if (!p.dead) p.update(dt, mx, my);
     if (!p.dead) this.trailStep(p, this.save.pearl?.trail);
+    this.heroAura?.update(p.x, p.y + 3, this.save.pearl?.aura, dt, !p.dead && p.sprite.visible && p.sprite.alpha > 0.2);
 
     // flow field toward player for enemy pathing
     this.flowT -= dt;
@@ -3704,6 +3829,7 @@ export class GameScene extends Phaser.Scene {
     if (this.achT > 1) {
       this.achT = 0;
       this.checkAchievements();
+      this.checkLive();
     }
     this.saveT += dt;
     if (this.saveT > 20) {

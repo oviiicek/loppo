@@ -9,6 +9,8 @@ import type { Player } from './player';
 import { D } from './fx';
 import { Net, PeerInfo, SLOT_COLORS, SLOT_CSS } from '../net/net';
 import type { Element } from '../data/types';
+import { Aura } from './aura';
+import { TITLE_BY_ID } from '../data/live';
 
 /** a weapon in hand: texture, offset from the hero, rotation, origin, depth offset, scale, flip and alpha */
 export type WeaponSnap = [string, number, number, number, number, number, number, number, number, number, number];
@@ -27,8 +29,10 @@ export interface HeroSnap {
   mhp: number;
   lvl: number;
   dead: number;
-  /** the trail it wears (bought with pearls; each game draws it by itself) */
+  /** the trail and the aura it wears and its title (bought with pearls or earned; each game draws them by itself) */
   tr?: string;
+  au?: string;
+  ti?: string;
   /** when its game made this (that game's clock, for a smooth playback, see game/interp.ts) */
   t?: number;
 }
@@ -60,6 +64,8 @@ export function heroSnap(p: Player): HeroSnap {
     lvl: p.save.level,
     dead: p.dead ? 1 : 0,
     tr: p.save.pearl?.trail ?? undefined,
+    au: p.save.pearl?.aura ?? undefined,
+    ti: p.save.pearl?.title ?? undefined,
     t: Math.round(performance.now()),
   };
 }
@@ -82,6 +88,9 @@ export class OtherHero extends Actor {
   private weapon: Phaser.GameObjects.Image | null = null;
   private offhand: Phaser.GameObjects.Image | null = null;
   private label: Phaser.GameObjects.Text;
+  private labelKey = '';
+  /** the aura under the hero (see game/aura.ts) */
+  private aura: Aura;
   private ring: Phaser.GameObjects.Image;
   private bar: Phaser.GameObjects.Graphics;
 
@@ -97,6 +106,7 @@ export class OtherHero extends Actor {
     // a ring on the floor and the name above in the player's colour tell the heroes apart
     this.ring = scene.add.image(x, y + 3, 'ring').setTint(SLOT_COLORS[slot] ?? SLOT_COLORS[1]).setAlpha(0.75).setScale(16 / 256, 8 / 256).setDepth(D.floorDeco + 2);
     this.label = scene.fx.label(x, y - 22, info.name, SLOT_CSS[slot] ?? SLOT_CSS[1], 6);
+    this.aura = new Aura(scene);
     this.bar = scene.add.graphics().setDepth(D.bright + 5);
   }
 
@@ -174,10 +184,17 @@ export class OtherHero extends Actor {
       this.offhand = this.placeWeapon(this.offhand, s.o);
     }
     this.ring.setAlpha(this.dead ? 0.25 : 0.75);
-    const name = `${this.info.name} · ${this.lvl}`;
-    if (this.label.text !== name) this.label.setText(name);
+    // the title above the name
+    const title = s?.ti ? TITLE_BY_ID[s.ti] : undefined;
+    const name = title ? [title.name, `${this.info.name} · ${this.lvl}`] : `${this.info.name} · ${this.lvl}`;
+    const key = Array.isArray(name) ? name.join('\n') : name;
+    if (this.labelKey !== key) {
+      this.labelKey = key;
+      this.label.setText(name);
+    }
     this.label.setPosition(this.x, this.y - 21);
     if (!this.dead && s?.tr) sc.trailStep(this, s.tr);
+    this.aura.update(this.x, this.y + 3, s?.au, dt, !this.dead && this.sprite.visible);
     // a small health bar under the name
     const g = this.bar;
     g.clear();
@@ -209,6 +226,7 @@ export class OtherHero extends Actor {
 
   destroyAll() {
     this.destroyVisuals();
+    this.aura.destroy();
     this.weapon?.destroy();
     this.offhand?.destroy();
     this.label.destroy();

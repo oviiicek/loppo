@@ -42,3 +42,15 @@ export class RNG {
 }
 
 export const rng = new RNG();
+
+/** runs fn with Math.random drawing from a seed (everything it rolls comes out the same for the same seed) */
+export function withSeed<T>(seed: number, fn: () => T): T {
+  const r = new RNG(seed);
+  const orig = Math.random;
+  Math.random = () => r.next();
+  try {
+    return fn();
+  } finally {
+    Math.random = orig;
+  }
+}

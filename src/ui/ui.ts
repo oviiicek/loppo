@@ -16,6 +16,8 @@ import { Panels, LockSpec } from './panels';
 import { Menus } from './menus';
 import { BuildingPanels } from './buildings';
 import { PearlPanels } from './pearls';
+import { flameAlive } from '../data/live';
+import type { DelveResult } from '../data/live';
 import { QuestPanels } from './quests';
 import { ExpeditionPanels } from './expedition';
 import type { FloorKind } from '../systems/state';
@@ -339,6 +341,7 @@ class UIManager {
       <div class="mpwatch"></div>
       <div class="topbtns">
         ${fsSupported() && !isStandalone() ? `<div class="rbtn fs" data-a="fs" data-fs="icon" title="Celá obrazovka (F)">${fsButtonHTML('icon')}</div>` : ''}
+        <div class="rbtn livebtn" data-a="live" title="Dnes: plamen knotu, denní hlubina, úkoly a sezóna"><img src="${spellIcon('fire', '#ffb347', 40)}" alt="Dnes"><b class="streakn"></b><span class="badge lv"></span></div>
         <div class="rbtn spellsbtn" data-a="spells" title="Kouzla (K)"><img src="${spellbookIcon()}" alt="Kouzla"><span class="badge sp"></span></div>
         <div class="rbtn" data-a="pause" title="Menu (Esc)">☰</div>
       </div>
@@ -354,6 +357,7 @@ class UIManager {
     </div>`);
     this.root.appendChild(hud);
     this.hud = hud;
+    this.liveBadge();
     this.toastBox = $('.toasts', hud);
     this.minimapCtx = ($('.minimap canvas', hud) as HTMLCanvasElement).getContext('2d');
     hud.querySelectorAll<HTMLElement>('.topbtns .rbtn').forEach((b) => {
@@ -373,7 +377,10 @@ class UIManager {
         sfx('ui');
         const a = b.dataset.a!;
         if (a === 'pause') this.togglePause();
-        else this.openPanel(a);
+        else if (a === 'live') {
+          if (this.panel) this.closeOverlay();
+          else if (this.scene && !this.scene.player.dead) this.pearls.open('today');
+        } else this.openPanel(a);
       });
     });
     $('.topbtns', hud).style.pointerEvents = 'auto';
@@ -391,7 +398,7 @@ class UIManager {
     pchip.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       sfx('ui');
-      this.pearls.open();
+      this.pearls.open('shop');
     });
     // the mercenary's chip: its health; a tap opens its panel
     const chip = $('.mercchip', hud);
@@ -668,7 +675,7 @@ class UIManager {
     tf('.bar.xp .fill', sx(s.xp / xpForLevel(s.level)));
     txt('.gold', s.gold.toLocaleString('cs-CZ'));
     txt('.pearls', (s.pearls ?? 0).toLocaleString('cs-CZ'));
-    txt('.floorlbl .fl', sc.inVillage ? `Loppo · ${sc.vil.rankName()}` : `Patro ${sc.floor} · ${sc.placeName}${sc.rift ? (sc.rift === 'dream' ? ' · sen' : sc.rift === 'last' ? ' · poslední šance' : ' · trhlina') : ''}`);
+    txt('.floorlbl .fl', sc.inVillage ? `Loppo · ${sc.vil.rankName()}` : `Patro ${sc.floor} · ${sc.placeName}${sc.daily ? ` · denní hlubina #${sc.daily.n}` : sc.rift ? (sc.rift === 'dream' ? ' · sen' : sc.rift === 'last' ? ' · poslední šance' : ' · trhlina') : ''}`);
     // the floor's fate (and the dangerous path) on a short line of its own, coloured by what it means
     const fate = this.q('.floorlbl .flfate');
     const ft = sc.fate ? sc.fate.name + (sc.kind === 'danger' ? ' ☠' : '') : sc.kind === 'danger' ? '☠ Nebezpečná cesta' : sc.calm === 'camp' ? '⛺ Tábor' : '';
@@ -1518,6 +1525,29 @@ class UIManager {
   openForge() {
     this.panels.villageForge = false;
     this.panels.forge();
+  }
+
+  /** the flame button: the days of the streak and a dot while gifts wait (tasks done, the newcomer's gift, steps
+   *  of the season's path) */
+  liveBadge() {
+    const hud = this.hud;
+    const sc = this.scene;
+    if (!hud || !sc) return;
+    const st = sc.save.pearl ?? {};
+    const days = flameAlive(st) ? st.streak ?? 0 : 0;
+    const b = hud.querySelector<HTMLElement>('.livebtn .streakn');
+    if (b) b.textContent = days ? String(days) : '';
+    const k = this.pearls.live.waiting();
+    const dot = hud.querySelector<HTMLElement>('.livebtn .badge');
+    if (dot) {
+      dot.textContent = k ? String(k) : '';
+      dot.classList.toggle('on', k > 0);
+    }
+  }
+
+  /** the daily depth cleared: its result card */
+  delveResult(r: DelveResult, pearls: number, sparks: number) {
+    this.pearls.live.delveResult(r, pearls, sparks);
   }
 
   /** the village's gate: continue the expedition or start a new one in a band of ten floors */

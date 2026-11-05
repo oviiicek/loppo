@@ -15,6 +15,7 @@ import { LoreEntry, pickLore, GHOSTS, GhostDef } from '../data/lore';
 import { FATES, FATE_BY_ID, FateDef, Fate, FATE_LINES, WISHES, fateDueIn } from '../data/fates';
 import { areaOf } from '../data/biomes';
 import type { Quest } from '../data/quests';
+import { delvePar, mmss } from '../data/live';
 
 // Random things that happen on a floor: a villager held captive, altars that ask for a price, a ghost
 // with a story, a portal into a rift, monsters at war with each other, a blood arena, people whose fate
@@ -83,7 +84,7 @@ export class Encounters {
   /** what a fate brought onto this floor (help on the first fight, a foe that waits, a debt collector) */
   fateNow: { fate: Fate; kind: string; t: number; foe?: Enemy | null; done?: boolean } | null = null;
   /** rift state: kind, monsters to kill, time, the guardian */
-  rift: { kind: RiftKind; need: number; kills: number; t: number; total: number; guard: Enemy | null; cleared: boolean } | null = null;
+  rift: { kind: RiftKind; need: number; kills: number; t: number; total: number; guard: Enemy | null; cleared: boolean; marks?: number[]; done?: boolean } | null = null;
   private callT = 0;
   private labelT = 0;
   /** the names over people's heads (what they say goes above them) */
@@ -1637,7 +1638,8 @@ export class Encounters {
     }
     if (kind === 'rift') {
       const need = Math.max(12, Math.round(sc.enemies.length * 0.7));
-      this.rift = { kind, need, kills: 0, t: 0, total: 150, guard: null, cleared: false };
+      // (in the daily depth the time it should take sets the result's colours and its grade)
+      this.rift = { kind, need, kills: 0, t: 0, total: sc.daily ? delvePar(need) : 150, guard: null, cleared: false, marks: [] };
       return;
     }
     // the dream: golden goblins, chests and gold in every room, a portal home on the far side
@@ -1746,7 +1748,8 @@ export class Encounters {
     if (!r.guard) {
       const pct = Math.min(1, r.kills / r.need);
       const left = Math.max(0, r.total - r.t);
-      sc.ui.eventBar(`🌀 Trhlina · ${Math.round(pct * 100)} %${left > 0 ? ` · bonus za rychlost ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}` : ''}`, pct);
+      if (sc.daily) sc.ui.eventBar(`🌀 Denní hlubina #${sc.daily.n} · ${Math.round(pct * 100)} % · ${mmss(r.t)}`, pct);
+      else sc.ui.eventBar(`🌀 Trhlina · ${Math.round(pct * 100)} %${left > 0 ? ` · bonus za rychlost ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}` : ''}`, pct);
       if (pct >= 1) this.summonGuard();
     } else if (!r.guard.aggro) sc.ui.eventBar('🌀 Strážce trhliny přichází!', 1);
     // the guardian is fighting: its own bar is enough
@@ -1787,7 +1790,9 @@ export class Encounters {
       if (q && Math.hypot(q[0] - p.x, q[1] - p.y) > 40 && sc.map.los(p.x, p.y, q[0], q[1]) && !sc.map.collides(q[0], q[1], 10)) s = q;
     }
     s ??= sc.map.randomFloorNear(p.x, p.y, 40) ?? [p.x, p.y - 30];
-    const def = pick(BOSSES.filter((b) => b.id !== 'dragon'));
+    // (the daily depth's guardian is the day's)
+    const pool = BOSSES.filter((b) => b.id !== 'dragon');
+    const def = sc.daily ? pool[Math.floor(sc.daily.guard * pool.length)] : pick(pool);
     const e = sc.spawnEnemy('skeleton', s[0], s[1], false, -1, def.sprite);
     e.makeBoss(def, Math.floor(sc.floor / 50), sc.floor);
     e.maxHp = e.hp = Math.round(e.maxHp * 0.7);
@@ -1812,7 +1817,8 @@ export class Encounters {
     sc.ui.hideEventBar();
     bumpStat(sc.save, 'rifts');
     const fast = r.t <= r.total;
-    sc.ui.banner('Trhlina uzavřena!', fast ? 'Bonus za rychlost: kořist navíc!' : 'Portál tě vynese o patro hlouběji');
+    if (sc.daily) sc.delveOver(false);
+    else sc.ui.banner('Trhlina uzavřena!', fast ? 'Bonus za rychlost: kořist navíc!' : 'Portál tě vynese o patro hlouběji');
     const f = sc.floor;
     const x = b.x,
       y = b.y;
@@ -1826,7 +1832,9 @@ export class Encounters {
     for (const e of sc.enemies) if (!e.dead && e.isMinion) sc.combat.killEnemy(e);
     let at: [number, number] = [x, y - 20];
     if (sc.map.collides(at[0], at[1], 6)) at = sc.map.randomFloorNear(x, y, 30) ?? [x, y];
-    this.exitPortal(at[0], at[1], false);
+    // (out of the daily depth a golden portal leads home)
+    const ex = this.exitPortal(at[0], at[1], !!sc.daily);
+    if (sc.daily) ex.data.home = true;
     bus.emit('stats');
   }
 
@@ -1867,7 +1875,13 @@ export class Encounters {
 
   onKill(e: Enemy) {
     const sc = this.sc;
-    if (this.rift && this.rift.kind === 'rift' && !e.isMinion) this.rift.kills++;
+    if (this.rift && this.rift.kind === 'rift' && !e.isMinion) {
+      const r = this.rift;
+      r.kills++;
+      // the moments each fifth of the rift was filled (the daily depth's result is made of them)
+      const fifths = Math.min(5, Math.floor((r.kills / r.need) * 5));
+      while ((r.marks ??= []).length < fifths) r.marks.push(r.t);
+    }
     if (e.tag === 'murderer') {
       // the ghost waiting for revenge finds its peace
       const it = sc.interactables.find((i) => i.kind === 'ev' && i.data.ev.type === 'ghost' && i.data.ev.murderer === e);

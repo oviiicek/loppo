@@ -370,12 +370,82 @@ Na nádvoří krále Dobromila stojí fontána s nápisem „Kdo hodí minci, te
 - **Rybaření:** na mólu u rybníka stojí rybář Ludvík a půjčí prut (rybařit jde u něj i na konci móla). Nahodí se, splávek se pohupuje a když zmizí pod hladinou, je potřeba do necelé vteřiny zaseknout. Kdo sekne moc brzy (třeba když ryba jen ťukne do návnady a splávek cukne), rybu vyplaší; kdo nestihne, přijde o návnadu. Návnad je nejvýš 5, jedna přibude za každé patro sestoupené v kobkách. Úlovky: plotice, okoun, kapr, štika a sumec (Ludvík je hned vykoupí, cena roste s nejhlubším patrem), stará bota, truhlička z bahna (drahokam nebo runa), láhev se vzkazem (paklíč a útržek příběhu Loppa, 8 vzkazů) a vzácně zlatá rybka (perla). Panel ukazuje, co už se chytilo (neznámé úlovky jako stín).
 - **Kostky s Bárou:** na náměstí u studny hraje kostkařka Bára. Každý hodí třemi kostkami, vyšší součet bere sázku (výhra 1:1), remíza patří Báře a tři stejné vyhrávají vždy – hráči je Bára vyplatí trojnásobně. Sázky jsou tři (podle nejhlubšího patra, ×1, ×5, ×25). Bára má malou výhodu (asi 3,5 % ze sázky), takže je to další místo, kam se dá utrácet zlato – s trochou štěstí i se ziskem. Panel počítá odehrané hry, výhry a celkový zisk či ztrátu.
 
+### Každý den v hlubinách
+Plamenové tlačítko v HUD (vedle kouzel) ukazuje sérii dní a červené číslo, když čeká odměna. Otevře záložku **Dnes** v perlách. Hlavní menu pod postavou ukazuje sérii a dnešní denní hlubinu.
+- **Plamen knotu:** série dní hraní. Každý den 1 perla, každý sedmý den v řadě 3, na 30. den titul **Neuhasínající** a 10 perel, na 100. den aura **Věčný plamen** a 25 perel.
+- **Strážná svíce:** když hráč den vynechá, dohoří svíce místo plamene a série pokračuje. Jednu dá třetí den série, další stojí 10 perel. V zásobě jdou mít nejvýš dvě a každá pokryje jeden vynechaný den.
+- **Cesta nováčka:** prvních sedm dní hraní jeden dar denně. Dny se počítají jen ty odehrané, vynechaný den cestu nepřeruší. Dary:
+  - 10 perel a lektvary,
+  - Měšec štěstí a zlato,
+  - strážná svíce a perly,
+  - legendární předmět,
+  - Kniha moudrosti a perly,
+  - pírko fénixe a drahokam,
+  - sedmý den aura **Plamen knotu**, titul **Mladý plamen** a 20 perel.
+
+  Celkem je to 40 perel. Na nový dar upozorní zpráva, ne na úplně prvním patře.
+- **Denní úkoly:** tři úkoly denně, pro všechny hráče stejné (podle data).
+  - Úkoly jsou například porazit 150 nestvůr nebo 5 šampionů, otevřít 5 truhel, sebrat 15 předmětů, vydělat zlato, najít tajnou místnost, vypít lektvary, hrát 20 minut nebo dokončit denní hlubinu.
+  - Postup se počítá ze statistik postavy, splněný úkol ohlásí zpráva.
+  - Každý úkol dá 100 jisker, všechny tři navíc 2 perly a 100 jisker.
+  - Jeden úkol jde denně zdarma vyměnit, další výměna stojí 3 perly.
+- **Denní hlubina:** jedna trhlina denně, rozložená pro všechny hráče stejně podle data.
+  - Mapa, osud dne, nestvůry i strážce jsou pro všechny stejné.
+  - Vstup je u brány ve vesnici nebo v záložce Dnes. Jde vstoupit i z kobek, když hrdina zrovna nebojuje.
+  - Otevře se od 3. patra a dělá se pro patro těsně nad nejhlubším (nikdy strážce ani tábor).
+  - Hráč musí porazit nestvůry, přivolat strážce a zabít ho co nejrychleji. Smrt tu nic nestojí a výprava v kobkách zůstane, kde byla.
+  - Jsou 3 pokusy denně, počítá se nejlepší.
+  - Výsledek má známku S–D podle času a řadu barevných čtverečků 🟩🟨🟧 (každá pětina trhliny a strážce), např. `🟩🟩🟨🟩🟧🟩👑 2:47`.
+  - Tlačítko **Sdílet** použije sdílení v telefonu, jinak výsledek zkopíruje. Text obsahuje číslo hlubiny, osud, známku, čas a odkaz na hru.
+  - Poprvé za den dá 3 perly (za S 5) a 150 jisker. Po 10 dokončených hlubinách přijde titul **Duše hlubin**.
+- **Sezónní cesta (Cesta hlubin):** sezóna trvá 4 týdny a má 30 stupňů po 200 jiskrách.
+  - Jiskry dávají úkoly, denní hlubina a boj (nestvůry a strážci, s denním stropem).
+  - Větev zdarma dává zlato, lektvary, drahokamy, runy, epický předmět a perly.
+  - **Perlová cesta** (120 perel) přidá odměnu ke každému stupni a vrátí 150 perel. Na 10. stupni dává sezónní stopu, na 20. auru a na 30. titul. Dál dává legendární předměty, pírka fénixe, svíce, knihy a měšce. Platí i pro stupně, které už hráč má.
+  - Stupeň jde dokoupit za 15 perel.
+  - Sezóny se střídají a jejich vzhled se vrací se sezónou:
+    - Probuzení knotu,
+    - Mrazivá hlubina,
+    - Jedový kořen,
+    - Hvězdná propast.
+
 ### Perly hlubin (druhá měna)
-Perly jsou vzácnější než zlato. Ukazují se v HUD vedle zlata (klepnutí otevře jejich obchod), v hlavičce panelů a v pauze (**💠 Perly**).
-- **Kde se berou:** denní dar (1 perla za den hry, každý sedmý den v řadě 3), každý nový úspěch 1 perla (úspěchy získané dřív se proplatí jednou při prvním načtení), první vítězství nad každým strážcem 3 perly (strážce příběhu 5), občas od šampiona (zkažení a nemesis častěji) a z Fontány přání.
-- **Obchod:** Kniha moudrosti (+50 % zkušeností na 10 pater), Měšec štěstí (+50 % magického nálezu na 10 pater), Pírko fénixe (až 3 v zásobě – když hrdina padne, jednou ho vrátí do boje s polovinou zdraví; v Hardcore nefunguje), Perlová truhla (jistý legendární, občas mýtický předmět, dva drahokamy a runa), Větší batoh (+6 míst, až 3×), Větší truhla doma (+42 míst, až 3×) a směna 5 perel za zlato podle nejhlubšího patra.
-- **Stopy za hrdinou:** Žhavé uhlíky, Padající listí, Mrazivé vločky, Hvězdný prach, Stínový závoj, Svatá zář, Duhová stopa a Zlatá stopa – koupená stopa zůstává navždy, nosí se jedna a ve společné hře ji vidí i ostatní.
-- Karta **Získat perly** ukazuje balíčky, které se budou prodávat za skutečné peníze (zatím „Brzy“). Všechno z obchodu jde získat i hraním.
+Perly jsou vzácnější než zlato. Ukazují se v HUD vedle zlata (klepnutí otevře jejich obchod), v hlavičce panelů a v pauze (**💠 Perly**). Panel perel má záložky Dnes, Sezóna, Obchod, Vzhled a Získat perly.
+- **Kde se berou:**
+  - plamen knotu (1 perla za den hry, každý sedmý den v řadě 3),
+  - cesta nováčka,
+  - všechny tři denní úkoly,
+  - denní hlubina,
+  - sezónní cesta,
+  - každý nový úspěch 1 perla (úspěchy získané dřív se proplatí jednou při prvním načtení),
+  - první vítězství nad každým strážcem 3 perly (strážce příběhu 5),
+  - občas šampion (zkažení a nemesis častěji),
+  - Fontána přání,
+  - kódy.
+- **Obchod:**
+  - Kniha moudrosti: +50 % zkušeností na 10 pater.
+  - Měšec štěstí: +50 % magického nálezu na 10 pater.
+  - Pírko fénixe: až 3 v zásobě. Když hrdina padne, jednou ho vrátí do boje s polovinou zdraví. V Hardcore nefunguje.
+  - Perlová truhla: jistý legendární, občas mýtický předmět, dva drahokamy a runa.
+  - Strážná svíce: až 2 v zásobě.
+  - Větší batoh: +6 míst, až 3×.
+  - Větší truhla doma: +42 míst, až 3×.
+  - Směna 5 perel za zlato podle nejhlubšího patra.
+- **Vzhled** nepřidává sílu, ve společné hře ho vidí i ostatní. Koupené věci zůstávají navždy a nosí se od každého druhu jedna.
+  - **Stopy za hrdinou:** Žhavé uhlíky, Padající listí, Mrazivé vločky, Hvězdný prach, Stínový závoj, Svatá zář, Duhová stopa a Zlatá stopa. Sezónní stopy dává perlová cesta.
+  - **Aury** jsou záře s kruhem pod hrdinou, ze které stoupají jiskry. Prodávají se Žhnoucí, Mrazivá, Jedová, Tajemná, Svatozář a Krvavá. Plamen knotu, Věčný plamen a sezónní aury se jen získávají.
+  - **Tituly** se píšou nad jméno ve společné hře a do panelu postavy. Prodávají se Zlatá ruka, Postrach hlubin, Stín v temnotě, Bouře z hlubin, Koruna hlubin a Živoucí legenda. Ostatní se získávají. Žádný titul se nemění podle pohlaví hrdiny.
+- **Kódy:** karta Získat perly má pole na kód. Kód `DEEPWICK` dá 10 perel a platí do 31. 3. 2027, každá postava ho může použít jednou. Další kódy se přidávají v `src/data/live.ts`, kde jsou uložené jako čísla, ne jako text.
+- Karta **Získat perly** dál ukazuje nabídky, které se budou prodávat za skutečné peníze:
+  - balíčky perel se štítky „Oblíbené“ a „Nejvýhodnější“,
+  - **Balíček nováčka** (100 perel, Žhnoucí aura, 2 pírka fénixe, jednou za hru),
+  - **Měsíc perel** (30 perel hned a 5 denně po 30 dní),
+  - první nákup za dvojnásobek.
+
+  Platby zatím nejsou zapojené (tlačítka „Brzy“). Všechno z obchodu jde získat i hraním.
+
+### Sdílení odkazu
+Stránka má náhled pro sociální sítě (Open Graph). Odkaz na hru, i ten ve sdíleném výsledku denní hlubiny, ukáže obrázek `public/og.jpg` s názvem hry a krátký popis. Adresa hry je v `package.json` (`homepage`).
 
 ### Společná hra (až 4 hráči)
 V pauze je tlačítko **👥 Společná hra**. Kdo hru založí, dostane pětimístný kód a až tři další hráči ho zadají na svých zařízeních (stačí internet, hra jde přímo mezi zařízeními přes WebRTC; server PeerJS je jen seznámí). Zařízení hostů mluví se zařízením zakladatele a to jim předává, co dělají ostatní hrdinové (kde stojí, jejich efekty a střely).
@@ -419,7 +489,9 @@ V pauze je tlačítko **👥 Společná hra**. Kdo hru založí, dostane pětim�
 src/
   main.ts              konfigurace Phaseru
   data/                classy, kouzla, předměty, nepřátelé, drahokamy, runy, kletby, unikáty, talenty,
-                       vesnice, úkoly, osudy, lore, bestiář, skladby hudby, typy
+                       vesnice, úkoly, osudy, lore, bestiář, skladby hudby, perly a každodenní věci
+                       (live.ts: plamen knotu, cesta nováčka, úkoly dne, sezóna, denní hlubina, aury,
+                       tituly, kódy), typy
   systems/             generátor dungeonu, stav postavy a ukládání, RNG, zvuk a sekvencer hudby
   gfx/                 procedurální pixel-art (textury, ikony kouzel)
   game/                mapa a kolize, hráč, nepřátelé a spojenci, boj, kouzla, loot, AI bossů, efekty,
@@ -428,7 +500,7 @@ src/
   net/                 spojení zařízení pro společnou hru až čtyř hráčů (PeerJS / WebRTC)
   scenes/              Boot, Game (hlavní herní smyčka), Gallery (náhled grafiky)
   ui/                  HTML/CSS rozhraní: HUD, joystick, inventář, postava, kouzla, obchod, menu,
-                       budovy Loppa, nástěnka úkolů
+                       budovy Loppa, nástěnka úkolů, perly a každodenní věci (live.ts)
   dev.ts               vývojářské nástroje (jen v dev režimu), včetně bota, který hru sám hraje
 ```
 

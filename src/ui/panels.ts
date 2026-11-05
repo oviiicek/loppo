@@ -53,6 +53,7 @@ import { TALENT_TREES, TALENT_GATE, TalentDef, COND_NAME, spentIn, canLearn, tal
 import { MULTI_LEVEL, MULTI_COST, MULTI_TALENT_CAP, multiTitle } from '../data/multiclass';
 import type { Mercenary } from '../game/merc';
 import { MAT_INFO, MatKey, UPGRADE_KEEP } from '../game/loot';
+import { TITLE_BY_ID } from '../data/live';
 import { stashSize, respecMult, forgeMods, buildingLevel } from '../data/village';
 import { sfx, settings, saveSettings, LootRule, vibrate } from '../systems/audio';
 import { bus } from '../systems/events';
@@ -152,7 +153,7 @@ export class Panels {
       const t = e.target as HTMLElement;
       if (t.closest('[data-a=pearlchip]')) {
         sfx('ui');
-        if (!p.classList.contains('pearlpanel')) this.ui.pearls.open();
+        if (!p.classList.contains('pearlpanel')) this.ui.pearls.open('shop');
       } else if (t.closest('[data-a=gemchip]')) {
         sfx('ui');
         this.gems(undefined, true);
@@ -1205,7 +1206,7 @@ export class Panels {
     body.innerHTML = `
       <div class="col scroll" style="width:min(240px,28%)">
         <div class="box" style="text-align:center"><img class="px" style="height:96px;image-rendering:pixelated" src="${iconURL('pl_' + s.cls, 96)}">
-          <div style="font-size:26px;color:#ffd76a">${esc(heroTitle(s))}</div>${s.multi ? `<div class="hint">${esc(cls.name)} + ${esc(CLASS_BY_ID[s.multi].name)}</div>` : ''}<div class="hint">Úroveň ${s.level} • Patro ${s.floor} (max ${s.maxFloor})</div>
+          <div style="font-size:26px;color:#ffd76a">${esc(heroTitle(s))}</div>${s.pearl?.title && TITLE_BY_ID[s.pearl.title] ? `<div class="herotitle" style="color:${TITLE_BY_ID[s.pearl.title].css}">« ${esc(TITLE_BY_ID[s.pearl.title].name)} »</div>` : ''}${s.multi ? `<div class="hint">${esc(cls.name)} + ${esc(CLASS_BY_ID[s.multi].name)}</div>` : ''}<div class="hint">Úroveň ${s.level} • Patro ${s.floor} (max ${s.maxFloor})</div>
           <div style="font-size:17px;margin-top:2px">Obtížnost: <span style="color:${difficultyOf(s).color}">${difficultyOf(s).name}</span>${s.hardcore ? ' <span class="hctag">☠ Hardcore</span>' : ''}</div>
           <div class="hint" style="margin-top:6px">${esc(cls.desc)}</div>
           <div style="margin-top:6px;font-size:17px;color:#9dff9d">Pasivní: ${esc(cls.passive)}</div>

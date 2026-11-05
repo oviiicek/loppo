@@ -31,6 +31,8 @@ import { SPELL_RUNE_BY_ID, spellRuneIcon } from '../data/spellrunes';
 import { isCampFloor } from '../data/bands';
 import { Net, embedded, MAX_PLAYERS, SLOT_CSS } from '../net/net';
 import { LANGS, currentLang, langInfo, saveLang, tr } from '../i18n/i18n';
+import { flameAlive, delveToday, delveOpen, seasonNow } from '../data/live';
+import { dayKey } from '../data/pearls';
 
 type UIM = typeof UIType;
 
@@ -79,7 +81,8 @@ export class Menus {
       <div class="torchglow" style="left:-10vw;top:10vh"></div><div class="torchglow" style="right:-10vw;top:10vh"></div>
       <h1>${__APP_NAME__.toUpperCase()}</h1>
       <div class="subtitle">Nekonečný dungeon</div>
-      ${save ? `<button class="btn green" data-a="continue">Pokračovat</button><div class="saveinfo">${esc(CLASS_BY_ID[save.cls].name)} • úroveň ${save.level} • patro ${save.floor} • ${diffTag(save)}</div>` : ''}
+      ${save ? `<button class="btn green" data-a="continue">Pokračovat</button><div class="saveinfo">${esc(CLASS_BY_ID[save.cls].name)} • úroveň ${save.level} • patro ${save.floor} • ${diffTag(save)}</div>${this.todayLine(save)}` : ''}
+      ${save ? '' : `<div class="todayline">✦ Sezóna ${seasonNow().n}: ${seasonNow().theme.name} · 🌀 každý den nová denní hlubina</div>`}
       <button class="btn" data-a="new">Nová hra</button>
       <button class="btn" data-a="slots">Postavy</button>
       <button class="btn blue" data-a="help">Jak hrát</button>
@@ -115,6 +118,21 @@ export class Menus {
         b.textContent = isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut';
       }
     });
+  }
+
+  /** what today brings, under the hero in the main menu: the flame of the wick and the daily depth */
+  todayLine(save: SaveData) {
+    const st = save.pearl ?? {};
+    const alive = flameAlive(st);
+    const days = alive ? st.streak ?? 0 : 0;
+    const d = delveToday();
+    const flame = days
+      ? st.day === dayKey(new Date())
+        ? days === 1 ? '🔥 1 den' : days <= 4 ? `🔥 ${days} dny v řadě` : `🔥 ${days} dní v řadě`
+        : `🔥 ${days} ${days === 1 ? 'den' : days <= 4 ? 'dny' : 'dní'} – dnes ještě nehořel!`
+      : '🔥 Zapal plamen knotu – hraj každý den';
+    const delve = delveOpen(save) ? ` • 🌀 Denní hlubina #${d.n}: ${d.fate.name}` : '';
+    return `<div class="todayline">${flame}${delve}</div>`;
   }
 
   /** the languages of the game; the chosen one goes on as the game starts again (the hero is saved first) */
@@ -1000,7 +1018,9 @@ export class Menus {
   death(floor: number, lostGold: number) {
     const sc = this.ui.scene!;
     const back = sc.deathReturnFloor();
-    const where = sc.rematch
+    const where = sc.daily
+      ? 'Denní hlubina tě tentokrát porazila. Vracíš se do Loppa.'
+      : sc.rematch
       ? 'Strážce tentokrát zvítězil. Vracíš se do Loppa – souboj můžeš z brány zkusit znovu.'
       : back === floor
         ? `Patro ${floor} začneš znovu ${isBossFloor(floor) && !sc.inVillage ? 'v přípravné místnosti u ohně' : 'od schodů'}.`
@@ -1009,14 +1029,15 @@ export class Menus {
       <div style="padding:16px;text-align:center">
         <p style="font-size:20px;margin:0 0 4px">Tvoje cesta skončila v patře ${floor}.</p>
         <p style="font-size:17px;margin:0 0 6px">${where}</p>
-        <p class="hint">${sc.rematch ? 'Souboj se strážcem znovu nic nestojí – zlato, zkušenosti i předměty ti zůstanou.' : `Přijdeš o ${lostGold} zlata a část zkušeností do další úrovně. Předměty i úroveň ti zůstanou.`}</p>
+        <p class="hint">${sc.daily ? 'Denní hlubina nic nestojí – zlato, zkušenosti i předměty ti zůstanou.' : sc.rematch ? 'Souboj se strážcem znovu nic nestojí – zlato, zkušenosti i předměty ti zůstanou.' : `Přijdeš o ${lostGold} zlata a část zkušeností do další úrovně. Předměty i úroveň ti zůstanou.`}</p>
+        ${sc.daily ? this.ui.pearls.live.delveDeathHtml() : ''}
         ${this.recapHtml()}
         ${
           sc.lastChanceOffer
             ? `<div class="lastch"><b>⚔ Poslední šance</b><span>Smrt váhá. Vydrž 40 sekund v aréně proti vlnám nestvůr – a vrátíš se do patra ${floor} s jediným bodem zdraví. Prohra tě pošle na checkpoint.</span><button class="btn red" data-a="last">Bojovat o život</button></div>`
             : ''
         }
-        <div class="row" style="justify-content:center;margin-top:10px"><button class="btn green" data-a="retry">${sc.rematch ? 'Zpět do Loppa' : `Pokračovat (patro ${back})`}</button><button class="btn" data-a="menu">Hlavní menu</button></div>
+        <div class="row" style="justify-content:center;margin-top:10px"><button class="btn green" data-a="retry">${sc.rematch || sc.daily ? 'Zpět do Loppa' : `Pokračovat (patro ${back})`}</button><button class="btn" data-a="menu">Hlavní menu</button></div>
       </div></div>`);
     this.ui.showOverlay(p, undefined, true, true);
     $('[data-a=retry]', p).addEventListener('click', () => {

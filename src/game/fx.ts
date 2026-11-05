@@ -87,6 +87,27 @@ export class FX {
     e.explode(gfxParticles(2), x, y);
   }
 
+  /** a spark rising from a hero's aura (each game draws the auras of the heroes it shows by itself) */
+  auraSpark(x: number, y: number, color: number) {
+    const key = 'aura' + color;
+    let e = this.emitters.get(key);
+    if (!e) {
+      e = this.scene.add.particles(0, 0, 'spark', {
+        speedX: { min: -4, max: 4 },
+        speedY: { min: -22, max: -10 },
+        scale: { start: 0.8, end: 0 },
+        alpha: { start: 0.9, end: 0 },
+        lifespan: { min: 700, max: 1200 },
+        tint: color,
+        emitting: false,
+        blendMode: 'ADD',
+      });
+      e.setDepth(D.entityBase - 1);
+      this.emitters.set(key, e);
+    }
+    e.explode(1, x, y);
+  }
+
   number(x: number, y: number, text: string, color: string, big = false) {
     if (this.numFont && fitsNumberFont(text)) return this.bitmapNumber(x, y, text, color, big);
     let t = this.textPool.pop();
