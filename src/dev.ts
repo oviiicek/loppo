@@ -1,5 +1,6 @@
 // Developer helpers (only bundled in dev mode) – used for automated testing.
 import { newCharacter, game as G, saveGame, autoLoadout } from './systems/state';
+import type { SaveData } from './systems/state';
 import { spellsForClass, SPELLS } from './data/spells';
 import { generateItem } from './data/items';
 import { UI } from './ui/ui';
@@ -467,6 +468,41 @@ Object.assign(dev, {
 // Story testing: jump to any floor with a fitting character and story progress
 // ---------------------------------------------------------------------------
 import { storyOf, xpForLevel as xpFor } from './systems/state';
+import { TALENT_TREES, TALENT_GATE, talentPoints } from './data/talents';
+import { talentCondMet } from './systems/state';
+import { newPetState } from './data/pets';
+
+/** what an engaged player has by a floor besides the gear: every talent point spent (the branch that fits the
+ *  weapon first, its talents in order), Loppo's prosperity raised with gold, the temple's stronger blessing, the
+ *  king's honours and a pet that has travelled most of the way down (for the balance probes) */
+function empower(s: SaveData, floor: number) {
+  const tl: Record<string, number> = (s.talents = {});
+  let pts = talentPoints(s.level);
+  const branches = [...TALENT_TREES[s.cls]].sort((a, b) => {
+    const fit = (br: typeof a) => br.talents.filter((t) => !t.when || talentCondMet(s, t.when)).length;
+    return fit(b) - fit(a);
+  });
+  for (const br of branches) {
+    let spent = 0;
+    for (let i = 0; i < br.talents.length && pts > 0; i++) {
+      if (spent < TALENT_GATE[i]) break;
+      const t = br.talents[i];
+      const take = Math.min(t.max, pts);
+      tl[t.id] = take;
+      pts -= take;
+      spent += take;
+    }
+  }
+  const v = (s.village ??= { lv: {}, pity: 0 });
+  v.prosperity = { ...(v.prosperity ?? {}), lv: Math.min(60, Math.floor(floor / 4)) } as never;
+  v.blessing = { id: 'might', until: floor + 5, lv: 2 };
+  v.royal = { favor: Math.min(15, Math.floor(floor / 10)), step: 0, quest: null };
+  const pets = (s.pets = newPetState());
+  for (const p of PETS) if (p.minFloor <= floor) pets.owned.push(p.id);
+  const pet = pets.owned.includes('dog') ? 'dog' : pets.owned[0] ?? null;
+  pets.active = pet;
+  if (pet) pets.floors[pet] = Math.floor(floor * 0.8);
+}
 import { CHRONICLE_ORDER, storyFloor } from './data/story';
 import { enemyXpScale, bossForFloor, storyBossBase } from './data/enemies';
 import { CLASS_BY_ID, CLASSES } from './data/classes';
@@ -474,7 +510,9 @@ import type { Slot } from './data/types';
 
 Object.assign(dev, {
   /** a character about as strong as a good player on this floor (level model of the balance sim, best of many drops) */
-  startGeared(cls: ClassId, floor: number, story = true, quality: 'good' | 'median' = 'good', difficulty = 1) {
+  startGeared(cls: ClassId, floor: number, story = true, profile: 'good' | 'median' | 'full' = 'good', difficulty = 1) {
+    // 'full': the gear of 'good' and everything else an engaged player has by then (see empower)
+    const quality = profile === 'full' ? 'good' : profile;
     const s = newCharacter(cls, { difficulty });
     let L = 1,
       xp = 0;
@@ -528,6 +566,7 @@ Object.assign(dev, {
       s.equip[slot] = best;
     }
     autoLoadout(s);
+    if (profile === 'full') empower(s, floor);
     const st = storyOf(s);
     if (story) {
       st.seen = CHRONICLE_ORDER.filter((id) => storyFloor(id) < floor);
