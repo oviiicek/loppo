@@ -84,7 +84,7 @@ export const dev = {
 // Simple autoplay bot used to sanity-check balance (dev only)
 // ---------------------------------------------------------------------------
 import { GameScene } from './scenes/GameScene';
-import { derive, equipItem, canInvest } from './systems/state';
+import { derive, equipItem, canInvest, gearStats } from './systems/state';
 import { BASE_BY_ID } from './data/items';
 import { TS } from './game/map';
 
@@ -506,77 +506,214 @@ function empower(s: SaveData, floor: number) {
 import { CHRONICLE_ORDER, storyFloor } from './data/story';
 import { enemyXpScale, bossForFloor, storyBossBase } from './data/enemies';
 import { CLASS_BY_ID, CLASSES } from './data/classes';
+import { DIFFICULTIES } from './data/difficulty';
+import { areaNorm } from './data/families';
+import { generateDungeon } from './systems/dungeon';
+import { ENEMY_BY_ID, enemyHpScale, enemyDmgScale, enemyArmor } from './data/enemies';
+import { SPELL_BY_ID } from './data/spells';
 import type { Slot } from './data/types';
 
+type Profile = 'good' | 'median' | 'full';
+/** a character about as strong as a player of the profile on this floor (level model of the balance sim, best of
+ *  many drops); 'full': the gear of 'good' and everything else an engaged player has by then (see empower) */
+function gearedSave(cls: ClassId, floor: number, story: boolean, profile: Profile, difficulty: number): SaveData {
+  const quality = profile === 'full' ? 'good' : profile;
+  const s = newCharacter(cls, { difficulty });
+  let L = 1,
+    xp = 0;
+  for (let f = 1; f < floor; f++) {
+    xp += 0.7 * Math.min(110, 34 + 2 * f) * 15 * enemyXpScale(f) * 1.15;
+    if (f % 10 === 0) xp += 600 * enemyXpScale(f) * (1 + bossForFloor(f).tier);
+    while (xp >= xpFor(L)) {
+      xp -= xpFor(L);
+      L++;
+    }
+  }
+  s.level = L;
+  s.floor = floor;
+  s.maxFloor = floor;
+  const atk = BASE_BY_ID[CLASS_BY_ID[cls].weapon].attack;
+  const main = atk === 'melee' ? 'str' : atk === 'ranged' ? 'dex' : 'int';
+  const pts = (L - 1) * 3;
+  s.attrs[main] += Math.round(pts * 0.5);
+  s.attrs.vit += Math.round(pts * 0.35);
+  s.attrs[main === 'int' ? 'ene' : 'dex'] += Math.round(pts * 0.15);
+  s.spellPoints = L - 1;
+  s.gold = 5000 * floor;
+  s.mats = { hpPotion: 25, mpPotion: 20, lockpick: 10, stone: 20, dust: 20 };
+  const def = CLASS_BY_ID[cls];
+  const slots: [Slot, string | null][] = [
+    ['main', def.weapon], ['off', def.offhand ?? null], ['helmet', 'helmet'], ['chest', 'chest'], ['pants', 'pants'], ['belt', 'belt'],
+    ['boots', 'boots'], ['ring1', 'ring'], ['ring2', 'ring'], ['amulet', 'amulet'], ['bracer', 'bracer'],
+  ];
+  // 'good': best of 20 rare-or-better drops; 'median': best of 10 ordinary drops (mostly common to rare), less upgraded
+  const rar = () => {
+    const r = Math.random();
+    if (quality === 'median') return r < 0.3 ? 0 : r < 0.62 ? 1 : r < 0.86 ? 2 : r < 0.97 ? 3 : 4;
+    return r < 0.5 ? 2 : r < 0.85 ? 3 : r < 0.98 ? 4 : 5;
+  };
+  for (const [slot, base] of slots) {
+    if (!base) continue;
+    let best: any = null,
+      bestV = -1;
+    for (let k = 0; k < (quality === 'median' ? 10 : 20); k++) {
+      const it = generateItem(Math.max(1, floor - Math.floor(Math.random() * (quality === 'median' ? 12 : 8))), { base, rarity: rar() });
+      it.upgrade = quality === 'median' ? Math.min(6, Math.floor(floor / 15)) : Math.min(8, Math.floor(floor / 12));
+      s.equip[slot] = it;
+      const d = derive(s);
+      const crit = 1 + (d.crit / 100) * (d.critDmg / 100 - 1);
+      const v = ((d.dmgMin + d.dmgMax) / 2) * d.aps * crit + d.spellMult * 300 * crit + d.maxHp * (1 + d.armor / 300) * 0.04 * Math.sqrt(floor);
+      if (v > bestV) {
+        bestV = v;
+        best = it;
+      }
+    }
+    s.equip[slot] = best;
+  }
+  autoLoadout(s);
+  if (profile === 'full') empower(s, floor);
+  const st = storyOf(s);
+  if (story) {
+    st.seen = CHRONICLE_ORDER.filter((id) => storyFloor(id) < floor);
+    st.shards = Math.min(4, Math.floor((floor - 1) / 50));
+    st.blessing = floor > 200;
+  }
+  return s;
+}
+
 Object.assign(dev, {
-  /** a character about as strong as a good player on this floor (level model of the balance sim, best of many drops) */
-  startGeared(cls: ClassId, floor: number, story = true, profile: 'good' | 'median' | 'full' = 'good', difficulty = 1) {
-    // 'full': the gear of 'good' and everything else an engaged player has by then (see empower)
-    const quality = profile === 'full' ? 'good' : profile;
-    const s = newCharacter(cls, { difficulty });
-    let L = 1,
-      xp = 0;
-    for (let f = 1; f < floor; f++) {
-      xp += 0.7 * Math.min(110, 34 + 2 * f) * 15 * enemyXpScale(f) * 1.15;
-      if (f % 10 === 0) xp += 600 * enemyXpScale(f) * (1 + bossForFloor(f).tier);
-      while (xp >= xpFor(L)) {
-        xp -= xpFor(L);
-        L++;
-      }
-    }
-    s.level = L;
-    s.floor = floor;
-    s.maxFloor = floor;
-    const atk = BASE_BY_ID[CLASS_BY_ID[cls].weapon].attack;
-    const main = atk === 'melee' ? 'str' : atk === 'ranged' ? 'dex' : 'int';
-    const pts = (L - 1) * 3;
-    s.attrs[main] += Math.round(pts * 0.5);
-    s.attrs.vit += Math.round(pts * 0.35);
-    s.attrs[main === 'int' ? 'ene' : 'dex'] += Math.round(pts * 0.15);
-    s.spellPoints = L - 1;
-    s.gold = 5000 * floor;
-    s.mats = { hpPotion: 25, mpPotion: 20, lockpick: 10, stone: 20, dust: 20 };
-    const def = CLASS_BY_ID[cls];
-    const slots: [Slot, string | null][] = [
-      ['main', def.weapon], ['off', def.offhand ?? null], ['helmet', 'helmet'], ['chest', 'chest'], ['pants', 'pants'], ['belt', 'belt'],
-      ['boots', 'boots'], ['ring1', 'ring'], ['ring2', 'ring'], ['amulet', 'amulet'], ['bracer', 'bracer'],
-    ];
-    // 'good': best of 20 rare-or-better drops; 'median': best of 10 ordinary drops (mostly common to rare), less upgraded
-    const rar = () => {
-      const r = Math.random();
-      if (quality === 'median') return r < 0.3 ? 0 : r < 0.62 ? 1 : r < 0.86 ? 2 : r < 0.97 ? 3 : 4;
-      return r < 0.5 ? 2 : r < 0.85 ? 3 : r < 0.98 ? 4 : 5;
-    };
-    for (const [slot, base] of slots) {
-      if (!base) continue;
-      let best: any = null,
-        bestV = -1;
-      for (let k = 0; k < (quality === 'median' ? 10 : 20); k++) {
-        const it = generateItem(Math.max(1, floor - Math.floor(Math.random() * (quality === 'median' ? 12 : 8))), { base, rarity: rar() });
-        it.upgrade = quality === 'median' ? Math.min(6, Math.floor(floor / 15)) : Math.min(8, Math.floor(floor / 12));
-        s.equip[slot] = it;
-        const d = derive(s);
-        const crit = 1 + (d.crit / 100) * (d.critDmg / 100 - 1);
-        const v = ((d.dmgMin + d.dmgMax) / 2) * d.aps * crit + d.spellMult * 300 * crit + d.maxHp * (1 + d.armor / 300) * 0.04 * Math.sqrt(floor);
-        if (v > bestV) {
-          bestV = v;
-          best = it;
-        }
-      }
-      s.equip[slot] = best;
-    }
-    autoLoadout(s);
-    if (profile === 'full') empower(s, floor);
-    const st = storyOf(s);
-    if (story) {
-      st.seen = CHRONICLE_ORDER.filter((id) => storyFloor(id) < floor);
-      st.shards = Math.min(4, Math.floor((floor - 1) / 50));
-      st.blessing = floor > 200;
-    }
+  /** a character about as strong as a good player on this floor (see gearedSave) */
+  startGeared(cls: ClassId, floor: number, story = true, profile: Profile = 'good', difficulty = 1) {
+    const s = gearedSave(cls, floor, story, profile, difficulty);
     G.save = s;
     saveGame(s);
     UI.startGame();
-    return { level: L, hp: derive(s).maxHp };
+    return { level: s.level, hp: derive(s).maxHp };
+  },
+  /** the numbers behind a fight on each floor, without playing it: the hero of the profile (spell points spent
+   *  on the loadout as the bot does) against the floor's monsters on a difficulty. Hits are the hero's typical
+   *  blows (crits averaged in) after the monster's armour; `die` is how many average monster blows the hero
+   *  takes before falling (after armour, dodge and block, capped by the difficulty's blow cap) */
+  balanceTable(cls: ClassId, profile: Profile = 'median', dif = 1, floors = [3, 15, 35, 60, 100, 150, 200, 245], seeds = 3) {
+    const D = DIFFICULTIES[dif];
+    const rows: Record<string, number | string>[] = [];
+    for (const f of floors) {
+      const s = gearedSave(cls, f, true, profile, dif);
+      for (let k = 0; k < 400 && s.spellPoints > 0; k++) {
+        const id = s.loadout.find((x) => x && canInvest(s, x));
+        if (!id) break;
+        s.spellRanks[id] = (s.spellRanks[id] ?? 0) + 1;
+        s.spellPoints--;
+      }
+      const d = derive(s);
+      const critF = 1 + (d.crit / 100) * (d.critDmg / 100 - 1);
+      const flatEl = d.elem.fire + d.elem.ice + d.elem.lightning;
+      const weapon = ((d.dmgMin + d.dmgMax) / 2) * critF;
+      const L = s.level;
+      const sBase = (8 + 3 * L + 0.05 * L * L) * d.spellMult;
+      // the strongest damaging effect of the loadout's spells, and of those that hit a whole pack
+      let spell = 0,
+        aoe = 0;
+      for (const id of s.loadout) {
+        const sp = id ? SPELL_BY_ID[id] : null;
+        if (!sp) continue;
+        const rank = 1 + (s.spellRanks[sp.id] ?? 0);
+        for (const fx of sp.fx) {
+          if (!fx.p) continue;
+          const hit = (sp.scale === 'weapon' ? (d.dmgMin + d.dmgMax) / 2 : sBase) * fx.p * (1 + 0.15 * (rank - 1)) * critF * (fx.n ?? 1) * (fx.hits ?? 1);
+          spell = Math.max(spell, hit);
+          if (['nova', 'aoe', 'rain', 'whirl', 'field', 'chain', 'dance', 'orbit'].includes(fx.t)) aoe = Math.max(aoe, hit);
+        }
+      }
+      const typical = Math.max(weapon / critF, sBase) * critF;
+      let hp = 0,
+        dmg = 0,
+        dps = 0,
+        armRed = 0,
+        n = 0;
+      // a guardian's floor or a calm one has no packs: the next floor's monsters stand in
+      for (let k = 0, g = f; k < seeds || (!n && g < f + 5); k++) {
+        if (k >= seeds) g++;
+        const dg = generateDungeon(g, 7919 * (k + 1) + g);
+        for (const sp of dg.spawns) {
+          const def = ENEMY_BY_ID[sp.id];
+          if (!def || def.thing || def.behavior === 'thief') continue;
+          const nm = areaNorm(g);
+          let mhp = def.hp * enemyHpScale(f) * nm.hp * D.enemyHp * (sp.elite ? 3.2 : 1);
+          mhp = Math.max(mhp, D.toughHits * (sp.elite ? 2.5 : 1) * typical);
+          const arm = enemyArmor(def.armor ?? 0, f);
+          let hit = def.dmg * enemyDmgScale(f) * nm.dmg * (sp.elite ? 1.5 : 1) * D.enemyDmg;
+          hit *= !def.el || def.el === 'phys' ? 1 - d.armor / (d.armor + 50 + 12 * f) : 1 - Math.min(0.5, d.armor / (d.armor + 200 + 25 * f));
+          hit *= (1 - d.dodge / 100) * (1 - (d.block / 100) * 0.75);
+          hit = Math.min(hit, d.maxHp * D.blowCap);
+          hp += mhp;
+          dmg += hit;
+          dps += hit / def.atkCd;
+          armRed += 1 - arm / (arm + 120);
+          n++;
+        }
+      }
+      hp /= n;
+      dmg /= n;
+      dps /= n;
+      armRed /= n;
+      const wHit = weapon * armRed + flatEl;
+      rows.push({
+        floor: f,
+        lv: L,
+        hp: d.maxHp,
+        arm: d.armor,
+        wHit: Math.round(wHit),
+        aps: +d.aps.toFixed(2),
+        spell: Math.round(spell),
+        aoe: Math.round(aoe),
+        mHp: Math.round(hp),
+        // blows of the weapon and casts of the strongest spell a typical monster takes
+        hitsW: +(hp / wHit).toFixed(2),
+        hitsS: +(hp / Math.max(1, spell)).toFixed(2),
+        hitsA: aoe ? +(hp / aoe).toFixed(2) : '-',
+        // seconds the weapon takes on one monster; average monster blow, blows to die, seconds a pack of six takes to kill the hero
+        ttk: +(hp / (wHit * d.aps)).toFixed(2),
+        mHit: Math.round(dmg),
+        die: +(d.maxHp / dmg).toFixed(1),
+        ttd6: +(d.maxHp / (6 * dps)).toFixed(1),
+      });
+    }
+    return rows;
+  },
+  /** the floor's monsters as they come (averaged over a few layouts): their base health and damage per second
+   *  before the depth's scaling, the share of champions and how many there are */
+  floorMonsters(floors: number[], seeds = 4) {
+    return floors.map((f) => {
+      let hp = 0,
+        dps = 0,
+        el = 0,
+        n = 0,
+        g = f;
+      for (let k = 0; k < seeds || (!n && g < f + 5); k++) {
+        if (k >= seeds) g++;
+        for (const sp of generateDungeon(g, 7919 * (k + 1) + g).spawns) {
+          const def = ENEMY_BY_ID[sp.id];
+          if (!def || def.thing || def.behavior === 'thief') continue;
+          hp += def.hp;
+          dps += def.dmg / def.atkCd;
+          el += sp.elite ? 1 : 0;
+          n++;
+        }
+      }
+      return { floor: f, hp: Math.round(hp / n), dps: +(dps / n).toFixed(2), elite: +(el / n).toFixed(3), n: Math.round(n / seeds) };
+    });
+  },
+  /** the area correction of monster health and damage on these floors (see areaNorm) */
+  areaNorms(floors: number[]) {
+    return floors.map((f) => ({ floor: f, ...areaNorm(f) }));
+  },
+  /** what makes up a geared hero's spell power (for the balance probes) */
+  gearedSaveForProbe(cls: ClassId, floor: number, profile: Profile = 'median', dif = 1) {
+    const s = gearedSave(cls, floor, true, profile, dif);
+    const d = derive(s);
+    const { stats } = gearStats(s);
+    return { floor, lv: s.level, int: d.attrs.int, str: d.attrs.str, spellMult: +d.spellMult.toFixed(2), spellDmg: stats.spellDmg ?? 0, dmgPct: stats.dmgPct ?? 0, dmg: `${d.dmgMin}-${d.dmgMax}`, gearInt: stats.int ?? 0, items: Object.values(s.equip).filter(Boolean).map((it: any) => `${it.base}/${it.rarity}/${it.ilvl}/+${it.upgrade}${it.unique ? '/' + it.unique : ''}`).join(' ') };
   },
   /** health of the reference guardian a story guardian's stages are multiples of */
   storyBase(floor: number) {

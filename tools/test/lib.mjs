@@ -7,10 +7,20 @@ const { chromium } = require('playwright');
 export const PORT = process.env.PORT || '4177';
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** a browser with one page; errors of the page are collected in `errs` */
-export async function launch({ locale = 'cs-CZ', width = 844, height = 390, scale = 1, touch = false } = {}) {
+/** a browser with one page; errors of the page are collected in `errs`. `gfx` sets the game's graphics level
+ *  (0 – 3) before every load: the long measurements use 0, which costs the least time */
+export async function launch({ locale = 'cs-CZ', width = 844, height = 390, scale = 1, touch = false, gfx = null } = {}) {
   const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] });
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: scale, locale, hasTouch: touch });
+  if (gfx !== null)
+    await ctx.addInitScript((g) => {
+      try {
+        const s = JSON.parse(localStorage.getItem('loppo-settings') || '{}');
+        s.gfx = g;
+        s.lowFx = g <= 1;
+        localStorage.setItem('loppo-settings', JSON.stringify(s));
+      } catch {}
+    }, gfx);
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' | ')));

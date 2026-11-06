@@ -4,7 +4,7 @@
 // then one of its heavies.
 import { ENEMY_BY_ID, EnemyDef, PRIORITY_ROLES } from './enemies';
 import { familiesFor } from './biomes';
-import type { RNG } from '../systems/rng';
+import { RNG } from '../systems/rng';
 
 export { familiesFor };
 
@@ -84,4 +84,49 @@ export function makePack(fam: Family, floor: number, slots: number, r: RNG): Pac
   const main = r.weighted(fodder, (d) => d.weight * (floor - d.minFloor < 6 ? 1.3 : 1));
   while (left > 0) add(r.chance(0.6) ? main : r.weighted(fodder, (d) => d.weight));
   return out;
+}
+
+// Areas differ in how tough their monsters are (golems against cave vermin), and without a correction the
+// difficulty would jump from one area to the next: four times the health in one area, a third of it in the
+// next. Each area's monsters are brought most of the way to those of the first area (the depth's own curve
+// does the rest): an area of tough monsters still feels tougher, just not several times so.
+const NORM_PULL = 0.75;
+const normCache = new Map<number, { hp: number; dmg: number }>();
+let normRef: { hp: number; dps: number } | null = null;
+
+/** the average health and damage per second of a monster of the floor's packs (both families, the first one is
+ *  met more often; a group counts as many) */
+function packAverage(floor: number) {
+  const fams = familiesFor(floor);
+  const r = new RNG(floor * 7919 + 13);
+  let hp = 0,
+    dps = 0,
+    n = 0;
+  fams.forEach((id, i) => {
+    const share = i === 0 ? 0.65 : 0.35;
+    for (let k = 0; k < 40; k++)
+      for (const s of makePack(FAMILIES[id], floor, 8, r)) {
+        const d = ENEMY_BY_ID[s.id];
+        if (!d) continue;
+        hp += share * s.n * d.hp;
+        dps += share * s.n * (d.dmg / d.atkCd);
+        n += share * s.n;
+      }
+  });
+  return n ? { hp: hp / n, dps: dps / n } : { hp: 1, dps: 1 };
+}
+
+/** how much a regular monster's health and damage are scaled on this floor so that the areas line up */
+export function areaNorm(floor: number) {
+  const f = Math.max(1, Math.round(floor));
+  let v = normCache.get(f);
+  if (v) return v;
+  if (!normRef) {
+    // the first area, as it is met halfway through
+    normRef = packAverage(6);
+  }
+  const a = packAverage(f);
+  v = { hp: Math.pow(normRef.hp / a.hp, NORM_PULL), dmg: Math.pow(normRef.dps / a.dps, NORM_PULL) };
+  normCache.set(f, v);
+  return v;
 }

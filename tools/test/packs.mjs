@@ -13,7 +13,7 @@ for (const c of clsArg.split(',')) for (const f of floorArg.split(',')) for (con
 const mine = configs.filter((_, i) => i % shards === shard);
 const PACKS = +packArg;
 
-const { browser, page, errs } = await launch({ width: 844, height: 390 });
+const { browser, page, errs } = await launch({ width: 640, height: 296, gfx: 0 });
 
 /** a fresh hero on the floor with nothing else around (the floor's own monsters leave) */
 async function setup(c) {
