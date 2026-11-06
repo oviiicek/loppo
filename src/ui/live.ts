@@ -53,6 +53,7 @@ import { sfx } from '../systems/audio';
 import { bus } from '../systems/events';
 import { tr } from '../i18n/i18n';
 import { Net } from '../net/net';
+import { monthPearlsToday } from '../systems/store';
 
 type UIM = typeof UIType;
 
@@ -84,6 +85,8 @@ export class LivePanels {
     const s = this.save;
     const st = pearlState(s);
     let k = welcomeReady(st) ? 1 : 0;
+    // the month of pearls bought: today's pearls
+    if (monthPearlsToday(s)) k++;
     const t = dayTasks(s);
     k += t.list.filter((x) => !x.paid && taskDone(s, x)).length;
     if (!t.bonus && t.list.every((x) => x.paid)) k++;

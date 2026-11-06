@@ -17,6 +17,7 @@ import { Menus } from './menus';
 import { BuildingPanels } from './buildings';
 import { PearlPanels } from './pearls';
 import { flameAlive } from '../data/live';
+import { setStoreHero, onGranted, deliverPending } from '../systems/store';
 import type { DelveResult } from '../data/live';
 import { QuestPanels } from './quests';
 import { ExpeditionPanels } from './expedition';
@@ -151,6 +152,15 @@ class UIManager {
     this.game = g;
     this.root = document.getElementById('ui')!;
     this.pad.start();
+    // purchases go to the hero being played; a purchase given says thanks and refreshes what shows pearls
+    setStoreHero(() => (this.scene?.save && !this.scene.save.fallen ? this.scene.save : null));
+    onGranted((g) => {
+      sfx('levelup');
+      this.banner('Děkujeme za podporu!', `${g.product.kind === 'starter' ? 'Balíček nováčka' : g.product.kind === 'month' ? 'Měsíc perel' : 'Perly hlubin'}: +${g.pearls.toLocaleString('cs-CZ')} 💠${g.firstBonus ? ' · první nákup dvakrát' : ''}`);
+      bus.emit('stats');
+      this.liveBadge();
+      this.pearls.refresh();
+    });
     bus.on('buffs', () => this.renderBuffs());
     bus.on('codex', (name: string) => this.toast(`📖 Nový záznam v kodexu: ${name}`, '#ffc24a'));
     bus.on('equip', () => this.refreshSkills());
@@ -254,6 +264,8 @@ class UIManager {
 
   attachGame(scene: GameScene) {
     this.scene = scene;
+    // purchases that came back before a game ran (from the payment page) go to this hero now
+    setTimeout(() => this.scene === scene && deliverPending(), 1500);
     this.cutsceneActive = false;
     this.root.innerHTML = '';
     this.panel = null;

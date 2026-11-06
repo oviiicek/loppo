@@ -2,16 +2,17 @@
 # Builds the game and serves it for the browser tests:
 #   bash tools/serve.sh          the dev build (with window.__dev) on http://127.0.0.1:4177
 #   bash tools/serve.sh prod     the release build on http://127.0.0.1:4181
-# The builds go to $DW_OUT (default /tmp/dw). A server already running on the port is replaced.
+# The builds go to $DW_OUT (default /tmp/dw), the port can be changed with $DW_PORT (a second copy for UI
+# tests while a long measurement uses the first). A server already running on the port is replaced.
 set -e
 cd "$(dirname "$0")/.."
 OUT=${DW_OUT:-/tmp/dw}
 mkdir -p "$OUT"
 if [ "$1" = "prod" ]; then
-  DIR=$OUT/prod PORT=4181
+  DIR=$OUT/prod PORT=${DW_PORT:-4181}
   npx vite build --outDir "$DIR" --emptyOutDir > "$OUT/build-prod.log" 2>&1 || { tail -20 "$OUT/build-prod.log"; exit 1; }
 else
-  DIR=$OUT/dev PORT=4177
+  DIR=$OUT/dev PORT=${DW_PORT:-4177}
   npx vite build --mode devtools --outDir "$DIR" --emptyOutDir > "$OUT/build-dev.log" 2>&1 || { tail -20 "$OUT/build-dev.log"; exit 1; }
 fi
 pkill -f "http.server $PORT" 2>/dev/null || true

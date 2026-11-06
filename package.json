@@ -2,6 +2,10 @@
   "name": "loppo",
   "productName": "Deepwick",
   "homepage": "https://oviiicek.github.io/loppo/",
+  "store": {
+    "api": "",
+    "publicKey": null
+  },
   "private": true,
   "version": "0.9.0",
   "type": "module",

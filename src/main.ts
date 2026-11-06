@@ -7,6 +7,7 @@ import { GameScene } from './scenes/GameScene';
 import { GalleryScene } from './scenes/GalleryScene';
 import { MenuScene } from './scenes/MenuScene';
 import { initI18n } from './i18n/i18n';
+import { initStore } from './systems/store';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
@@ -27,11 +28,13 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: [BootScene, MenuScene, GameScene, GalleryScene],
 };
 
-// the language goes on before anything reaches the screen
+// the language goes on before anything reaches the screen; the way to pay (and a purchase coming back from the
+// payment page) is found meanwhile
 void initI18n()
   .catch(() => {})
   .then(() => {
     (window as any).__game = new Phaser.Game(config);
+    void initStore().catch(() => {});
   });
 
 if (import.meta.env.DEV || import.meta.env.MODE === 'devtools') import('./dev');

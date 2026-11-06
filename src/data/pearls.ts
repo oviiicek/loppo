@@ -45,6 +45,18 @@ export interface PearlState {
   delves?: number;
   /** codes already used (as numbers, see data/live.ts) */
   codes?: number[];
+  /** the hero's first day with the daily features (the newcomer's pack is offered for a week from it) */
+  born?: string;
+  /** what was bought for real money (product id: how many times) and the purchases already given (their ids,
+   *  so a purchase never counts twice) */
+  buys?: Record<string, number>;
+  grants?: string[];
+  /** the month of pearls: pearls every day up to this day, and the last day they were taken */
+  month?: { until: string; last?: string };
+  /** today's deal was bought (the day) */
+  deal?: string;
+  /** a look being tried on: its kind, id and the time it ends (ms since the page started) */
+  trying?: { kind: 'trail' | 'aura'; id: string; until: number };
 }
 
 export interface TrailDef {
@@ -105,19 +117,8 @@ export const PEARL_OFFERS: PearlOffer[] = [
   { id: 'gold', name: 'Směna za zlato', desc: '5 perel za hromadu zlata podle nejhlubšího patra.', price: 5, glyph: 'sun', css: '#ffd23a' },
 ];
 
-/** the packs that will be sold for real money (shown, not for sale yet); the first purchase doubles the pearls */
-export const PEARL_PACKS: { pearls: number; bonus: number; price: string; tag?: string }[] = [
-  { pearls: 50, bonus: 0, price: '49 Kč' },
-  { pearls: 120, bonus: 10, price: '99 Kč', tag: 'Oblíbené' },
-  { pearls: 300, bonus: 45, price: '229 Kč' },
-  { pearls: 700, bonus: 150, price: '499 Kč', tag: 'Nejvýhodnější' },
-];
-
-/** the offers once payments are ready: a newcomer's pack (once per hero) and a month of pearls */
-export const SPECIAL_PACKS: { id: string; name: string; desc: string; price: string; css: string; glyph: string }[] = [
-  { id: 'starter', name: 'Balíček nováčka', desc: '100 perel, Žhnoucí aura a 2 pírka fénixe. Jen jednou za hru.', price: '49 Kč', css: '#ffb347', glyph: 'star' },
-  { id: 'month', name: 'Měsíc perel', desc: '30 perel hned a pak 5 perel každý den po dobu 30 dní – celkem 180 perel.', price: '99 Kč', css: '#9fe6ff', glyph: 'moon' },
-];
+/** pearls a rise from the ashes costs on the death screen */
+export const REVIVE_PRICE = 25;
 
 export function pearlState(s: { pearl?: PearlState }): PearlState {
   return (s.pearl ??= {});

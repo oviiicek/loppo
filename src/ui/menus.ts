@@ -32,7 +32,7 @@ import { isCampFloor } from '../data/bands';
 import { Net, embedded, MAX_PLAYERS, SLOT_CSS } from '../net/net';
 import { LANGS, currentLang, langInfo, saveLang, tr } from '../i18n/i18n';
 import { flameAlive, delveToday, delveOpen, seasonNow } from '../data/live';
-import { dayKey } from '../data/pearls';
+import { dayKey, REVIVE_PRICE } from '../data/pearls';
 
 type UIM = typeof UIType;
 
@@ -1033,6 +1033,11 @@ export class Menus {
         ${sc.daily ? this.ui.pearls.live.delveDeathHtml() : ''}
         ${this.recapHtml()}
         ${
+          sc.canRevive()
+            ? `<div class="revive"><b>🔥 Vstát z popela</b><span>Hned tady, s polovinou zdraví – bez ztráty zlata i zkušeností. Máš ${(sc.save.pearls ?? 0).toLocaleString('cs-CZ')} 💠.</span><button class="btn violet ${(sc.save.pearls ?? 0) < REVIVE_PRICE ? 'short' : ''}" data-a="revive">Vstát · ${REVIVE_PRICE} 💠</button></div>`
+            : ''
+        }
+        ${
           sc.lastChanceOffer
             ? `<div class="lastch"><b>⚔ Poslední šance</b><span>Smrt váhá. Vydrž 40 sekund v aréně proti vlnám nestvůr – a vrátíš se do patra ${floor} s jediným bodem zdraví. Prohra tě pošle na checkpoint.</span><button class="btn red" data-a="last">Bojovat o život</button></div>`
             : ''
@@ -1044,6 +1049,16 @@ export class Menus {
       this.ui.closeOverlay(false, true);
       this.ui.game.scene.resume('Game');
       sc.respawn();
+    });
+    p.querySelector('[data-a=revive]')?.addEventListener('click', () => {
+      if ((sc.save.pearls ?? 0) < REVIVE_PRICE) {
+        sfx('ui');
+        this.ui.pearls.shortfall(REVIVE_PRICE);
+        return;
+      }
+      this.ui.closeOverlay(false, true);
+      this.ui.game.scene.resume('Game');
+      sc.reviveWithPearls();
     });
     p.querySelector('[data-a=last]')?.addEventListener('click', () => {
       this.ui.closeOverlay(false, true);

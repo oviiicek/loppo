@@ -113,6 +113,7 @@ export const TITLES: TitleDef[] = [
   { id: 'flame', name: 'Mladý plamen', price: 0, how: 'Cesta nováčka – 7. den', css: '#ffc46a' },
   { id: 'unquenched', name: 'Neuhasínající', price: 0, how: 'Plamen knotu 30 dní v řadě', css: '#ffb347' },
   { id: 'soul', name: 'Duše hlubin', price: 0, how: '10 dokončených denních hlubin', css: '#c77dff' },
+  { id: 'heart', name: 'Zlaté srdce', price: 0, how: 'Poděkování za podporu hry nákupem', css: '#ffd23a' },
   { id: 's1', name: 'Srdce plamene', price: 0, season: 1, css: '#ffb347' },
   { id: 's2', name: 'Mrazivý dech', price: 0, season: 2, css: '#6af0d8' },
   { id: 's3', name: 'Jedový trn', price: 0, season: 3, css: '#a8f06a' },
@@ -127,6 +128,13 @@ export function grantLook(st: PearlState, kind: 'trail' | 'aura' | 'title', id: 
   if (have.includes(id)) return false;
   have.push(id);
   return true;
+}
+
+/** the trail or aura the hero shows now: the one being tried on (for half a minute), else the one worn */
+export function wornLook(st: PearlState | undefined, kind: 'trail' | 'aura'): string | null | undefined {
+  const t = st?.trying;
+  if (t && t.kind === kind && performance.now() < t.until) return t.id;
+  return kind === 'trail' ? st?.trail : st?.aura;
 }
 
 // ------------------------------------------------------------------ the flame of the wick (days in a row)
@@ -150,6 +158,7 @@ export interface DailyGift {
 export function dailyGift(s: { pearl?: PearlState }, now = new Date()): DailyGift | null {
   const st = pearlState(s);
   const day = dayKey(now);
+  st.born ??= day;
   if (st.day === day) return null;
   let streak = 1,
     burnt = 0;
@@ -500,6 +509,59 @@ export function delveBetter(a: DelveResult, b: DelveResult | undefined) {
   if (!b) return true;
   if (!!a.dead !== !!b.dead) return !a.dead;
   return a.dead ? a.grid.length > b.grid.length : a.t < b.t;
+}
+
+// ------------------------------------------------------------------ the newcomer's pack (for real money)
+/** the last day the newcomer's pack is offered (a week from the hero's first day), or null when it is over */
+export function starterUntil(st: PearlState, days: number, now = new Date()): Date | null {
+  if (!st.born) return null;
+  const [y, m, d] = st.born.split('-').map(Number);
+  const end = new Date(y, m - 1, d + days);
+  return end > now ? end : null;
+}
+
+// ------------------------------------------------------------------ the deal of the day
+export interface Deal {
+  id: string;
+  name: string;
+  desc: string;
+  /** the price today and the usual one */
+  price: number;
+  was: number;
+  give: Reward[];
+  glyph: string;
+  css: string;
+}
+
+/** today's deal (the same for everyone that day, a look the hero does not have yet when it is a look): one
+ *  purchase a day, about forty per cent off */
+export function dealToday(st: PearlState, now = new Date()): Deal {
+  const r = new RNG(hashText('deal:' + dayKey(now)));
+  const roll = r.next();
+  if (roll < 0.4) {
+    // a look: an aura, a trail or a title from the shop that the hero does not have
+    const looks: { kind: 'aura' | 'trail' | 'title'; id: string; name: string; desc: string; price: number; glyph: string; css: string }[] = [
+      ...AURAS.filter((a) => a.price && !(st.auras ?? []).includes(a.id)).map((a) => ({ kind: 'aura' as const, id: a.id, name: a.name, desc: a.desc, price: a.price, glyph: a.glyph, css: a.css })),
+      ...TITLES.filter((t) => t.price && !(st.titles ?? []).includes(t.id)).map((t) => ({ kind: 'title' as const, id: t.id, name: t.name, desc: 'Titul nad tvým jménem – ve společné hře ho uvidí ostatní.', price: t.price, glyph: 'crown', css: t.css })),
+    ];
+    if (looks.length) {
+      const l = looks[Math.floor(r.next() * looks.length)];
+      return { id: `${l.kind}:${l.id}`, name: l.name, desc: l.desc, price: Math.max(5, Math.round((l.price * 0.6) / 5) * 5), was: l.price, give: [{ k: l.kind, id: l.id }], glyph: l.glyph, css: l.css };
+    }
+  }
+  const DEALS: Deal[] = [
+    { id: 'chest', name: 'Perlová truhla', desc: 'Jistý legendární předmět pro tvoje patro, k tomu dva drahokamy a runa.', price: 12, was: 20, give: [{ k: 'item', n: 4 }, { k: 'gem', n: 1 }, { k: 'gem', n: 1 }, { k: 'rune', n: 1 }], glyph: 'crown', css: '#ffd76a' },
+    { id: 'phoenix', name: 'Dvě pírka fénixe', desc: 'Dvakrát tě vrátí do boje, když padneš. V Hardcore nefungují.', price: 30, was: 50, give: [{ k: 'phoenix' }, { k: 'phoenix' }], glyph: 'fire', css: '#ff8a4a' },
+    { id: 'books', name: 'Kniha a měšec', desc: '+50 % zkušeností a +50 % magického nálezu na 10 pater.', price: 18, was: 30, give: [{ k: 'wisdom' }, { k: 'luck' }], glyph: 'eye', css: '#9fe6ff' },
+    { id: 'candles', name: 'Dvě strážné svíce', desc: 'Plamen knotu přečká dva vynechané dny.', price: 12, was: 20, give: [{ k: 'candle' }, { k: 'candle' }], glyph: 'fire', css: '#ffc46a' },
+    { id: 'gems', name: 'Váček drahokamů', desc: 'Tři drahokamy vyššího stupně a runa.', price: 10, was: 18, give: [{ k: 'gem', n: 1 }, { k: 'gem', n: 1 }, { k: 'gem', n: 1 }, { k: 'rune', n: 1 }], glyph: 'orb', css: '#9fe6ff' },
+  ];
+  return DEALS[Math.floor(r.next() * DEALS.length)];
+}
+
+/** the deal of the day can still be bought today */
+export function dealOpen(st: PearlState, now = new Date()) {
+  return st.deal !== dayKey(now);
 }
 
 // ------------------------------------------------------------------ codes

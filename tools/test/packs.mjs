@@ -69,7 +69,7 @@ async function pack() {
       foes.push(e);
       ids.push(id + (i === 6 ? '*' : ''));
     }
-    window.__pack = { foes, t0: sc.time.now, minHp: 1, pots: sc.save.stats?.potions ?? 0 };
+    window.__pack = { foes, t0: sc.simT, minHp: 1, pots: sc.save.stats?.potions ?? 0 };
     return { ids, hp: Math.round(p.d.maxHp), foeHp: foes.map((e) => e.maxHp), foeDmg: foes.map((e) => Math.round(e.dmg * sc.diff.enemyDmg)) };
   });
   await page.evaluate(() => window.__dev.bot(true));
@@ -86,7 +86,7 @@ async function pack() {
       const left = pk.foes.filter((e) => !e.dead).length;
       if (p.dead) window.__dev.bot(false);
       const killer = p.dead && sc.lastHit ? `${sc.lastHit.who} (${sc.lastHit.kind}, ${sc.lastHit.amount})` : undefined;
-      return { left, dead: p.dead, t: (sc.time.now - pk.t0) / 1000, minHp: pk.minHp, pots: (sc.save.stats?.potions ?? 0) - pk.pots, killer };
+      return { left, dead: p.dead, t: sc.simT - pk.t0, minHp: pk.minHp, pots: (sc.save.stats?.potions ?? 0) - pk.pots, killer };
     });
     if (res.gone || res.dead || res.left === 0) break;
   }

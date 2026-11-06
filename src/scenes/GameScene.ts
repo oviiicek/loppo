@@ -16,8 +16,8 @@ import { ENEMY_BY_ID, bossForFloor, isBossFloor, enemyDmgScale, storyBossForFloo
 import { CHAPTERS, noteForFloor, areaIntroForFloor, Shot } from '../data/story';
 import { GUARDIAN_LINES, GUARDIAN_COLORS } from '../data/bosslines';
 import { SaveData, FloorKind, saveGame, xpForLevel, ATTR_POINTS_PER_LEVEL, SPELL_POINTS_PER_LEVEL, autoLoadout, bumpStat, maxStat, storyOf, buryHero, petsOf, addToInventory, addPearls } from '../systems/state';
-import { pearlState, pearlWord, TRAIL_BY_ID } from '../data/pearls';
-import { dailyGift, delveToday, delveFloor, delveDay, delveGrade, delveSquare, delveBetter, DelveResult, DELVE_PEARLS, DELVE_S_PEARLS, DELVE_SPARKS, DELVE_TRIES, addSparks, fightSparks, dayTasks, taskDone, TASK_BY_ID, AURA_BY_ID, TITLE_BY_ID, grantLook, seasonOf, seasonStep, welcomeReady } from '../data/live';
+import { pearlState, pearlWord, TRAIL_BY_ID, REVIVE_PRICE } from '../data/pearls';
+import { dailyGift, delveToday, delveFloor, delveDay, delveGrade, delveSquare, delveBetter, DelveResult, DELVE_PEARLS, DELVE_S_PEARLS, DELVE_SPARKS, DELVE_TRIES, addSparks, fightSparks, dayTasks, taskDone, TASK_BY_ID, AURA_BY_ID, TITLE_BY_ID, grantLook, seasonOf, seasonStep, welcomeReady, wornLook } from '../data/live';
 import { withSeed } from '../systems/rng';
 import { Aura } from '../game/aura';
 import { PetFollower } from '../game/pet';
@@ -242,6 +242,8 @@ export class GameScene extends Phaser.Scene {
   guestInfo: FloorInfo | null = null;
   /** a guardian fought again from the village's gate (its floor): the expedition stays where it was */
   rematch: number | null = null;
+  /** seconds the world has run on this floor (slower than the clock when frames come late: the step is capped) */
+  simT = 0;
   /** the aura under the hero (bought with pearls or earned, see game/aura.ts) */
   heroAura: Aura | null = null;
   /** the daily depth (a rift laid out the same for everyone that day): the expedition stays where it was */
@@ -533,22 +535,6 @@ export class GameScene extends Phaser.Scene {
     UI.mpStatus(!!this.coop);
     setMusicTrack(this.musicTrack());
     void this.beginFloor();
-    // a gift of pearls for every day of play (once the floor's title card is gone): the flame of the wick
-    this.time.delayedCall(3200, () => {
-      if (!this.sys.isActive() || this.save.fallen) return;
-      const g = dailyGift(this.save);
-      if (!g) return;
-      // the newcomer's gift of the day (not on the very first floor: its first steps are taught there)
-      if (welcomeReady(pearlState(this.save)) && (this.save.maxFloor > 1 || this.inVillage))
-        this.time.delayedCall(2600, () => this.sys.isActive() && UI.toast('🌅 Cesta nováčka: dnešní dar čeká – klepni na plamen vpravo nahoře', '#ffc46a'));
-      this.givePearls(g.pearls, g.streak > 1 ? `Plamen knotu – ${g.streak}. den v řadě` : 'Denní dar');
-      if (g.burnt) UI.toast(g.burnt === 1 ? '🕯 Strážná svíce dohořela za vynechaný den – plamen knotu hoří dál' : `🕯 Strážné svíce dohořely za ${g.burnt} vynechané dny – plamen knotu hoří dál`, '#ffc46a');
-      if (g.candle) UI.toast('🕯 Třetí den v řadě: strážná svíce. Když jeden den vynecháš, udrží plamen knotu.', '#ffc46a');
-      if (g.title) UI.toast(`🏷 Nový titul: ${TITLE_BY_ID[g.title].name}`, TITLE_BY_ID[g.title].css);
-      if (g.aura) UI.toast(`◎ Nová aura: ${AURA_BY_ID[g.aura].name}`, AURA_BY_ID[g.aura].css);
-      saveGame(this.save);
-      UI.liveBadge();
-    });
   }
 
   /** the music of this place: the village (by day or by night), a rift, or the area of the floor */
@@ -3133,10 +3119,29 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** the gift of the day (the flame of the wick), given once the hero has been a few seconds on the floor with
+   *  nothing else on the screen (checked with the other daily things, so a story scene never swallows it) */
+  private giveDailyGift() {
+    const g = dailyGift(this.save);
+    if (!g) return;
+    // the newcomer's gift of the day (not on the very first floor: its first steps are taught there)
+    if (welcomeReady(pearlState(this.save)) && (this.save.maxFloor > 1 || this.inVillage))
+      this.time.delayedCall(2600, () => this.sys.isActive() && UI.toast('🌅 Cesta nováčka: dnešní dar čeká – klepni na plamen vpravo nahoře', '#ffc46a'));
+    this.givePearls(g.pearls, g.streak > 1 ? `Plamen knotu – ${g.streak}. den v řadě` : 'Denní dar');
+    if (g.burnt) UI.toast(g.burnt === 1 ? '🕯 Strážná svíce dohořela za vynechaný den – plamen knotu hoří dál' : `🕯 Strážné svíce dohořely za ${g.burnt} vynechané dny – plamen knotu hoří dál`, '#ffc46a');
+    if (g.candle) UI.toast('🕯 Třetí den v řadě: strážná svíce. Když jeden den vynecháš, udrží plamen knotu.', '#ffc46a');
+    if (g.title) UI.toast(`🏷 Nový titul: ${TITLE_BY_ID[g.title].name}`, TITLE_BY_ID[g.title].css);
+    if (g.aura) UI.toast(`◎ Nová aura: ${AURA_BY_ID[g.aura].name}`, AURA_BY_ID[g.aura].css);
+    saveGame(this.save);
+    UI.liveBadge();
+  }
+
   /** the tasks of the day done since the last look (told once), and sparks for the season's path from the fighting */
   checkLive() {
     const s = this.save;
     if (s.fallen) return;
+    // (the gift waits until the floor's arrival is over and no story scene or panel is up)
+    if (this.time.now > 3000 && !this.cinematic && !UI.panel && !UI.cutsceneActive) this.giveDailyGift();
     const t = dayTasks(s);
     let news = false;
     for (const k of t.list) {
@@ -3249,6 +3254,37 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.fallen();
+  }
+
+  /** a rise on the spot for pearls (the death screen's offer): half the health, nothing lost; not in the daily
+   *  depth (its results stay fair), not for a hardcore hero, not playing together */
+  canRevive() {
+    return !this.save.hardcore && !this.daily && !this.coop && !this.guestInfo && this.player.dead;
+  }
+
+  reviveWithPearls(): boolean {
+    const s = this.save;
+    if (!this.canRevive() || (s.pearls ?? 0) < REVIVE_PRICE) return false;
+    addPearls(s, -REVIVE_PRICE);
+    const p = this.player;
+    p.dead = false;
+    p.hp = p.d.maxHp * 0.5;
+    p.mp = Math.max(p.mp, p.d.maxMp * 0.5);
+    p.invulnT = 3;
+    this.deathAt = 0;
+    this.deathPaid = null;
+    this.lastChanceOffer = false;
+    this.tweens.killTweensOf(p.sprite);
+    p.sprite.setAngle(0).setAlpha(1);
+    p.weapon?.setVisible(true);
+    p.offhand?.setVisible(true);
+    this.fx.burst(p.x, p.y - 8, 0xff8a3a, 40, 'spark');
+    this.fx.burst(p.x, p.y - 4, 0xffd06a, 24, 'puff');
+    this.fx.ring(p.x, p.y - 6, 60, 0xffc04a, 700);
+    sfx('heal');
+    UI.toast('🔥 Vstáváš z popela – s polovinou zdraví a bez ztrát', '#ffb070');
+    saveGame(s);
+    return true;
   }
 
   /** the death screen: the hero fell alone (or the whole party is down) */
@@ -3679,6 +3715,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     const dt = Math.min(0.05, dms / 1000);
+    this.simT += dt;
     const p = this.player;
     // the other player's game: what goes out and comes in (also while walking the stairs)
     this.coop?.update(dt);
@@ -3723,8 +3760,8 @@ export class GameScene extends Phaser.Scene {
     this.moveVec = [mx, my];
 
     if (!p.dead) p.update(dt, mx, my);
-    if (!p.dead) this.trailStep(p, this.save.pearl?.trail);
-    this.heroAura?.update(p.x, p.y + 3, this.save.pearl?.aura, dt, !p.dead && p.sprite.visible && p.sprite.alpha > 0.2);
+    if (!p.dead) this.trailStep(p, wornLook(this.save.pearl, 'trail'));
+    this.heroAura?.update(p.x, p.y + 3, wornLook(this.save.pearl, 'aura'), dt, !p.dead && p.sprite.visible && p.sprite.alpha > 0.2);
 
     // flow field toward player for enemy pathing
     this.flowT -= dt;

@@ -6302,3 +6302,128 @@ input.code {
     flex-wrap: wrap;
   }
 }
+
+/* ------------------------------------------------------------------ offers: the deal of the day, packs, the revive */
+/* a price the hero cannot pay yet: the button still answers (it shows how many pearls are missing) */
+.btn.short {
+  opacity: 0.6;
+  filter: saturate(0.6);
+}
+.deal {
+  --pc: #ffd76a;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-color: var(--pc);
+  background: linear-gradient(90deg, rgba(120, 80, 20, 0.35), rgba(0, 0, 0, 0.3));
+  box-shadow: 0 0 14px rgba(255, 200, 90, 0.18);
+}
+.deal img {
+  width: 52px;
+  height: 52px;
+  flex: none;
+}
+.deal .pinfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.deal .pinfo b {
+  font-size: 20px;
+  color: var(--pc);
+}
+.deal .dhead {
+  font-size: 14px;
+  color: #ffd76a;
+  letter-spacing: 0.02em;
+}
+.deal .btn {
+  flex: none;
+  white-space: nowrap;
+}
+.deal .btn s {
+  opacity: 0.6;
+  font-size: 15px;
+  margin-right: 2px;
+}
+.deal.sold {
+  opacity: 0.7;
+  box-shadow: none;
+}
+.dtag {
+  position: absolute;
+  top: -9px;
+  right: 10px;
+  font-size: 14px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: #e0242c;
+  color: #fff;
+  border: 1px solid #000;
+  white-space: nowrap;
+}
+.starter {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.starter .poffer {
+  border-color: #ffb347;
+  background: linear-gradient(90deg, rgba(120, 70, 10, 0.4), rgba(0, 0, 0, 0.3));
+  box-shadow: 0 0 16px rgba(255, 170, 60, 0.25);
+}
+.starter .dtag {
+  background: #c8641a;
+}
+.poffer .pworth {
+  font-size: 14px;
+  color: #9dff9d;
+}
+.ppack .ptag.x2 {
+  background: #2a9a4a;
+}
+.ppack .btn.gold {
+  font-size: 15px;
+  padding: 4px 8px;
+}
+.lvsec.monthday {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  border-color: #6ab8ff;
+  background: linear-gradient(90deg, rgba(20, 60, 110, 0.4), rgba(0, 0, 0, 0.25));
+}
+.lvsec.monthday .pinfo {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.lvsec.monthday b {
+  color: #9fe6ff;
+  font-size: 19px;
+}
+.revive {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 0 2px;
+  padding: 8px 10px;
+  border: 2px solid #c8641a;
+  border-radius: 8px;
+  background: linear-gradient(rgba(110, 50, 10, 0.45), rgba(30, 10, 0, 0.4));
+}
+.revive b {
+  color: #ffb070;
+  font-size: 19px;
+}
+.revive span {
+  font-size: 15px;
+  color: #f0d8c0;
+}
