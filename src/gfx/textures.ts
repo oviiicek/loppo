@@ -3141,54 +3141,64 @@ function buildFishIcons() {
   }
 }
 
-function buildIcons() {
-  // weapons as icons: centred & rotated 45° for long ones; a big head (scythe, halberd) is drawn smaller and
-  // pushed into view (shift: along the weapon, in pixels of the weapon picture)
-  const mk = (key: string, wkey: string, rot = true, scale = 1, shift = 0) => {
-    const src = canvases.get('wp_' + wkey)!;
-    const [c, ctx] = canvas(24, 24);
-    ctx.save();
-    ctx.translate(12, 12);
-    if (rot && src.height > 14) ctx.rotate(Math.PI / 4);
-    ctx.scale(scale, scale);
-    ctx.drawImage(src, -Math.floor(src.width / 2), -Math.floor(src.height / 2) + shift);
-    ctx.restore();
-    crisp(c, 100);
-    addCanvas(key, c);
+/** a weapon's picture for the inventory (48 px, the detail of the hi-res sprites): a long weapon is turned by 45°
+ *  with RotSprite – the art scaled up sixteen times by Scale2x, turned by the nearest pixel and sampled back down,
+ *  so no line breaks and nothing blurs – and every weapon is made to fill the same box with a margin all round
+ *  (nothing is cut at the frame, however long), then outlined anew */
+function weaponIcon(k: string): HTMLCanvasElement {
+  const [w, h, draw] = WEAPON_DRAW[k];
+  const [c0, x0] = canvas(w, h);
+  draw(x0);
+  crisp(c0);
+  let big = epx2(c0);
+  for (let i = 0; i < 3; i++) big = epx2(big);
+  const W = big.width,
+    H = big.height;
+  const sd = new Uint32Array(big.getContext('2d')!.getImageData(0, 0, W, H).data.buffer);
+  const a = h / w > 1.4 ? Math.PI / 4 : 0;
+  const cos = Math.cos(a),
+    sin = Math.sin(a);
+  const RW = Math.ceil(Math.abs(W * cos) + Math.abs(H * sin)),
+    RH = Math.ceil(Math.abs(W * sin) + Math.abs(H * cos));
+  // a point of the turned picture → the pixel of the art under it (the tip goes up and to the right)
+  const at = (x: number, y: number) => {
+    const dx = x - RW / 2,
+      dy = y - RH / 2;
+    const sx = Math.floor(cos * dx + sin * dy + W / 2),
+      sy = Math.floor(-sin * dx + cos * dy + H / 2);
+    return sx >= 0 && sy >= 0 && sx < W && sy < H ? sd[sy * W + sx] : 0;
   };
-  mk('ic_sword', 'sword');
-  mk('ic_greatsword', 'greatsword');
-  mk('ic_dagger', 'dagger', false);
-  mk('ic_knuckle', 'knuckle', false);
-  mk('ic_axe', 'axe');
-  mk('ic_greataxe', 'greataxe');
-  mk('ic_mace', 'mace');
-  mk('ic_hammer', 'hammer');
-  mk('ic_spear', 'spear');
-  mk('ic_bow', 'bow');
-  mk('ic_crossbow', 'crossbow', false);
-  mk('ic_staff', 'staff');
-  mk('ic_wand', 'wand', false);
-  mk('ic_shield', 'shield', false);
-  mk('ic_orb', 'orb', false);
-  mk('ic_rapier', 'rapier');
-  mk('ic_scimitar', 'scimitar');
-  mk('ic_flail', 'flail');
-  mk('ic_claws', 'claws', false);
-  mk('ic_handcrossbow', 'handcrossbow', false);
-  mk('ic_throwknives', 'throwknives', false);
-  mk('ic_throwaxes', 'throwaxes', false);
-  mk('ic_scepter', 'scepter', false);
-  mk('ic_stormstaff', 'stormstaff', true, 0.8, 8);
-  mk('ic_crook', 'crook', true, 0.8, 10);
-  mk('ic_halberd', 'halberd', true, 0.72, 14);
-  mk('ic_scythe', 'scythe', true, 0.62, 12);
-  mk('ic_quarterstaff', 'quarterstaff');
-  // the bows stand upright and whole, so each kind is told apart at a glance
-  mk('ic_shortbow', 'shortbow', false, 0.72);
-  mk('ic_longbow', 'longbow', false, 0.46);
-  mk('ic_compoundbow', 'compoundbow', false, 0.58);
-  mk('ic_repeater', 'repeater', false);
+  let minX = RW,
+    minY = RH,
+    maxX = 0,
+    maxY = 0;
+  for (let y = 0; y < RH; y += 2)
+    for (let x = 0; x < RW; x += 2)
+      if (at(x + 1, y + 1) >>> 24) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+  const S = 48,
+    M = 5;
+  const span = Math.max(maxX - minX + 2, maxY - minY + 2);
+  // art pixels per icon pixel: a small weapon grows to fill the box, but never past four icon pixels per art pixel
+  const f = Math.max(4, span / (S - 2 * M));
+  const cx = (minX + maxX + 2) / 2,
+    cy = (minY + maxY + 2) / 2;
+  const [c, ctx] = canvas(S, S);
+  const img = ctx.createImageData(S, S);
+  const o32 = new Uint32Array(img.data.buffer);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) o32[y * S + x] = at(cx + (x + 0.5 - S / 2) * f, cy + (y + 0.5 - S / 2) * f);
+  ctx.putImageData(img, 0, 0);
+  outline(c, OUT);
+  return c;
+}
+
+function buildIcons() {
+  // every weapon of the game as an inventory icon (see weaponIcon)
+  for (const k of Object.keys(WEAPON_DRAW)) addCanvas('ic_' + k, weaponIcon(k), false);
 
   addCanvas(
     'ic_helmet',

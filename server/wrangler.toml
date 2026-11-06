@@ -1,0 +1,20 @@
+# Cloudflare Worker for Deepwick's web payments (see server/README.md)
+name = "deepwick-store"
+main = "store-worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+APP_URL = "https://oviiicek.github.io/loppo/"
+ALLOW_ORIGIN = "https://oviiicek.github.io"
+# the Stripe price id of every product (create the prices in the Stripe dashboard)
+PRICE_pearls_50 = ""
+PRICE_pearls_130 = ""
+PRICE_pearls_345 = ""
+PRICE_pearls_850 = ""
+PRICE_starter = ""
+PRICE_month = ""
+
+# wrangler kv namespace create CLAIMS → put its id here
+[[kv_namespaces]]
+binding = "CLAIMS"
+id = ""

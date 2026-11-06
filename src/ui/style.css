@@ -1710,6 +1710,10 @@ img.px {
 }
 
 /* item detail: name, actions on top, comparison cards, then the item's text */
+/* paragraphs of a detail pane sit close (the pane's own gap spaces them), so short screens show them whole */
+.detail > p {
+  margin: 0;
+}
 .detail {
   background:
     radial-gradient(ellipse at 50% 0, rgba(255, 210, 120, 0.07), transparent 60%),
@@ -6426,4 +6430,53 @@ input.code {
 .revive span {
   font-size: 15px;
   color: #f0d8c0;
+}
+
+/* what holds more than it shows fades out where the rest is (so it is not taken for cut off) */
+.more {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+}
+.morex {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+/* short phones (about 360 px of height in landscape): small dialogs, their buttons and the pause menu get tighter */
+@media (max-height: 420px) {
+  .panel.small > :not(.head) {
+    padding: 8px 10px !important;
+    gap: 6px !important;
+  }
+  .panel.small .btn {
+    padding: 5px 10px;
+  }
+  .panel.small .btn.small {
+    padding: 3px 8px;
+  }
+  .panel .head {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+}
+/* the labels of the spell slots fit inside their circles */
+.lslot .n {
+  line-height: 1.15;
+  padding-bottom: 3px;
+  font-size: 11px;
+}
+
+/* the pause menu's rows of buttons: equal columns, a long label wraps inside its button instead of being cut */
+.prow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: 6px;
+}
+.prow .btn {
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.1;
+  padding-left: 4px;
+  padding-right: 4px;
+  overflow-wrap: anywhere;
 }

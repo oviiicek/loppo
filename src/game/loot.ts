@@ -375,7 +375,9 @@ export class Loot {
 
   dropItem(it: Item, x: number, y: number, thrown = false, exact = false): Ground {
     const sc = this.scene;
-    const s = sc.add.image(x, y, itemIcon(it)).setScale(0.55).setDepth(D.entityBase + y - 2);
+    // (the same size on the floor whatever the icon's own: weapons have twice the detail of the rest)
+    const s = sc.add.image(x, y, itemIcon(it)).setDepth(D.entityBase + y - 2);
+    s.setScale(13.2 / Math.max(s.width, s.height));
     let [tx, ty] = [x, y];
     if (exact) sc.tweens.add({ targets: s, y: { from: y - 4, to: y }, duration: 380, ease: 'Bounce.easeOut' });
     else [tx, ty] = this.popTo(s, x, y, thrown);

@@ -450,7 +450,7 @@ export class Menus {
   classSelect() {
     let sel: ClassId = 'warrior';
     const m = el(`<div class="menu" style="justify-content:flex-start;padding:10px">
-      <div class="panel" style="width:min(98vw,1150px);height:min(96vh,660px)">
+      <div class="panel" style="width:min(calc(100vw - 20px),1150px);height:min(calc(100vh - 20px),660px)">
         <div class="head"><h2>Vyber si classu</h2><button class="close">✕</button></div>
         <div class="body">
           <div class="col scroll" style="flex:1.4;min-width:0"><div class="classgrid">${CLASSES.map(
@@ -585,9 +585,9 @@ export class Menus {
       <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
         <div class="hint">${esc(heroTitle(sc.save))} • úroveň ${sc.save.level} • patro ${sc.floor} • herní čas ${Math.floor(sc.save.playTime / 60)} min • <button class="linkbtn" data-a="diff">${diffTag(sc.save)} ✎</button></div>
         <button class="btn green" data-a="resume">Pokračovat</button>
-        <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="inv">Inventář</button><button class="btn" style="flex:1" data-a="char">Postava</button><button class="btn" style="flex:1" data-a="spells">Kouzla</button><button class="btn" style="flex:1" data-a="merc">⚔️ Žoldák</button></div>
-        <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1" data-a="pets">🐾 Mazlíčci</button><button class="btn" style="flex:1" data-a="ach">🏆 Úspěchy</button><button class="btn purple" style="flex:1" data-a="chron">Kronika</button></div>
-        <div class="row" style="flex-wrap:nowrap">${sc.save.maxFloor >= 2 || sc.inVillage ? `<button class="btn gold" style="flex:1" data-a="home">${sc.inVillage ? '⬇ Do kobek' : '🏠 Domů do Loppa'}</button>` : ''}<button class="btn" style="flex:1" data-a="quests">📜 Úkoly${(sc.save.village?.quests ?? []).some((q) => q.done) || sc.save.village?.royal?.quest?.done ? ' ✔' : ''}</button><button class="btn blue" style="flex:1" data-a="coop">👥 Společná hra${Net.active ? ` ${Net.count}/${MAX_PLAYERS}` : ''}</button><button class="btn violet" style="flex:1" data-a="pearls">💠 Perly ${(sc.save.pearls ?? 0).toLocaleString('cs-CZ')}</button></div>
+        <div class="prow"><button class="btn" data-a="inv">Inventář</button><button class="btn" data-a="char">Postava</button><button class="btn" data-a="spells">Kouzla</button><button class="btn" data-a="merc">⚔️ Žoldák</button></div>
+        <div class="prow"><button class="btn" data-a="pets">🐾 Mazlíčci</button><button class="btn" data-a="ach">🏆 Úspěchy</button><button class="btn purple" data-a="chron">Kronika</button></div>
+        <div class="prow">${sc.save.maxFloor >= 2 || sc.inVillage ? `<button class="btn gold" data-a="home">${sc.inVillage ? '⬇ Do kobek' : '🏠 Domů do Loppa'}</button>` : ''}<button class="btn" data-a="quests">📜 Úkoly${(sc.save.village?.quests ?? []).some((q) => q.done) || sc.save.village?.royal?.quest?.done ? ' ✔' : ''}</button><button class="btn blue" data-a="coop">👥 Společná hra${Net.active ? ` ${Net.count}/${MAX_PLAYERS}` : ''}</button><button class="btn violet" data-a="pearls">💠 Perly ${(sc.save.pearls ?? 0).toLocaleString('cs-CZ')}</button></div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="sound">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button><button class="btn small blue" data-a="music">${settings.music ? '🎵 Hudba zapnuta' : '🎵 Hudba vypnuta'}</button><button class="btn small blue" data-a="vibrate">${settings.vibrate ? '📳 Vibrace zapnuty' : '📳 Vibrace vypnuty'}</button>${isStandalone() ? '' : `<button class="btn small blue" data-a="fs" data-fs="label">${fsButtonHTML('label')}</button>`}</div>
         <div class="row" style="justify-content:center"><button class="btn small blue" data-a="uiscale">Ovládání: ${uiScaleName()}</button><button class="btn small blue" data-a="salvage">Kořist: ${salvageName()}</button><button class="btn small blue" data-a="fx">${fxName()}</button>${langButton('btn small blue')}</div>
         <button class="btn red" data-a="quit">Uložit a odejít do menu</button>

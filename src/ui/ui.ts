@@ -152,6 +152,27 @@ class UIManager {
     this.game = g;
     this.root = document.getElementById('ui')!;
     this.pad.start();
+    // what scrolls and holds more than it shows fades out at the edge where the rest is (the bottom of a list,
+    // the right end of a header's materials), until it is scrolled to the end – nothing looks cut off
+    const SCROLLERS = '.scroll, .panel.small > :not(.head), .headmats';
+    const more = (e: HTMLElement) => {
+      const st = getComputedStyle(e);
+      const y = /(auto|scroll)/.test(st.overflowY) && e.scrollHeight > e.clientHeight + 4 && e.scrollTop + e.clientHeight < e.scrollHeight - 4;
+      const x = !y && /(auto|scroll)/.test(st.overflowX) && e.scrollWidth > e.clientWidth + 4 && e.scrollLeft + e.clientWidth < e.scrollWidth - 4;
+      e.classList.toggle('more', y);
+      e.classList.toggle('morex', x);
+    };
+    document.addEventListener('scroll', (ev) => (ev.target as HTMLElement)?.matches?.(SCROLLERS) && more(ev.target as HTMLElement), true);
+    let moreT = 0;
+    const check = () => {
+      if (moreT) return;
+      moreT = window.setTimeout(() => {
+        moreT = 0;
+        this.root.querySelectorAll<HTMLElement>(SCROLLERS).forEach(more);
+      }, 200);
+    };
+    new MutationObserver(check).observe(this.root, { childList: true, subtree: true });
+    window.addEventListener('resize', check);
     // purchases go to the hero being played; a purchase given says thanks and refreshes what shows pearls
     setStoreHero(() => (this.scene?.save && !this.scene.save.fallen ? this.scene.save : null));
     onGranted((g) => {
