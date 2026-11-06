@@ -7,7 +7,8 @@ import { Ally, Enemy, ALLY_DEFS } from './entities';
 import { D, EL_COLOR } from './fx';
 import { Element } from '../data/types';
 import { sfx } from '../systems/audio';
-import { HitOpts, addDot } from './combat';
+import { HitOpts } from './combat';
+import { addDot } from './dot';
 
 interface Field {
   x: number;

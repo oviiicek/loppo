@@ -78,3 +78,18 @@ for f in floors:
     m = vals[len(vals) // 2] if vals else 0
     k = target / m if m else 0
     print(f'{f:5}  {m:14.2f}  {k:8.2f}  {k * cur_mult(f):8.2f}   {vals[-1] / vals[0] if vals else 0:6.2f}  ({len(per)} classes)')
+
+# The monsters' damage: how much of the hero's health a pack takes on normal, with the pack lasting TARGET seconds
+# (`taken` is the share per second with the whole pack fighting; in a real fight about half of it is still up on
+# average). DANGER is the share a pack should take on normal (potions, regeneration and life steal not counted).
+DANGER = float(sys.argv[4]) if len(sys.argv) > 4 else 0.45
+tk = defaultdict(list)
+for r in rows:
+    if 'taken' in r:
+        tk[r['floor']].append(r['taken'])
+if tk:
+    print('\nfloor  taken/s (median hero)  share of health per pack  ×damage for %.0f %%' % (DANGER * 100))
+    for f in sorted(tk):
+        v = sorted(tk[f])[len(tk[f]) // 2]
+        per_pack = v * target * 0.55
+        print(f'{f:5}  {v:8.3f}  {per_pack:8.2f}  {DANGER / per_pack if per_pack else 0:8.2f}')

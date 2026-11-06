@@ -4,6 +4,7 @@ import { D, EL_COLOR } from './fx';
 import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
 import { areaNorm } from '../data/families';
+import { addDot } from './dot';
 import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, packHpMult, packDmgMult, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, storyStageHp, PRIORITY_ROLES, corruptName } from '../data/enemies';
 import type { PowerState } from './powers';
 import { sfx, gfxLevel } from '../systems/audio';
@@ -1201,10 +1202,7 @@ export class Enemy extends Actor {
         sc.combat.damagePlayer(dmg, this);
         if (def.poison || this.mutation === 'jedovatý') sc.player.applyPoison(dmg * 0.3, 3);
         if (def.el === 'ice') sc.player.chill(1.2);
-        if (def.el === 'fire') {
-          sc.player.st.burnT = Math.max(sc.player.st.burnT, 2.5);
-          sc.player.st.burnDps = Math.max(sc.player.st.burnDps, dmg * 0.15);
-        }
+        if (def.el === 'fire') addDot(sc.player.st, 'burn', dmg * 0.15, 2.5);
         if (this.affixes.includes('upíří')) this.hp = Math.min(this.maxHp, this.hp + dmg * 0.5);
         if (this.affixes.includes('mrazivý')) sc.player.chill(1.5);
         if (def.ability === 'berserk') this.shove(sc.player, 200);

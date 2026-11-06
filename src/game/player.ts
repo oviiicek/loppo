@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy } from './entities';
+import { addDot } from './dot';
 import { D, EL_COLOR } from './fx';
 import { SaveData, derive, Derived, LEECH_CAP } from '../systems/state';
 import { BuffMods, magicBase } from '../data/spells';
@@ -287,8 +288,7 @@ export class Player extends Actor {
   }
 
   applyPoison(dps: number, t: number) {
-    this.st.poisonDps = Math.max(this.st.poisonDps, dps);
-    this.st.poisonT = Math.max(this.st.poisonT, t);
+    addDot(this.st, 'poison', dps, t);
   }
 
   chill(t: number) {

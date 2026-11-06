@@ -10,6 +10,7 @@ import type { GameScene } from '../scenes/GameScene';
 import { Net, NetMsg, SLOT_COLORS, SLOT_CSS } from '../net/net';
 import { Enemy, Projectile, ELITE_AFFIXES } from './entities';
 import type { HitOpts } from './combat';
+import { addDot } from './dot';
 import { OtherHero, HeroSnap, heroSnap } from './otherhero';
 import { ENEMY_BY_ID, BOSSES, STORY_BOSSES } from '../data/enemies';
 import type { Element, Item } from '../data/types';
@@ -1016,10 +1017,7 @@ export class Coop {
     if (p.dead) return;
     if (e.poison) p.applyPoison(e.poison as number, 3);
     if (e.chill) p.chill(e.chill as number);
-    if (e.burn) {
-      p.st.burnT = Math.max(p.st.burnT, 2.5);
-      p.st.burnDps = Math.max(p.st.burnDps, e.burn as number);
-    }
+    if (e.burn) addDot(p.st, 'burn', e.burn as number, 2.5);
   }
 
   /** a guest's hero fell: it stays out of the fight, watching the others, until the party reaches the next floor */

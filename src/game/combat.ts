@@ -1,6 +1,6 @@
 import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy, ELITE_AFFIXES } from './entities';
-import type { Status } from './entities';
+import { addDot } from './dot';
 import { EL_COLOR } from './fx';
 import { Element } from '../data/types';
 import { bumpStat, maxStat } from '../systems/state';
@@ -41,21 +41,6 @@ const EL_TEXT: Record<string, string> = {
   holy: '#fff6c0',
   shadow: '#d0a8ff',
 };
-
-/** sets a damage over time on a monster: a stronger one takes over, a weaker one renews the old one while it fades
- *  (a burn does not stay as strong as the strongest blow for as long as more fire keeps landing) */
-export function addDot(st: Status, kind: 'burn' | 'poison' | 'bleed', dps: number, t: number) {
-  if (kind === 'burn') {
-    st.burnDps = st.burnT > 0 ? Math.max(dps, st.burnDps * 0.6) : dps;
-    st.burnT = Math.max(st.burnT, t);
-  } else if (kind === 'poison') {
-    st.poisonDps = st.poisonT > 0 ? Math.max(dps, st.poisonDps * 0.6) : dps;
-    st.poisonT = Math.max(st.poisonT, t);
-  } else {
-    st.bleedDps = st.bleedT > 0 ? Math.max(dps, st.bleedDps * 0.6) : dps;
-    st.bleedT = Math.max(st.bleedT, t);
-  }
-}
 
 /** how hard the hero hits: a running average of the blows that land on monsters (kept from floor to floor, started
  *  again for another character) – the harder difficulties keep monsters from falling to a single blow by it */
