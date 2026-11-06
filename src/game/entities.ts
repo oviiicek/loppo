@@ -4,7 +4,7 @@ import { D, EL_COLOR } from './fx';
 import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
 import { areaNorm } from '../data/families';
-import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, storyStageHp, PRIORITY_ROLES, corruptName } from '../data/enemies';
+import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, packHpMult, packDmgMult, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, storyStageHp, PRIORITY_ROLES, corruptName } from '../data/enemies';
 import type { PowerState } from './powers';
 import { sfx, gfxLevel } from '../systems/audio';
 import { ArenaKind, BOSS_PHASE_HP } from '../data/bossphases';
@@ -370,9 +370,11 @@ export class Enemy extends Actor {
     const dhp = thief ? 1 : dif?.enemyHp ?? 1;
     // the area's monsters brought close to those of other areas (see areaNorm)
     const norm = thief ? { hp: 1, dmg: 1 } : areaNorm(floor);
-    this.maxHp = Math.round(def.hp * hs * norm.hp * (elite ? 3.2 : 1) * dhp);
+    const ph = thief ? 1 : packHpMult(floor),
+      pd = thief ? 1 : packDmgMult(floor);
+    this.maxHp = Math.round(def.hp * hs * norm.hp * ph * (elite ? 3.2 : 1) * dhp);
     this.hp = this.maxHp;
-    this.dmg = def.dmg * ds * norm.dmg * (elite ? 1.5 : 1);
+    this.dmg = def.dmg * ds * norm.dmg * pd * (elite ? 1.5 : 1);
     this.speed = def.speed * (0.9 + Math.random() * 0.2) * (def.behavior === 'thief' ? 1 : dif?.enemySpeed ?? 1);
     this.xp = Math.round(def.xp * enemyXpScale(floor) * (elite ? 4 : 1));
     this.armor = enemyArmor(def.armor ?? 0, floor);
@@ -447,9 +449,9 @@ export class Enemy extends Actor {
     this.affTimers = {};
     this.eliteAffix = list[0];
     const norm = areaNorm(floor);
-    this.maxHp = this.hp = Math.round(def.hp * enemyHpScale(floor) * norm.hp * 5 * (dif?.enemyHp ?? 1));
+    this.maxHp = this.hp = Math.round(def.hp * enemyHpScale(floor) * norm.hp * packHpMult(floor) * 5 * (dif?.enemyHp ?? 1));
     this.toughen(4);
-    this.dmg = def.dmg * enemyDmgScale(floor) * norm.dmg * 1.6;
+    this.dmg = def.dmg * enemyDmgScale(floor) * norm.dmg * packDmgMult(floor) * 1.6;
     this.speed = def.speed * 1.1 * (dif?.enemySpeed ?? 1) * (list.includes('rychlý') ? 1.45 : 1);
     this.armor = enemyArmor(def.armor ?? 0, floor) * 1.5 + (list.includes('obrněný') ? 20 : 0);
     this.xp = Math.round(def.xp * enemyXpScale(floor) * 12);

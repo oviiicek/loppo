@@ -6513,3 +6513,19 @@ button.version {
   font-size: 15px;
   color: #d8d0e6;
 }
+/* the shortfall dialog: the smallest pack of pearls that covers what is missing */
+.sfpack {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 14px;
+}
+.sfpack .ppack {
+  flex-direction: row;
+  gap: 10px;
+  padding: 10px 12px;
+  opacity: 1;
+}
+.sfpack .ppack .ptag {
+  top: -10px;
+}

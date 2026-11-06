@@ -306,6 +306,17 @@ export function enemyDmgScale(floor: number) {
   const v = baseDmgScale(40) * (1 + 0.0242 * g) * (1 + 0.0018 * g) * deepMult(floor, 1.2);
   return floor > STORY_END ? v * Math.pow(1.02, floor - STORY_END) : v;
 }
+/** regular monsters (not the guardians, who keep their own length of fight) against the hero's growth: over the
+ *  first few dozen floors the hero's damage grows much faster than the depth's curve (new spells and their
+ *  ranks, attributes, attack speed and damage from gear), so regular monsters get this much more health on top of
+ *  the curve; measured with the damage meter (tools/test/dps.mjs, tools/balance) */
+export function packHpMult(floor: number) {
+  return 1;
+}
+/** the same for the damage of regular monsters: the longer fights would otherwise wear the hero down more */
+export function packDmgMult(floor: number) {
+  return 1;
+}
 export function enemyXpScale(floor: number) {
   return (1 + 0.25 * (floor - 1) + 0.004 * (floor - 1) * (floor - 1)) * deepMult(floor, 1.3);
 }

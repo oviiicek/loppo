@@ -164,7 +164,12 @@ function botTick() {
     return;
   }
   if (sc.paused) {
-    UI.closeOverlay();
+    // a story page or a scene is skipped as a player in a hurry would, any other window closed
+    if (UI.cutsceneActive) {
+      const b = document.querySelector('.cs-skip');
+      b?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      b?.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    } else UI.closeOverlay();
     return;
   }
   // points
@@ -509,7 +514,7 @@ import { CLASS_BY_ID, CLASSES } from './data/classes';
 import { DIFFICULTIES } from './data/difficulty';
 import { areaNorm } from './data/families';
 import { generateDungeon } from './systems/dungeon';
-import { ENEMY_BY_ID, enemyHpScale, enemyDmgScale, enemyArmor } from './data/enemies';
+import { ENEMY_BY_ID, enemyHpScale, enemyDmgScale, enemyArmor, packHpMult, packDmgMult } from './data/enemies';
 import { SPELL_BY_ID } from './data/spells';
 import type { Slot } from './data/types';
 
@@ -639,10 +644,10 @@ Object.assign(dev, {
           const def = ENEMY_BY_ID[sp.id];
           if (!def || def.thing || def.behavior === 'thief') continue;
           const nm = areaNorm(g);
-          let mhp = def.hp * enemyHpScale(f) * nm.hp * D.enemyHp * (sp.elite ? 3.2 : 1);
+          let mhp = def.hp * enemyHpScale(f) * nm.hp * packHpMult(f) * D.enemyHp * (sp.elite ? 3.2 : 1);
           mhp = Math.max(mhp, D.toughHits * (sp.elite ? 2.5 : 1) * typical);
           const arm = enemyArmor(def.armor ?? 0, f);
-          let hit = def.dmg * enemyDmgScale(f) * nm.dmg * (sp.elite ? 1.5 : 1) * D.enemyDmg;
+          let hit = def.dmg * enemyDmgScale(f) * nm.dmg * packDmgMult(f) * (sp.elite ? 1.5 : 1) * D.enemyDmg;
           hit *= !def.el || def.el === 'phys' ? 1 - d.armor / (d.armor + 50 + 12 * f) : 1 - Math.min(0.5, d.armor / (d.armor + 200 + 25 * f));
           hit *= (1 - d.dodge / 100) * (1 - (d.block / 100) * 0.75);
           hit = Math.min(hit, d.maxHp * D.blowCap);

@@ -95,14 +95,22 @@ export class PearlPanels {
   shortfall(need: number, p?: HTMLElement) {
     const have = this.save.pearls ?? 0;
     const miss = Math.max(1, need - have);
+    // the smallest pack of pearls that covers what is missing (the biggest one when none does)
+    const open = storeOpen();
+    const first = firstPurchase(this.save);
+    const packs = PRODUCTS.filter((x) => x.kind === 'pearls');
+    const gives = (x: Product) => x.pearls * (first ? 2 : 1) + (x.bonus ?? 0);
+    const pick = open ? packs.find((x) => gives(x) >= miss) ?? packs[packs.length - 1] : null;
     const d = el(`<div class="panel small shortfall"><div class="head"><h2>Chybí ti perly</h2></div><div style="padding:14px">
       <p class="hint" style="font-size:18px;margin:0 0 6px">Na tohle potřebuješ ${n(need)} 💠, máš ${n(have)} 💠 – chybí ${n(miss)} 💠.</p>
-      <p class="hint" style="margin:0 0 12px">Perly dávají denní úkoly, denní hlubina, plamen knotu a sezónní cesta.${storeOpen() ? ' Nebo si je můžeš koupit.' : ''}</p>
+      <p class="hint" style="margin:0 0 12px">Perly dávají denní úkoly, denní hlubina, plamen knotu a sezónní cesta.${open ? ' Nebo si je můžeš koupit.' : ''}</p>
+      ${pick ? `<div class="sfpack"><span class="hint">${gives(pick) >= miss ? 'Stačí ti:' : 'Největší balíček:'}</span>${this.productHtml(pick, first)}</div>` : ''}
       <div class="row" style="justify-content:flex-end"><button class="btn" data-x="no">Zpět</button><button class="btn violet" data-x="get">💠 Získat perly</button></div></div></div>`);
     const close = this.ui.dialog(d);
+    this.bindPay(d, close);
     d.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest('button');
-      if (!b) return;
+      if (!b || b.dataset.pay) return;
       sfx('ui');
       close();
       if (b.dataset.x === 'get') {
@@ -398,6 +406,23 @@ export class PearlPanels {
     });
   }
 
+  /** the price buttons of products for real money; `done` runs once a purchase went through (or was started) */
+  private bindPay(root: HTMLElement, done?: () => void) {
+    root.querySelectorAll<HTMLButtonElement>('[data-pay]').forEach((b) =>
+      b.addEventListener('click', async () => {
+        const pr = PRODUCT_BY_ID[b.dataset.pay!];
+        if (!pr) return;
+        sfx('ui');
+        b.disabled = true;
+        const err = await buyProduct(pr);
+        if (err) {
+          b.disabled = false;
+          this.ui.toast(err, '#ff8080');
+        } else done?.();
+      }),
+    );
+  }
+
   /** a product for real money: its card (the price, what it is worth, a ribbon) */
   private productHtml(pr: Product, first: boolean): string {
     const open = storeOpen();
@@ -458,19 +483,7 @@ export class PearlPanels {
       <div class="pcode box"><b>🎟 Kód</b><span class="hint">Kódy rozdáváme na sociálních sítích a při akcích.</span><div class="row"><input type="text" maxlength="24" placeholder="Napiš kód" autocomplete="off" spellcheck="false"><button class="btn small violet" data-a="code">Uplatnit</button></div></div>
     </div>`;
     this.bindMonth(body, () => this.render(p, 'get'));
-    body.querySelectorAll<HTMLButtonElement>('[data-pay]').forEach((b) =>
-      b.addEventListener('click', async () => {
-        const pr = PRODUCT_BY_ID[b.dataset.pay!];
-        if (!pr) return;
-        sfx('ui');
-        b.disabled = true;
-        const err = await buyProduct(pr);
-        if (err) {
-          b.disabled = false;
-          this.ui.toast(err, '#ff8080');
-        }
-      }),
-    );
+    this.bindPay(body);
     const inp = $('.pcode input', body) as HTMLInputElement;
     // typing must not reach the game's keyboard shortcuts
     inp.addEventListener('keydown', (e) => {

@@ -1,7 +1,8 @@
 // Damage meter: a hero geared for a floor (the dev bot plays it) fights a pack of the floor's monsters – six
-// regular ones and a champion – that cannot die, for a stretch of game time, unhurt. It measures the damage the
-// hero deals (by its source: weapon, spells, allies, damage over time, other) and how much of it reaches the
-// pack as a whole, then works out how long the real pack (its health on each difficulty) would last.
+// regular ones and a champion – that cannot die, for a stretch of game time; the hero cannot die either (every
+// blow's health comes back at once). It measures the damage the hero deals (by its source: weapon, spells,
+// allies, damage over time, other), the share of the hero's health the pack takes per second (`taken`, on
+// normal) and the pack's real health, so that the time a real pack lasts can be worked out.
 //   node tools/test/dps.mjs <out.jsonl> [classes] [floors] [profile] [seconds] [heroes] [shard/of]
 //   e.g. node tools/test/dps.mjs /tmp/dw/balance/dps.jsonl warrior,mage 3,15,35 median 20 2 0/2
 import { appendFileSync } from 'fs';
@@ -35,7 +36,6 @@ for (const c of mine) {
       if (sc.rival) (sc.rival.dead = true), sc.rival.destroyVisuals?.(), (sc.rival = null);
       if (sc.merc) sc.merc.setVisible?.(false), (sc.merc = null);
       if (sc.pet) sc.pet.sprite?.setVisible(false), (sc.pet = null);
-      sc.godMode = true;
       const p = sc.player;
       sc.save.mats.hpPotion = 5;
       sc.save.mats.mpPotion = 5;
@@ -70,32 +70,64 @@ for (const c of mine) {
         if (foes.includes(e) && e.hp < 1e14) e.hp = 1e15;
         return r;
       };
-      window.__meter = { foes, natural, m, t0: sc.simT };
+      // the hero is hit as usual (knocked back, slowed, stunned …) but gets the health back at once: what the
+      // blows took is counted instead
+      m.taken = 0;
+      const dp = sc.combat.damagePlayer.bind(sc.combat);
+      sc.combat.damagePlayer = (...a) => {
+        const before = p.hp;
+        const r = dp(...a);
+        if (p.hp < before) {
+          m.taken += before - p.hp;
+          p.hp = before;
+          p.dead = false;
+        }
+        return r;
+      };
+      window.__meter = { foes, natural, m, t0: sc.simT, scene: sc };
       return { natural };
     });
     await page.evaluate(() => window.__dev.bot(true));
     const wall = Date.now();
-    let t = 0;
+    let t = 0,
+      last = -1,
+      still = Date.now(),
+      stalls = 0;
     while (Date.now() - wall < SECS * 6000) {
       await sleep(250);
-      t = await page.evaluate(() => window.__scene.simT - window.__meter.t0);
+      t = await page.evaluate(() => (window.__scene === window.__meter.scene ? window.__scene.simT - window.__meter.t0 : -1));
+      if (t < 0) break;
       if (t >= SECS) break;
+      // the game stands still (a dialog the bot does not close): note what is on the screen and close it
+      if (t !== last) (last = t), (still = Date.now());
+      else if (Date.now() - still > 3000) {
+        const why = await page.evaluate(() => ({ paused: window.__scene.paused, active: window.__scene.sys.isActive(), overlay: [...document.querySelectorAll('.overlay')].map((o) => (o.className + ': ' + o.textContent).slice(0, 160)) }));
+        appendFileSync(out, JSON.stringify({ ...c, stall: why }) + '\n');
+        if (stalls++ < 2) await page.screenshot({ path: out.replace(/\.jsonl$/, '') + `_stall_${c.cls}_${c.floor}_${stalls}.png` });
+        await page.evaluate(() => {
+          window.__scene.ui.closeOverlay?.(false, true);
+          document.querySelectorAll('.overlay').forEach((o) => o.remove());
+          if (!window.__scene.sys.isActive()) window.__scene.game.scene.resume('Game');
+        });
+        still = Date.now();
+      }
     }
     await page.evaluate(() => window.__dev.bot(false));
+    if (t < 0) throw new Error('the scene changed during the measure');
     const res = await page.evaluate(() => {
-      const sc = window.__scene;
+      const sc = window.__meter.scene;
       const { m, foes, t0 } = window.__meter;
       const t = sc.simT - t0;
       const d = sc.player.d;
       const per = foes.map((e) => Math.round((m.per.get(e) ?? 0) / t));
-      return { t, weapon: m.weapon / t, spell: m.spell / t, ally: m.ally / t, dot: m.dot / t, other: m.other / t, avgHit: m.hits ? m.hitSum / m.hits : 0, per, stats: { maxHp: d.maxHp, dmg: `${d.dmgMin}-${d.dmgMax}`, aps: Math.round(d.aps * 100) / 100, spellMult: Math.round(d.spellMult * 100) / 100, crit: Math.round(d.crit) }, level: sc.save.level, loadout: sc.save.loadout.filter(Boolean) };
+      return { t, taken: m.taken / t / d.maxHp, weapon: m.weapon / t, spell: m.spell / t, ally: m.ally / t, dot: m.dot / t, other: m.other / t, avgHit: m.hits ? m.hitSum / m.hits : 0, per, stats: { maxHp: d.maxHp, dmg: `${d.dmgMin}-${d.dmgMax}`, aps: Math.round(d.aps * 100) / 100, spellMult: Math.round(d.spellMult * 100) / 100, crit: Math.round(d.crit), specials: [...d.specials], procs: [sc.save.equip.main?.spell, sc.save.equip.off?.spell].filter(Boolean) }, level: sc.save.level, loadout: sc.save.loadout.filter(Boolean) };
     });
     const total = res.weapon + res.spell + res.ally + res.dot + res.other;
     const natural = prep.natural;
     const r2 = (x) => Math.round(x * 100) / 100;
-    const line = { ...c, profile, level: res.level, t: r2(res.t), dps: Math.round(total), split: { weapon: Math.round(res.weapon), spell: Math.round(res.spell), ally: Math.round(res.ally), dot: Math.round(res.dot), other: Math.round(res.other) }, avgHit: Math.round(res.avgHit), per: res.per, packHp: natural.reduce((a, x) => a + x.hp, 0), foes: natural.map((x) => x.id + (x.elite ? '*' : '')), stats: res.stats, loadout: res.loadout, wall: Math.round((Date.now() - t0) / 1000) };
+    const line = { ...c, profile, level: res.level, t: r2(res.t), dps: Math.round(total), taken: Math.round(res.taken * 1000) / 1000, split: { weapon: Math.round(res.weapon), spell: Math.round(res.spell), ally: Math.round(res.ally), dot: Math.round(res.dot), other: Math.round(res.other) }, avgHit: Math.round(res.avgHit), per: res.per, packHp: natural.reduce((a, x) => a + x.hp, 0), foes: natural.map((x) => x.id + (x.elite ? '*' : '')), stats: res.stats, loadout: res.loadout, wall: Math.round((Date.now() - t0) / 1000) };
     appendFileSync(out, JSON.stringify(line) + '\n');
-    console.log(JSON.stringify({ cls: c.cls, floor: c.floor, lv: line.level, dps: line.dps, split: line.split, packHp: line.packHp, clear: r2(line.packHp / Math.max(1, total)) }));
+    console.log(JSON.stringify({ cls: c.cls, floor: c.floor, lv: line.level, dps: line.dps, taken: line.taken, split: line.split, packHp: line.packHp, clear: r2(line.packHp / Math.max(1, total)) }));
   } catch (e) {
     appendFileSync(out, JSON.stringify({ ...c, profile, error: String(e).slice(0, 200) }) + '\n');
     console.log('error', c, String(e).slice(0, 200));

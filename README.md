@@ -436,13 +436,26 @@ Perly jsou vzácnější než zlato. Ukazují se v HUD vedle zlata (klepnutí ot
   - **Aury** jsou záře s kruhem pod hrdinou, ze které stoupají jiskry. Prodávají se Žhnoucí, Mrazivá, Jedová, Tajemná, Svatozář a Krvavá. Plamen knotu, Věčný plamen a sezónní aury se jen získávají.
   - **Tituly** se píšou nad jméno ve společné hře a do panelu postavy. Prodávají se Zlatá ruka, Postrach hlubin, Stín v temnotě, Bouře z hlubin, Koruna hlubin a Živoucí legenda. Ostatní se získávají. Žádný titul se nemění podle pohlaví hrdiny.
 - **Kódy:** karta Získat perly má pole na kód. Kód `DEEPWICK` dá 10 perel a platí do 31. 3. 2027, každá postava ho může použít jednou. Další kódy se přidávají v `src/data/live.ts`, kde jsou uložené jako čísla, ne jako text.
-- Karta **Získat perly** dál ukazuje nabídky, které se budou prodávat za skutečné peníze:
-  - balíčky perel se štítky „Oblíbené“ a „Nejvýhodnější“,
-  - **Balíček nováčka** (100 perel, Žhnoucí aura, 2 pírka fénixe, jednou za hru),
-  - **Měsíc perel** (30 perel hned a 5 denně po 30 dní),
-  - první nákup za dvojnásobek.
+- **Karta Získat perly** prodává perly a balíčky za skutečné peníze:
+  - balíčky perel: 50 perel (49 Kč), 130 perel (99 Kč, štítek „Oblíbené“), 345 perel (229 Kč) a 850 perel (499 Kč, „Nejvýhodnější“), ceny jsou i v eurech, dolarech a zlotých,
+  - **první nákup balíčku perel dá dvojnásobek perel**,
+  - **Balíček nováčka** (100 perel, Žhnoucí aura, 2 pírka fénixe za 49 Kč) jde koupit jen jednou a jen první týden hraní, s odpočtem času,
+  - **Měsíc perel** (99 Kč): 30 perel hned a 5 perel každý den po 30 dní (vyzvedávají se v záložce Dnes),
+  - u každé nabídky je vidět, kolik perel a věcí dává. Hra neprodává náhodné odměny,
+  - kdo koupí cokoli, dostane titul **Zlaté srdce**.
+- **Nabídky:**
+  - **Nabídka dne:** každý den jedna věc se slevou 40 %. Je to vzhled, který hrdina ještě nemá, nebo balíček.
+  - **Vyzkoušet:** stopy a aury jde 30 sekund nosit, než je hráč koupí.
+  - Když na něco nestačí perly, ukáže se okno s tím, kolik chybí, a nejmenším balíčkem, který to pokryje.
+  - **Vstát z popela:** po smrti jde za 25 perel vstát na místě s plným zdravím (ne v Hardcore, v denní hlubině ani ve společné hře).
+- **Jak se platí** (podrobně v `server/README.md`):
+  - v aplikaci pro Android a iOS přes Google Play a App Store (plugin `cordova-plugin-purchase`), ceny ukazuje obchod v měně hráče,
+  - na webu přes Stripe: malý server (`server/store-worker.js` pro Cloudflare Workers) založí platbu a po zaplacení vydá podepsané potvrzení, hra podpis ověří veřejným klíčem z `package.json`,
+  - ve vývojové verzi se platba jen předstírá,
+  - když není nastavená žádná cesta, ukazují tlačítka „Brzy“.
 
-  Platby zatím nejsou zapojené (tlačítka „Brzy“). Všechno z obchodu jde získat i hraním.
+  Každý nákup se připíše postavě, se kterou hráč hraje, a to jen jednou. Všechno, co jde koupit za perly, jde získat i hraním.
+- **Právní stránky:** `public/privacy.html` (zásady ochrany soukromí) a `public/terms.html` (obchodní podmínky nákupů), česky a anglicky. Před vydáním je potřeba doplnit údaje provozovatele na místech označených ⟦…⟧. Odkazy na ně jsou v okně **O hře** (tlačítko s verzí v hlavním menu), které ukazuje i licence knihoven a písem.
 
 ### Sdílení odkazu
 Stránka má náhled pro sociální sítě (Open Graph). Odkaz na hru, i ten ve sdíleném výsledku denní hlubiny, ukáže obrázek `public/og.jpg` s názvem hry a krátký popis. Adresa hry je v `package.json` (`homepage`).
