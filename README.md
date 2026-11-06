@@ -17,16 +17,22 @@ Složka `dist/` je statický web. Stačí ji nahrát na libovolný hosting (GitH
 
 ### Zabalení do mobilní aplikace (Capacitor)
 
+Nastavení aplikace je v `capacitor.config.json` (ID `cz.deepwick.game`, název Deepwick, web ze složky `dist/`).
+ID aplikace se po prvním vydání v obchodě už nedá změnit, proto ho před vydáním zkontroluj.
+
 ```bash
-npm install @capacitor/core @capacitor/cli @capacitor/android
-npx cap init Deepwick cz.deepwick.game --web-dir dist
+npm install @capacitor/core @capacitor/cli @capacitor/android cordova-plugin-purchase
 npm run build
 npx cap add android
 npx cap sync
-npx cap open android   # otevře Android Studio → Build APK
+npx cap open android   # otevře Android Studio → Build → Generate Signed Bundle (AAB pro Google Play)
 ```
 
-Pro iOS je to obdobně s `@capacitor/ios` (vyžaduje macOS a Xcode). V nastavení projektu zamkni orientaci na šířku (landscape).
+- V `android/app/src/main/AndroidManifest.xml` dej aktivitě `android:screenOrientation="sensorLandscape"`.
+- Ikony aplikace vytvoř v Android Studiu (Image Asset) z `public/icons/icon-maskable-512.png`.
+- Pro iOS je postup stejný s `@capacitor/ios` (vyžaduje macOS a Xcode). V Xcode nech zapnutou jen orientaci na šířku.
+- Nákupy v aplikaci: produkty se stejnými ID založ v Google Play Console a v App Store Connect (viz `server/README.md`).
+- Po každé změně hry spusť `npm run build` a `npx cap sync`.
 
 ## Ovládání
 

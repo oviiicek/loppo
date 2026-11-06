@@ -91,6 +91,19 @@ export class Menus {
       <button class="version" data-a="about">verze ${__APP_VERSION__} · O hře</button>
     </div>`);
     this.ui.root.appendChild(m);
+    // the heroes along the bottom only when they stay clear of the buttons (a long saved hero's line, a language
+    // with longer words or a screen of middle height would put them over the buttons)
+    const sprites = m.querySelector<HTMLElement>('.sprites');
+    const fit = () => {
+      if (!m.isConnected) return window.removeEventListener('resize', fit);
+      if (!sprites || getComputedStyle(sprites).display === 'none') return;
+      sprites.style.visibility = '';
+      const low = Math.max(...[...m.querySelectorAll('.btn, .todayline, .saveinfo')].map((b) => b.getBoundingClientRect().bottom));
+      sprites.style.visibility = sprites.getBoundingClientRect().top < low + 4 ? 'hidden' : '';
+    };
+    requestAnimationFrame(fit);
+    document.fonts?.ready.then(fit).catch(() => {});
+    window.addEventListener('resize', fit);
     m.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest('button');
       if (!b) return;

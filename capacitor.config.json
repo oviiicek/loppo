@@ -1,0 +1,14 @@
+{
+  "appId": "cz.deepwick.game",
+  "appName": "Deepwick",
+  "webDir": "dist",
+  "backgroundColor": "#0b0a10",
+  "android": {
+    "backgroundColor": "#0b0a10",
+    "allowMixedContent": false
+  },
+  "ios": {
+    "backgroundColor": "#0b0a10",
+    "contentInset": "never"
+  }
+}

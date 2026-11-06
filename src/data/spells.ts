@@ -116,8 +116,15 @@ const C = {
   shield: '#7fb2ff',
 };
 
+/** how hard each class's spells hit, so that every class clears a pack of monsters about as fast (measured with
+ *  the damage meter, tools/test/dps.mjs): the damage of the class's spells (and of what they summon) is
+ *  multiplied by it */
+const CLASS_POWER: Partial<Record<ClassId | 'universal', number>> = {};
+
 function S(cls: ClassId | 'universal', n: number, name: string, lvl: number, mana: number, cd: number, scale: 'weapon' | 'magic', fx: Fx[], icon: string, color: string, desc: string, ult = false): SpellDef {
-  return { id: `${cls}_${n}`, name, cls, lvl, mana, cd, scale, fx, icon, color, desc, ult };
+  const k = CLASS_POWER[cls] ?? 1;
+  const fxs = k === 1 ? fx : fx.map((f) => (f.p ? { ...f, p: Math.round(f.p * k * 100) / 100 } : f));
+  return { id: `${cls}_${n}`, name, cls, lvl, mana, cd, scale, fx: fxs, icon, color, desc, ult };
 }
 
 const W = 'weapon' as const;
