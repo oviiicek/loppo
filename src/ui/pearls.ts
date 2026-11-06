@@ -441,7 +441,7 @@ export class PearlPanels {
       <div class="ppacks">${PRODUCTS.filter((x) => x.kind === 'pearls').map((x) => this.productHtml(x, first)).join('')}</div>
       ${open && first ? '<div class="hint">🎁 První nákup perel ti dá dvakrát tolik perel.</div>' : ''}
       <div class="pspecial">${this.productHtml(PRODUCT_BY_ID.month, false)}</div>
-      <div class="hint">${open ? `Perly se připíšou postavě, se kterou hraješ. Kupované perly: 1 💠 ≈ ${rate} (u větších balíčků méně). Platí obchodní podmínky.` : 'Nákup za skutečné peníze bude dostupný později – všechno z obchodu se dá získat i hraním.'}${storeKind() === 'test' ? ' <b style="color:#ff8a5a">Testovací režim: nic se neplatí.</b>' : ''}</div>
+      <div class="hint">${open ? `Perly se připíšou postavě, se kterou hraješ. Kupované perly: 1 💠 ≈ ${rate} (u větších balíčků méně). Platí <a href="${__APP_URL__}terms.html" target="_blank" rel="noopener">obchodní podmínky</a>.` : 'Nákup za skutečné peníze bude dostupný později – všechno z obchodu se dá získat i hraním.'}${storeKind() === 'test' ? ' <b style="color:#ff8a5a">Testovací režim: nic se neplatí.</b>' : ''}</div>
       <b class="qsect">Zdarma ve hře</b>
       <ul class="pways">
         <li><b>Plamen knotu</b> – za každý den hry 1 perla, každý sedmý den v řadě 3 (teď ${days === 1 ? '1 den' : days >= 2 && days <= 4 ? `${days} dny` : `${days} dní`} v řadě).</li>

@@ -88,7 +88,7 @@ export class Menus {
       <button class="btn blue" data-a="help">Jak hrát</button>
       <div class="row" style="justify-content:center"><button class="btn small" data-a="sound" style="min-width:0;font-size:18px">${isMuted() ? '🔇 Zvuk vypnut' : '🔊 Zvuk zapnut'}</button>${isStandalone() ? '' : `<button class="btn small" data-a="fs" data-fs="label" style="min-width:0;font-size:18px">${fsButtonHTML('label')}</button>`}${langButton('btn small', 'min-width:0;font-size:18px')}</div>
       <div class="sprites">${CLASSES.map((c, i) => `<img src="${iconURL('pl_' + c.id, 64)}" style="animation-delay:${i * 0.15}s">`).join('')}</div>
-      <div class="version">verze ${__APP_VERSION__} beta</div>
+      <button class="version" data-a="about">verze ${__APP_VERSION__} · O hře</button>
     </div>`);
     this.ui.root.appendChild(m);
     m.addEventListener('click', (e) => {
@@ -111,6 +111,7 @@ export class Menus {
         } else this.slots(m, 'Všechny sloty jsou obsazené. Vyber postavu, kterou chceš nahradit.');
       } else if (a === 'slots') this.slots(m);
       else if (a === 'help') this.help(m);
+      else if (a === 'about') this.about();
       else if (a === 'lang') this.languages();
       else if (a === 'fs') this.ui.toggleFullscreen();
       else if (a === 'sound') {
@@ -133,6 +134,32 @@ export class Menus {
       : '🔥 Zapal plamen knotu – hraj každý den';
     const delve = delveOpen(save) ? ` • 🌀 Denní hlubina #${d.n}: ${d.fate.name}` : '';
     return `<div class="todayline">${flame}${delve}</div>`;
+  }
+
+  /** about the game: its version, what it is made with (and their licences) and the privacy policy and terms */
+  about() {
+    const link = (file: string, text: string) => `<a href="${__APP_URL__}${file}" target="_blank" rel="noopener">${text}</a>`;
+    const p = el(`<div class="overlay" style="z-index:95"><div class="panel small about"><div class="head"><h2>O hře</h2><button class="close">✕</button></div>
+      <div class="body scroll">
+        <p><b class="gt">${__APP_NAME__.toUpperCase()}</b> · verze ${__APP_VERSION__}</p>
+        <p class="hint">Akční dungeon RPG pro telefon i počítač. Celá grafika, hudba a zvuky vznikají přímo v kódu hry. Překlady do jiných jazyků než češtiny pořídila umělá inteligence.</p>
+        <p>${link('privacy.html', 'Zásady ochrany soukromí')} · ${link('terms.html', 'Obchodní podmínky')}</p>
+        <b class="qsect">Použité knihovny a písma</b>
+        <ul class="credits">
+          <li>Phaser 3 – herní engine (licence MIT)</li>
+          <li>PeerJS – spojení pro společnou hru (licence MIT)</li>
+          <li>Písmo Jersey 10 – The Soft Type Project Authors (SIL Open Font License 1.1)</li>
+          <li>Písmo Pixelify Sans – The Pixelify Sans Project Authors (SIL Open Font License 1.1)</li>
+        </ul>
+      </div></div></div>`);
+    this.ui.root.appendChild(p);
+    p.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t === p || t.closest('.close')) {
+        sfx('ui');
+        p.remove();
+      }
+    });
   }
 
   /** the languages of the game; the chosen one goes on as the game starts again (the hero is saved first) */
