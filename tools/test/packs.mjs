@@ -28,6 +28,9 @@ async function setup(c) {
       e.destroyVisuals?.();
     }
     sc.enemies.length = 0;
+    // no way down: the bot would leave for the stairs once few monsters are left
+    for (const it of sc.interactables.filter((i) => i.kind === 'stairs')) it.sprite?.setVisible?.(false);
+    sc.interactables = sc.interactables.filter((i) => i.kind !== 'stairs');
     // the rival, the mercenary and the pet stay out of the measure
     if (sc.rival) {
       sc.rival.dead = true;
