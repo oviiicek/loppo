@@ -1,5 +1,6 @@
 import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy, ELITE_AFFIXES } from './entities';
+import type { Status } from './entities';
 import { EL_COLOR } from './fx';
 import { Element } from '../data/types';
 import { bumpStat, maxStat } from '../systems/state';
@@ -40,6 +41,21 @@ const EL_TEXT: Record<string, string> = {
   holy: '#fff6c0',
   shadow: '#d0a8ff',
 };
+
+/** sets a damage over time on a monster: a stronger one takes over, a weaker one renews the old one while it fades
+ *  (a burn does not stay as strong as the strongest blow for as long as more fire keeps landing) */
+export function addDot(st: Status, kind: 'burn' | 'poison' | 'bleed', dps: number, t: number) {
+  if (kind === 'burn') {
+    st.burnDps = st.burnT > 0 ? Math.max(dps, st.burnDps * 0.6) : dps;
+    st.burnT = Math.max(st.burnT, t);
+  } else if (kind === 'poison') {
+    st.poisonDps = st.poisonT > 0 ? Math.max(dps, st.poisonDps * 0.6) : dps;
+    st.poisonT = Math.max(st.poisonT, t);
+  } else {
+    st.bleedDps = st.bleedT > 0 ? Math.max(dps, st.bleedDps * 0.6) : dps;
+    st.bleedT = Math.max(st.bleedT, t);
+  }
+}
 
 /** how hard the hero hits: a running average of the blows that land on monsters (kept from floor to floor, started
  *  again for another character) – the harder difficulties keep monsters from falling to a single blow by it */
@@ -84,8 +100,7 @@ export class Combat {
     // elemental flat damage
     const el = d.elem;
     if (el.fire > 0) {
-      e.st.burnT = 3;
-      e.st.burnDps = Math.max(e.st.burnDps, el.fire * 0.6 * mult);
+      addDot(e.st, 'burn', el.fire * 0.6 * mult, 3);
       this.damageEnemy(e, el.fire * mult, { el: 'fire', silent: true, noCrit: true });
     }
     if (el.ice > 0) {
@@ -97,8 +112,7 @@ export class Combat {
     }
     if (el.lightning > 0) this.damageEnemy(e, el.lightning * mult * (0.5 + Math.random() * 1.0), { el: 'lightning', silent: true, noCrit: true });
     if (el.poison > 0) {
-      e.st.poisonT = 4;
-      e.st.poisonDps = Math.max(e.st.poisonDps, el.poison * 0.8 * mult);
+      addDot(e.st, 'poison', el.poison * 0.8 * mult, 4);
     }
   }
 
@@ -113,12 +127,10 @@ export class Combat {
       sc.fx.burst(e.x, e.y - 6, 0x9fe6ff, 6);
     }
     if (s.has('burnOnHit')) {
-      e.st.burnT = 3;
-      e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.2);
+      addDot(e.st, 'burn', dmg * 0.2, 3);
     }
     if (s.has('poisonOnHit')) {
-      e.st.poisonT = 4;
-      e.st.poisonDps = Math.max(e.st.poisonDps, dmg * 0.3);
+      addDot(e.st, 'poison', dmg * 0.3, 4);
     }
     if (s.has('markOfDeath')) {
       e.st.vulnT = 4;
@@ -126,8 +138,7 @@ export class Combat {
     }
     // the weapon bonuses
     if (s.has('bleedOnHit')) {
-      e.st.bleedT = 3;
-      e.st.bleedDps = Math.max(e.st.bleedDps, dmg * 0.25);
+      addDot(e.st, 'bleed', dmg * 0.25, 3);
     }
     if (s.has('chillOnHit')) {
       const m = e.boss ? 0.85 : 0.7;
@@ -159,12 +170,10 @@ export class Combat {
     }
     for (const b of [...p.buffs, ...sc.shrineBuffs]) {
       if (b.mods.onHitPoison) {
-        e.st.poisonT = 4;
-        e.st.poisonDps = Math.max(e.st.poisonDps, dmg * 0.3);
+        addDot(e.st, 'poison', dmg * 0.3, 4);
       }
       if (b.mods.onHitFire) {
-        e.st.burnT = 3;
-        e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.25);
+        addDot(e.st, 'burn', dmg * 0.25, 3);
       }
       if (b.mods.onHitChain && Math.random() < 0.6) sc.spells.chain(e.x, e.y, 3, dmg * 0.5, 'lightning', new Set([e.id]));
     }
@@ -185,13 +194,11 @@ export class Combat {
     const k = 1 + tier * 0.1;
     switch (type) {
       case 'fire':
-        e.st.burnT = 3;
-        e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.3 * k);
+        addDot(e.st, 'burn', dmg * 0.3 * k, 3);
         sc.fx.burst(e.x, e.y - 6, 0xff7a2a, 5);
         break;
       case 'poison':
-        e.st.poisonT = 4;
-        e.st.poisonDps = Math.max(e.st.poisonDps, dmg * 0.3 * k);
+        addDot(e.st, 'poison', dmg * 0.3 * k, 4);
         sc.fx.burst(e.x, e.y - 6, 0x7bd88f, 5, 'puff');
         break;
       case 'frost':
@@ -205,8 +212,7 @@ export class Combat {
         sc.spells.chain(e.x, e.y, 2 + tier, dmg * 0.5, 'lightning', new Set([e.id]));
         break;
       case 'blood':
-        e.st.bleedT = 4;
-        e.st.bleedDps = Math.max(e.st.bleedDps, dmg * 0.35 * k);
+        addDot(e.st, 'bleed', dmg * 0.35 * k, 4);
         sc.fx.burst(e.x, e.y - 6, 0xc81a2a, 5, 'pix');
         break;
       case 'weak':
@@ -333,11 +339,9 @@ export class Combat {
     // spells leave their element behind: fire burns, poison poisons, frost slows
     if (o.spell && !o.dot && !o.fromAlly) {
       if (el === 'fire') {
-        e.st.burnT = Math.max(e.st.burnT, 2.5);
-        e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.12);
+        addDot(e.st, 'burn', dmg * 0.12, 2.5);
       } else if (el === 'poison') {
-        e.st.poisonT = Math.max(e.st.poisonT, 4);
-        e.st.poisonDps = Math.max(e.st.poisonDps, dmg * 0.15);
+        addDot(e.st, 'poison', dmg * 0.15, 4);
       } else if (el === 'ice' && !e.boss) {
         e.st.slowT = Math.max(e.st.slowT, 1.5);
         e.st.slowMult = Math.min(e.st.slowT > 0 ? e.st.slowMult : 1, 0.7);

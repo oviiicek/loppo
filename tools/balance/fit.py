@@ -4,6 +4,8 @@ from damage meter lines (tools/test/dps.mjs) measured with the current values. F
 the monsters must be for the median class to need TARGET seconds per pack on normal (the pack's health over the
 damage per second); for every class: how much harder its spells must hit to clear like the median class (the
 geometric mean over the floors, only the spells' share of its damage can change).
+The class powers are worked out first and the floors' toughness after them (from the damage each class would
+deal with its new power).
    python3 tools/balance/fit.py <dps.jsonl> [target seconds] [current knots as f:m,f:m,...]"""
 import json, sys, math
 from collections import defaultdict
@@ -34,22 +36,25 @@ def cur_mult(f):
             t = (f - a) / (b - a)
             return math.exp(math.log(cur[a]) * (1 - t) + math.log(cur[b]) * t)
 
-t = defaultdict(lambda: defaultdict(list))
-spell_share = defaultdict(list)
-for r in rows:
-    t[r['floor']][r['cls']].append(r['packHp'] / max(1, r['dps']))
-    spell_share[r['cls']].append((r['split']['spell'] + r['split'].get('ally', 0) + r['split'].get('dot', 0) * 0.5) / max(1, r['dps']))
-floors = sorted(t)
+def share_of(r):
+    # the part of the damage that the class power scales: spells, what they summon, half of the burning
+    return (r['split']['spell'] + r['split'].get('ally', 0) + r['split'].get('dot', 0) * 0.5) / max(1, r['dps'])
+
+def table(power):
+    t = defaultdict(lambda: defaultdict(list))
+    for r in rows:
+        k = power.get(r['cls'], 1)
+        sh = share_of(r)
+        dps = r['dps'] * ((1 - sh) + sh * k)
+        t[r['floor']][r['cls']].append(r['packHp'] / max(1, dps))
+    return {f: {c: gmean(v) for c, v in t[f].items()} for f in t}
+
 classes = sorted({r['cls'] for r in rows})
-print('floor  median-class s  ×tougher  new mult')
-med = {}
-for f in floors:
-    per = {c: gmean(v) for c, v in t[f].items()}
-    m = sorted(per.values())[len(per) // 2] if per else 0
-    med[f] = per
-    k = target / m if m else 0
-    print(f'{f:5}  {m:14.2f}  {k:8.2f}  {k * cur_mult(f):8.2f}   ({len(per)} classes)')
-print('\nclass   speed vs median (>1 kills faster)   spell share   suggested power ×')
+shares = {c: sum(share_of(r) for r in rows if r['cls'] == c) / max(1, sum(1 for r in rows if r['cls'] == c)) for c in classes}
+med = table({})
+floors = sorted(med)
+power = {}
+print('class   speed vs median (>1 kills faster)   spell share   suggested power ×')
 for c in classes:
     ratios = []
     for f in floors:
@@ -57,9 +62,19 @@ for c in classes:
             m = sorted(med[f].values())[len(med[f]) // 2]
             ratios.append(m / med[f][c])
     g = gmean(ratios)
-    share = sum(spell_share[c]) / len(spell_share[c])
+    share = shares[c]
     # only the spells' part of the damage scales with the class power: power p makes the speed (1-share) + share*p
     want = 1 / g if g else 1
     p = (want - (1 - share)) / share if share > 0.05 else 1
     p = max(0.25, min(3, p))
+    power[c] = p
     print(f'{c:10} {g:8.2f}  ({" ".join(f"{x:.2f}" for x in ratios)})   {share:5.2f}   {p:5.2f}')
+adj = table(power)
+print('\nwith those powers:')
+print('floor  median-class s  ×tougher  new mult   spread (slowest/fastest class)')
+for f in floors:
+    per = adj[f]
+    vals = sorted(per.values())
+    m = vals[len(vals) // 2] if vals else 0
+    k = target / m if m else 0
+    print(f'{f:5}  {m:14.2f}  {k:8.2f}  {k * cur_mult(f):8.2f}   {vals[-1] / vals[0] if vals else 0:6.2f}  ({len(per)} classes)')

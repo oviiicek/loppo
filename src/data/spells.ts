@@ -116,6 +116,15 @@ const C = {
   shield: '#7fb2ff',
 };
 
+/** the strength of magic at a level, before the hero's magic power (intelligence, spell damage): it follows the
+ *  damage of a weapon found at that depth (the same curve, with the rarer and upgraded weapons of the deeper
+ *  floors in it), so that a spell grows with the hero the way a sword does – not three times as strong at first
+ *  and weaker at the end */
+export function magicBase(level: number) {
+  const i = Math.max(0, level - 5);
+  return 8.4 * (1 + 0.15 * i + 0.004 * i * i) * (1 + 0.006 * Math.min(level, 150));
+}
+
 /** how hard each class's spells hit, so that every class clears a pack of monsters about as fast (measured with
  *  the damage meter, tools/test/dps.mjs): the damage of the class's spells (and of what they summon) is
  *  multiplied by it */

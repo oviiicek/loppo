@@ -3,7 +3,7 @@ import type { GameScene } from '../scenes/GameScene';
 import { Actor, Enemy } from './entities';
 import { D, EL_COLOR } from './fx';
 import { SaveData, derive, Derived, LEECH_CAP } from '../systems/state';
-import { BuffMods } from '../data/spells';
+import { BuffMods, magicBase } from '../data/spells';
 import { BASE_BY_ID, itemTier, isBow } from '../data/items';
 import { bus } from '../systems/events';
 import { sfx } from '../systems/audio';
@@ -653,7 +653,7 @@ export class Player extends Actor {
 
   spellBase() {
     const L = this.save.level;
-    return (8 + 3 * L + 0.05 * L * L) * this.d.spellMult;
+    return magicBase(L) * this.d.spellMult;
   }
 
   autoAttack(dt: number) {

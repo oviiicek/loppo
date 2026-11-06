@@ -430,6 +430,15 @@ export class Enemy extends Actor {
     this.xp = Math.round(this.xp * Math.min(2, Math.sqrt(boost)));
   }
 
+  /** a guardian's servant: only as tough as the depth's curve (not the extra toughness of regular packs, see
+   *  packHpMult) and hitting as softly as the guardian's own blows in its long fight */
+  asServant(b: Enemy) {
+    const f = this.scene.floor;
+    this.maxHp = this.hp = Math.max(1, Math.round((this.maxHp / packHpMult(f)) * (b.story ? 0.6 : 1)));
+    this.toughen(1);
+    this.dmg = (this.dmg / packDmgMult(f)) * b.blowScale;
+  }
+
   /** a corrupted monster: five times the health, three random traits, black and purple, rich loot */
   makeCorrupt() {
     const sc = this.scene;

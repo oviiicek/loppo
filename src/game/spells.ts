@@ -7,7 +7,7 @@ import { Ally, Enemy, ALLY_DEFS } from './entities';
 import { D, EL_COLOR } from './fx';
 import { Element } from '../data/types';
 import { sfx } from '../systems/audio';
-import { HitOpts } from './combat';
+import { HitOpts, addDot } from './combat';
 
 interface Field {
   x: number;
@@ -297,10 +297,7 @@ export class Spells {
                 e.st.vulnT = 6;
                 e.st.vuln = f.vuln;
               }
-              if (f.dot) {
-                e.st.bleedT = 4;
-                e.st.bleedDps = Math.max(e.st.bleedDps, dmg * f.dot * 0.25);
-              }
+              if (f.dot) addDot(e.st, 'bleed', dmg * f.dot * 0.25, 4);
             }
           });
         }
@@ -464,10 +461,7 @@ export class Spells {
         e.sprite.setTint(0x9fe6ff);
         e.hitFlash = o.freeze;
       }
-      if (el === 'fire') {
-        e.st.burnT = 3;
-        e.st.burnDps = Math.max(e.st.burnDps, dmg * 0.15);
-      }
+      if (el === 'fire') addDot(e.st, 'burn', dmg * 0.15, 3);
     }
   }
 

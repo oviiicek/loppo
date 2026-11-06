@@ -203,8 +203,7 @@ export class BossAI {
         m.aggro = true;
         m.isMinion = true;
         m.xp = Math.round(m.xp * 0.3);
-        m.dmg *= b.blowScale;
-        if (b.story) m.maxHp = m.hp = Math.round(m.maxHp * 0.6);
+        m.asServant(b);
       });
     }
   }
@@ -356,10 +355,7 @@ export class BossAI {
             m.aggro = true;
             m.isMinion = true;
             m.xp = Math.round(m.xp * 0.3);
-            // a long fight: its servants are a nuisance, not executioners (they hit as softly as the guardian's
-            // own blows)
-            m.dmg *= b.blowScale;
-            if (b.story) m.maxHp = m.hp = Math.round(m.maxHp * 0.6);
+            m.asServant(b);
           });
         }
         break;

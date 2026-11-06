@@ -515,7 +515,7 @@ import { DIFFICULTIES } from './data/difficulty';
 import { areaNorm } from './data/families';
 import { generateDungeon } from './systems/dungeon';
 import { ENEMY_BY_ID, enemyHpScale, enemyDmgScale, enemyArmor, packHpMult, packDmgMult } from './data/enemies';
-import { SPELL_BY_ID } from './data/spells';
+import { SPELL_BY_ID, magicBase } from './data/spells';
 import type { Slot } from './data/types';
 
 type Profile = 'good' | 'median' | 'full';
@@ -615,7 +615,7 @@ Object.assign(dev, {
       const flatEl = d.elem.fire + d.elem.ice + d.elem.lightning;
       const weapon = ((d.dmgMin + d.dmgMax) / 2) * critF;
       const L = s.level;
-      const sBase = (8 + 3 * L + 0.05 * L * L) * d.spellMult;
+      const sBase = magicBase(L) * d.spellMult;
       // the strongest damaging effect of the loadout's spells, and of those that hit a whole pack
       let spell = 0,
         aoe = 0;
