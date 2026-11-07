@@ -55,14 +55,18 @@ for (const c of mine) {
         // the fight starts when the guardian notices the hero
         if (bf.t0 === null && b.aggro) bf.t0 = sc.simT;
         const was = bf.wasDead;
-        if (p.dead && !was) bf.deaths++;
+        if (p.dead && !was) {
+          bf.deaths++;
+          // what landed the last blow (the guardian, its servants, the arena …)
+          if (sc.lastHit) (bf.killers ??= []).push(`${sc.lastHit.who} (${sc.lastHit.kind}, ${sc.lastHit.amount} of ${Math.round(p.d.maxHp)})`);
+        }
         // after a death the hero wakes in the room before the arena: back to the guardian
         if (!p.dead && was && !b.dead) window.__dev.toBoss();
         bf.wasDead = p.dead;
         if (!p.dead && bf.t0 !== null) bf.minHp = Math.min(bf.minHp, p.hp / p.d.maxHp);
         const dlg = document.querySelector('.cs-skip');
         if (dlg) window.__dev.skipCutscene();
-        return { dead: b.dead, deaths: bf.deaths, t: bf.t0 === null ? 0 : sc.simT - bf.t0, minHp: bf.minHp, pots: (sc.save.stats?.potions ?? 0) - bf.pots, boss: b.name, hpLeft: Math.round((b.hp / b.maxHp) * 100) / 100, phase: b.phase ?? 0 };
+        return { dead: b.dead, deaths: bf.deaths, killers: bf.killers, t: bf.t0 === null ? 0 : sc.simT - bf.t0, minHp: bf.minHp, pots: (sc.save.stats?.potions ?? 0) - bf.pots, boss: b.name, hpLeft: Math.round((b.hp / b.maxHp) * 100) / 100, phase: b.phase ?? 0 };
       });
       if (res.gone || res.dead || res.deaths >= 3 || res.t >= LIMIT) break;
     }

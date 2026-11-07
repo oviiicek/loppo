@@ -5,7 +5,7 @@ import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
 import { areaNorm } from '../data/families';
 import { addDot } from './dot';
-import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, packHpMult, packDmgMult, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, storyStageHp, PRIORITY_ROLES, corruptName } from '../data/enemies';
+import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, packHpMult, packDmgMult, GUARD_HP, STORY_HP, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, storyStageHp, PRIORITY_ROLES, corruptName } from '../data/enemies';
 import type { PowerState } from './powers';
 import { sfx, gfxLevel } from '../systems/audio';
 import { ArenaKind, BOSS_PHASE_HP } from '../data/bossphases';
@@ -439,7 +439,7 @@ export class Enemy extends Actor {
     const f = this.scene.floor;
     this.maxHp = this.hp = Math.max(1, Math.round((this.maxHp / packHpMult(f)) * (b.story ? 0.6 : 1)));
     this.toughen(1);
-    this.dmg = (this.dmg / packDmgMult(f)) * b.blowScale;
+    this.dmg *= b.blowScale;
   }
 
   /** a corrupted monster: five times the health, three random traits, black and purple, rich loot */
@@ -517,9 +517,9 @@ export class Enemy extends Actor {
     const early = floor <= 10 ? 0.8 : floor <= 20 ? 0.9 : 1;
     const base = bossBaseStats(boss);
     const dif = this.scene.diff;
-    this.maxHp = Math.round(base.hp * 0.5 * enemyHpScale(floor) * tierMult * early * (dif?.enemyHp ?? 1));
+    this.maxHp = Math.round(base.hp * 0.5 * enemyHpScale(floor) * tierMult * early * (dif?.enemyHp ?? 1) * GUARD_HP);
     this.hp = this.maxHp;
-    this.dmg = base.dmg * enemyDmgScale(floor) * Math.pow(1.06, tier) * early;
+    this.dmg = base.dmg * enemyDmgScale(floor) * Math.pow(1.06, tier) * early * packDmgMult(floor);
     this.speed = boss.speed * (dif?.enemySpeed ?? 1);
     this.xp = Math.round(300 * enemyXpScale(floor) * (1 + tier));
     this.armor = bossArmor(floor);
@@ -555,11 +555,11 @@ export class Enemy extends Actor {
     const dif = this.scene.diff;
     // the stage lasts about its time for a hero of the expected strength; even a far stronger one needs most of
     // it (the damage cap), and the difficulty makes it hit harder, not last longer
-    this.maxHp = this.hp = Math.round(storyStageHp(floor, ph.time));
+    this.maxHp = this.hp = Math.round(storyStageHp(floor, ph.time) * STORY_HP);
     this.capRate = this.maxHp / (ph.time * 0.9);
     // a long stage hits a little softer per blow (it is a fight of endurance and dodging, not of one hit)
     this.blowScale = Math.pow(60 / Math.max(60, ph.time), 0.7);
-    this.dmg = base.dmg * ph.dmg * this.blowScale;
+    this.dmg = base.dmg * ph.dmg * this.blowScale * packDmgMult(floor);
     this.speed = ph.speed * (dif?.enemySpeed ?? 1);
     this.enraged = false;
     this.patternIdx = 0;

@@ -347,6 +347,11 @@ const PACK_DMG: [number, number][] = [
   [163, 0.55],
   [243, 0.38],
 ];
+/** guardians against a typical hero of their depth (the guardian probe, tools/test/bosses.mjs): a floor guardian
+ *  has this share of the health it was built with (typical heroes could not finish it in twice its time), a story
+ *  guardian's stages this share; both hit as much softer as the floor's regular monsters (packDmgMult) */
+export const GUARD_HP = 0.55;
+export const STORY_HP = 0.85;
 export function packHpMult(floor: number) {
   return knots(PACK_HP, floor);
 }
