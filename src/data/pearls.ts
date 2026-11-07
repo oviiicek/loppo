@@ -57,6 +57,8 @@ export interface PearlState {
   deal?: string;
   /** a look being tried on: its kind, id and the time it ends (ms since the page started) */
   trying?: { kind: 'trail' | 'aura'; id: string; until: number };
+  /** the newcomer's pack was offered after the first guardian (it is offered only once) */
+  nudged?: boolean;
 }
 
 export interface TrailDef {

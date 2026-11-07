@@ -3032,6 +3032,8 @@ export class GameScene extends Phaser.Scene {
     UI.banner('Strážce poražen!', b.boss?.fem ? `${b.name} padla` : `${b.name} padl`);
     this.fx.shake(0.012, 500);
     this.spawnBossRewards(b);
+    // a newcomer's first guardian: the newcomer's pack is offered once (see PearlPanels.starterNudge)
+    if (!this.rematch && !this.coop) this.time.delayedCall(6000, () => UI.pearls.starterNudge());
   }
 
   /** the guardian's reward: everything it guarded bursts out of it (no chests to choose from), the barrier falls

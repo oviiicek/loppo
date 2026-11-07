@@ -406,6 +406,33 @@ export class PearlPanels {
     });
   }
 
+  /** after a hero's first guardian: the newcomer's pack, offered once while it can still be bought (it is a good
+   *  deal and the moment fits: the hero has just won and the first week is not over) */
+  starterNudge() {
+    const s = this.save;
+    if (!s || !storeOpen() || this.ui.panel || this.ui.cutsceneActive || this.ui.scene?.cinematic || this.ui.scene?.player.dead) return;
+    const st = pearlState(s);
+    const pr = PRODUCT_BY_ID.starter;
+    const end = starterUntil(st, STARTER_DAYS);
+    if (st.nudged || !end || !canBuy(s, pr)) return;
+    st.nudged = true;
+    saveGame(s);
+    const ms = end.getTime() - Date.now();
+    const d = Math.floor(ms / 86400000),
+      h = Math.floor((ms % 86400000) / 3600000);
+    const left = d > 0 ? `zbývá ${d} d ${h} h` : `zbývá ${h} h`;
+    const box = el(`<div class="panel small nudge"><div class="head"><h2>🎁 Nabídka pro nováčky</h2></div><div style="padding:14px">
+      <p class="hint" style="margin:0 0 10px">První strážce padl! Balíček nováčka je jen pro první týden hraní a koupit ho jde jen jednou.</p>
+      <div class="starter box"><span class="dtag">${esc(left)}</span>${this.productHtml(pr, false)}</div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-x="no">Teď ne</button></div></div></div>`);
+    const close = this.ui.dialog(box);
+    this.bindPay(box, close);
+    $('[data-x=no]', box).addEventListener('click', () => {
+      sfx('ui');
+      close();
+    });
+  }
+
   /** the price buttons of products for real money; `done` runs once a purchase went through (or was started) */
   private bindPay(root: HTMLElement, done?: () => void) {
     root.querySelectorAll<HTMLButtonElement>('[data-pay]').forEach((b) =>
