@@ -340,7 +340,7 @@ export class Spells {
         let hpBase = 40 + 15 * L;
         if (p.save.cls === 'necro') hpBase *= 1.3;
         if (p.save.cls === 'druid') hpBase *= 1.2;
-        const dmgBase = (sp.scale === 'weapon' ? p.weaponHit() : p.spellBase() * 0.55) * (1 + 0.15 * (rank - 1));
+        const dmgBase = (sp.scale === 'weapon' ? p.weaponHit() : p.spellBase() * 0.55) * (f.p ?? 1) * (1 + 0.15 * (rank - 1));
         const kind = f.kind ?? 'skeleton';
         for (let i = 0; i < (f.n ?? 1); i++) {
           const pos = sc.map.randomFloorNear(p.x, p.y, 20) ?? [p.x, p.y];

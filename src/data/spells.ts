@@ -132,7 +132,8 @@ const CLASS_POWER: Partial<Record<ClassId | 'universal', number>> = {};
 
 function S(cls: ClassId | 'universal', n: number, name: string, lvl: number, mana: number, cd: number, scale: 'weapon' | 'magic', fx: Fx[], icon: string, color: string, desc: string, ult = false): SpellDef {
   const k = CLASS_POWER[cls] ?? 1;
-  const fxs = k === 1 ? fx : fx.map((f) => (f.p ? { ...f, p: Math.round(f.p * k * 100) / 100 } : f));
+  // (what a spell summons hits with its p too, 1 when it has none)
+  const fxs = k === 1 ? fx : fx.map((f) => (f.p || f.t === 'summon' ? { ...f, p: Math.round((f.p ?? 1) * k * 100) / 100 } : f));
   return { id: `${cls}_${n}`, name, cls, lvl, mana, cd, scale, fx: fxs, icon, color, desc, ult };
 }
 

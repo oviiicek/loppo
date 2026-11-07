@@ -50,3 +50,26 @@ for dif in sorted({r['dif'] for r in rows}):
     print(f'×health    ' + ''.join(f'{target / med(list(tm[f].values())) if tm[f] else 0:16.2f}' for f in floors))
     # the damage scales the health lost; longer fights (more health) scale it too
     print(f'×damage    ' + ''.join(f'{(danger / med(list(ls[f].values()))) / (target / med(list(tm[f].values()))) if tm[f] and med(list(ls[f].values())) else 0:16.2f}' for f in floors))
+
+# How fast each class clears against the median class (all difficulties together, geometric mean over the
+# floors), and the spell power (CLASS_POWER) that would bring it to the median if spells do SHARE of its damage.
+SHARE = 0.55
+print('\nclass speed against the median class (>1 faster), suggested power ×')
+tm_all = defaultdict(lambda: defaultdict(list))
+for r in rows:
+    tm_all[(r['dif'], r['floor'])][r['cls']].append(r['t'])
+ratios = defaultdict(list)
+for key, per in tm_all.items():
+    g = {c: gmean(v) for c, v in per.items()}
+    if len(g) < 3:
+        continue
+    m = med(list(g.values()))
+    for c, v in g.items():
+        ratios[c].append(m / v)
+for c in sorted(ratios, key=lambda c: ORDER.index(c) if c in ORDER else 99):
+    # the median of the floors (one lucky or unlucky floor says little), and half of the step it calls for (the
+    # measure is noisy; the next measure shows what is left)
+    g = med(ratios[c])
+    want = 1 / g
+    p = max(0.3, min(3, (want - (1 - SHARE)) / SHARE))
+    print(f'{c:10} {g:6.2f}  power ×{p:4.2f}  half step ×{math.sqrt(p):4.2f}   ({" ".join(f"{x:.2f}" for x in ratios[c])})')

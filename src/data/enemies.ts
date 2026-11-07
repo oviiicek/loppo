@@ -306,16 +306,32 @@ export function enemyDmgScale(floor: number) {
   const v = baseDmgScale(40) * (1 + 0.0242 * g) * (1 + 0.0018 * g) * deepMult(floor, 1.2);
   return floor > STORY_END ? v * Math.pow(1.02, floor - STORY_END) : v;
 }
-/** regular monsters (not the guardians, who keep their own length of fight) against the hero's growth: over the
- *  first few dozen floors the hero's damage grows much faster than the depth's curve (new spells and their
- *  ranks, attributes, attack speed and damage from gear), so regular monsters get this much more health on top of
- *  the curve; measured with the damage meter (tools/test/dps.mjs, tools/balance) */
-export function packHpMult(floor: number) {
-  return 1;
+/** a curve through points (floor, multiplier), straight between them on a logarithmic scale and level beyond */
+function knots(pts: [number, number][], floor: number) {
+  if (floor <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    const [f1, m1] = pts[i];
+    if (floor <= f1) {
+      const [f0, m0] = pts[i - 1];
+      const t = (floor - f0) / (f1 - f0);
+      return Math.exp(Math.log(m0) * (1 - t) + Math.log(m1) * t);
+    }
+  }
+  return pts[pts.length - 1][1];
 }
-/** the same for the damage of regular monsters: the longer fights would otherwise wear the hero down more */
+
+/** regular monsters (not the guardians, who keep their own length of fight) against a typical hero of their
+ *  depth: how much tougher than the depth's curve they are, so that a pack lasts about as long on every floor;
+ *  measured with the pack probe (tools/test/packs.mjs, tools/balance/packs_report.py) */
+const PACK_HP: [number, number][] = [[1, 1]];
+/** and how much harder or softer they hit, so that a pack takes about as much of the hero's health on every floor
+ *  (the first floors stay gentler) */
+const PACK_DMG: [number, number][] = [[1, 1]];
+export function packHpMult(floor: number) {
+  return knots(PACK_HP, floor);
+}
 export function packDmgMult(floor: number) {
-  return 1;
+  return knots(PACK_DMG, floor);
 }
 export function enemyXpScale(floor: number) {
   return (1 + 0.25 * (floor - 1) + 0.004 * (floor - 1) * (floor - 1)) * deepMult(floor, 1.3);
