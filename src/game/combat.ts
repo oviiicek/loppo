@@ -381,9 +381,13 @@ export class Combat {
   /** the flash of a monster and the number over it */
   private showHit(e: Enemy, dmg: number, o: HitOpts, el: Element, crit: boolean, em: number, resisted: boolean) {
     const sc = this.scene;
-    if (!o.dot) {
+    // the white flash of a hit, but not more often than now and then: under many blows at once (the hero, a pet,
+    // allies, spells) a monster – and a guardian above all – would otherwise stay a white shape the whole fight; and
+    // never over the coloured glow of an attack being prepared (the hero has to see that one)
+    if (!o.dot && e.flashGap <= 0 && e.hitFlash <= 0) {
       e.sprite.setTintFill(0xffffff);
       e.hitFlash = 0.07;
+      e.flashGap = e.boss ? 0.4 : 0.15;
     }
     if (!o.silent || crit) {
       const txt = Math.round(dmg).toString();

@@ -321,6 +321,8 @@ export class Enemy extends Actor {
   leapPending = false;
   /** seconds until the next look whether it stands inside a wall */
   stuckT = Math.random() * 0.5;
+  /** seconds until a hit may flash it white again */
+  flashGap = 0;
   /** a lurker hidden inside a wall, out of reach */
   inWall = false;
   /** which way a monster backing away slides */
@@ -637,6 +639,7 @@ export class Enemy extends Actor {
     if (this.dead) return;
     this.updateStatus(dt);
     if (this.dead) return;
+    if (this.flashGap > 0) this.flashGap -= dt;
     if (this.hitFlash > 0) {
       this.hitFlash -= dt;
       if (this.hitFlash <= 0) {

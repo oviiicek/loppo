@@ -10,9 +10,18 @@ mkdirSync(out, { recursive: true });
 const locale = { cs: 'cs-CZ', en: 'en-US', de: 'de-DE' }[lang] ?? lang;
 const { browser, page } = await launch({ width: 960, height: 540, scale: 2, locale });
 const shot = (n) => page.screenshot({ path: `${out}/${lang}_${n}.png` });
+// no toasts, hints or a white flash of a monster that was just hit on the picture
 const quiet = () =>
   page.evaluate(() => {
     document.querySelectorAll('.toasts > *, .lootfeed > *').forEach((t) => t.remove());
+    document.querySelectorAll('.hintbox').forEach((t) => t.classList.remove('on'));
+    const sc = window.__scene;
+    for (const e of [...(sc?.enemies ?? []), sc?.boss].filter(Boolean)) {
+      if (e.dead || !(e.hitFlash > 0 || e.sprite?.tintFill)) continue;
+      e.hitFlash = 0;
+      if (e.baseTint !== null && e.baseTint !== undefined) e.sprite.setTint(e.baseTint);
+      else e.sprite.clearTint();
+    }
   });
 
 await openGame(page);
@@ -38,9 +47,10 @@ await page.evaluate(() => {
   window.__dev.bot(true);
 });
 await sleep(2600);
+await page.evaluate(() => window.__dev.bot(false));
+await sleep(250);
 await quiet();
 await shot('1_fight');
-await page.evaluate(() => window.__dev.bot(false));
 
 // a guardian
 await startGeared(page, 'warrior', 40, { quality: 'full' });
@@ -53,9 +63,10 @@ await sleep(2500);
 await skip(page, 8);
 await page.evaluate(() => window.__dev.bot(true));
 await sleep(3500);
+await page.evaluate(() => window.__dev.bot(false));
+await sleep(250);
 await quiet();
 await shot('2_guardian');
-await page.evaluate(() => window.__dev.bot(false));
 
 // the gear
 await page.evaluate(() => window.__scene.ui.openPanel('inventory'));
