@@ -262,7 +262,13 @@ export class LivePanels {
     for (const r of items) if (!this.grant(r)) return false;
     for (const r of rest) this.grant(r);
     sfx('coin');
-    this.ui.toast(`🎁 ${why}: ${list.map((r) => this.rewardText(r)).join(', ')}`, '#ffd76a');
+    // the same thing twice is said once with its count ("2× Strážná svíce")
+    const counts = new Map<string, number>();
+    for (const r of list) {
+      const t = this.rewardText(r);
+      counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    this.ui.toast(`🎁 ${why}: ${[...counts].map(([t, n]) => (n > 1 ? `${n}× ${t}` : t)).join(', ')}`, '#ffd76a');
     saveGame(this.save);
     bus.emit('stats');
     this.ui.liveBadge();
