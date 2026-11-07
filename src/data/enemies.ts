@@ -360,8 +360,9 @@ const GUARD_HP_PTS: [number, number][] = [
 export const guardHp = (floor: number) => knots(GUARD_HP_PTS, floor);
 export const STORY_HP = 0.85;
 /** the first guardians are gentler, in health and even more in their blows – they are where new players learn to
- *  dodge (the queen of the spiders on floor 20 poisoned typical mages to death) */
-export const guardEarly = (floor: number) => (floor <= 10 ? { hp: 0.8, dmg: 0.7 } : floor <= 20 ? { hp: 0.9, dmg: 0.75 } : floor <= 30 ? { hp: 1, dmg: 0.9 } : { hp: 1, dmg: 1 });
+ *  dodge (the queen of the spiders on floor 20 poisoned typical mages to death); all floor guardians hit a little
+ *  softer than they were built to (weaker heroes of a depth died in their long fights) */
+export const guardEarly = (floor: number) => (floor <= 10 ? { hp: 0.8, dmg: 0.6 } : floor <= 20 ? { hp: 0.9, dmg: 0.62 } : floor <= 30 ? { hp: 1, dmg: 0.75 } : { hp: 1, dmg: 0.85 });
 export function packHpMult(floor: number) {
   return knots(PACK_HP, floor);
 }
