@@ -134,7 +134,7 @@ const CLASS_POWER: Partial<Record<ClassId | 'universal', number>> = {
   mage: 0.9,
   paladin: 1.5,
   necro: 0.52,
-  berserker: 0.64,
+  berserker: 0.75,
   druid: 0.8,
   monk: 1.65,
   shaman: 0.77,
