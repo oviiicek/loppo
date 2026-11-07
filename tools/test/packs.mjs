@@ -1,19 +1,28 @@
 // Balance probe: a hero geared for a floor (the dev bot plays it) fights packs of the floor's monsters – six
 // regular ones and a champion around it – on a difficulty. For every pack: how long it took, the lowest health,
-// the potions drunk and whether the hero fell. One JSON line per configuration goes to the output file.
-//   node tools/test/packs.mjs <out.jsonl> [classes] [floors] [difficulties] [quality] [packs] [shard/of]
-//   e.g. node tools/test/packs.mjs /tmp/dw/balance/packs.jsonl warrior,mage 3,30,90 0,1,2,3 median 3 0/2
-import { appendFileSync } from 'fs';
+// the potions drunk and whether the hero fell. One JSON line per configuration (class, floor, difficulty, hero)
+// goes to the output file; what the file already has is not measured again (a run cut short goes on where it
+// stopped). Each hero gets new random gear.
+//   node tools/test/packs.mjs <out.jsonl> [classes] [floors] [difficulties] [quality] [packs] [shard/of] [heroes]
+//   e.g. node tools/test/packs.mjs /tmp/dw/balance/packs.jsonl warrior,mage 3,33,87 0,1,2,3 median 3 0/2 2
+import { appendFileSync, existsSync, readFileSync } from 'fs';
 import { launch, openGame, startGeared, sleep } from './lib.mjs';
 
-const [out = '/tmp/dw/balance/packs.jsonl', clsArg = 'warrior,mage,ranger,necro,monk', floorArg = '3,12,28,45,70,110,160,210,245', difArg = '0,1,2,3', quality = 'median', packArg = '3', shardArg = '0/1'] = process.argv.slice(2);
+const [out = '/tmp/dw/balance/packs.jsonl', clsArg = 'warrior,mage,ranger,necro,monk', floorArg = '3,13,33,61,87,121,163,243', difArg = '0,1,2,3', quality = 'median', packArg = '3', shardArg = '0/1', heroArg = '1'] = process.argv.slice(2);
 const [shard, shards] = shardArg.split('/').map(Number);
 const configs = [];
-for (const c of clsArg.split(',')) for (const f of floorArg.split(',')) for (const d of difArg.split(',')) configs.push({ cls: c, floor: +f, dif: +d });
-const mine = configs.filter((_, i) => i % shards === shard);
+for (const c of clsArg.split(',')) for (const f of floorArg.split(',')) for (const d of difArg.split(',')) for (let h = 0; h < +heroArg; h++) configs.push({ cls: c, floor: +f, dif: +d, hero: h });
+const done = new Set();
+if (existsSync(out))
+  for (const l of readFileSync(out, 'utf8').split('\n'))
+    try {
+      const r = JSON.parse(l);
+      if (r.t !== undefined) done.add(`${r.cls}|${r.floor}|${r.dif}|${r.hero ?? 0}`);
+    } catch {}
+const mine = configs.filter((c, i) => i % shards === shard && !done.has(`${c.cls}|${c.floor}|${c.dif}|${c.hero}`));
 const PACKS = +packArg;
 
-const { browser, page, errs } = await launch({ width: 640, height: 296, gfx: 0 });
+let { browser, page, errs } = await launch({ width: 640, height: 296, gfx: 0 });
 
 /** a fresh hero on the floor with nothing else around (the floor's own monsters leave) */
 async function setup(c) {
@@ -39,6 +48,15 @@ async function setup(c) {
     }
     if (sc.merc) sc.merc.setVisible?.(false), (sc.merc = null);
     if (sc.pet) (sc.pet.sprite?.setVisible(false), (sc.pet = null));
+    // the share of the hero's health the blows take during a pack (potions and healing not counted against it)
+    const p = sc.player;
+    const dp = sc.combat.damagePlayer.bind(sc.combat);
+    sc.combat.damagePlayer = (...a) => {
+      const before = p.hp;
+      const r = dp(...a);
+      if (window.__pack && p.hp < before) window.__pack.lost += (before - Math.max(0, p.hp)) / p.d.maxHp;
+      return r;
+    };
   });
   return info;
 }
@@ -69,7 +87,7 @@ async function pack() {
       foes.push(e);
       ids.push(id + (i === 6 ? '*' : ''));
     }
-    window.__pack = { foes, t0: sc.simT, minHp: 1, pots: sc.save.stats?.potions ?? 0 };
+    window.__pack = { foes, t0: sc.simT, minHp: 1, lost: 0, pots: sc.save.stats?.potions ?? 0 };
     return { ids, hp: Math.round(p.d.maxHp), foeHp: foes.map((e) => e.maxHp), foeDmg: foes.map((e) => Math.round(e.dmg * sc.diff.enemyDmg)) };
   });
   await page.evaluate(() => window.__dev.bot(true));
@@ -86,7 +104,7 @@ async function pack() {
       const left = pk.foes.filter((e) => !e.dead).length;
       if (p.dead) window.__dev.bot(false);
       const killer = p.dead && sc.lastHit ? `${sc.lastHit.who} (${sc.lastHit.kind}, ${sc.lastHit.amount})` : undefined;
-      return { left, dead: p.dead, t: sc.simT - pk.t0, minHp: pk.minHp, pots: (sc.save.stats?.potions ?? 0) - pk.pots, killer };
+      return { left, dead: p.dead, t: sc.simT - pk.t0, minHp: pk.minHp, lost: pk.lost, pots: (sc.save.stats?.potions ?? 0) - pk.pots, killer };
     });
     if (res.gone || res.dead || res.left === 0) break;
   }
@@ -110,12 +128,17 @@ for (const c of mine) {
       return { maxHp: Math.round(d.maxHp), dmg: `${d.dmgMin}-${d.dmgMax}`, aps: Math.round(d.aps * 100) / 100, armor: d.armor, crit: Math.round(d.crit), spell: Math.round(d.spellMult * 100), dodge: Math.round(d.dodge), block: Math.round(d.block) };
     });
     const avg = (k) => Math.round((packs.reduce((a, r) => a + (r[k] ?? 0), 0) / packs.length) * 100) / 100;
-    const line = { ...c, quality, level: info.level, stats, packs: packs.length, deaths: packs.filter((r) => r.dead).length, killers: packs.filter((r) => r.killer).map((r) => r.killer), timeouts: packs.filter((r) => r.timeout).length, t: avg('t'), minHp: avg('minHp'), pots: avg('pots'), foeHp: packs[0]?.foeHp, foeDmg: packs[0]?.foeDmg, ids: packs[0]?.ids, wall: Math.round((Date.now() - t0) / 1000) };
+    const line = { ...c, quality, level: info.level, stats, packs: packs.length, deaths: packs.filter((r) => r.dead).length, killers: packs.filter((r) => r.killer).map((r) => r.killer), timeouts: packs.filter((r) => r.timeout).length, t: avg('t'), minHp: avg('minHp'), lost: avg('lost'), pots: avg('pots'), ts: packs.map((r) => Math.round((r.t ?? 0) * 10) / 10), foeHp: packs[0]?.foeHp, foeDmg: packs[0]?.foeDmg, ids: packs[0]?.ids, wall: Math.round((Date.now() - t0) / 1000) };
     appendFileSync(out, JSON.stringify(line) + '\n');
-    console.log(JSON.stringify({ cls: c.cls, floor: c.floor, dif: c.dif, deaths: line.deaths, t: line.t, minHp: line.minHp, pots: line.pots }));
+    console.log(JSON.stringify({ cls: c.cls, floor: c.floor, dif: c.dif, hero: c.hero, deaths: line.deaths, t: line.t, minHp: line.minHp, lost: line.lost, pots: line.pots }));
   } catch (e) {
     appendFileSync(out, JSON.stringify({ ...c, quality, error: String(e).slice(0, 200) }) + '\n');
     console.log('error', c, String(e).slice(0, 200));
+    // a crashed page or browser: start a fresh one for the next configuration
+    if (/closed|crash/i.test(String(e))) {
+      await browser.close().catch(() => {});
+      ({ browser, page, errs } = await launch({ width: 640, height: 296, gfx: 0 }));
+    }
   }
   if (errs.length) {
     appendFileSync(out, JSON.stringify({ ...c, pageErrors: errs.splice(0).slice(0, 5) }) + '\n');

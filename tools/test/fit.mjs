@@ -29,6 +29,8 @@ const inspect = (root) => {
     return null;
   };
   for (const e of r0.querySelectorAll('*')) {
+    // meant so: the torches' glow reaches past the screen's edge, the portrait shows a close-up of the hero
+    if (e.closest('.torchglow, .pimg')) continue;
     const r = e.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) continue;
     const st = getComputedStyle(e);

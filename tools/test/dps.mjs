@@ -6,14 +6,22 @@
 // health, so that the time a real pack lasts can be worked out (its health over the damage per second).
 //   node tools/test/dps.mjs <out.jsonl> [classes] [floors] [profile] [seconds] [heroes] [shard/of]
 //   e.g. node tools/test/dps.mjs /tmp/dw/balance/dps.jsonl warrior,mage 3,15,35 median 20 2 0/2
-import { appendFileSync } from 'fs';
+import { appendFileSync, existsSync, readFileSync } from 'fs';
 import { launch, openGame, startGeared, sleep } from './lib.mjs';
 
 const [out = '/tmp/dw/balance/dps.jsonl', clsArg = 'warrior,mage,ranger,necro', floorArg = '3,8,15,25,35,45,61,81,101,151,201,245', profile = 'median', secArg = '20', heroArg = '2', shardArg = '0/1'] = process.argv.slice(2);
 const [shard, shards] = shardArg.split('/').map(Number);
 const configs = [];
 for (const c of clsArg.split(',')) for (const f of floorArg.split(',')) for (let h = 0; h < +heroArg; h++) configs.push({ cls: c, floor: +f, hero: h });
-const mine = configs.filter((_, i) => i % shards === shard);
+// what the output file already has is not measured again (a run cut short goes on where it stopped)
+const done = new Set();
+if (existsSync(out))
+  for (const l of readFileSync(out, 'utf8').split('\n'))
+    try {
+      const r = JSON.parse(l);
+      if (r.dps !== undefined) done.add(`${r.cls}|${r.floor}|${r.hero}`);
+    } catch {}
+const mine = configs.filter((c, i) => i % shards === shard && !done.has(`${c.cls}|${c.floor}|${c.hero}`));
 const SECS = +secArg;
 
 let { browser, page, errs } = await launch({ width: 640, height: 296, gfx: 0 });

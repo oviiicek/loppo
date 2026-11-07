@@ -1963,7 +1963,7 @@ export class Panels {
     const loadout = s.loadout
       .map((id, i) => {
         const sp = id ? SPELL_BY_ID[id] : null;
-        return `<div class="lslot ${i === 3 ? 'ult' : i === 4 ? 'uni' : ''}" data-slot="${i}" title="${slotNames[i]}"><img src="${sp ? spellIcon(sp.icon, sp.color, 80) : spellIcon('plus', '#444444', 80)}"><span class="n">${slotNames[i]}</span></div>`;
+        return `<div class="lslotw"><div class="lslot ${i === 3 ? 'ult' : i === 4 ? 'uni' : ''}" data-slot="${i}" title="${slotNames[i]}"><img src="${sp ? spellIcon(sp.icon, sp.color, 80) : spellIcon('plus', '#444444', 80)}"></div><span class="n">${slotNames[i]}</span></div>`;
       })
       .join('');
     body.innerHTML = `
