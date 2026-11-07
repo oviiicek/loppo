@@ -800,9 +800,10 @@ export class BossAI {
             sc.fx.beam(b.x, b.y - 10, p.x, p.y - 6, 0xff2a48, 3, 230);
             sc.combat.cause = b.name;
             sc.combat.damagePlayer(b.dmg * 0.22, null, 'shadow', true);
-            // it heals, but never back over the phase mark it has passed
+            // it heals (a little: a hero who has not learnt to break the thread yet can still win), but never back
+            // over the phase mark it has passed
             const cap = b.maxHp * (b.bphase > 0 ? BOSS_PHASE_HP[b.bphase - 1] : 1);
-            b.hp = Math.min(cap, b.hp + b.maxHp * 0.006);
+            b.hp = Math.min(cap, b.hp + b.maxHp * 0.0035);
           }
           sc.time.delayedCall(240, tick);
         };
