@@ -326,26 +326,26 @@ function knots(pts: [number, number][], floor: number) {
 const PACK_HP: [number, number][] = [
   [1, 0.85],
   [6, 0.9],
-  [13, 1.05],
-  [33, 1.25],
-  [61, 1.25],
-  [87, 1.35],
-  [121, 1.15],
-  [163, 1.05],
-  [243, 0.8],
+  [13, 0.88],
+  [33, 1.1],
+  [61, 1.15],
+  [87, 1.1],
+  [121, 0.83],
+  [163, 0.85],
+  [243, 0.67],
 ];
 /** and how much harder or softer they hit, so that a pack takes about as much of the hero's health on every floor
  *  (the first floors stay gentler) */
 const PACK_DMG: [number, number][] = [
   [1, 1.2],
   [6, 1],
-  [13, 0.5],
-  [33, 0.45],
-  [61, 0.42],
+  [13, 0.58],
+  [33, 0.42],
+  [61, 0.32],
   [87, 0.55],
-  [121, 0.65],
+  [121, 0.86],
   [163, 0.55],
-  [243, 0.42],
+  [243, 0.38],
 ];
 export function packHpMult(floor: number) {
   return knots(PACK_HP, floor);
