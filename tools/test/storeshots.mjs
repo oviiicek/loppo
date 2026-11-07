@@ -10,19 +10,24 @@ mkdirSync(out, { recursive: true });
 const locale = { cs: 'cs-CZ', en: 'en-US', de: 'de-DE' }[lang] ?? lang;
 const { browser, page } = await launch({ width: 960, height: 540, scale: 2, locale });
 const shot = (n) => page.screenshot({ path: `${out}/${lang}_${n}.png` });
-// no toasts, hints or a white flash of a monster that was just hit on the picture
-const quiet = () =>
-  page.evaluate(() => {
+// no toasts, hints or a white flash of a monster that was just hit on the picture (no new flashes for a while,
+// and a few frames drawn before the picture is taken)
+const quiet = async () => {
+  await page.evaluate(() => {
     document.querySelectorAll('.toasts > *, .lootfeed > *').forEach((t) => t.remove());
     document.querySelectorAll('.hintbox').forEach((t) => t.classList.remove('on'));
     const sc = window.__scene;
     for (const e of [...(sc?.enemies ?? []), sc?.boss].filter(Boolean)) {
-      if (e.dead || !(e.hitFlash > 0 || e.sprite?.tintFill)) continue;
+      if (e.dead) continue;
+      e.flashGap = 5;
+      if (!(e.hitFlash > 0 || e.sprite?.tintFill)) continue;
       e.hitFlash = 0;
       if (e.baseTint !== null && e.baseTint !== undefined) e.sprite.setTint(e.baseTint);
       else e.sprite.clearTint();
     }
   });
+  await sleep(400);
+};
 
 await openGame(page);
 await page.evaluate(() => document.querySelector('[data-a=new]')?.click());
