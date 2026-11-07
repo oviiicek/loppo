@@ -450,7 +450,7 @@ Perly jsou vzácnější než zlato. Ukazují se v HUD vedle zlata (klepnutí ot
 - **Karta Získat perly** prodává perly a balíčky za skutečné peníze:
   - balíčky perel: 50 perel (49 Kč), 130 perel (99 Kč, štítek „Oblíbené“), 345 perel (229 Kč) a 850 perel (499 Kč, „Nejvýhodnější“), ceny jsou i v eurech, dolarech a zlotých,
   - **první nákup balíčku perel dá dvojnásobek perel**,
-  - **Balíček nováčka** (100 perel, Žhnoucí aura, 2 pírka fénixe za 49 Kč) jde koupit jen jednou a jen první týden hraní, s odpočtem času,
+  - **Balíček nováčka** (100 perel, Žhnoucí aura, 2 pírka fénixe za 49 Kč) jde koupit jen jednou a jen první týden hraní, s odpočtem času. Po prvním poraženém strážci ho hra jednou nabídne v okně (ne ve společné hře),
   - **Měsíc perel** (99 Kč): 30 perel hned a 5 perel každý den po 30 dní (vyzvedávají se v záložce Dnes),
   - u každé nabídky je vidět, kolik perel a věcí dává. Hra neprodává náhodné odměny,
   - kdo koupí cokoli, dostane titul **Zlaté srdce**.
