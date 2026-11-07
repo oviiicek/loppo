@@ -319,6 +319,8 @@ export class Enemy extends Actor {
   leap: { t: number; dur: number; x0: number; y0: number; x1: number; y1: number } | null = null;
   leapCd = 1;
   leapPending = false;
+  /** seconds until the next look whether it stands inside a wall */
+  stuckT = Math.random() * 0.5;
   /** a lurker hidden inside a wall, out of reach */
   inWall = false;
   /** which way a monster backing away slides */
@@ -644,13 +646,23 @@ export class Enemy extends Actor {
     }
     if (this.hpBarT > 0) this.hpBarT -= dt;
     if (this.tauntT > 0) this.tauntT -= dt;
-    // knockback
+    // knockback (only ghosts and lurkers are knocked through walls: they pass through them anyway)
+    const throughWalls = this.def.behavior === 'ghost' || this.def.behavior === 'lurker';
     if (Math.abs(this.knockX) + Math.abs(this.knockY) > 0.5) {
-      const [nx, ny] = this.flying ? [this.x + this.knockX * dt, this.y + this.knockY * dt] : this.scene.map.move(this.x, this.y, this.knockX * dt, this.knockY * dt, this.r);
+      const [nx, ny] = throughWalls ? [this.x + this.knockX * dt, this.y + this.knockY * dt] : this.scene.map.move(this.x, this.y, this.knockX * dt, this.knockY * dt, this.r);
       this.x = nx;
       this.y = ny;
       this.knockX *= 0.82;
       this.knockY *= 0.82;
+    }
+    // a monster that ended up inside a wall (a vampire's bats turning back into it there, a shove, a leap gone
+    // wrong) steps out to the nearest free spot: otherwise nothing could reach it and the room would never be clear
+    if (!throughWalls && !this.leap) {
+      this.stuckT -= dt;
+      if (this.stuckT <= 0) {
+        this.stuckT = 0.5;
+        this.unstick();
+      }
     }
     if (this.stunned) {
       this.syncSprite(false);
@@ -1105,6 +1117,24 @@ export class Enemy extends Actor {
       this.atkT = Math.max(this.atkT, 0.4);
     }
     this.syncSprite(true);
+  }
+
+  /** out of a wall to the nearest free spot around (nothing when it stands free) */
+  unstick() {
+    const map = this.scene.map;
+    if (!map.collides(this.x, this.y, this.r)) return false;
+    for (let d = 4; d <= 80; d += 4)
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * Math.PI * 2;
+        const x = this.x + Math.cos(a) * d,
+          y = this.y + Math.sin(a) * d;
+        if (!map.collides(x, y, this.r)) {
+          this.x = x;
+          this.y = y;
+          return true;
+        }
+      }
+    return false;
   }
 
   /** a lurker drifts through walls, strikes out of them and hides again */
