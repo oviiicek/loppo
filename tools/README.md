@@ -20,7 +20,7 @@ Výstupy (sestavení, snímky, měření, překladové úlohy) jdou do `$DW_OUT`
   - vzhled a kód,
   - denní hlubinu (výsledek, sdílení, stejné rozložení při dalším pokusu, smrt bez ztrát),
   - řádek v hlavním menu.
-- `packs.mjs <výstup.jsonl> [classy] [patra] [obtížnosti] [profil] [smeček] [díl/dílů]` měří vyvážení.
+- `packs.mjs <výstup.jsonl> [classy] [patra] [obtížnosti] [profil] [smeček] [díl/dílů] [hrdinů]` měří vyvážení.
   - Hrdina vybavený pro dané patro (hraje ho bot) bojuje se smečkami šesti nestvůr a šampiona.
   - Pro každou konfiguraci se zapíše řádek: čas vyčištění, nejnižší zdraví, vypité lektvary, smrti a co hrdinu zabilo.
   - Profily:
@@ -28,6 +28,29 @@ Výstupy (sestavení, snímky, měření, překladové úlohy) jdou do `$DW_OUT`
     - `good`: silná výbava.
     - `full`: silná výbava a všechno, co má hráč, který hraje naplno (talenty, prosperita Loppa, požehnání, přízeň krále, mazlíček).
   - Díl `0/2` a `1/2` rozdělí matici na dva souběžné běhy.
+  - Poslední argument je počet hrdinů na konfiguraci (každý s jinou náhodnou výbavou).
+  - Zapíše se i podíl zdraví, který hrdinovi vzaly rány během smečky (`lost`).
+  - Co už ve výstupu je, se znovu neměří. Přerušený běh tak pokračuje, kde skončil.
+- `dps.mjs <výstup.jsonl> [classy] [patra] [profil] [sekund] [hrdinů] [díl/dílů]` je měřič poškození.
+  - Hrdina bojuje se smečkou, která zůstává celá: padlou nestvůru hned nahradí stejná.
+  - Hrdina nemůže padnout. Zdraví, které mu rány vezmou, se mu hned vrátí a jen se sečte (`taken`).
+  - Počítá se jen poškození, které nestvůře ještě zbývalo, rozdělené podle zdroje (zbraň, kouzla, spojenci, poškození v čase, ostatní).
+  - Výsledek je čas, za který by padla smečka (její zdraví děleno poškozením za sekundu).
+- `table.mjs [classy] [profil] [obtížnosti] [patra] [hrdinů]` je rychlá tabulka bez hraní.
+  - Na každém patře ukáže, kolik ran zbraní a kouzly vydrží běžná nestvůra a kolik ran vydrží hrdina.
+- `fit.mjs [složka] [velikosti]` projde obrazovky a panely v různých velikostech okna.
+  - Hledá useknutý text, obrázky větší než rámeček a prvky mimo obrazovku.
+  - Zapíše snímky a `fit.json`.
+- `feature.mjs [obrázek] [cs|en]` vytvoří grafiku pro Google Play (1024 × 500).
+- `storeshots.mjs [složka] [jazyk]` vytvoří snímky obrazovky pro obchody (1920 × 1080).
+
+## Vyvážení (`tools/balance/`)
+
+- `packs_report.py <packs.jsonl> [sekund] [podíl]` shrne výsledky `packs.mjs` za každou obtížnost, classu a patro.
+  - Ukazuje čas na smečku, ztracené zdraví a smrti.
+  - Navrhne, o kolik zvýšit zdraví a poškození nestvůr na každém patře, aby smečka trvala zadaný čas a vzala zadaný podíl zdraví.
+- `dps_report.py <dps.jsonl>` a `fit.py <dps.jsonl> [sekund]` shrnou výsledky měřiče poškození.
+  - Navrhnou sílu kouzel každé classy (`CLASS_POWER` v `src/data/spells.ts`) a zdraví nestvůr podle pater (`packHpMult` v `src/data/enemies.ts`).
 
 ## Překlady (`tools/i18n/`)
 
