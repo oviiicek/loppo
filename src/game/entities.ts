@@ -5,7 +5,7 @@ import { ACTOR_SCALE } from '../gfx/textures';
 import { TS } from './map';
 import { areaNorm } from '../data/families';
 import { addDot } from './dot';
-import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, packHpMult, packDmgMult, GUARD_HP, STORY_HP, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, storyStageHp, PRIORITY_ROLES, corruptName } from '../data/enemies';
+import { EnemyDef, BossDef, BossPattern, StoryBossDef, enemyHpScale, enemyDmgScale, packHpMult, packDmgMult, guardHp, guardEarly, STORY_HP, enemyXpScale, enemyArmor, bossArmor, bossBaseStats, storyBossBase, storyStageHp, PRIORITY_ROLES, corruptName } from '../data/enemies';
 import type { PowerState } from './powers';
 import { sfx, gfxLevel } from '../systems/audio';
 import { ArenaKind, BOSS_PHASE_HP } from '../data/bossphases';
@@ -514,12 +514,12 @@ export class Enemy extends Actor {
     // already scales them, so the tier bonus stays small
     const tierMult = Math.pow(1.12, tier);
     // the first guardians are gentler – they are where new players learn to dodge
-    const early = floor <= 10 ? 0.8 : floor <= 20 ? 0.9 : 1;
+    const early = guardEarly(floor);
     const base = bossBaseStats(boss);
     const dif = this.scene.diff;
-    this.maxHp = Math.round(base.hp * 0.5 * enemyHpScale(floor) * tierMult * early * (dif?.enemyHp ?? 1) * GUARD_HP);
+    this.maxHp = Math.round(base.hp * 0.5 * enemyHpScale(floor) * tierMult * early.hp * (dif?.enemyHp ?? 1) * guardHp(floor));
     this.hp = this.maxHp;
-    this.dmg = base.dmg * enemyDmgScale(floor) * Math.pow(1.06, tier) * early * packDmgMult(floor);
+    this.dmg = base.dmg * enemyDmgScale(floor) * Math.pow(1.06, tier) * early.dmg * packDmgMult(floor);
     this.speed = boss.speed * (dif?.enemySpeed ?? 1);
     this.xp = Math.round(300 * enemyXpScale(floor) * (1 + tier));
     this.armor = bossArmor(floor);

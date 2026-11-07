@@ -348,10 +348,20 @@ const PACK_DMG: [number, number][] = [
   [243, 0.38],
 ];
 /** guardians against a typical hero of their depth (the guardian probe, tools/test/bosses.mjs): a floor guardian
- *  has this share of the health it was built with (typical heroes could not finish it in twice its time), a story
- *  guardian's stages this share; both hit as much softer as the floor's regular monsters (packDmgMult) */
-export const GUARD_HP = 0.55;
+ *  has this share of the health it was built with (typical heroes could not finish it in twice its time; the
+ *  deeper ones a little less), a story guardian's stages this share; both hit as much softer as the floor's
+ *  regular monsters (packDmgMult) */
+const GUARD_HP_PTS: [number, number][] = [
+  [1, 0.55],
+  [60, 0.55],
+  [140, 0.45],
+  [250, 0.42],
+];
+export const guardHp = (floor: number) => knots(GUARD_HP_PTS, floor);
 export const STORY_HP = 0.85;
+/** the first guardians are gentler, in health and even more in their blows – they are where new players learn to
+ *  dodge (the queen of the spiders on floor 20 poisoned typical mages to death) */
+export const guardEarly = (floor: number) => (floor <= 10 ? { hp: 0.8, dmg: 0.7 } : floor <= 20 ? { hp: 0.9, dmg: 0.75 } : floor <= 30 ? { hp: 1, dmg: 0.9 } : { hp: 1, dmg: 1 });
 export function packHpMult(floor: number) {
   return knots(PACK_HP, floor);
 }

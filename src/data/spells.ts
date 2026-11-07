@@ -129,6 +129,7 @@ export function magicBase(level: number) {
  *  the damage meter, tools/test/dps.mjs): the damage of the class's spells (and of what they summon) is
  *  multiplied by it */
 const CLASS_POWER: Partial<Record<ClassId | 'universal', number>> = {
+  warrior: 1.1,
   ranger: 0.64,
   mage: 0.9,
   paladin: 1.5,
