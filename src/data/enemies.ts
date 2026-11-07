@@ -323,10 +323,30 @@ function knots(pts: [number, number][], floor: number) {
 /** regular monsters (not the guardians, who keep their own length of fight) against a typical hero of their
  *  depth: how much tougher than the depth's curve they are, so that a pack lasts about as long on every floor;
  *  measured with the pack probe (tools/test/packs.mjs, tools/balance/packs_report.py) */
-const PACK_HP: [number, number][] = [[1, 1]];
+const PACK_HP: [number, number][] = [
+  [1, 0.85],
+  [6, 0.9],
+  [13, 1.05],
+  [33, 1.25],
+  [61, 1.25],
+  [87, 1.35],
+  [121, 1.15],
+  [163, 1.05],
+  [243, 0.8],
+];
 /** and how much harder or softer they hit, so that a pack takes about as much of the hero's health on every floor
  *  (the first floors stay gentler) */
-const PACK_DMG: [number, number][] = [[1, 1]];
+const PACK_DMG: [number, number][] = [
+  [1, 1.2],
+  [6, 1],
+  [13, 0.5],
+  [33, 0.45],
+  [61, 0.42],
+  [87, 0.55],
+  [121, 0.65],
+  [163, 0.55],
+  [243, 0.42],
+];
 export function packHpMult(floor: number) {
   return knots(PACK_HP, floor);
 }

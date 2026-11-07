@@ -128,7 +128,16 @@ export function magicBase(level: number) {
 /** how hard each class's spells hit, so that every class clears a pack of monsters about as fast (measured with
  *  the damage meter, tools/test/dps.mjs): the damage of the class's spells (and of what they summon) is
  *  multiplied by it */
-const CLASS_POWER: Partial<Record<ClassId | 'universal', number>> = {};
+const CLASS_POWER: Partial<Record<ClassId | 'universal', number>> = {
+  warrior: 1.05,
+  ranger: 0.75,
+  mage: 0.9,
+  paladin: 1.35,
+  necro: 0.65,
+  berserker: 0.8,
+  monk: 1.5,
+  shaman: 0.85,
+};
 
 function S(cls: ClassId | 'universal', n: number, name: string, lvl: number, mana: number, cd: number, scale: 'weapon' | 'magic', fx: Fx[], icon: string, color: string, desc: string, ult = false): SpellDef {
   const k = CLASS_POWER[cls] ?? 1;
