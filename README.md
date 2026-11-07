@@ -131,6 +131,11 @@ Pod vesnicí Loppo spí Nyx'thar, Pán hlubin. Před tisíci lety ho spoutala P�
 
   Na vyšších obtížnostech jsou nepřátelé i trochu rychlejší a častěji elitní (na Lehké naopak méně). Platí to i pro strážce. Obtížnost jde změnit v pauze; změna platí od dalšího patra.
   Jedna rána nikdy nevezme víc než část zdraví hrdiny (Lehká 25 %, Normální 30 %, Těžká 32 %, Noční můra 30 %) – silní nepřátelé hrdinu ubíjejí, nezabijí ho na dvě rány. Na Těžké a Noční můře zase nestvůry nepadají na jednu ránu: hra sleduje, jak silně hrdina průměrně udeří, a nestvůra vydrží aspoň 1,5 (Těžká) nebo 2,2 (Noční můra) takové rány, šampion dvaapůlkrát a zkažená nestvůra čtyřikrát víc. Odolnější nestvůra dá i trochu víc zkušeností.
+- **Vyvážení podle pater:** hra je změřená botem na všech deseti classách s běžnou výbavou pro dané patro (nástroje v `tools/`).
+  - Každá oblast má jiné rodiny nestvůr (golemové jsou tužší než jeskynní havěť). Zdraví a poškození nestvůr se proto v každé oblasti přiblíží první oblasti: tužší oblast je pořád znát, ale ne čtyřnásobně.
+  - Běžné nestvůry (ne strážci) mají podle patra upravené zdraví a poškození. Na Normální obtížnosti trvá smečka šesti nestvůr a šampiona běžnému hrdinovi zhruba 5–8 sekund a vezme mu kolem poloviny zdraví. První patra jsou mírnější, poslední kapitola těžší.
+  - Kouzla tříd jsou vyrovnaná tak, aby každá classa čistila smečky zhruba stejně rychle. Síla magie roste stejně jako poškození zbraní: na začátku není trojnásobná a na konci nezaostává.
+  - Hoření, jed a krvácení slábnou, když je obnoví další zásah. Nedrží se na síle nejsilnějšího zásahu.
 - **☠ Hardcore:** volitelný režim s jediným životem. Po smrti se postava hned smaže a začínáš znovu s novou postavou. Padlí hrdinové se zapisují do Síně padlých (menu Postavy). Hardcore jde zapnout jen při zakládání postavy.
 
 ### Postava
