@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Poznámky</title>
+<meta name="application-name" content="Poznámky">
+<meta name="apple-mobile-web-app-title" content="Poznámky">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1f4fd8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1c2230;--mute:#6b7385;--line:#dfe3ea;--acc:#1f4fd8;--accink:#fff;--danger:#c0392b;--note:#f7f9fc}
+@media (prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1b2029;--ink:#e8ebf2;--mute:#8e97a9;--line:#2b3240;--acc:#5b84ff;--accink:#0c1020;--danger:#ff7a6b;--note:#202734}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:8px}
+h1{font-size:19px;margin:0;flex:1}
+#status{font-size:12px;color:var(--mute)}
+input[type=text],textarea{width:100%;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+textarea{min-height:76px;resize:vertical}
+input:focus,textarea:focus{outline:2px solid var(--acc);outline-offset:-1px}
+#search{margin-top:8px}
+main{padding:12px 14px 80px;max-width:760px;margin:0 auto}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer}
+button.p{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:600}
+button.s{padding:4px 9px;font-size:13px;color:var(--mute)}
+button.d{color:var(--danger)}
+.cat{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:10px 0;overflow:hidden}
+.cat .cat{margin:10px 12px;border-radius:12px;background:var(--note)}
+.head{display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer}
+.head .name{flex:1;font-weight:650;font-size:17px}
+.badge{font-size:12px;color:var(--mute);background:var(--note);border:1px solid var(--line);border-radius:99px;padding:1px 9px}
+.arrow{color:var(--mute);transition:transform .15s}
+.open>.head .arrow{transform:rotate(90deg)}
+.body{display:none;padding:0 14px 14px}
+.open>.body{display:block}
+.note{background:var(--note);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0}
+.note .txt{white-space:pre-wrap;word-break:break-word}
+.meta{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--mute)}
+.meta .sp{flex:1}
+.row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+.empty{color:var(--mute);font-size:14px;padding:6px 0}
+.hl{background:#ffe27a55;border-radius:3px}
+.sub{font-size:12px;color:var(--mute);margin:14px 0 2px;text-transform:uppercase;letter-spacing:.04em}
+.ph{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.ph .t{position:relative}
+.ph img{display:block;height:92px;max-width:140px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in}
+.ph .x{position:absolute;top:3px;right:3px;width:24px;height:24px;padding:0;border-radius:99px;line-height:1;background:#000a;color:#fff;border:0}
+#lb{display:none;position:fixed;inset:0;z-index:20;background:#000e;align-items:center;justify-content:center;padding:10px}
+#lb img{max-width:100%;max-height:100%;border-radius:6px}
+#lb button{position:absolute;top:12px;right:12px}
+.bar{display:flex;gap:8px;margin:6px 0 0}
+.bar input{flex:1}
+
+.cat .cat .cat{background:var(--card)}
+.note small{color:var(--mute)}
+.info{font-size:13px;color:var(--mute);margin:6px 0}
+body{padding-bottom:env(safe-area-inset-bottom)}
+header{padding-top:max(12px,env(safe-area-inset-top))}
+</style>
+</head>
+<body>
+<header>
+  <div class="top"><h1>📝 Poznámky</h1><span id="status">načítám…</span><button class="s" id="btnBackup">Záloha</button></div>
+  <input type="text" id="search" placeholder="Hledat v poznámkách…" autocomplete="off">
+</header>
+<div id="lb"><button id="lbx">Zavřít ✕</button><img alt=""></div>
+<input type="file" id="file" accept="image/*" multiple style="display:none">
+<input type="file" id="importFile" accept="application/json,.json" style="display:none">
+<main>
+  <div id="app"></div>
+  <div class="bar" style="margin-top:16px"><input type="text" id="newTop" placeholder="Nová rubrika (např. Sušárna)…"><button class="p" id="addTop">+ Rubrika</button></div>
+  <div id="backup" style="display:none;margin-top:16px" class="note">
+    <div class="sub" style="margin-top:0">Záloha</div>
+    <div class="info">Poznámky i fotky jsou uložené jen v tomto telefonu (v prohlížeči). Když smažeš data prohlížeče nebo aplikaci odinstaluješ, zmizí. Proto si čas od času stáhni zálohu.</div>
+    <div class="row"><button class="p" id="doExport">Stáhnout zálohu</button><button id="doImport">Nahrát zálohu</button><button id="closeBackup">Zavřít</button></div>
+    <div id="importAsk" class="row" style="display:none"><span id="importName" class="info"></span><button class="d" id="importGo">Přepsat vše zálohou</button><button id="importNo">Zrušit</button></div>
+  </div>
+</main>
+<script>
+(function(){
+  var state = null;            // {cats:[{id,name,parent}], notes:[{id,cat,text,photos,ts,edited}], v}
+  var openIds = {}, drafts = {}, draftPh = {};
+  var editing = null, editText = "", editPh = [];
+  var confirmDel = null, renaming = null, addingSub = null;
+  var query = "", pickTarget = null, busy = 0, saveTimer = null, DB = null, pendingImport = null;
+  var urlCache = {};
+  var $ = function(s){return document.querySelector(s)};
+
+  function uid(p){return p + Date.now().toString(36) + Math.random().toString(36).slice(2,6)}
+  function errMsg(e){return (e&&(e.message||e.name||e.code))||String(e)}
+  function defaults(){
+    var v = "c-vyrobky";
+    return {cats:[
+      {id:"c-pece",name:"Pece",parent:null},
+      {id:"c-voziky",name:"Vozíky",parent:null},
+      {id:v,name:"Výrobky",parent:null},
+      {id:"c-rh",name:"Rh",parent:v},
+      {id:"c-rechteky",name:"Rechteky",parent:v},
+      {id:"c-bedny",name:"Bedny",parent:null},
+      {id:"c-posuvy",name:"Posuvy",parent:null},
+      {id:"c-p1",name:"1/1",parent:"c-posuvy"},
+      {id:"c-p10",name:"1/10",parent:"c-posuvy"},
+      {id:"c-p50",name:"1/50",parent:"c-posuvy"},
+      {id:"c-p1-s",name:"Surové",parent:"c-p1"},{id:"c-p1-v",name:"Vypečené",parent:"c-p1"},
+      {id:"c-p10-s",name:"Surové",parent:"c-p10"},{id:"c-p10-v",name:"Vypečené",parent:"c-p10"},
+      {id:"c-p50-s",name:"Surové",parent:"c-p50"},{id:"c-p50-v",name:"Vypečené",parent:"c-p50"}
+    ],notes:[],v:2};
+  }
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+  function fmt(ts){var d=new Date(ts);return d.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric",year:"numeric"})+" "+d.toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}
+  function hl(text){
+    var e = esc(text); if(!query) return e;
+    var q = esc(query).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    return e.replace(new RegExp("("+q+")","gi"),'<span class="hl">$1</span>');
+  }
+  function kids(id){return state.cats.filter(function(c){return c.parent===id})}
+  function notesOf(id){return state.notes.filter(function(n){return n.cat===id}).sort(function(a,b){return b.ts-a.ts})}
+  function countAll(id){var n=notesOf(id).length;kids(id).forEach(function(k){n+=countAll(k.id)});return n}
+  function matches(id){
+    if(!query) return true; var q=query.toLowerCase();
+    var c = state.cats.find(function(x){return x.id===id});
+    if(c.name.toLowerCase().indexOf(q)>=0) return true;
+    if(notesOf(id).some(function(n){return (n.text||"").toLowerCase().indexOf(q)>=0})) return true;
+    return kids(id).some(function(k){return matches(k.id)});
+  }
+  function setStatus(t){$("#status").textContent=t}
+
+  // ---------- úložiště v telefonu (IndexedDB) ----------
+  function openDB(){
+    return new Promise(function(res,rej){
+      if(!window.indexedDB){rej(new Error("IndexedDB není dostupná"));return}
+      var r=indexedDB.open("poznamky",1);
+      r.onupgradeneeded=function(){var d=r.result;d.createObjectStore("kv");d.createObjectStore("photos")};
+      r.onsuccess=function(){res(r.result)};
+      r.onerror=function(){rej(r.error)};
+      r.onblocked=function(){rej(new Error("databáze je blokovaná"))};
+    });
+  }
+  function tx(store,mode,fn){
+    return new Promise(function(res,rej){
+      var t=DB.transaction(store,mode), req=fn(t.objectStore(store));
+      t.oncomplete=function(){res(req&&req.result)};
+      t.onerror=t.onabort=function(){rej(t.error)};
+    });
+  }
+  function save(){
+    setStatus("ukládám…"); clearTimeout(saveTimer);
+    saveTimer=setTimeout(function(){
+      if(!DB){setStatus("nelze ukládat (jen do vyřazení stránky)");return}
+      tx("kv","readwrite",function(s){return s.put(JSON.parse(JSON.stringify(state)),"state")}).then(
+        function(){setStatus("uloženo v telefonu ✓")},
+        function(e){setStatus("nepovedlo se uložit: "+errMsg(e))});
+    },250);
+  }
+  function putPhoto(blob){var id=uid("p-");return tx("photos","readwrite",function(s){return s.put(blob,id)}).then(function(){urlCache[id]=URL.createObjectURL(blob);return id})}
+  function delPhoto(id){
+    if(urlCache[id]){try{URL.revokeObjectURL(urlCache[id])}catch(e){} delete urlCache[id]}
+    return tx("photos","readwrite",function(s){return s.delete(id)}).catch(function(){});
+  }
+  function dropPhotos(ids){(ids||[]).forEach(delPhoto)}
+  function photoURL(id){
+    if(urlCache[id])return Promise.resolve(urlCache[id]);
+    return tx("photos","readonly",function(s){return s.get(id)}).then(function(b){
+      if(!b)return null; urlCache[id]=URL.createObjectURL(b); return urlCache[id];
+    });
+  }
+  function hydrate(){
+    Array.prototype.forEach.call(document.querySelectorAll("img[data-pid]"),function(img){
+      if(img.getAttribute("src"))return;
+      photoURL(img.getAttribute("data-pid")).then(function(u){if(u)img.src=u},function(){});
+    });
+  }
+
+  // ---------- vykreslení ----------
+  function phHtml(arr,rmAct,rmCtx){
+    if(!arr||!arr.length)return "";
+    return '<div class="ph">'+arr.map(function(id){
+      var u=urlCache[id];
+      return '<div class="t"><img data-pid="'+esc(id)+'"'+(u?' src="'+u+'"':'')+' data-act="zoom" data-id="'+esc(id)+'" alt="foto">'+(rmAct?'<button class="x" data-act="'+rmAct+'" data-id="'+esc(id)+'" data-ctx="'+(rmCtx||"")+'">×</button>':'')+'</div>';
+    }).join("")+'</div>';
+  }
+  function photoBtn(target){return '<button class="s" data-act="addphoto" data-target="'+target+'">📷 Foto</button>'}
+  function noteHtml(n){
+    if(editing===n.id){
+      return '<div class="note"><textarea data-edit="'+n.id+'">'+esc(editText)+'</textarea>'+phHtml(editPh,"rmeditphoto")+'<div class="row"><button class="p" data-act="saveedit" data-id="'+n.id+'">Uložit</button>'+photoBtn("edit")+'<button data-act="canceledit">Zrušit</button></div></div>';
+    }
+    var del = confirmDel==="note:"+n.id
+      ? '<button class="s d" data-act="delnote2" data-id="'+n.id+'">Opravdu smazat</button><button class="s" data-act="nodel">Ne</button>'
+      : '<button class="s" data-act="editnote" data-id="'+n.id+'">Upravit</button><button class="s d" data-act="delnote" data-id="'+n.id+'">Smazat</button>';
+    return '<div class="note">'+(n.text?'<div class="txt">'+hl(n.text)+'</div>':'')+phHtml(n.photos)+'<div class="meta"><span>'+fmt(n.ts)+(n.edited?" · upraveno":"")+'</span><span class="sp"></span>'+del+'</div></div>';
+  }
+  function catHtml(c){
+    if(!matches(c.id)) return "";
+    var isOpen = openIds[c.id] || (query && true);
+    var cnt = countAll(c.id);
+    var h = '<div class="cat'+(isOpen?" open":"")+'" data-cat="'+c.id+'">';
+    if(renaming===c.id){
+      h += '<div class="head" style="cursor:default"><input type="text" data-rename="'+c.id+'" value="'+esc(c.name)+'"><button class="p" data-act="saverename" data-id="'+c.id+'">OK</button><button data-act="cancelrename">×</button></div>';
+    } else {
+      h += '<div class="head" data-act="toggle" data-id="'+c.id+'"><span class="arrow">▶</span><span class="name">'+hl(c.name)+'</span>'+(cnt?'<span class="badge">'+cnt+'</span>':'')+'</div>';
+    }
+    h += '<div class="body">';
+    h += '<textarea data-draft="'+c.id+'" placeholder="Nová poznámka k: '+esc(c.name)+'…">'+esc(drafts[c.id]||"")+'</textarea>';
+    h += phHtml(draftPh[c.id],"rmdraftphoto",c.id);
+    h += '<div class="row"><button class="p" data-act="addnote" data-id="'+c.id+'">Přidat poznámku</button>'+photoBtn("draft:"+c.id)+(busy?'<span class="empty">nahrávám foto…</span>':'')+'</div>';
+    var q=query.toLowerCase();
+    var ns = notesOf(c.id).filter(function(n){return !q||(n.text||"").toLowerCase().indexOf(q)>=0||c.name.toLowerCase().indexOf(q)>=0});
+    if(ns.length){h += ns.map(noteHtml).join("")} else if(!query){h += '<div class="empty">Zatím žádné poznámky.</div>'}
+    var ks = kids(c.id);
+    if(ks.length){h += '<div class="sub">Podrubriky</div>'+ks.map(catHtml).join("")}
+    if(addingSub===c.id){
+      h += '<div class="bar"><input type="text" data-subname="'+c.id+'" placeholder="Název podrubriky"><button class="p" data-act="savesub" data-id="'+c.id+'">Přidat</button><button data-act="cancelsub">×</button></div>';
+    }
+    var delBtn = confirmDel==="cat:"+c.id
+      ? '<button class="s d" data-act="delcat2" data-id="'+c.id+'">Smazat i s poznámkami?</button><button class="s" data-act="nodel">Ne</button>'
+      : '<button class="s d" data-act="delcat" data-id="'+c.id+'">Smazat rubriku</button>';
+    h += '<div class="tools"><button class="s" data-act="addsub" data-id="'+c.id+'">+ Podrubrika</button><button class="s" data-act="rename" data-id="'+c.id+'">Přejmenovat</button>'+delBtn+'</div>';
+    h += '</div></div>';
+    return h;
+  }
+  function render(){
+    if(!state){$("#app").innerHTML='<div class="empty">Načítám…</div>';return}
+    var tops = state.cats.filter(function(c){return c.parent===null});
+    var h = tops.map(catHtml).join("");
+    $("#app").innerHTML = h || '<div class="empty">'+(query?"Nic nenalezeno.":"Žádné rubriky – přidej první dole.")+'</div>';
+    hydrate();
+    if(renaming){var i=document.querySelector('[data-rename="'+renaming+'"]');if(i){i.focus();i.select()}}
+    if(addingSub){var s=document.querySelector('[data-subname="'+addingSub+'"]');if(s)s.focus()}
+    if(editing){var t=document.querySelector('[data-edit="'+editing+'"]');if(t){t.focus();t.setSelectionRange(t.value.length,t.value.length)}}
+  }
+  function removeCat(id){
+    kids(id).forEach(function(k){removeCat(k.id)});
+    state.notes.filter(function(n){return n.cat===id}).forEach(function(n){dropPhotos(n.photos)});
+    state.notes=state.notes.filter(function(n){return n.cat!==id});
+    state.cats=state.cats.filter(function(c){return c.id!==id});
+  }
+
+  // ---------- události ----------
+  document.addEventListener("input",function(e){
+    var a=e.target.getAttribute&&e.target.getAttribute.bind(e.target); if(!a)return;
+    var d=a("data-draft"); if(d)drafts[d]=e.target.value;
+    if(a("data-edit"))editText=e.target.value;
+  });
+  $("#search").addEventListener("input",function(e){query=e.target.value.trim();render()});
+  $("#addTop").addEventListener("click",function(){
+    var v=$("#newTop").value.trim(); if(!v)return;
+    var id=uid("c-"); state.cats.push({id:id,name:v,parent:null}); openIds[id]=true;
+    $("#newTop").value=""; save(); render();
+  });
+  $("#newTop").addEventListener("keydown",function(e){if(e.key==="Enter")$("#addTop").click()});
+  $("#lbx").addEventListener("click",function(){$("#lb").style.display="none"});
+  $("#lb").addEventListener("click",function(e){if(e.target===this)this.style.display="none"});
+
+  function shrink(file){
+    return new Promise(function(res,rej){
+      var img=new Image(), u=URL.createObjectURL(file);
+      img.onload=function(){
+        var k=Math.min(1,1600/Math.max(img.width,img.height));
+        var c=document.createElement("canvas"); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+        c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(u);
+        c.toBlob(function(b){b?res(b):rej(new Error("foto nelze zmenšit"))},"image/jpeg",0.8);
+      };
+      img.onerror=function(){rej(new Error("foto nelze přečíst"))}; img.src=u;
+    });
+  }
+  $("#file").addEventListener("change",async function(e){
+    var files=Array.prototype.slice.call(e.target.files||[]), tg=pickTarget; e.target.value="";
+    if(!files.length||!tg)return;
+    if(!DB){setStatus("foto nelze uložit – úložiště není dostupné");return}
+    busy++; render();
+    for(var i=0;i<files.length;i++){
+      try{
+        var id=await putPhoto(await shrink(files[i]));
+        if(tg==="edit")editPh.push(id); else {var cid=tg.slice(6);(draftPh[cid]=draftPh[cid]||[]).push(id)}
+      }catch(err){setStatus("foto: "+errMsg(err))}
+    }
+    busy--; render();
+  });
+
+  $("#app").addEventListener("keydown",function(e){
+    if(e.key!=="Enter"||!e.target.getAttribute)return;
+    if(e.target.getAttribute("data-rename")){var b=document.querySelector('[data-act="saverename"]');if(b)b.click()}
+    if(e.target.getAttribute("data-subname")){var b2=document.querySelector('[data-act="savesub"]');if(b2)b2.click()}
+  });
+  $("#app").addEventListener("click",function(e){
+    var el=e.target.closest("[data-act]"); if(!el)return;
+    var act=el.getAttribute("data-act"), id=el.getAttribute("data-id");
+    var cat=id&&state.cats.find(function(c){return c.id===id});
+    if(act==="toggle"){openIds[id]=!openIds[id];el.closest(".cat").classList.toggle("open",!!openIds[id]);return}
+    if(act==="addphoto"){pickTarget=el.getAttribute("data-target");$("#file").click();return}
+    if(act==="zoom"){photoURL(id).then(function(u){if(u){$("#lb img").src=u;$("#lb").style.display="flex"}});return}
+    if(act==="rmdraftphoto"){var cx=el.getAttribute("data-ctx");draftPh[cx]=(draftPh[cx]||[]).filter(function(x){return x!==id});delPhoto(id);render();return}
+    if(act==="rmeditphoto"){editPh=editPh.filter(function(x){return x!==id});render();return}
+    if(act==="addnote"){
+      var txt=(drafts[id]||"").trim(), ph=draftPh[id]||[]; if(!txt&&!ph.length)return;
+      state.notes.push({id:uid("n-"),cat:id,text:txt,photos:ph,ts:Date.now()});
+      drafts[id]=""; draftPh[id]=[]; save(); render(); return;
+    }
+    if(act==="editnote"){
+      var en=state.notes.find(function(x){return x.id===id});
+      editing=id; editText=en?en.text:""; editPh=en&&en.photos?en.photos.slice():[]; confirmDel=null; render(); return;
+    }
+    if(act==="canceledit"){
+      var cn=state.notes.find(function(x){return x.id===editing}), keep=cn&&cn.photos?cn.photos:[];
+      dropPhotos(editPh.filter(function(x){return keep.indexOf(x)<0})); editing=null; render(); return;
+    }
+    if(act==="saveedit"){
+      var v=editText.trim(), n=state.notes.find(function(x){return x.id===id});
+      if(n&&(v||editPh.length)){
+        dropPhotos((n.photos||[]).filter(function(x){return editPh.indexOf(x)<0}));
+        n.text=v;n.photos=editPh;n.edited=true;
+      }
+      editing=null; save(); render(); return;
+    }
+    if(act==="delnote"){confirmDel="note:"+id;render();return}
+    if(act==="delnote2"){
+      var dn=state.notes.find(function(x){return x.id===id}); if(dn)dropPhotos(dn.photos);
+      state.notes=state.notes.filter(function(n){return n.id!==id});confirmDel=null;save();render();return;
+    }
+    if(act==="delcat"){confirmDel="cat:"+id;render();return}
+    if(act==="delcat2"){removeCat(id);confirmDel=null;save();render();return}
+    if(act==="nodel"){confirmDel=null;render();return}
+    if(act==="rename"){renaming=id;render();return}
+    if(act==="cancelrename"){renaming=null;render();return}
+    if(act==="saverename"){
+      var nv=document.querySelector('[data-rename="'+id+'"]').value.trim();
+      if(nv&&cat)cat.name=nv; renaming=null; save(); render(); return;
+    }
+    if(act==="addsub"){addingSub=id;openIds[id]=true;render();return}
+    if(act==="cancelsub"){addingSub=null;render();return}
+    if(act==="savesub"){
+      var sv=document.querySelector('[data-subname="'+id+'"]').value.trim(); if(!sv)return;
+      var nid=uid("c-"); state.cats.push({id:nid,name:sv,parent:id}); openIds[nid]=true; addingSub=null; save(); render(); return;
+    }
+  });
+
+  // ---------- záloha ----------
+  function blobToDataURL(b){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result)};r.onerror=function(){rej(r.error)};r.readAsDataURL(b)})}
+  $("#btnBackup").addEventListener("click",function(){var b=$("#backup");b.style.display=b.style.display==="none"?"block":"none";if(b.style.display==="block")b.scrollIntoView()});
+  $("#closeBackup").addEventListener("click",function(){$("#backup").style.display="none"});
+  $("#doExport").addEventListener("click",async function(){
+    try{
+      setStatus("připravuji zálohu…");
+      var photos={};
+      for(var i=0;i<state.notes.length;i++){
+        var ph=state.notes[i].photos||[];
+        for(var j=0;j<ph.length;j++){
+          var b=await tx("photos","readonly",function(s){return s.get(ph[j])});
+          if(b)photos[ph[j]]=await blobToDataURL(b);
+        }
+      }
+      var blob=new Blob([JSON.stringify({app:"poznamky",version:1,state:state,photos:photos})],{type:"application/json"});
+      var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+      var d=new Date(); a.download="poznamky-zaloha-"+d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()+".json";
+      document.body.appendChild(a); a.click(); a.remove();
+      setStatus("záloha stažena");
+    }catch(err){setStatus("záloha selhala: "+errMsg(err))}
+  });
+  $("#doImport").addEventListener("click",function(){$("#importFile").click()});
+  $("#importFile").addEventListener("change",function(e){
+    var f=e.target.files&&e.target.files[0]; e.target.value=""; if(!f)return;
+    var r=new FileReader();
+    r.onload=function(){
+      try{
+        var o=JSON.parse(r.result); if(!o||!o.state||!o.state.cats)throw new Error("není to záloha poznámek");
+        pendingImport=o; $("#importName").textContent="Záloha: "+f.name+" ("+o.state.notes.length+" poznámek)"; $("#importAsk").style.display="flex";
+      }catch(err){setStatus("záloha: "+errMsg(err))}
+    };
+    r.readAsText(f);
+  });
+  $("#importNo").addEventListener("click",function(){pendingImport=null;$("#importAsk").style.display="none"});
+  $("#importGo").addEventListener("click",async function(){
+    if(!pendingImport)return;
+    try{
+      var o=pendingImport; pendingImport=null; $("#importAsk").style.display="none";
+      var ids=Object.keys(o.photos||{});
+      for(var i=0;i<ids.length;i++){
+        var blob=await (await fetch(o.photos[ids[i]])).blob();
+        await tx("photos","readwrite",function(s){return s.put(blob,ids[i])});
+        if(urlCache[ids[i]]){try{URL.revokeObjectURL(urlCache[ids[i]])}catch(e){} delete urlCache[ids[i]]}
+      }
+      state=o.state; if(!state.notes)state.notes=[];
+      save(); render(); setStatus("záloha nahrána");
+    }catch(err){setStatus("nahrání zálohy selhalo: "+errMsg(err))}
+  });
+
+  window.addEventListener("error",function(e){setStatus("chyba: "+(e.message||"?"))});
+  window.addEventListener("unhandledrejection",function(e){setStatus("chyba: "+errMsg(e.reason))});
+
+  // ---------- start ----------
+  state=defaults(); render();
+  openDB().then(function(d){
+    DB=d;
+    return tx("kv","readonly",function(s){return s.get("state")});
+  }).then(function(saved){
+    if(saved&&saved.cats){state=saved; if(!state.notes)state.notes=[]}
+    render(); setStatus(saved?"uloženo v telefonu ✓":"připraveno");
+    if(!saved)save();
+    if(navigator.storage&&navigator.storage.persist){try{navigator.storage.persist()}catch(e){}}
+  }).catch(function(err){setStatus("úložiště nedostupné: "+errMsg(err))});
+  if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+})();
+</script>
+</body>
+</html>
