@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Deepwick</string>
+    <string name="title_activity_main">Deepwick</string>
+    <string name="package_name">cz.deepwick.game</string>
+    <string name="custom_url_scheme">cz.deepwick.game</string>
+</resources>

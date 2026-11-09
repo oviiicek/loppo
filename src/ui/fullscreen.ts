@@ -11,15 +11,17 @@ type FsDoc = Document & {
 };
 type FsRoot = HTMLElement & { webkitRequestFullscreen?: () => void };
 
+import { isNativeApp } from '../systems/platform';
+
 const doc = document as FsDoc;
 
 export const FS_HELP =
   'Tento prohlížeč celou obrazovku nedovolí. Funguje na počítači a v Chrome na Androidu – na iPhonu jen u hry přidané na plochu (Sdílet → Přidat na plochu).';
 
-/** running as an installed app (home-screen icon), which already fills the screen */
+/** running as an installed app (home-screen icon, or the app from Google Play), which already fills the screen */
 export function isStandalone() {
   try {
-    return matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || (navigator as any).standalone === true;
+    return isNativeApp() || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || (navigator as any).standalone === true;
   } catch {
     return false;
   }

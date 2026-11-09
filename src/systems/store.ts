@@ -7,6 +7,7 @@
 // - 'test': the dev build (or ?store=test on it) pretends to pay, so the whole way can be tried.
 // Without any of them the offers are shown as coming soon. Whatever is bought goes to the hero being played
 // (pearls belong to a hero), and every purchase is given once (its id is kept in the hero's save).
+import { isNativeApp, nativePlatform, pluginsReady } from './platform';
 import type { SaveData } from './state';
 import { addPearls, saveGame } from './state';
 import { PRODUCT_BY_ID, Product, currencyFor, formatPrice, MONTH_DAYS, MONTH_DAILY } from '../data/store';
@@ -181,6 +182,7 @@ interface CdvWhen {
   approved(fn: (t: { verify(): void }) => void): CdvWhen;
   verified(fn: (r: { finish(): void }) => void): CdvWhen;
   finished(fn: (t: { transactionId: string; products: { id: string }[] }) => void): CdvWhen;
+  productUpdated(fn: (p: { id: string; pricing?: { price: string } }) => void): CdvWhen;
 }
 interface CdvStore {
   register(p: { id: string; type: string; platform: string }[]): void;
@@ -195,13 +197,18 @@ function nativeStore(): { store: CdvStore; ProductType: Record<string, string>; 
 }
 
 async function initNative() {
+  // (the store plugin is there once the app's plugins are ready)
+  await pluginsReady();
   const c = nativeStore();
   if (!c) return false;
-  const cap = (window as unknown as { Capacitor?: { getPlatform(): string } }).Capacitor;
-  const platform = cap?.getPlatform() === 'ios' ? c.Platform.APPLE_APPSTORE : c.Platform.GOOGLE_PLAY;
+  const platform = nativePlatform() === 'ios' ? c.Platform.APPLE_APPSTORE : c.Platform.GOOGLE_PLAY;
   c.store.register(Object.keys(PRODUCT_BY_ID).map((id) => ({ id, type: c.ProductType.CONSUMABLE, platform })));
   c.store
     .when()
+    // the store's prices in the player's currency, as soon as they come
+    .productUpdated((p) => {
+      if (p.pricing?.price) nativePrices[p.id] = p.pricing.price;
+    })
     .approved((t) => t.verify())
     .verified((r) => r.finish())
     .finished((t) => {
@@ -217,9 +224,11 @@ async function initNative() {
 
 // ---------------------------------------------------------------- the way chosen at the start
 export async function initStore() {
-  if (devBuild() && (/[?&]store=test/.test(location.search) || import.meta.env.MODE === 'devtools')) kind = 'test';
+  if (devBuild() && !isNativeApp() && (/[?&]store=test/.test(location.search) || import.meta.env.MODE === 'devtools')) kind = 'test';
   else if (await initNative().catch(() => false)) kind = 'native';
-  else if (__STORE__.api && __STORE__.publicKey) kind = 'web';
+  // (inside the app from Google Play or the App Store digital goods may only be paid through the store: never the
+  // web's payment page there, whatever happens to the store)
+  else if (__STORE__.api && __STORE__.publicKey && !isNativeApp()) kind = 'web';
   if (kind === 'web') await claimReturn();
 }
 

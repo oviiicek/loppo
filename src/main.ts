@@ -8,6 +8,7 @@ import { GalleryScene } from './scenes/GalleryScene';
 import { MenuScene } from './scenes/MenuScene';
 import { initI18n } from './i18n/i18n';
 import { initStore } from './systems/store';
+import { isNativeApp } from './systems/platform';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
@@ -38,7 +39,8 @@ void initI18n()
   });
 
 if (import.meta.env.DEV || import.meta.env.MODE === 'devtools') import('./dev');
-else if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+// (not in the app: its files are inside it, and a cache could keep serving an old version after an update)
+else if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !isNativeApp()) {
   // offline support when installed as a PWA (silently skipped in sandboxed frames)
   window.addEventListener('load', () => {
     try {
