@@ -1,5 +1,21 @@
 apply plugin: 'com.android.application'
 
+// The version comes from the game's package.json (1.2.3 → version code 10203; every release on Google Play needs a
+// higher code, so a new release raises the version there). VERSION_CODE in the environment overrides the code.
+def gamePackage = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
+def gameVersion = gamePackage.version as String
+def gameVersionParts = gameVersion.tokenize('.').collect { (it =~ /\d+/) ? (it =~ /\d+/)[0] as int : 0 }
+def gameVersionCode = System.getenv('VERSION_CODE') ? System.getenv('VERSION_CODE') as int : gameVersionParts[0] * 10000 + gameVersionParts[1] * 100 + gameVersionParts[2]
+
+// The key the app is signed with for Google Play (the upload key): from android/keystore.properties (storeFile,
+// storePassword, keyAlias, keyPassword) or from the environment (ANDROID_KEYSTORE, ANDROID_KEYSTORE_PASSWORD,
+// ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD). Neither is ever in the repository. Without it the release build is
+// unsigned (fine for a check, not for Google Play).
+def signing = new Properties()
+def signingFile = rootProject.file('keystore.properties')
+if (signingFile.exists()) signingFile.withInputStream { signing.load(it) }
+def signingValue = { String key, String env -> signing.getProperty(key) ?: System.getenv(env) }
+
 android {
     namespace = "cz.deepwick.game"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +23,8 @@ android {
         applicationId "cz.deepwick.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode gameVersionCode
+        versionName gameVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +32,22 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            def store = signingValue('storeFile', 'ANDROID_KEYSTORE')
+            if (store) {
+                storeFile rootProject.file(store)
+                storePassword signingValue('storePassword', 'ANDROID_KEYSTORE_PASSWORD')
+                keyAlias signingValue('keyAlias', 'ANDROID_KEY_ALIAS')
+                keyPassword signingValue('keyPassword', 'ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (signingConfigs.release.storeFile) signingConfig signingConfigs.release
         }
     }
 }

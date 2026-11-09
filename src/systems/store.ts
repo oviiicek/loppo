@@ -51,8 +51,12 @@ export function storeKind(): StoreKind {
   return kind;
 }
 
-/** can anything be bought right now */
-export const storeOpen = () => kind !== 'none';
+/** can anything be bought right now (in the app: once the store knows at least one of the products, i.e. they are
+ *  set up in Google Play / App Store and their prices came) */
+export const storeOpen = () => (kind === 'native' ? Object.keys(nativePrices).length > 0 : kind !== 'none');
+
+/** can this product be bought right now (in the app: the store offers it) */
+export const productOpen = (p: Product) => (kind === 'native' ? !!nativePrices[p.id] : kind !== 'none');
 
 /** the price of a product as the player will pay it */
 export function priceOf(p: Product): string {

@@ -4,7 +4,7 @@ import { iconURL, spellIcon } from '../gfx/textures';
 import { TRAILS, TRAIL_BY_ID, PEARL_OFFERS, PearlOffer, pearlState, pearlGold, pearlWord } from '../data/pearls';
 import { AURAS, AURA_BY_ID, TITLES, TITLE_BY_ID, CANDLE_MAX, redeemCode, seasonNow, dealToday, dealOpen, starterUntil, Deal } from '../data/live';
 import { PRODUCTS, PRODUCT_BY_ID, Product, STARTER_DAYS, MONTH_DAILY, MONTH_DAYS, productWorth, currencyFor, formatPrice, pearlRate } from '../data/store';
-import { storeOpen, storeKind, priceOf, buyProduct, canBuy, firstPurchase, monthPearlsToday, takeMonthPearls } from '../systems/store';
+import { storeOpen, productOpen, storeKind, priceOf, buyProduct, canBuy, firstPurchase, monthPearlsToday, takeMonthPearls } from '../systems/store';
 import { currentLang } from '../i18n/i18n';
 import { dayKey } from '../data/pearls';
 import { addPearls, addToInventory, addGem, addRune, saveGame, bagSize } from '../systems/state';
@@ -98,9 +98,9 @@ export class PearlPanels {
     // the smallest pack of pearls that covers what is missing (the biggest one when none does)
     const open = storeOpen();
     const first = firstPurchase(this.save);
-    const packs = PRODUCTS.filter((x) => x.kind === 'pearls');
+    const packs = PRODUCTS.filter((x) => x.kind === 'pearls' && productOpen(x));
     const gives = (x: Product) => x.pearls * (first ? 2 : 1) + (x.bonus ?? 0);
-    const pick = open ? packs.find((x) => gives(x) >= miss) ?? packs[packs.length - 1] : null;
+    const pick = open && packs.length ? packs.find((x) => gives(x) >= miss) ?? packs[packs.length - 1] : null;
     const d = el(`<div class="panel small shortfall"><div class="head"><h2>Chybí ti perly</h2></div><div style="padding:14px">
       <p class="hint" style="font-size:18px;margin:0 0 6px">Na tohle potřebuješ ${n(need)} 💠, máš ${n(have)} 💠 – chybí ${n(miss)} 💠.</p>
       <p class="hint" style="margin:0 0 12px">Perly dávají denní úkoly, denní hlubina, plamen knotu a sezónní cesta.${open ? ' Nebo si je můžeš koupit.' : ''}</p>
@@ -410,7 +410,7 @@ export class PearlPanels {
    *  deal and the moment fits: the hero has just won and the first week is not over) */
   starterNudge() {
     const s = this.save;
-    if (!s || !storeOpen() || this.ui.panel || this.ui.cutsceneActive || this.ui.scene?.cinematic || this.ui.scene?.player.dead) return;
+    if (!s || !productOpen(PRODUCT_BY_ID.starter) || this.ui.panel || this.ui.cutsceneActive || this.ui.scene?.cinematic || this.ui.scene?.player.dead) return;
     const st = pearlState(s);
     const pr = PRODUCT_BY_ID.starter;
     const end = starterUntil(st, STARTER_DAYS);
@@ -452,7 +452,7 @@ export class PearlPanels {
 
   /** a product for real money: its card (the price, what it is worth, a ribbon) */
   private productHtml(pr: Product, first: boolean): string {
-    const open = storeOpen();
+    const open = productOpen(pr);
     const can = canBuy(this.save, pr);
     const btn = !open ? '<button class="btn small" disabled>Brzy</button>' : can ? `<button class="btn small gold" data-pay="${pr.id}">${esc(priceOf(pr))}</button>` : '<span class="pown">✔ Máš</span>';
     if (pr.kind === 'pearls') {

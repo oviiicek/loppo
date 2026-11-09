@@ -61,6 +61,10 @@ Výstupy (sestavení, snímky, měření, překladové úlohy) jdou do `$DW_OUT`
 3. Překladatel podle `tools/i18n/GUIDE.md` zapíše `out.partN.json` a zkontroluje ho: `python3 tools/i18n/check.py <jazyk> N`.
 4. `python3 tools/i18n/merge.py <jazyk>` vloží hotové překlady do `src/i18n/lang/<jazyk>.json`.
 
+## Aplikace pro Android
+
+`bash tools/android.sh` sestaví hru, zkopíruje ji do projektu `android/` a vyrobí podepsaný balík pro Google Play (`android/app/build/outputs/bundle/release/app-release.aab`) a APK k vyzkoušení. Potřebuje Javu 21, Android SDK a podpisový klíč v `android/keystore.properties`. Postup vydání je v `store/GOOGLE_PLAY.md`.
+
 ## Nasazení
 
 `bash tools/deploy.sh "Deploy: co se změnilo"`:

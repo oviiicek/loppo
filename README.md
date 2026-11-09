@@ -15,24 +15,19 @@ npm run preview    # náhled produkčního buildu
 
 Složka `dist/` je statický web. Stačí ji nahrát na libovolný hosting (GitHub Pages, Netlify, Vercel, vlastní server). Na mobilu pak otevři stránku a zvol **Přidat na plochu**. Hra poběží na celou obrazovku a funguje i offline.
 
-### Zabalení do mobilní aplikace (Capacitor)
+### Aplikace pro Android (Google Play)
 
-Nastavení aplikace je v `capacitor.config.json` (ID `cz.deepwick.game`, název Deepwick, web ze složky `dist/`).
-ID aplikace se po prvním vydání v obchodě už nedá změnit, proto ho před vydáním zkontroluj.
+Projekt aplikace je ve složce `android/` (Capacitor 8, ID `cz.deepwick.game`, název Deepwick). Hra v ní běží celá ze souborů v aplikaci, na šířku a přes celou obrazovku. Nákupy perel jdou přes Google Play Billing (plugin `cordova-plugin-purchase`), nikdy přes webovou platbu.
 
 ```bash
-npm install @capacitor/core @capacitor/cli @capacitor/android cordova-plugin-purchase
-npm run build
-npx cap add android
-npx cap sync
-npx cap open android   # otevře Android Studio → Build → Generate Signed Bundle (AAB pro Google Play)
+bash tools/android.sh   # sestaví hru a z ní podepsaný balík .aab pro Google Play a .apk k vyzkoušení
 ```
 
-- V `android/app/src/main/AndroidManifest.xml` dej aktivitě `android:screenOrientation="sensorLandscape"`.
-- Ikony aplikace vytvoř v Android Studiu (Image Asset) z `public/icons/icon-maskable-512.png`.
-- Pro iOS je postup stejný s `@capacitor/ios` (vyžaduje macOS a Xcode). V Xcode nech zapnutou jen orientaci na šířku.
-- Nákupy v aplikaci: produkty se stejnými ID založ v Google Play Console a v App Store Connect (viz `server/README.md`).
-- Po každé změně hry spusť `npm run build` a `npx cap sync`.
+- Potřebuje Javu 21 a Android SDK (platforma 36 a build-tools 36).
+- Podepisovací klíč je v `android/keystore.properties` a souboru `.jks`. Ani jedno nepatří do repozitáře (`.gitignore` je vynechá).
+- Číslo verze aplikace se bere z `package.json`.
+- Postup vydání na Google Play krok za krokem je v `store/GOOGLE_PLAY.md`: účet vývojáře, uzavřený test, stránka hry, hodnocení obsahu, zabezpečení dat a nákupy.
+- Pro iOS je postup obdobný s `@capacitor/ios` (vyžaduje macOS a Xcode).
 
 ## Ovládání
 
